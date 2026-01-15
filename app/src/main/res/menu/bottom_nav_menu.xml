@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+
+    <item
+        android:id="@+id/action_draw"
+        android:orderInCategory="100"
+        android:title="@string/survey"
+        android:icon="@drawable/ic_survey_modified"/>
+
+    <item
+        android:id="@+id/action_accept"
+        android:orderInCategory="100"
+        android:title="@string/accept"
+        android:icon="@drawable/ic_baseline_check_circle_outline_24"/>
+
+    <item
+        android:id="@+id/action_erase"
+        android:orderInCategory="100"
+        android:title="@string/erase"
+        android:icon="@drawable/ic_baseline_layers_clear_24" />
+
+    <item
+        android:id="@+id/action_cancel"
+        android:orderInCategory="100"
+        android:title="@string/cancel"
+        android:icon="@drawable/ic_baseline_cancel_24"/>
+
+    <item
+        android:id="@+id/action_load"
+        android:orderInCategory="100"
+        android:title="@string/load"
+        android:icon="@drawable/baseline_load_file_24"/>
+
+<!--    <item-->
+<!--        android:id="@+id/action_save"-->
+<!--        android:orderInCategory="100"-->
+<!--        android:title="@string/save"-->
+<!--        android:icon="@drawable/baseline_save_24"/>-->
+
+</menu>

@@ -1,0 +1,84 @@
+plugins {
+    id 'com.android.application'
+    id 'kotlin-android'
+    id 'org.jetbrains.kotlin.android'
+}
+apply plugin: 'kotlin-android'
+
+android {
+    compileSdk 33
+
+    defaultConfig {
+        resourceConfigurations += ['en', 'el']
+        applicationId "com.example.droneservicesapp"
+        minSdk 30
+        targetSdk 33
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_11
+    }
+    buildFeatures {
+        viewBinding true
+    }
+    namespace 'com.example.droneservicesapp'
+}
+
+dependencies {
+
+    implementation 'io.github.microutils:kotlin-logging-jvm:2.1.21'
+
+    implementation 'androidx.core:core-ktx:1.10.0'
+    implementation 'com.google.android.material:material:1.8.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.6.1'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1'
+    implementation 'androidx.navigation:navigation-fragment-ktx:2.5.3'
+    implementation 'androidx.navigation:navigation-ui-ktx:2.5.3'
+    implementation 'androidx.preference:preference-ktx:1.2.0'
+    implementation 'com.google.android.gms:play-services-maps:18.1.0'
+    implementation 'com.google.android.gms:play-services-location:21.0.1'
+    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
+    implementation 'androidx.cardview:cardview:1.0.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'androidx.test:monitor:1.6.1'
+    implementation 'androidx.test.ext:junit-ktx:1.1.5'
+    testImplementation 'junit:junit:4.13.2'
+    implementation 'com.google.maps.android:android-maps-utils:3.4.0'
+
+    implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
+    implementation 'io.reactivex.rxjava2:rxjava:2.2.21'
+
+    implementation 'com.jakewharton:process-phoenix:2.1.2'
+
+    implementation 'com.google.maps.android:android-maps-utils:3.4.0'
+    implementation 'androidx.cardview:cardview:1.0.0'
+
+
+    //implementation files('libs/mavsdk-1.1.1.jar')
+//    implementation 'io.mavsdk:mavsdk:1.1.1'
+
+    //implementation files('libs/mavsdk-server-debug.aar')
+//    implementation 'io.mavsdk:mavsdk-server:1.1.1'
+
+    implementation 'io.dronefleet.mavlink:mavlink:1.1.11'
+
+//    implementation "xyz.urbanmatrix.mavlink:mavlink-kotlin:0.16.8"
+//    implementation "xyz.urbanmatrix.mavlink:definitions:0.16.8"
+//    implementation "xyz.urbanmatrix.mavlink:rxjava2:0.16.8"
+}
+

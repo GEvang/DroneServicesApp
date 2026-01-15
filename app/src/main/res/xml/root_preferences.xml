@@ -1,0 +1,85 @@
+<PreferenceScreen xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <PreferenceCategory app:title="@string/drone_con_props_title_pref"
+        app:key="@string/con_interface_cat_pref">
+
+        <ListPreference
+            android:id="@+id/mav_interface"
+            app:defaultValue="UDP"
+            app:entries="@array/drone_connection_interfaces"
+            app:entryValues="@array/drone_connection_interfaces"
+            app:key="@string/mavlink_interface_pref"
+            app:title="@string/drone_conn_interface_pref"
+            app:useSimpleSummaryProvider="true" />
+
+        <ListPreference
+            android:id="@+id/mav_lan_port"
+            app:defaultValue="14550"
+            app:entries="@array/drone_tcp_udp_ports"
+            app:entryValues="@array/drone_tcp_udp_ports"
+            app:key="@string/mavlink_lan_port_pref"
+            app:title="@string/drone_tcpudp_port_pref"
+            app:useSimpleSummaryProvider="true" />
+
+    </PreferenceCategory>
+
+    <PreferenceCategory app:title="@string/locales_categ_pref"
+        app:key="languageCategory">
+
+        <ListPreference
+            android:id="@+id/language_pref"
+            app:defaultValue="el-rGR"
+            app:entries="@array/language_entries"
+            app:entryValues="@array/language_values"
+            app:key="@string/language_pref"
+            app:title="@string/language"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+
+
+
+
+
+
+    <EditTextPreference
+        android:id="@+id/survey_line_dist_pos_pref"
+        app:defaultValue="5"
+        app:key="@string/survey_line_distance_pref"
+        app:title="Survey Line Dist Pos"
+        app:useSimpleSummaryProvider="true"
+        app:isPreferenceVisible="false"/>
+
+    <EditTextPreference
+        android:id="@+id/survey_angle_pref"
+        app:defaultValue="5"
+        app:key="@string/survey_angle_pref"
+        app:title="Survey Angle"
+        app:useSimpleSummaryProvider="true"
+        app:isPreferenceVisible="false"/>
+
+    <EditTextPreference
+        android:id="@+id/mission_alt_pref"
+        app:defaultValue="5"
+        app:key="@string/survey_altitude_pref"
+        app:title="Mission Altitude"
+        app:useSimpleSummaryProvider="true"
+        app:isPreferenceVisible="false"/>
+
+    <EditTextPreference
+        android:id="@+id/sprayer_intensity_pref"
+        app:defaultValue="5"
+        app:key="@string/survey_sprayer_intensity_pref"
+        app:title="Mission Sprayer Intensity"
+        app:useSimpleSummaryProvider="true"
+        app:isPreferenceVisible="false"/>
+
+    <EditTextPreference
+        android:id="@+id/flight_speed_pref"
+        app:defaultValue="1"
+        app:key="@string/flight_speed_pref"
+        app:title="Mission Flight Speed"
+        app:useSimpleSummaryProvider="true"
+        app:isPreferenceVisible="false"/>
+
+</PreferenceScreen>

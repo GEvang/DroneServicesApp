@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+<!--    <item-->
+<!--        android:id="@+id/action_settings"-->
+<!--        android:orderInCategory="100"-->
+<!--        android:title="@string/action_settings"-->
+<!--        app:showAsAction="never" />-->
+<!--    <item-->
+<!--        android:id="@+id/action_draw"-->
+<!--        android:orderInCategory="100"-->
+<!--        android:title="@string/action_draw"-->
+<!--        app:showAsAction="always" />-->
+
+<!--    <item-->
+<!--        android:id="@+id/action_cancel"-->
+<!--        android:orderInCategory="100"-->
+<!--        android:title="@string/action_cancel"-->
+<!--        app:showAsAction="always"-->
+<!--        android:visible="false" />-->
+
+<!--    <item-->
+<!--        android:id="@+id/action_start_mission"-->
+<!--        android:orderInCategory="100"-->
+<!--        android:title="@string/action_start_mission"-->
+<!--        app:showAsAction="always"-->
+<!--        android:visible="false"/>-->
+
+</menu>

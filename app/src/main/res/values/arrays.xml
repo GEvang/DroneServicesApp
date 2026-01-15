@@ -1,0 +1,31 @@
+<resources>
+
+    <string-array name="drone_connection_interfaces">
+        <item>TCP</item>
+        <item>UDP</item>
+    </string-array>
+
+    <string-array name="drone_tcp_udp_ports">
+        <item>14550</item>
+        <item>14551</item>
+        <item>14552</item>
+        <item>14553</item>
+        <item>14554</item>
+        <item>14555</item>
+        <item>14556</item>
+        <item>14557</item>
+        <item>14558</item>
+        <item>14559</item>
+    </string-array>
+
+    <string-array name="language_entries">
+        <item>English</item>
+        <item>Ελληνικά</item>
+    </string-array>
+
+    <string-array name="language_values">
+        <item>default</item>
+        <item>el</item>
+    </string-array>
+
+</resources>

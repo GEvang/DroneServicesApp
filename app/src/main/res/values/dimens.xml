@@ -1,0 +1,18 @@
+<resources>
+    <!-- Default screen margins, per the Android Design guidelines. -->
+    <dimen name="activity_horizontal_margin">16dp</dimen>
+    <dimen name="activity_vertical_margin">16dp</dimen>
+    <dimen name="nav_header_vertical_spacing">8dp</dimen>
+    <dimen name="nav_header_height">176dp</dimen>
+    <dimen name="mtrl_toolbar_default_height">40dp</dimen>
+
+    <!-- Overriding sizes of the FAB -->
+    <dimen name="design_fab_size_normal">90dp</dimen>
+    <dimen name="design_fab_size_mini">50dp</dimen>
+    <dimen name="fab_margin">5dp</dimen>
+
+
+    <!-- Drone Circle -->
+    <dimen name="drone_diameter">40dp</dimen>
+    <dimen name="circle_diameter">100dp</dimen>
+</resources>
