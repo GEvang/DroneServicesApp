@@ -214,10 +214,25 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                         when (message.payload) {
 
-                            is Heartbeat -> {
+                            is Heartbeat -> run heartbeat@{
 
                                 val heartbeatMessage = message as MavlinkMessage<Heartbeat>
-                                Log.i("MavlinkHeartbeat", "Heartbeat: ${heartbeatMessage}")
+                                val hb = heartbeatMessage.payload
+
+                                val isGcs = hb.type().entry() == MavType.MAV_TYPE_GCS
+                                val hasAutopilot =
+                                    hb.autopilot().entry() != io.dronefleet.mavlink.minimal.MavAutopilot.MAV_AUTOPILOT_INVALID
+
+                                if (isGcs || !hasAutopilot) return@heartbeat
+
+                                // ---- ARMED STATE (CORRECT) ----
+                                val baseMode = hb.baseMode().value()
+                                val isArmed = (baseMode and 0x80) != 0   // MAV_MODE_FLAG_SAFETY_ARMED
+
+                                handler.post {
+                                    droneViewModel.armedState.postValue(isArmed)
+                                }
+
 
                                 targetComponentId = heartbeatMessage.originComponentId
                                 targetSystemId = heartbeatMessage.originSystemId
@@ -228,14 +243,6 @@ class MavLinkComm(private var activity: FragmentActivity?)
                                     )
                                 }
                                 Log.i("MavlinkHeartbeat", "Heartbeat flightMode: ${heartbeatMessage.payload.customMode()}")
-
-
-                                val armState =
-                                    (heartbeatMessage.payload.baseMode().value() or 0b1000000) shr 7
-                                handler.post {
-                                    droneViewModel.armedState.postValue(armState == 1)
-                                }
-                                Log.i("MavlinkHeartbeat", "Arm state: $armState")
 
 
                                 mavHrtbtCon.send2(
