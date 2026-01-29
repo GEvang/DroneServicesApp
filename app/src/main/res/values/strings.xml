@@ -96,4 +96,5 @@
     <string name="mission_directory" translatable="false">DroneServices/Missions</string>
     <string name="chose_file">Choose a file</string>
     <string name="DroneServicesFilePageSuffix" translatable="false">.dsfp</string>
+    <string name="no_telemetry_forwarding_msg">Connected (heartbeat), but telemetry isn’t forwarding. Check Herelink MAVLink forwarding / bridge.</string>
 </resources>

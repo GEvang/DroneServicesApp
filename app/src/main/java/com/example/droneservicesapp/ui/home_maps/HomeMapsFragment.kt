@@ -20,7 +20,15 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.*
+import android.widget.ArrayAdapter
+import android.widget.Button
+import android.widget.CheckBox
+import android.widget.EditText
+import android.widget.ImageView
+import android.widget.ListView
+import android.widget.SeekBar
+import android.widget.TextView
+import android.widget.Toast
 import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -40,13 +48,18 @@ import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.*
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.CameraPosition
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.Marker
+import com.google.android.gms.maps.model.MarkerOptions
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import io.dronefleet.mavlink.common.MavCmd
 import java.io.File
 import java.io.FileInputStream
-import java.util.*
+import java.util.Locale
 
 
 //abstract
@@ -128,6 +141,18 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
 //                "position lat: " + droneLocation.latitude + "  long: " + droneLocation.longitude +
 //                        "  rel-alt: " + droneLocation.altitude
 //            )
+
+            droneViewModel.telemetryAliveLiveData.observe(viewLifecycleOwner) { telemetryAlive ->
+                val connected = droneViewModel.conStateLiveData.value == true
+                if (connected && !telemetryAlive) {
+                    Toast.makeText(
+                        context,
+                        getString(R.string.no_telemetry_forwarding_msg),
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+
         }
 
         droneViewModel.droneHeading.observe(this.viewLifecycleOwner) { droneHeading ->

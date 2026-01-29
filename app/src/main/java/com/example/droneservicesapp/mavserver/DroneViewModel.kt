@@ -19,6 +19,10 @@ class DroneViewModel : ViewModel() {
         MutableLiveData<Boolean>().default(false)
     }
 
+    val telemetryAliveLiveData: MutableLiveData<Boolean> by lazy {
+        MutableLiveData<Boolean>().default(false)
+    }
+
     val armedState: MutableLiveData<Boolean> by lazy {
         MutableLiveData<Boolean>().default(false)
     }

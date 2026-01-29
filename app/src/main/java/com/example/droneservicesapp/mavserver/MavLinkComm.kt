@@ -73,6 +73,9 @@ class MavLinkComm(private var activity: FragmentActivity?)
     private var componentId : Int = 99
     private var systemId : Int = 254
 
+    private var listenPort: Int = 14550
+
+    @Volatile private var lastNonHeartbeatMs: Long = 0L
 
 
     // Create PipedInputStream and PipedOutputStream for input and output streams respectively
@@ -106,6 +109,7 @@ class MavLinkComm(private var activity: FragmentActivity?)
         mavDownCon = MavlinkConnection.create(mavMisDwnPIS, mavMisDwnPOS)
         mavUpCon = MavlinkConnection.create(mavMisUpPIS, mavMisUpPOS)
         mavHrtbtCon = MavlinkConnection.create(mavHrtbtPIS, mavHrtbtPOS)
+        listenPort = port
 
         subscribeUdpConnection()
         subscribeMavlinkMsgReader()
@@ -138,7 +142,7 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                 try {
                     // Create a DatagramSocket for receiving data
-                    val udpSocket = DatagramSocket(14550)
+                    val udpSocket = DatagramSocket(listenPort)
                     val receiveData = ByteArray(4096)
                     while (!emitter.isDisposed) {
 
@@ -225,6 +229,9 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                                 if (isGcs || !hasAutopilot) return@heartbeat
 
+                                Log.i("HB_SRC", "sys=${message.originSystemId} comp=${message.originComponentId} baseMode=0x${(message as MavlinkMessage<Heartbeat>).payload.baseMode().value().toString(16)}")
+
+
                                 // ---- ARMED STATE (CORRECT) ----
                                 val baseMode = hb.baseMode().value()
                                 val isArmed = (baseMode and 0x80) != 0   // MAV_MODE_FLAG_SAFETY_ARMED
@@ -255,6 +262,8 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                             is BatteryStatus -> {
 
+                                lastNonHeartbeatMs = System.currentTimeMillis()
+
                                 val batteryMessage = message as MavlinkMessage<BatteryStatus>
 
                                 Log.i("MavlinkBattery", "BatteryStatus voltage percentage: ${batteryMessage.payload.batteryRemaining()}")
@@ -280,6 +289,8 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                             is GlobalPositionInt -> {
 
+                                lastNonHeartbeatMs = System.currentTimeMillis()
+
                                 val positionMessage = message as MavlinkMessage<GlobalPositionInt>
 
                                 Log.i("MavlinkLocation", "Location   lat: ${positionMessage.payload.lat().toFloat() * 10.0.pow(-7)}")
@@ -304,6 +315,8 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                             is RcChannels -> {
 
+                                lastNonHeartbeatMs = System.currentTimeMillis()
+
                                 val positionMessage = message as MavlinkMessage<RcChannels>
 
                                 Log.i("MavlinkRcChannels", "RcChannels   rssi: ${positionMessage.payload.rssi()}")
@@ -314,6 +327,8 @@ class MavLinkComm(private var activity: FragmentActivity?)
                             }
 
                             is MissionAck -> {
+
+                                lastNonHeartbeatMs = System.currentTimeMillis()
 
                                 val missionAckMsg = message as MavlinkMessage<MissionAck>
                                 Log.i("MavlinkAck", "missionAckMsg ${missionAckMsg.payload.type()}")
@@ -332,11 +347,15 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                             is MissionCurrent -> {
 
+                                lastNonHeartbeatMs = System.currentTimeMillis()
+
                                 val missionCurrentMsg = message as MavlinkMessage<MissionCurrent>
                                 Log.i("MissionCurrent", "missionCurrentMsg ${missionCurrentMsg.payload}")
                             }
 
                             is MissionRequestInt -> {
+
+                                lastNonHeartbeatMs = System.currentTimeMillis()
 
                                 val missionReqIntMsg = message as MavlinkMessage<MissionRequestInt>
                                 Log.i("MissionRequestInt", "Received MissionRequestInt ${missionReqIntMsg.payload}")
@@ -357,6 +376,8 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                             is MissionRequest -> {
 
+                                lastNonHeartbeatMs = System.currentTimeMillis()
+
                                 val missionReqMsg = message as MavlinkMessage<MissionRequest>
                                 Log.i("MissionRequest", "Received missionReqMsg ${missionReqMsg.payload}")
 
@@ -375,6 +396,9 @@ class MavLinkComm(private var activity: FragmentActivity?)
                             }
 
                             is MissionCount -> {
+
+                                lastNonHeartbeatMs = System.currentTimeMillis()
+
                                 val missionCountMsg = message as MavlinkMessage<MissionCount>
                                 Log.i("MissionCount", "Received missionReqMsg ${missionCountMsg.payload}")
 
@@ -391,6 +415,9 @@ class MavLinkComm(private var activity: FragmentActivity?)
                             }
 
                             is MissionItemInt -> {
+
+                                lastNonHeartbeatMs = System.currentTimeMillis()
+
                                 val missionItemIntMsg = message as MavlinkMessage<MissionItemInt>
                                 Log.i("MissionItemInt", "Received MissionItemInt ${missionItemIntMsg.payload}")
 
@@ -407,6 +434,9 @@ class MavLinkComm(private var activity: FragmentActivity?)
                             }
 
                             is DistanceSensor ->{
+
+                                lastNonHeartbeatMs = System.currentTimeMillis()
+
                                 val distanceSensorMsg = message as MavlinkMessage<DistanceSensor>
                                 Log.i("DistanceSensor", "Received DistanceSensor ${distanceSensorMsg.payload}")
 
@@ -504,6 +534,10 @@ class MavLinkComm(private var activity: FragmentActivity?)
                             lastHeartbeat = System.currentTimeMillis()
                             Log.i("subscribeConnectionState", "Received $message  ${System.currentTimeMillis()}")
                         }
+
+                        val telemetryAlive = (System.currentTimeMillis() - lastNonHeartbeatMs) < 2500
+                        droneViewModel.telemetryAliveLiveData.postValue(telemetryAlive)
+
 
                         emitter.onNext(System.currentTimeMillis() - lastHeartbeat < 5500)
                         Log.i("subscribeConnectionState", "Loop ${System.currentTimeMillis() - lastHeartbeat}")
