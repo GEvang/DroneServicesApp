@@ -26,7 +26,6 @@ class SettingsFragment : PreferenceFragmentCompat(),
         savedInstanceState: Bundle?
     ): View {
 
-        preferenceManager.sharedPreferences?.registerOnSharedPreferenceChangeListener(this)
         onMavInterfaceSelection(
             preferenceManager.sharedPreferences?.getString("mavInterface", null)
         )
@@ -38,18 +37,18 @@ class SettingsFragment : PreferenceFragmentCompat(),
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {
-        when(key) {
-            getString(R.string.mavlink_interface_pref) ->
-            {
-                onMavInterfaceSelection(
-                    sharedPreferences!!.getString(getString(R.string.mavlink_interface_pref),null)
-                )
-            }
-            getString(R.string.language_pref) ->
-            {
-                LocaleUtils.setSelectedLanguageId(preferenceManager.sharedPreferences?.
-                                                getString(getString(R.string.language_pref), "default"))
 
+        if (!isAdded) return
+
+        when (key) {
+            "mavInterface" -> {
+                onMavInterfaceSelection(sharedPreferences?.getString("mavInterface", null))
+            }
+
+            "language" -> {
+                LocaleUtils.setSelectedLanguageId(
+                    sharedPreferences?.getString("language", "default")
+                )
                 ProcessPhoenix.triggerRebirth(Application.getInstance().applicationContext)
             }
         }
@@ -67,6 +66,18 @@ class SettingsFragment : PreferenceFragmentCompat(),
             findPreference<Preference?>("mavSerialBaud")?.isVisible = false
         }
     }
+
+
+    override fun onStart() {
+        super.onStart()
+        preferenceManager.sharedPreferences?.registerOnSharedPreferenceChangeListener(this)
+    }
+
+    override fun onStop() {
+        preferenceManager.sharedPreferences?.unregisterOnSharedPreferenceChangeListener(this)
+        super.onStop()
+    }
+
 }
 
 

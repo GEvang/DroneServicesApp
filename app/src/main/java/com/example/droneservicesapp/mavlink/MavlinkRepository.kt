@@ -10,7 +10,10 @@ import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import io.reactivex.schedulers.Schedulers
+import io.reactivex.subjects.PublishSubject
+import io.reactivex.subjects.Subject
 import java.util.concurrent.atomic.AtomicBoolean
+
 
 class MavlinkRepository {
 
@@ -20,6 +23,9 @@ class MavlinkRepository {
     private var readerDisposable: Disposable? = null
 
     private val running = AtomicBoolean(false)
+
+    private val msgSubject: Subject<MavlinkMessage<*>> =
+        PublishSubject.create<MavlinkMessage<*>>().toSerialized()
 
     @Volatile var lastHeartbeatMs: Long = 0L
         private set
@@ -56,6 +62,8 @@ class MavlinkRepository {
         start(config)
     }
 
+    fun messages(): Observable<MavlinkMessage<*>> = msgSubject.hide()
+
     private fun startReader() {
         val con = mavCon ?: return
 
@@ -65,7 +73,12 @@ class MavlinkRepository {
                     val msg = con.next() ?: break
                     emitter.onNext(msg)
                 }
+                if (!emitter.isDisposed) emitter.onComplete()
             } catch (e: Exception) {
+                // ✅ If we're stopping/disposed, ignore expected shutdown exceptions
+                if (emitter.isDisposed || !running.get()) return@create
+
+                // Otherwise it’s a real error
                 emitter.onError(e)
             }
         }
@@ -73,6 +86,7 @@ class MavlinkRepository {
             .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
                 { msg ->
+                    msgSubject.onNext(msg)
                     if (msg.payload is Heartbeat) {
                         lastHeartbeatMs = System.currentTimeMillis()
                     }

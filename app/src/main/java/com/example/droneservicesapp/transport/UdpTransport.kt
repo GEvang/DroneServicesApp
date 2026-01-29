@@ -35,7 +35,7 @@ class UdpTransport(
 
         try {
             socket = DatagramSocket(listenPort)
-            Thread { runLoop() }.start()
+            Thread({ runLoop() }, "UdpTransport-$listenPort").apply { isDaemon = true }.start()
             Log.i("UdpTransport", "Started UDP listen on $listenPort")
         } catch (e: Exception) {
             running.set(false)
@@ -53,6 +53,9 @@ class UdpTransport(
 
         try { rcvPOS.close() } catch (_: Exception) { }
         try { sndPIS.close() } catch (_: Exception) { }
+        try { rcvPIS.close() } catch (_: Exception) { }
+        try { sndPOS.close() } catch (_: Exception) { }
+
 
         Log.i("UdpTransport", "Stopped UDP transport")
     }

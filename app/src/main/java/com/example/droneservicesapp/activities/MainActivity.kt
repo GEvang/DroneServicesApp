@@ -27,13 +27,14 @@ import androidx.navigation.ui.setupWithNavController
 import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.databinding.ActivityMainBinding
+import com.example.droneservicesapp.mavlink.MavlinkConfig
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.navigation.NavigationView
 import java.math.RoundingMode
 import java.text.DecimalFormat
-import java.util.*
+import java.util.Locale
 
 
 class MainActivity : AppCompatActivity() {
@@ -44,13 +45,52 @@ class MainActivity : AppCompatActivity() {
     private lateinit var droneViewModel: DroneViewModel
     private lateinit var activityViewModel: MainActivityViewModel
 
-    private var sharedPreferences : SharedPreferences? = null
+    private lateinit var sharedPreferences: SharedPreferences
+
+    private fun restartMavlinkFromPrefs() {
+
+        val ifaceStr = sharedPreferences.getString(
+            getString(R.string.mavlink_interface_pref),
+            "UDP"
+        ) ?: "UDP"
+
+        val port = sharedPreferences.getString(
+            getString(R.string.mavlink_lan_port_pref),
+            "14550"
+        )?.toIntOrNull() ?: 14550
+
+        val iface = when (ifaceStr.uppercase(Locale.getDefault())) {
+            "UDP" -> MavlinkConfig.InterfaceType.UDP
+            "TCP" -> MavlinkConfig.InterfaceType.TCP
+            "SERIAL" -> MavlinkConfig.InterfaceType.SERIAL
+            else -> MavlinkConfig.InterfaceType.UDP
+        }
+
+        val config = MavlinkConfig(interfaceType = iface, port = port)
+
+        // Start repo (idempotent) and ensure parsing bridge is attached
+        droneViewModel.startMavlink(config)
+    }
+
+
+    private val prefListener =
+        SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (
+                key == getString(R.string.mavlink_lan_port_pref) ||
+                key == getString(R.string.mavlink_interface_pref)
+            ) {
+                // Restart MAVLink immediately on config change
+                restartMavlinkFromPrefs()
+            }
+        }
+
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(applicationContext)
+        sharedPreferences.registerOnSharedPreferenceChangeListener(prefListener)
 
         com.example.droneservicesapp.Application.getInstance().initAppLanguage(this)
 
@@ -302,29 +342,6 @@ class MainActivity : AppCompatActivity() {
                 findViewById<TextView>(R.id.sprayer_flow_text).text = "$liquid_level%"
         }
 
-//        droneViewModel.rcStatus.observe(this){ rc ->
-//
-//            if( rc.isAvailable && !rc.signalStrengthPercent.isNaN() &&
-//                rc.signalStrengthPercent in 0.0..1.0 )
-//            {
-//                binding.appBarMain.rcSignalStrengthTxt.
-//                    findViewById<TextView>(R.id.rc_signal_strength_txt).text =
-//                        "${rc.signalStrengthPercent * 100.0}%"
-//            }
-//        }
-
-//        droneViewModel.conStateLiveData.observe(this){ connState ->
-//            if( connState ){
-//                binding.appBarMain.droneConnectedText.
-//                findViewById<TextView>(R.id.drone_connected_text).text =
-//                    getString(R.string.connected)
-//            }
-//            else{
-//                binding.appBarMain.droneConnectedText.
-//                findViewById<TextView>(R.id.drone_connected_text).text =
-//                    getString(R.string.disconnected)
-//            }
-//        }
 
         droneViewModel.armedState.observe(this){ armedState ->
             if( armedState ){
@@ -377,24 +394,21 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-
-        val mavInterface = sharedPreferences?.getString(getString(R.string.mavlink_interface_pref) , "UDP")?.lowercase(Locale.getDefault())
-        val mavPort = sharedPreferences?.getString(getString(R.string.mavlink_lan_port_pref), "14550")?.toInt()
-
-        val connString = "$mavInterface://:$mavPort"
-
-        //Log.d(Log.DEBUG.toString(), "connString $connString")
-
-        if (mavPort != null) {
-            droneViewModel.mavlinkCommunicationLiveData.value?.startConn(connString, mavPort)
-        }
+        restartMavlinkFromPrefs()
     }
+
 
     override fun onPause() {
         super.onPause()
-
-        droneViewModel.mavlinkCommunicationLiveData.value?.stopConn()
+        droneViewModel.mavlinkRepository.stop()
     }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        sharedPreferences.unregisterOnSharedPreferenceChangeListener(prefListener)
+    }
+
+
 
 
 

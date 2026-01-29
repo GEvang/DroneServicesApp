@@ -106,7 +106,6 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
         }
 
         droneViewModel = activity?.let { ViewModelProvider(it)[DroneViewModel::class.java] }!!
-        droneViewModel.mavlinkCommunicationLiveData.value?.setActivity(activity)
 
         activityViewModel = activity?.let { ViewModelProvider(it)[MainActivityViewModel::class.java] }!!
 
