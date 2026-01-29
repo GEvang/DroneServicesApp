@@ -3,6 +3,7 @@ package com.example.droneservicesapp.mavserver
 import android.location.Location
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.example.droneservicesapp.mavlink.MavlinkRepository
 import io.dronefleet.mavlink.common.MissionItemInt
 
 class DroneViewModel : ViewModel() {
@@ -10,6 +11,8 @@ class DroneViewModel : ViewModel() {
     val mavlinkCommunicationLiveData : MutableLiveData<MavLinkComm> by lazy{
         MutableLiveData<MavLinkComm>().default(MavLinkComm(null))
     }
+
+    val mavlinkRepository: MavlinkRepository by lazy { MavlinkRepository() }
 
     val droneLocationLiveData: MutableLiveData<Location> by lazy {
         MutableLiveData<Location>().default(Location(""))
