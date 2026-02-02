@@ -48,13 +48,26 @@ class UdpTransport(
         running.set(false)
         try {
             socket?.close() // this will break receive() with SocketException
-        } catch (_: Exception) { }
+        } catch (_: Exception) {
+        }
         socket = null
 
-        try { rcvPOS.close() } catch (_: Exception) { }
-        try { sndPIS.close() } catch (_: Exception) { }
-        try { rcvPIS.close() } catch (_: Exception) { }
-        try { sndPOS.close() } catch (_: Exception) { }
+        try {
+            rcvPOS.close()
+        } catch (_: Exception) {
+        }
+        try {
+            sndPIS.close()
+        } catch (_: Exception) {
+        }
+        try {
+            rcvPIS.close()
+        } catch (_: Exception) {
+        }
+        try {
+            sndPOS.close()
+        } catch (_: Exception) {
+        }
 
 
         Log.i("UdpTransport", "Stopped UDP transport")

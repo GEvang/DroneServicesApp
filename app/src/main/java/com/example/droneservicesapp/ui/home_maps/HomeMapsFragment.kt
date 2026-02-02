@@ -42,6 +42,7 @@ import com.example.droneservicesapp.MissionFileHandler
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.activities.MainActivityViewModel
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
+import com.example.droneservicesapp.mavlink.MissionBuilder
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.shape.Survey
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -63,9 +64,8 @@ import java.util.Locale
 
 
 //abstract
-class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.OnMarkerClickListener,
-    GoogleMap.OnMarkerDragListener
-{
+class HomeMapsFragment : Fragment(), GoogleMap.OnMapClickListener, GoogleMap.OnMarkerClickListener,
+    GoogleMap.OnMarkerDragListener {
 
     private var _binding: FragmentHomeMapsBinding? = null
 
@@ -77,29 +77,29 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
     // This property is only valid between onCreateView and onDestroyView.
     private val binding get() = _binding!!
 
-    private var droneMarker : Marker? = null
+    private var droneMarker: Marker? = null
 
-    private var sharedPreferences : SharedPreferences? = null
+    private var sharedPreferences: SharedPreferences? = null
 
-    private var survey : Survey? = null
+    private var survey: Survey? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View
-    {
-        sharedPreferences = this.activity?.let { PreferenceManager.getDefaultSharedPreferences(it.applicationContext) }
+    ): View {
+        sharedPreferences =
+            this.activity?.let { PreferenceManager.getDefaultSharedPreferences(it.applicationContext) }
 
         _binding = FragmentHomeMapsBinding.inflate(inflater, container, false)
 
-        binding.myLocationButton.setOnClickListener{
-            if(activityViewModel.drawEnableLiveData.value == false)
+        binding.myLocationButton.setOnClickListener {
+            if (activityViewModel.drawEnableLiveData.value == false)
                 zoomToCurrentLocation()
         }
 
         binding.droneLocationButton.setOnClickListener {
-            if(droneViewModel.conStateLiveData.value == true )
+            if (droneViewModel.conStateLiveData.value == true)
                 zoomToDroneLocation()
             else
                 Toast.makeText(context, getString(R.string.no_conn_msg), Toast.LENGTH_LONG).show()
@@ -107,7 +107,8 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
 
         droneViewModel = activity?.let { ViewModelProvider(it)[DroneViewModel::class.java] }!!
 
-        activityViewModel = activity?.let { ViewModelProvider(it)[MainActivityViewModel::class.java] }!!
+        activityViewModel =
+            activity?.let { ViewModelProvider(it)[MainActivityViewModel::class.java] }!!
 
         return binding.root
     }
@@ -119,7 +120,7 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
         //Log.i(Log.INFO.toString(), "drone location: ${droneMarker?.position}")
     }
 
-    private fun setMarkerRotation(heading : Double) {
+    private fun setMarkerRotation(heading: Double) {
         droneMarker?.rotation = heading.toFloat()
 
         //Log.i(Log.INFO.toString(), "drone heading: ${droneMarker?.rotation}")
@@ -161,81 +162,108 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
         droneViewModel.conStateLiveData.observe(this.viewLifecycleOwner) { connState ->
             droneMarker?.isVisible = connState
 
-            if(connState && activityViewModel.mapState.value == MainActivityViewModel.MapState.Idle)
-            {
-                droneViewModel.mavlinkCommunicationLiveData.value?.
-                    downloadMission()
+            if (connState && activityViewModel.mapState.value == MainActivityViewModel.MapState.Idle) {
+                droneViewModel.downloadMissionNew()
             }
         }
 
-        droneViewModel.droneFrontDistance.distinctUntilChanged().observe(this.viewLifecycleOwner) { frontDistance ->
-            Log.i("frontDistance", "------")
-            Log.i("frontDistance", "frontDistance $frontDistance ")
-            val color = getColor(frontDistance)
+        droneViewModel.droneFrontDistance.distinctUntilChanged()
+            .observe(this.viewLifecycleOwner) { frontDistance ->
+                Log.i("frontDistance", "------")
+                Log.i("frontDistance", "frontDistance $frontDistance ")
+                val color = getColor(frontDistance)
 
-            Log.i("frontDistance", "distance: $frontDistance    color: $color")
+                Log.i("frontDistance", "distance: $frontDistance    color: $color")
 
-            requireActivity().findViewById<TextView>(R.id.front_dist).text = frontDistance.toString() + "m"
-            val drawable = requireActivity().
-            findViewById<ImageView>(R.id.avoidance_compass).drawable as GradientDrawable
+                requireActivity().findViewById<TextView>(R.id.front_dist).text =
+                    frontDistance.toString() + "m"
+                val drawable =
+                    requireActivity().findViewById<ImageView>(R.id.avoidance_compass).drawable as GradientDrawable
 
-            if( drawable.colors != null ) {
-                drawable.colors = intArrayOf(color, drawable.colors!![1], drawable.colors!![2])
+                if (drawable.colors != null) {
+                    drawable.colors = intArrayOf(color, drawable.colors!![1], drawable.colors!![2])
+                }
             }
-        }
 
-        droneViewModel.droneBackDistance.distinctUntilChanged().observe(this.viewLifecycleOwner) { backDistance ->
-            Log.i("backDistance", "------")
-            Log.i("backDistance", "backDistance $backDistance ")
-            val color = getColor(backDistance)
+        droneViewModel.droneBackDistance.distinctUntilChanged()
+            .observe(this.viewLifecycleOwner) { backDistance ->
+                Log.i("backDistance", "------")
+                Log.i("backDistance", "backDistance $backDistance ")
+                val color = getColor(backDistance)
 
-            Log.i("backDistance", "distance: $backDistance    color: $color")
+                Log.i("backDistance", "distance: $backDistance    color: $color")
 
-            requireActivity().findViewById<TextView>(R.id.back_dist).text = backDistance.toString() + "m"
-            val drawable = requireActivity().
-            findViewById<ImageView>(R.id.avoidance_compass).drawable as GradientDrawable
+                requireActivity().findViewById<TextView>(R.id.back_dist).text =
+                    backDistance.toString() + "m"
+                val drawable =
+                    requireActivity().findViewById<ImageView>(R.id.avoidance_compass).drawable as GradientDrawable
 
-            if( drawable.colors != null ) {
-                drawable.colors = intArrayOf(drawable.colors!![0], drawable.colors!![1], color)
+                if (drawable.colors != null) {
+                    drawable.colors = intArrayOf(drawable.colors!![0], drawable.colors!![1], color)
+                }
             }
-        }
 
         activityViewModel.angleProgress.observe(requireActivity(), Observer { angle ->
-            Log.i("Angle Progress Observer",
-                "MainActivityViewModel.MapState: " + MainActivityViewModel.MapState.SetFlightParams)
+            Log.i(
+                "Angle Progress Observer",
+                "MainActivityViewModel.MapState: " + MainActivityViewModel.MapState.SetFlightParams
+            )
 
-            if(activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams)
-            {
-                Log.i("Angle Progress Observer",
+            if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams) {
+                Log.i(
+                    "Angle Progress Observer",
                     "angle call distance: " + activityViewModel.lineDistanceProgress.value!! +
-                            "   angle: " + activityViewModel.angleProgress.value!!.toInt())
+                            "   angle: " + activityViewModel.angleProgress.value!!.toInt()
+                )
 
-                this.run{ drawSurveyMissionOnMap(activityViewModel.lineDistanceProgress.value!!, angle.toInt(), mMap!!) }
+                this.run {
+                    drawSurveyMissionOnMap(
+                        activityViewModel.lineDistanceProgress.value!!,
+                        angle.toInt(),
+                        mMap!!
+                    )
+                }
 
-                val sharedPref = PreferenceManager.getDefaultSharedPreferences(requireActivity().applicationContext) ?: return@Observer
-                with (sharedPref.edit()) {
+                val sharedPref =
+                    PreferenceManager.getDefaultSharedPreferences(requireActivity().applicationContext)
+                        ?: return@Observer
+                with(sharedPref.edit()) {
                     putString(getString(R.string.survey_angle_pref), angle.toInt().toString())
                     apply()
                 }
             }
-        } )
+        })
 
-        activityViewModel.lineDistanceProgress.observe(this.viewLifecycleOwner, Observer { distance ->
-            if(activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams)
-            {
-                Log.i(Log.INFO.toString(),
-                    "distance call distance: " + distance + "   angle: " +
-                            activityViewModel.angleProgress.value!!.toInt())
+        activityViewModel.lineDistanceProgress.observe(
+            this.viewLifecycleOwner,
+            Observer { distance ->
+                if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams) {
+                    Log.i(
+                        Log.INFO.toString(),
+                        "distance call distance: " + distance + "   angle: " +
+                                activityViewModel.angleProgress.value!!.toInt()
+                    )
 
-                this.run{ drawSurveyMissionOnMap(distance, activityViewModel.angleProgress.value!!.toInt(), mMap!!) }
+                    this.run {
+                        drawSurveyMissionOnMap(
+                            distance,
+                            activityViewModel.angleProgress.value!!.toInt(),
+                            mMap!!
+                        )
+                    }
 
-                val sharedPref = PreferenceManager.getDefaultSharedPreferences(requireActivity().applicationContext) ?: return@Observer
-                with (sharedPref.edit()) {
-                    putString(getString(R.string.survey_line_distance_pref), distance.toInt().toString())
-                    apply()
+                    val sharedPref =
+                        PreferenceManager.getDefaultSharedPreferences(requireActivity().applicationContext)
+                            ?: return@Observer
+                    with(sharedPref.edit()) {
+                        putString(
+                            getString(R.string.survey_line_distance_pref),
+                            distance.toInt().toString()
+                        )
+                        apply()
+                    }
                 }
-            }
-        } )
+            })
 
         activityViewModel.flightAltProgress.observe(this.viewLifecycleOwner, Observer { altitude ->
             if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams) {
@@ -255,92 +283,73 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
             // Log.i(Log.INFO.toString(), "Map State Changed to: $mapState")
 
             // Idle: drawing is not allowed
-            if (mapState == MainActivityViewModel.MapState.Idle)
-            {
+            if (mapState == MainActivityViewModel.MapState.Idle) {
                 activityViewModel.drawEnableLiveData.value = false
 
-                if( mMap != null )
-                    droneViewModel.mavlinkCommunicationLiveData.value?.
-                        downloadMission()
+                if (mMap != null)
+                    droneViewModel.downloadMissionNew()
             }
 
             // Reset: clear drawings and go to Idle State
-            else if (mapState == MainActivityViewModel.MapState.Reset)
-            {
+            else if (mapState == MainActivityViewModel.MapState.Reset) {
                 activityViewModel.area.value!!.clearDrawings()
                 activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
             }
 
             // Clear: clear drawings and go to Draw State
-            else if (mapState == MainActivityViewModel.MapState.ClearAll)
-            {
+            else if (mapState == MainActivityViewModel.MapState.ClearAll) {
                 activityViewModel.area.value!!.clearDrawings()
                 activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
-            }
-
-            else if(mapState == MainActivityViewModel.MapState.ClearKeepDrawing)
-            {
+            } else if (mapState == MainActivityViewModel.MapState.ClearKeepDrawing) {
                 activityViewModel.area.value!!.clearSurveyPath()
                 activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
             }
 
             // Draw: enable drawing
-            else if (mapState == MainActivityViewModel.MapState.Draw)
-            {
+            else if (mapState == MainActivityViewModel.MapState.Draw) {
                 activityViewModel.drawEnableLiveData.value = true
             }
 
             // set flight parameters state. set angle, line distance, height
             // throws popup window to set the flight parameters
-            else if (mapState == MainActivityViewModel.MapState.SetFlightParams)
-            {
+            else if (mapState == MainActivityViewModel.MapState.SetFlightParams) {
                 activityViewModel.drawEnableLiveData.value = false
 
-                Log.i(Log.INFO.toString(),
+                Log.i(
+                    Log.INFO.toString(),
                     "generic distance: " + activityViewModel.lineDistanceProgress.value!! + "   angle: " +
-                            activityViewModel.angleProgress.value!!.toInt())
+                            activityViewModel.angleProgress.value!!.toInt()
+                )
 
-                this.run{ drawSurveyMissionOnMap(activityViewModel.lineDistanceProgress.value!!,
-                    activityViewModel.angleProgress.value!!.toInt(), mMap!!) }
+                this.run {
+                    drawSurveyMissionOnMap(
+                        activityViewModel.lineDistanceProgress.value!!,
+                        activityViewModel.angleProgress.value!!.toInt(), mMap!!
+                    )
+                }
 
                 initMissionParams()
-            }
-            else if( mapState == MainActivityViewModel.MapState.LoadMissionFromFile )
-            {
+            } else if (mapState == MainActivityViewModel.MapState.LoadMissionFromFile) {
                 fileLoaderDialog()
             }
         }
 
         droneViewModel.missionItems.observe(this.viewLifecycleOwner) { missionItems ->
 
-            if( droneViewModel.conStateLiveData.value!! && missionItems.size > 0 )
-            {
+            if (droneViewModel.conStateLiveData.value!! && missionItems.size > 0) {
                 activityViewModel.area.value!!.clearSurveyPath()
 
                 survey?.clearMarkers()
                 survey = Survey(activityViewModel.area.value!!, requireActivity())
 
                 val surveyPath = ArrayList<LatLng>()
-                for(item in missionItems)
-                {
-                    if( item.seq() > 0 && item.command().entry() == MavCmd.MAV_CMD_NAV_WAYPOINT )
-                        surveyPath.add( LatLng(item.x() * 10e-8, item.y() * 10e-8) )
+                for (item in missionItems) {
+                    if (item.seq() > 0 && item.command().entry() == MavCmd.MAV_CMD_NAV_WAYPOINT)
+                        surveyPath.add(LatLng(item.x() * 10e-8, item.y() * 10e-8))
                 }
 
                 activityViewModel.area.value!!.surveyPath = surveyPath
                 mMap?.let { activityViewModel.area.value!!.surveyPolylineOptions(it) }
-            }
-        }
-
-        droneViewModel.conStateLiveData.observe(viewLifecycleOwner) { connState ->
-
-            if (connState) {
-                Log.i("connState","drone connected!")
-                droneViewModel.mavlinkCommunicationLiveData.value?.downloadMission()
-
-            } else {
-                Log.i("connState","drone disconnected!")
-                activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Reset)
             }
         }
 
@@ -354,7 +363,7 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
             requireActivity().findViewById(R.id.my_location_button)
         val droneLocationFB: FloatingActionButton? =
             requireActivity().findViewById(R.id.drone_location_button)
-        val bottomNavigationView : BottomNavigationView? =
+        val bottomNavigationView: BottomNavigationView? =
             requireActivity().findViewById(R.id.bottom_nav_view)
         bottomNavigationView?.isVisible = true
 
@@ -374,19 +383,17 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
         _binding = null
     }
 
-    private fun drawSurveyMissionOnMap(distance : Double, angle : Int, map: GoogleMap)
-    {
+    private fun drawSurveyMissionOnMap(distance: Double, angle: Int, map: GoogleMap) {
         activityViewModel.area.value!!.clearSurveyPath()
 
         survey?.clearMarkers()
         survey = Survey(activityViewModel.area.value!!, requireActivity())
         activityViewModel.area.value!!.surveyPath =
-                survey?.createSurveyPath(distance, angle, this.context, map)!!
+            survey?.createSurveyPath(distance, angle, this.context, map)!!
 
-        if(activityViewModel.area.value!!.surveyPath.size == 0) {
+        if (activityViewModel.area.value!!.surveyPath.size == 0) {
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
-        }
-        else {
+        } else {
             mMap?.let { activityViewModel.area.value!!.surveyPolylineOptions(it) }
         }
     }
@@ -396,20 +403,20 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
      * Updates the map's UI settings based on whether the user has granted location permission.
      */
     // [START maps_current_place_update_location_ui]
-    private fun zoomToCurrentLocation()
-    {
+    private fun zoomToCurrentLocation() {
         if (activity?.let {
                 ContextCompat.checkSelfPermission(
                     it.applicationContext,
-                    Manifest.permission.ACCESS_FINE_LOCATION)
-            } != PackageManager.PERMISSION_GRANTED)
-        {
-            Toast.makeText(this.context, getString(R.string.no_permissions_msg), Toast.LENGTH_LONG).show()
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                )
+            } != PackageManager.PERMISSION_GRANTED) {
+            Toast.makeText(this.context, getString(R.string.no_permissions_msg), Toast.LENGTH_LONG)
+                .show()
             return
         }
 
         // zoom to drone or to user location
-        val location : Location? = getLastKnownLocation()
+        val location: Location? = getLastKnownLocation()
         //Log.i(Log.INFO.toString(), "lat: " + location?.latitude + "   long: " + location?.longitude)
 
         if (location != null) {
@@ -429,10 +436,9 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
     // [END zoomToLocation]
 
 
-    private fun zoomToDroneLocation()
-    {
+    private fun zoomToDroneLocation() {
         // zoom to drone or to user location
-        val location : Location? = droneViewModel.droneLocationLiveData.value
+        val location: Location? = droneViewModel.droneLocationLiveData.value
         //Log.i(Log.INFO.toString(), "drone lat: " + location?.latitude + "   drone long: " + location?.longitude)
 
         if (location != null) {
@@ -475,88 +481,68 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
         if (activity?.let {
                 ContextCompat.checkSelfPermission(
                     it.applicationContext,
-                    Manifest.permission.ACCESS_FINE_LOCATION)
-            } == PackageManager.PERMISSION_GRANTED)
-        {
+                    Manifest.permission.ACCESS_FINE_LOCATION
+                )
+            } == PackageManager.PERMISSION_GRANTED) {
             mMap?.isMyLocationEnabled = true
             mMap?.uiSettings?.isMyLocationButtonEnabled = false
 
             zoomToCurrentLocation()
 
             droneMarker = mMap?.addMarker(
-                            MarkerOptions()
-                                .visible(false)
-                                .position(LatLng(0.0, 0.0))
-                                .anchor(0.5F, 0.5F)
-                                .icon(context?.let { bitmapDescriptorFromVector(it, R.drawable.drone_marker_36) })
+                MarkerOptions()
+                    .visible(false)
+                    .position(LatLng(0.0, 0.0))
+                    .anchor(0.5F, 0.5F)
+                    .icon(context?.let {
+                        bitmapDescriptorFromVector(
+                            it,
+                            R.drawable.drone_marker_36
+                        )
+                    })
             )!!
 
             mMap?.setOnMapClickListener(this)
             mMap?.setOnMarkerClickListener(this)
             mMap?.setOnMarkerDragListener(this)
-        }
-        else
-            Toast.makeText(activity?.applicationContext, getString(R.string.invalid_location_permissions), Toast.LENGTH_LONG)
+        } else
+            Toast.makeText(
+                activity?.applicationContext,
+                getString(R.string.invalid_location_permissions),
+                Toast.LENGTH_LONG
+            )
     }
 
     private fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor? {
         return ContextCompat.getDrawable(context, vectorResId)?.run {
             setBounds(0, 0, intrinsicWidth, intrinsicHeight)
-            val bitmap = Bitmap.createBitmap(intrinsicWidth, intrinsicHeight, Bitmap.Config.ARGB_8888)
+            val bitmap =
+                Bitmap.createBitmap(intrinsicWidth, intrinsicHeight, Bitmap.Config.ARGB_8888)
             draw(Canvas(bitmap))
             BitmapDescriptorFactory.fromBitmap(bitmap)
         }
     }
 
-//    private fun getBitmapFromTextView(layoutId: Int): BitmapDescriptor {
-//        val view =
-//            layoutInflater.inflate(layoutId, null) as LinearLayout
-//
-//        val dist = view.findViewById<View>(R.id.lineDistance) as TextView
-//        dist.text = "10m"
-//
-//        val bitmap = Bitmap.createBitmap(
-//            view.width, view.height, Bitmap.Config.ARGB_8888
-//        )
-//        view.draw(Canvas(bitmap))
-//
-//        return BitmapDescriptorFactory.fromBitmap(bitmap)
-//    }
-
 
     override fun onMapClick(p0: LatLng) {
-        if(activityViewModel.drawEnableLiveData.value == true)
-        {
-            val marker = mMap?.addMarker(MarkerOptions().anchor(0.5f, 0.5f)
+        if (activityViewModel.drawEnableLiveData.value == true) {
+            val marker = mMap?.addMarker(
+                MarkerOptions().anchor(0.5f, 0.5f)
                     .position(p0)
-                    .icon(context?.let { bitmapDescriptorFromVector(it, R.drawable.ic_baseline_mission_marker) })
+                    .icon(context?.let {
+                        bitmapDescriptorFromVector(
+                            it,
+                            R.drawable.ic_baseline_mission_marker
+                        )
+                    })
                     .draggable(true)
-                )!!
+            )!!
 
             // add marker to location clicked
             activityViewModel.area.value!!.latLngArrayListMarkers.add(marker)
 
             activityViewModel.area.value!!.addEdgeToPolygon(marker, mMap!!, requireContext())
 
-
-//            for (i in 0 until polygonEdges.size)
-//            {
-//                if( i < polygonEdges.size )
-//                {
-//                    val midpoint = midPoint(polygonEdges[i],
-//                        polygonEdges[(i+1) % polygonEdges.size])
-//                    val distance = SphericalUtil.computeDistanceBetween(polygonEdges[i],
-//                        polygonEdges[(i+1) % polygonEdges.size])
-//
-//                    val iconFactory = IconGenerator(context)
-//                    val marker3 = mMap?.addMarker(MarkerOptions().anchor(0.5f, 0.5f)
-//                        .position(p0)
-//                        .icon(BitmapDescriptorFactory.fromBitmap(iconFactory.makeIcon("Marker 3")))
-//                        .title("test")
-//                    )!!
-//                    latLngArrayListMarkers.add()
-//                }
-//            }
         }
     }
 
@@ -565,56 +551,61 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
 
         val index = activityViewModel.area.value!!.latLngArrayListMarkers.indexOf(p0)
 
-        if( index != -1 && activityViewModel.drawEnableLiveData.value == true)
-        {
-            mMap?.let { activityViewModel.area.value!!.removeEdgeFromPolygon(p0, it, requireContext()) }
+        if (index != -1 && activityViewModel.drawEnableLiveData.value == true) {
+            mMap?.let {
+                activityViewModel.area.value!!.removeEdgeFromPolygon(
+                    p0,
+                    it,
+                    requireContext()
+                )
+            }
             return true
         }
 
         return false
     }
 
-    override fun onMarkerDrag(p0: Marker) { }
+    override fun onMarkerDrag(p0: Marker) {}
 
     override fun onMarkerDragEnd(p0: Marker) {
         activityViewModel.area.value!!.adjustEdgeToPolygon(p0, mMap!!, requireActivity())
     }
 
-    override fun onMarkerDragStart(p0: Marker) { }
+    override fun onMarkerDragStart(p0: Marker) {}
 
 
-    private fun fileLoaderDialog()
-    {
-        val loadFileView = requireActivity().
-            findViewById<LinearLayoutCompat>(R.id.load_file_selector_layout)
+    private fun fileLoaderDialog() {
+        val loadFileView =
+            requireActivity().findViewById<LinearLayoutCompat>(R.id.load_file_selector_layout)
 
         // Set the directory path where the ".waypoint" files are located
         val directory = context?.getString(
-            R.string.mission_directory)?.let { File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), it) }
+            R.string.mission_directory
+        )?.let {
+            File(
+                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), it
+            )
+        }
 
         // Get a list of all files in the directory that end with ".waypoint"
         val files = directory?.listFiles { _, name ->
             name.lowercase(Locale.ROOT).endsWith(getString(R.string.DroneServicesFilePageSuffix))
         }
 
-        if( files == null )
-        {
-            Toast.makeText(context, "Error in loading missions from directory", Toast.LENGTH_LONG).show()
-        }
-        else if(files.isEmpty())
-        {
+        if (files == null) {
+            Toast.makeText(context, "Error in loading missions from directory", Toast.LENGTH_LONG)
+                .show()
+        } else if (files.isEmpty()) {
             Toast.makeText(context, "No missions saved yet", Toast.LENGTH_LONG).show()
-        }
-        else
-        {
+        } else {
             // Extract file names from the list of files
             val fileNames = files.map { it.name.substring(0, it.name.lastIndexOf('.')) }
 
-            val listView = requireActivity().findViewById(R.id.file_list) as ListView
+            val listView: ListView = requireActivity().findViewById(R.id.file_list)
 
             val itemList = mutableListOf<String>()
-            val adapter = ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, itemList)
+            val adapter =
+                ArrayAdapter(requireContext(), android.R.layout.simple_list_item_1, itemList)
 
             adapter.addAll(fileNames)
             adapter.notifyDataSetChanged()
@@ -624,14 +615,21 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
 
             listView.setOnItemClickListener { _, _, position, _ ->
 
-                Log.d("File Selector","Position Selected $position" )
-                Log.d("File Selector","File Selected ${itemList[position]}" )
-                Log.d("File Selector","File Path Selected ${files[position].path}" )
+                Log.d("File Selector", "Position Selected $position")
+                Log.d("File Selector", "File Selected ${itemList[position]}")
+                Log.d("File Selector", "File Path Selected ${files[position].path}")
 
-                MissionFileHandler(requireActivity(), activityViewModel).
-                parseXml(FileInputStream( files[position].path ))
+                MissionFileHandler(requireActivity(), activityViewModel).parseXml(
+                    FileInputStream(
+                        files[position].path
+                    )
+                )
 
-                Toast.makeText(context, "Selected file: ${files[position].path}", Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    context,
+                    "Selected file: ${files[position].path}",
+                    Toast.LENGTH_SHORT
+                ).show()
 
                 loadFileView.isVisible = false
             }
@@ -642,7 +640,6 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
         }
     }
-
 
 
     @SuppressLint("CheckResult")
@@ -666,27 +663,26 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
             // surveyDistance in m / ( flightSpeed in m/sec * 60 sec/min ) =>
             //  m / ( m/sec * sec/min ) => m / (m / min) => min
             val time =
-                ( activityViewModel.flightDistance.value!! / ( flightSpeed * 60) ).toInt()
-            if(time > 0 )
-                flightTimeText?.text  = time.toString()
+                (activityViewModel.flightDistance.value!! / (flightSpeed * 60)).toInt()
+            if (time > 0)
+                flightTimeText?.text = time.toString()
             else
-                flightTimeText?.text  = "1"
+                flightTimeText?.text = "1"
         }
 
         activityViewModel.flightDistance.observe(viewLifecycleOwner) { distance ->
 
             // surveyDistance in m / ( flightSpeed in m/sec * 60 sec/min ) =>
             //  m / ( m/sec * sec/min ) => m / (m / min) => min
-            val time = ( distance / (activityViewModel.flightSpeed.value!! * 60) ).toInt()
-            if(time > 0 )
-                flightTimeText?.text  = time.toString()
+            val time = (distance / (activityViewModel.flightSpeed.value!! * 60)).toInt()
+            if (time > 0)
+                flightTimeText?.text = time.toString()
             else
-                flightTimeText?.text  = "1"
+                flightTimeText?.text = "1"
         }
 
-        activityViewModel.mapState.observe(viewLifecycleOwner){ mapState ->
-            if( mapState == MainActivityViewModel.MapState.UploadMissionSuccess )
-            {
+        activityViewModel.mapState.observe(viewLifecycleOwner) { mapState ->
+            if (mapState == MainActivityViewModel.MapState.UploadMissionSuccess) {
                 activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Reset)
 
                 missionParamsSideView.isVisible = false
@@ -695,40 +691,42 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
 
         val angleSeekBarValue = activity?.findViewById<EditText>(R.id.line_angle_value)
         val angleSeekBar = activity?.findViewById<SeekBar>(R.id.line_angle_seekbar)
-        if ( angleSeekBar != null && angleSeekBarValue != null ) {
+        if (angleSeekBar != null && angleSeekBarValue != null) {
             initSeekbar(angleSeekBar, angleSeekBarValue, activityViewModel.angleProgress)
         }
 
         val lineDistanceSeekBarValue = activity?.findViewById<EditText>(R.id.line_distance_value)
         val lineDistanceSeekBar = activity?.findViewById<SeekBar>(R.id.line_distance_seekbar)
-        if ( lineDistanceSeekBar != null && lineDistanceSeekBarValue != null ) {
-            initSeekbar(lineDistanceSeekBar, lineDistanceSeekBarValue, activityViewModel.lineDistanceProgress)
+        if (lineDistanceSeekBar != null && lineDistanceSeekBarValue != null) {
+            initSeekbar(
+                lineDistanceSeekBar,
+                lineDistanceSeekBarValue,
+                activityViewModel.lineDistanceProgress
+            )
         }
 
         val altitudeSeekBarValue = activity?.findViewById<EditText>(R.id.altitude_value)
         val altitudeSeekBar = activity?.findViewById<SeekBar>(R.id.altitude_seekbar)
-        if ( altitudeSeekBar != null && altitudeSeekBarValue != null ) {
+        if (altitudeSeekBar != null && altitudeSeekBarValue != null) {
             initSeekbar(altitudeSeekBar, altitudeSeekBarValue, activityViewModel.flightAltProgress)
         }
 
         val sprayerSeekbarValue = activity?.findViewById<EditText>(R.id.sprayer_seekbar_value)
         val sprayerSeekBar = activity?.findViewById<SeekBar>(R.id.sprayer_seekbar)
-        if ( sprayerSeekBar != null && sprayerSeekbarValue != null ) {
+        if (sprayerSeekBar != null && sprayerSeekbarValue != null) {
             initSeekbar(sprayerSeekBar, sprayerSeekbarValue, activityViewModel.sprayerProgress)
         }
 
         val buttonMinus = activity?.findViewById<Button>(R.id.minus_button)
-        buttonMinus?.setOnClickListener{
-            if(activityViewModel.flightSpeed.value!!.toInt() > minSpeed)
-            {
+        buttonMinus?.setOnClickListener {
+            if (activityViewModel.flightSpeed.value!!.toInt() > minSpeed) {
                 activityViewModel.flightSpeed.postValue(activityViewModel.flightSpeed.value!!.toDouble() - 1)
             }
         }
 
         val buttonPlus = activity?.findViewById<Button>(R.id.plus_button)
-        buttonPlus?.setOnClickListener{
-            if(activityViewModel.flightSpeed.value!!.toInt() < maxSpeed)
-            {
+        buttonPlus?.setOnClickListener {
+            if (activityViewModel.flightSpeed.value!!.toInt() < maxSpeed) {
                 activityViewModel.flightSpeed.postValue(activityViewModel.flightSpeed.value!!.toDouble() + 1)
             }
         }
@@ -736,55 +734,34 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
         //Initialize the elements of our window, install the handler
         val buttonUploadMission = activity?.findViewById<Button>(R.id.uploadMission)
         buttonUploadMission?.setOnClickListener { //As an example, display the message
-            if(droneViewModel.conStateLiveData.value == null || !droneViewModel.conStateLiveData.value!!)
-            {
+            if (droneViewModel.conStateLiveData.value == null || !droneViewModel.conStateLiveData.value!!) {
                 Toast.makeText(
                     activity?.baseContext,
                     activity?.getString(R.string.no_conn_msg),
                     Toast.LENGTH_LONG
                 ).show()
-            }
-            else if ( activityViewModel.flightAltProgress.value == null )
-            {
+            } else if (activityViewModel.flightAltProgress.value == null) {
                 Toast.makeText(
                     activity?.baseContext,
                     activity?.getString(R.string.select_alt_msg),
                     Toast.LENGTH_LONG
                 ).show()
-            }
-            else
-            {
+            } else {
+                val missionItems =
+                    MissionBuilder.buildSurveyMission(
+                        waypoints = activityViewModel.area.value!!.surveyPath,
+                        currentPos = droneViewModel.droneLocationLiveData.value!!,
+                        alt = activityViewModel.flightAltProgress.value!!.toFloat(),
+                        sprayerIntensity = activityViewModel.sprayerProgress.value!!.toInt(),
+                        flightSpeed = activityViewModel.flightSpeed.value!!.toFloat(),
+                        angleProgress = activityViewModel.angleProgress.value!!.toFloat(),
+                        targetSystemId = droneViewModel.getTargetSystemId(),
+                        targetComponentId = droneViewModel.getTargetComponentId()
+                    )
 
-//                droneViewModel.mavlinkCommunicationLiveData.value?.clearMission()
-//                    ?.subscribeOn(Schedulers.io()) // Optional: specify the scheduler for the operation
-//                    ?.observeOn(AndroidSchedulers.mainThread()) // Optional: specify the scheduler for the result handling
-//                    ?.subscribe(
-//                        { result ->
-//                            // Handle the success result
-//                            Log.i("clearMission", "Result: $result")
-//                            Toast.makeText(context, "Mission clear success!", Toast.LENGTH_LONG).show()
-//                        },
-//                        { error ->
-//                            // Handle any errors that may occur during the execution of clearMission()
-//                            Log.e("clearMission", "Error: ${error.message}")
-//                            Toast.makeText(context, "Mission clear failed!", Toast.LENGTH_LONG).show()
-//                        }
-//                    )
+                droneViewModel.uploadMissionNew(missionItems)
 
-
-                    val missionItems =
-                        droneViewModel.mavlinkCommunicationLiveData.value
-                            ?.setupMission(
-                                activityViewModel.area.value!!.surveyPath,
-                                droneViewModel.droneLocationLiveData.value!!,
-                                activityViewModel.flightAltProgress.value!!.toFloat(),
-                                activityViewModel.sprayerProgress.value!!.toInt(),
-                                activity?.baseContext!!
-                            )!!
-
-                    droneViewModel.mavlinkCommunicationLiveData.value?.uploadMission(missionItems)
-
-                    missionParamsSideView.isVisible = false
+                missionParamsSideView.isVisible = false
             }
 
             setWindowPreferences()
@@ -807,8 +784,11 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
     }
 
 
-    private fun initSeekbar(seekbar: SeekBar, seekbarValue: EditText, mutable: MutableLiveData<Double>)
-    {
+    private fun initSeekbar(
+        seekbar: SeekBar,
+        seekbarValue: EditText,
+        mutable: MutableLiveData<Double>
+    ) {
         seekbar.progress = mutable.value!!.toInt()
         seekbarValue.setText("${mutable.value!!.toInt()}")
 
@@ -819,64 +799,91 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
                 mutable.postValue(progress.toDouble())
             }
 
-            override fun onStartTrackingTouch(seekBar: SeekBar) { }
+            override fun onStartTrackingTouch(seekBar: SeekBar) {}
 
-            override fun onStopTrackingTouch(seekBar: SeekBar) { }
+            override fun onStopTrackingTouch(seekBar: SeekBar) {}
         })
 
-        seekbarValue.addTextChangedListener(object: TextWatcher {
+        seekbarValue.addTextChangedListener(object : TextWatcher {
 
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 seekbarValue.setSelection(seekbarValue.length())
             }
 
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) { }
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
 
             override fun afterTextChanged(s: Editable?) {
                 try {
                     val progress = s.toString().toInt()
                     seekbar.setProgress(progress, true)
-                }
-                catch (e : NumberFormatException) {
-                    Log.d("SeekBar Mission Params","Error on casting String to Int on TextChange " )
+                } catch (e: NumberFormatException) {
+                    Log.d("SeekBar Mission Params", "Error on casting String to Int on TextChange ")
                 }
             }
         })
     }
 
-    private fun getWindowPreferences()
-    {
+    private fun getWindowPreferences() {
         getSharedPreferenceById(R.string.survey_angle_pref, activityViewModel.angleProgress, "0")
-        getSharedPreferenceById(R.string.survey_line_distance_pref, activityViewModel.lineDistanceProgress, "1")
-        getSharedPreferenceById(R.string.survey_altitude_pref, activityViewModel.flightAltProgress, "2")
+        getSharedPreferenceById(
+            R.string.survey_line_distance_pref,
+            activityViewModel.lineDistanceProgress,
+            "1"
+        )
+        getSharedPreferenceById(
+            R.string.survey_altitude_pref,
+            activityViewModel.flightAltProgress,
+            "2"
+        )
         getSharedPreferenceById(R.string.sprayer_intensity, activityViewModel.sprayerProgress, "0")
         getSharedPreferenceById(R.string.flight_speed_pref, activityViewModel.flightSpeed, "1")
     }
 
-    private fun setWindowPreferences()
-    {
-        setSharedPreferenceById(R.id.survey_angle_pref, activityViewModel.angleProgress.value!!.toInt())
-        setSharedPreferenceById(R.id.survey_line_dist_pos_pref, activityViewModel.lineDistanceProgress.value!!.toInt())
-        setSharedPreferenceById(R.id.mission_alt_pref, activityViewModel.flightAltProgress.value!!.toInt())
-        setSharedPreferenceById(R.id.sprayer_intensity_pref, activityViewModel.sprayerProgress.value!!.toInt())
-        setSharedPreferenceById(R.id.flight_speed_pref, activityViewModel.flightSpeed.value!!.toInt())
+    private fun setWindowPreferences() {
+        setSharedPreferenceById(
+            R.id.survey_angle_pref,
+            activityViewModel.angleProgress.value!!.toInt()
+        )
+        setSharedPreferenceById(
+            R.id.survey_line_dist_pos_pref,
+            activityViewModel.lineDistanceProgress.value!!.toInt()
+        )
+        setSharedPreferenceById(
+            R.id.mission_alt_pref,
+            activityViewModel.flightAltProgress.value!!.toInt()
+        )
+        setSharedPreferenceById(
+            R.id.sprayer_intensity_pref,
+            activityViewModel.sprayerProgress.value!!.toInt()
+        )
+        setSharedPreferenceById(
+            R.id.flight_speed_pref,
+            activityViewModel.flightSpeed.value!!.toInt()
+        )
     }
 
-    private fun getSharedPreferenceById(stringResourceId: Int, mutable : MutableLiveData<Double>, defValue : String)
-    {
-        val prefs = activity?.let { PreferenceManager.getDefaultSharedPreferences(it.applicationContext) }
+    private fun getSharedPreferenceById(
+        stringResourceId: Int,
+        mutable: MutableLiveData<Double>,
+        defValue: String
+    ) {
+        val prefs =
+            activity?.let { PreferenceManager.getDefaultSharedPreferences(it.applicationContext) }
 
         mutable.postValue(
-            prefs?.getString(activity?.getString(stringResourceId), defValue)?.toDouble() )
+            prefs?.getString(activity?.getString(stringResourceId), defValue)?.toDouble()
+        )
     }
 
-    private fun setSharedPreferenceById(id: Int, value : Int)
-    {
-        val prefs = activity?.let { PreferenceManager.getDefaultSharedPreferences(it.applicationContext) }
+    private fun setSharedPreferenceById(id: Int, value: Int) {
+        val prefs =
+            activity?.let { PreferenceManager.getDefaultSharedPreferences(it.applicationContext) }
         val editor = prefs?.edit()
         if (editor != null) {
             editor.putString(
-                com.example.droneservicesapp.Application.getInstance().applicationContext.getString(id),
+                com.example.droneservicesapp.Application.getInstance().applicationContext.getString(
+                    id
+                ),
                 value.toString()
             )
 
@@ -891,7 +898,8 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
         var overrideFile = false
         Log.i("MissionSave", "initiated Mission Save Layout")
 
-        val saveFileView = requireActivity().findViewById<LinearLayoutCompat>(R.id.save_file_layout)!!
+        val saveFileView =
+            requireActivity().findViewById<LinearLayoutCompat>(R.id.save_file_layout)!!
         saveFileView.isVisible = true
 
         val inputFilename = requireActivity().findViewById<EditText>(R.id.input_filename)!!
@@ -907,31 +915,46 @@ class HomeMapsFragment : Fragment() , GoogleMap.OnMapClickListener, GoogleMap.On
         val buttonSaveMission = requireActivity().findViewById<Button>(R.id.save_button)
         buttonSaveMission.setOnClickListener {
 
-            if( inputFilename.text.isBlank() )
-            {
+            if (inputFilename.text.isBlank()) {
                 Toast.makeText(
                     requireActivity().baseContext,
-                    requireActivity().baseContext?.getString(R.string.error_name_empty), Toast.LENGTH_LONG).show()
-            }
-            else
-            {
-                Log.i("MissionSave", "activityViewModel.area.value!!.polygonEdges, ${activityViewModel.area.value!!.polygonEdges}")
-                Log.i("MissionSave", "activityViewModel.lineDistanceProgress, ${activityViewModel.lineDistanceProgress.value!!.toInt()}")
-                Log.i("MissionSave", "activityViewModel.angleProgress, ${activityViewModel.angleProgress.value!!.toInt()}")
-                Log.i("MissionSave", "activityViewModel.flightAltProgress, ${activityViewModel.flightAltProgress.value!!.toInt()}")
-                Log.i("MissionSave", "activityViewModel.sprayerProgress, ${activityViewModel.sprayerProgress.value!!.toInt()}")
+                    requireActivity().baseContext?.getString(R.string.error_name_empty),
+                    Toast.LENGTH_LONG
+                ).show()
+            } else {
+                Log.i(
+                    "MissionSave",
+                    "activityViewModel.area.value!!.polygonEdges, ${activityViewModel.area.value!!.polygonEdges}"
+                )
+                Log.i(
+                    "MissionSave",
+                    "activityViewModel.lineDistanceProgress, ${activityViewModel.lineDistanceProgress.value!!.toInt()}"
+                )
+                Log.i(
+                    "MissionSave",
+                    "activityViewModel.angleProgress, ${activityViewModel.angleProgress.value!!.toInt()}"
+                )
+                Log.i(
+                    "MissionSave",
+                    "activityViewModel.flightAltProgress, ${activityViewModel.flightAltProgress.value!!.toInt()}"
+                )
+                Log.i(
+                    "MissionSave",
+                    "activityViewModel.sprayerProgress, ${activityViewModel.sprayerProgress.value!!.toInt()}"
+                )
 
-                val isSaved = MissionFileHandler(requireActivity(), activityViewModel).
-                    saveMissionXML(
+                val isSaved =
+                    MissionFileHandler(requireActivity(), activityViewModel).saveMissionXML(
                         activityViewModel.area.value!!.polygonEdges,
                         activityViewModel.lineDistanceProgress.value!!.toInt(),
                         activityViewModel.angleProgress.value!!.toInt(),
                         activityViewModel.flightAltProgress.value!!.toInt(),
                         activityViewModel.sprayerProgress.value!!.toInt(),
                         inputFilename.text.toString(),
-                        overrideFile)
+                        overrideFile
+                    )
 
-                if( isSaved )
+                if (isSaved)
                     saveFileView.isVisible = false
             }
         }

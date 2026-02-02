@@ -34,7 +34,6 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.navigation.NavigationView
 import java.math.RoundingMode
 import java.text.DecimalFormat
-import java.util.Locale
 
 
 class MainActivity : AppCompatActivity() {
@@ -46,6 +45,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var activityViewModel: MainActivityViewModel
 
     private lateinit var sharedPreferences: SharedPreferences
+
+    private lateinit var paramsSideView: LinearLayoutCompat
+    private lateinit var saveFileView: LinearLayoutCompat
+    private lateinit var loadFileView: LinearLayoutCompat
+    private lateinit var bottomNavigationView: BottomNavigationView
+    private lateinit var userLocationFB: FloatingActionButton
+    private lateinit var droneLocationFB: FloatingActionButton
 
     private fun restartMavlinkFromPrefs() {
 
@@ -59,12 +65,8 @@ class MainActivity : AppCompatActivity() {
             "14550"
         )?.toIntOrNull() ?: 14550
 
-        val iface = when (ifaceStr.uppercase(Locale.getDefault())) {
-            "UDP" -> MavlinkConfig.InterfaceType.UDP
-            "TCP" -> MavlinkConfig.InterfaceType.TCP
-            "SERIAL" -> MavlinkConfig.InterfaceType.SERIAL
-            else -> MavlinkConfig.InterfaceType.UDP
-        }
+        val iface = runCatching { MavlinkConfig.InterfaceType.valueOf(ifaceStr.uppercase()) }
+            .getOrDefault(MavlinkConfig.InterfaceType.UDP)
 
         val config = MavlinkConfig(interfaceType = iface, port = port)
 
@@ -97,10 +99,9 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        binding.root.systemUiVisibility = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+        binding.root.systemUiVisibility = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
 
-        setSupportActionBar(binding.root.findViewById(R.id.customToolbar))
+        setSupportActionBar(binding.appBarMain.customToolbar)
         binding.appBarMain.customToolbar.background =
             ContextCompat.getDrawable(this.baseContext, R.drawable.action_bar_bg_red)
 
@@ -124,18 +125,13 @@ class MainActivity : AppCompatActivity() {
         droneViewModel = ViewModelProvider(this)[DroneViewModel::class.java]
         activityViewModel = ViewModelProvider(this)[MainActivityViewModel::class.java]
 
-        val paramsSideView: LinearLayoutCompat =
-            findViewById<LinearLayoutCompat>(R.id.mission_params_side_view)
-        val saveFileView: LinearLayoutCompat =
-            findViewById<LinearLayoutCompat>(R.id.save_file_layout)
-        val loadFileView: LinearLayoutCompat =
-            findViewById<LinearLayoutCompat>(R.id.load_file_selector_layout)
-        val bottomNavigationView: BottomNavigationView =
-            findViewById<BottomNavigationView>(R.id.bottom_nav_view)
-        val userLocationFB: FloatingActionButton =
-            findViewById<FloatingActionButton>(R.id.my_location_button)
-        val droneLocationFB: FloatingActionButton =
-            findViewById<FloatingActionButton>(R.id.drone_location_button)
+        paramsSideView = findViewById(R.id.mission_params_side_view)
+        saveFileView = findViewById(R.id.save_file_layout)
+        loadFileView = findViewById(R.id.load_file_selector_layout)
+        bottomNavigationView = findViewById(R.id.bottom_nav_view)
+        userLocationFB = findViewById(R.id.my_location_button)
+        droneLocationFB = findViewById(R.id.drone_location_button)
+
         bottomNavigationView.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.action_draw -> {
@@ -143,18 +139,13 @@ class MainActivity : AppCompatActivity() {
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
                 }
                 R.id.action_accept -> {
-
-                    // to get in state SetFlightParams at least 3 markers must be placed on map
-                    if (activityViewModel.area.value!!.polygonEdges.size < 3)
-                    {
+                    if (activityViewModel.area.value!!.polygonEdges.size < 3) {
                         Toast.makeText(
                             this,
-                            getString(com.example.droneservicesapp.R.string.wrong_schema_msg),
+                            getString(R.string.wrong_schema_msg),
                             Toast.LENGTH_LONG
                         ).show()
-                    }
-                    else
-                    {
+                    } else {
                         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.SetFlightParams)
                     }
                 }
@@ -172,68 +163,32 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
-        activityViewModel.mapState.observe(this) { mapState ->
+        fun applyMapState(mapState: MainActivityViewModel.MapState) {
             Log.i("Map State", "Map State Changed to: $mapState")
 
-            when( mapState )
-            {
-                MainActivityViewModel.MapState.Idle -> {
-                    bottomNavigationView.menu.findItem(R.id.action_cancel).isVisible = false
-                    bottomNavigationView.menu.findItem(R.id.action_accept).isVisible = false
-                    bottomNavigationView.menu.findItem(R.id.action_erase).isVisible = false
-                    bottomNavigationView.menu.findItem(R.id.action_draw).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_load).isVisible = true
-                    paramsSideView.isVisible = false
-                    saveFileView.isVisible = false
-                    loadFileView.isVisible = false
-                    userLocationFB.isVisible = true
-                    droneLocationFB.isVisible = true
-                }
-                MainActivityViewModel.MapState.Reset -> {
-                    bottomNavigationView.menu.findItem(R.id.action_cancel).isVisible = false
-                    bottomNavigationView.menu.findItem(R.id.action_accept).isVisible = false
-                    bottomNavigationView.menu.findItem(R.id.action_erase).isVisible = false
-                    bottomNavigationView.menu.findItem(R.id.action_draw).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_load).isVisible = true
-                    paramsSideView.isVisible = false
-                    saveFileView.isVisible = false
-                    loadFileView.isVisible = false
-                    userLocationFB.isVisible = true
-                    droneLocationFB.isVisible = true
+            val menu = bottomNavigationView.menu
+            fun setMenuVisibility(cancel: Boolean, accept: Boolean, erase: Boolean, draw: Boolean, load: Boolean) {
+                menu.findItem(R.id.action_cancel).isVisible = cancel
+                menu.findItem(R.id.action_accept).isVisible = accept
+                menu.findItem(R.id.action_erase).isVisible = erase
+                menu.findItem(R.id.action_draw).isVisible = draw
+                menu.findItem(R.id.action_load).isVisible = load
+            }
 
+            when (mapState) {
+                MainActivityViewModel.MapState.Idle,
+                MainActivityViewModel.MapState.Reset -> {
+                    setMenuVisibility(cancel = false, accept = false, erase = false, draw = true, load = true)
+                    paramsSideView.isVisible = false
+                    saveFileView.isVisible = false
+                    loadFileView.isVisible = false
                     userLocationFB.isVisible = true
                     droneLocationFB.isVisible = true
                 }
+                MainActivityViewModel.MapState.Draw,
+                MainActivityViewModel.MapState.ClearKeepDrawing,
                 MainActivityViewModel.MapState.ClearAll -> {
-                    bottomNavigationView.menu.findItem(R.id.action_cancel).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_accept).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_erase).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_draw).isVisible = false
-                    bottomNavigationView.menu.findItem(R.id.action_load).isVisible = false
-                    paramsSideView.isVisible = false
-                    saveFileView.isVisible = false
-                    loadFileView.isVisible = false
-                    userLocationFB.isVisible = true
-                    droneLocationFB.isVisible = true
-                }
-                MainActivityViewModel.MapState.ClearKeepDrawing -> {
-                    bottomNavigationView.menu.findItem(R.id.action_cancel).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_accept).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_erase).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_draw).isVisible = false
-                    bottomNavigationView.menu.findItem(R.id.action_load).isVisible = false
-                    paramsSideView.isVisible = false
-                    saveFileView.isVisible = false
-                    loadFileView.isVisible = false
-                    userLocationFB.isVisible = true
-                    droneLocationFB.isVisible = true
-                }
-                MainActivityViewModel.MapState.Draw -> {
-                    bottomNavigationView.menu.findItem(R.id.action_cancel).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_accept).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_erase).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_draw).isVisible = false
-                    bottomNavigationView.menu.findItem(R.id.action_load).isVisible = false
+                    setMenuVisibility(cancel = true, accept = true, erase = true, draw = false, load = false)
                     paramsSideView.isVisible = false
                     saveFileView.isVisible = false
                     loadFileView.isVisible = false
@@ -241,117 +196,77 @@ class MainActivity : AppCompatActivity() {
                     droneLocationFB.isVisible = true
                 }
                 MainActivityViewModel.MapState.SetFlightParams -> {
-                    bottomNavigationView.menu.findItem(R.id.action_cancel).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_accept).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_erase).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_draw).isVisible = false
-                    bottomNavigationView.menu.findItem(R.id.action_load).isVisible = false
+                    setMenuVisibility(cancel = true, accept = true, erase = true, draw = false, load = false)
                     paramsSideView.isVisible = true
                     saveFileView.isVisible = false
                     loadFileView.isVisible = false
                     userLocationFB.isVisible = false
                     droneLocationFB.isVisible = false
                 }
-                MainActivityViewModel.MapState.UploadMissionSuccess -> {
-
-                }
                 MainActivityViewModel.MapState.LoadMissionFromFile -> {
-                    bottomNavigationView.menu.findItem(R.id.action_cancel).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_accept).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_erase).isVisible = true
-                    bottomNavigationView.menu.findItem(R.id.action_draw).isVisible = false
-                    bottomNavigationView.menu.findItem(R.id.action_load).isVisible = false
+                    setMenuVisibility(cancel = true, accept = true, erase = true, draw = false, load = false)
                     paramsSideView.isVisible = false
                     saveFileView.isVisible = false
                     loadFileView.isVisible = true
                     userLocationFB.isVisible = false
                     droneLocationFB.isVisible = false
                 }
+                MainActivityViewModel.MapState.UploadMissionSuccess,
                 MainActivityViewModel.MapState.SaveMissionToFile -> {
-
+                    // No UI changes required here
                 }
             }
+        }
+
+        activityViewModel.mapState.observe(this) { mapState ->
+            applyMapState(mapState)
         }
 
 
         droneViewModel.conStateLiveData.observe(this) { connState ->
-            if (connState) {
-                binding.appBarMain.customToolbar.background =
-                    ContextCompat.getDrawable(this.baseContext, R.drawable.action_bar_bg_green)
-
-            } else {
-                binding.appBarMain.customToolbar.background =
-                    ContextCompat.getDrawable(this.baseContext, R.drawable.action_bar_bg_red)
-            }
+            binding.appBarMain.customToolbar.setBackgroundResource(
+                if (connState) R.drawable.action_bar_bg_green else R.drawable.action_bar_bg_red
+            )
         }
 
 
-        droneViewModel.droneBatteryPercentage.observe(this) { battery_percentage ->
-            val df = DecimalFormat("#.##")
-            df.roundingMode = RoundingMode.DOWN
+        droneViewModel.droneBatteryPercentage.observe(this) { batteryPercentage ->
+            if (droneViewModel.conStateLiveData.value != true) return@observe
 
-            if (droneViewModel.conStateLiveData.value!!) {
+            val df = DecimalFormat("#.##").apply { roundingMode = RoundingMode.DOWN }
+            val toolbar = binding.appBarMain.customToolbar
 
-                //Log.i(Log.INFO.toString(), "battery_level: $battery_level")
-//                binding.appBarMain.customToolbar.
-//                    findViewById<TextView>(R.id.drone_battery_voltage_text).text =
-//                    "${df.format(battery_percentage * droneViewModel.droneBatteryVoltage.value!!)}V"
+            toolbar.findViewById<TextView>(R.id.drone_battery_percentage_text).text =
+                "${df.format(batteryPercentage * 100.0F)}%"
 
-                binding.appBarMain.customToolbar.
-                    findViewById<TextView>(R.id.drone_battery_percentage_text).text = "${df.format(droneViewModel.droneBatteryPercentage.value!! * 100.0F)}%"
-
-                if( battery_percentage != -1.0F )
-                {
-                    if (battery_percentage >= 1.0F) {
-                        binding.appBarMain.customToolbar.findViewById<ImageView>(R.id.drone_battery_image)
-                            .setImageResource(R.drawable.ic_baseline_battery_full_24)
-                    } else if (battery_percentage >= 0.7F) {
-                        binding.appBarMain.customToolbar.findViewById<ImageView>(R.id.drone_battery_image)
-                            .setImageResource(R.drawable.ic_baseline_battery_6_bar_24)
-                    } else if (battery_percentage >= 0.55F) {
-                        binding.appBarMain.customToolbar.findViewById<ImageView>(R.id.drone_battery_image)
-                            .setImageResource(R.drawable.ic_baseline_battery_6_bar_24)
-                    } else if (battery_percentage >= 0.4F) {
-                        binding.appBarMain.customToolbar.findViewById<ImageView>(R.id.drone_battery_image)
-                            .setImageResource(R.drawable.ic_baseline_battery_4_bar_24)
-                    } else if (battery_percentage >= 0.25F) {
-                        binding.appBarMain.customToolbar.findViewById<ImageView>(R.id.drone_battery_image)
-                            .setImageResource(R.drawable.ic_baseline_battery_3_bar_24)
-                    } else {
-                        binding.appBarMain.customToolbar.findViewById<ImageView>(R.id.drone_battery_image)
-                            .setImageResource(R.drawable.ic_baseline_battery_2_bar_24)
-                    }
-                }
-                else {
-                    binding.appBarMain.customToolbar.findViewById<ImageView>(R.id.drone_battery_image)
-                        .setImageResource(R.drawable.ic_baseline_battery_alert_24)
-                }
+            val imageView = toolbar.findViewById<ImageView>(R.id.drone_battery_image)
+            val iconRes = when {
+                batteryPercentage == -1.0F -> R.drawable.ic_baseline_battery_alert_24
+                batteryPercentage >= 1.0F -> R.drawable.ic_baseline_battery_full_24
+                batteryPercentage >= 0.7F -> R.drawable.ic_baseline_battery_6_bar_24
+                batteryPercentage >= 0.4F -> R.drawable.ic_baseline_battery_4_bar_24
+                batteryPercentage >= 0.25F -> R.drawable.ic_baseline_battery_3_bar_24
+                else -> R.drawable.ic_baseline_battery_2_bar_24
             }
+            imageView.setImageResource(iconRes)
         }
 
         droneViewModel.droneLocationLiveData.observe(this) { location ->
-            if (droneViewModel.conStateLiveData.value!!)
-            {
-                binding.appBarMain.customToolbar.findViewById<TextView>(R.id.drone_alt_txt).text =
-                    "${location.altitude.toInt()}m"
-            }
+            if (droneViewModel.conStateLiveData.value != true) return@observe
+            binding.appBarMain.customToolbar.findViewById<TextView>(R.id.drone_alt_txt).text =
+                "${location.altitude.toInt()}m"
         }
 
-        droneViewModel.liquidLevel.observe(this){ liquid_level ->
-            binding.appBarMain.sprayerFlowText.
-                findViewById<TextView>(R.id.sprayer_flow_text).text = "$liquid_level%"
+        droneViewModel.liquidLevel.observe(this) { liquid_level ->
+            binding.appBarMain.sprayerFlowText.findViewById<TextView>(R.id.sprayer_flow_text).text =
+                "$liquid_level%"
         }
 
 
-        droneViewModel.armedState.observe(this){ armedState ->
-            if( armedState ){
-                binding.appBarMain.droneArmText.findViewById<TextView>(R.id.drone_arm_text).text =
-                    getString(R.string.armed)
-            }
-            else{
-                binding.appBarMain.droneArmText.findViewById<TextView>(R.id.drone_arm_text).text =
-                    getString(R.string.disarmed)
-            }
+        droneViewModel.armedState.observe(this) { armedState ->
+            val resId = if (armedState) R.string.armed else R.string.disarmed
+            binding.appBarMain.droneArmText.findViewById<TextView>(R.id.drone_arm_text).text =
+                getString(resId)
         }
     }
 
@@ -372,22 +287,16 @@ class MainActivity : AppCompatActivity() {
      * Prompts the user for permission to use the device location.
      */
     private fun getLocationPermission() {
-        /*
-         * Request location permission, so that we can get the location of the
-         * device. The result of the permission request is handled by a callback,
-         * onRequestPermissionsResult.
-         */
-
-        if (ContextCompat.checkSelfPermission(this,
-                Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.ACCESS_FINE_LOCATION)) {
-                ActivityCompat.requestPermissions(this,
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1)
-            } else {
-                ActivityCompat.requestPermissions(this,
-                    arrayOf(Manifest.permission.ACCESS_FINE_LOCATION), 1)
-            }
+        if (ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) != PackageManager.PERMISSION_GRANTED
+        ) {
+            ActivityCompat.requestPermissions(
+                this,
+                arrayOf(Manifest.permission.ACCESS_FINE_LOCATION),
+                1
+            )
         }
     }
     // [END maps_current_place_location_permission]
@@ -407,14 +316,6 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         sharedPreferences.unregisterOnSharedPreferenceChangeListener(prefListener)
     }
-
-
-
-
-
-
-
-
 
 
 }

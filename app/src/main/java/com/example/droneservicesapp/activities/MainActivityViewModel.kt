@@ -6,7 +6,7 @@ import com.example.droneservicesapp.shape.PolygonArea
 
 class MainActivityViewModel : ViewModel() {
 
-    enum class MapState{
+    enum class MapState {
         Idle,
         Reset,
         ClearAll,
@@ -18,41 +18,49 @@ class MainActivityViewModel : ViewModel() {
         SaveMissionToFile
     }
 
-    val mapState : MutableLiveData<MapState> by lazy {
-        MutableLiveData<MapState>().default(MapState.Idle)
+    val mapState: MutableLiveData<MapState> by lazy {
+        MutableLiveData(MapState.Idle)
     }
 
     val drawEnableLiveData: MutableLiveData<Boolean> by lazy {
-        MutableLiveData<Boolean>().default(false)
+        MutableLiveData(false)
     }
 
     val flightAltProgress: MutableLiveData<Double> by lazy {
-        MutableLiveData<Double>().default(2.0)
+        MutableLiveData(2.0)
     }
 
     val lineDistanceProgress: MutableLiveData<Double> by lazy {
-        MutableLiveData<Double>().default(1.0)
+        MutableLiveData(1.0)
     }
 
     val angleProgress: MutableLiveData<Double> by lazy {
-        MutableLiveData<Double>().default(1.0)
+        MutableLiveData(1.0)
     }
 
     val sprayerProgress: MutableLiveData<Double> by lazy {
-        MutableLiveData<Double>().default(0.0)
+        MutableLiveData(0.0)
     }
 
     val flightSpeed: MutableLiveData<Double> by lazy {
-        MutableLiveData<Double>().default(1.0)
+        MutableLiveData(1.0)
     }
 
     val flightDistance: MutableLiveData<Int> by lazy {
-        MutableLiveData<Int>().default(0)
+        MutableLiveData(0)
     }
 
-    val area : MutableLiveData<PolygonArea> by lazy{
-        MutableLiveData<PolygonArea>().default(PolygonArea())
+    val area: MutableLiveData<PolygonArea> by lazy {
+        MutableLiveData(PolygonArea())
     }
-
-    private fun <T : Any?> MutableLiveData<T>.default(initialValue: T) = apply { setValue(initialValue) }
 }
+
+data class MissionParams(
+    val altitude: Double = 2.0,
+    val lineDistance: Double = 1.0,
+    val angle: Double = 1.0,
+    val sprayer: Double = 0.0,
+    val speed: Double = 1.0
+)
+
+val missionParams: MutableLiveData<MissionParams> = MutableLiveData()

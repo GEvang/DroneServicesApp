@@ -55,14 +55,13 @@ class SettingsFragment : PreferenceFragmentCompat(),
     }
 
 
-    private fun onMavInterfaceSelection(mavInterface : String?)
-    {
-        if(mavInterface == "Serial") {
-            findPreference<Preference?>( getString(R.string.mavlink_lan_port_pref) )?.isVisible = false
+    private fun onMavInterfaceSelection(mavInterface: String?) {
+        if (mavInterface == "Serial") {
+            findPreference<Preference?>(getString(R.string.mavlink_lan_port_pref))?.isVisible =
+                false
             findPreference<Preference?>("mavSerialBaud")?.isVisible = true
-        }
-        else if(mavInterface == "TCP" || mavInterface == "UDP" ){
-            findPreference<Preference?>( getString(R.string.mavlink_lan_port_pref) )?.isVisible = true
+        } else if (mavInterface == "TCP" || mavInterface == "UDP") {
+            findPreference<Preference?>(getString(R.string.mavlink_lan_port_pref))?.isVisible = true
             findPreference<Preference?>("mavSerialBaud")?.isVisible = false
         }
     }

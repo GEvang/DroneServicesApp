@@ -12,10 +12,15 @@ import io.reactivex.disposables.Disposable
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.Subject
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 
 class MavlinkRepository {
+
+    private companion object {
+        private const val TAG = "MavlinkRepository"
+    }
 
     private var transport: MavTransport? = null
     private var mavCon: MavlinkConnection? = null
@@ -27,7 +32,8 @@ class MavlinkRepository {
     private val msgSubject: Subject<MavlinkMessage<*>> =
         PublishSubject.create<MavlinkMessage<*>>().toSerialized()
 
-    @Volatile var lastHeartbeatMs: Long = 0L
+    @Volatile
+    var lastHeartbeatMs: Long = 0L
         private set
 
     fun start(config: MavlinkConfig) {
@@ -42,7 +48,7 @@ class MavlinkRepository {
         mavCon = MavlinkConnection.create(t.input, t.output)
 
         startReader()
-        Log.i("MavlinkRepository", "Started with $config")
+        Log.i(TAG, "Started with $config")
     }
 
     fun stop() {
@@ -54,12 +60,17 @@ class MavlinkRepository {
         transport = null
         mavCon = null
 
-        Log.i("MavlinkRepository", "Stopped")
+        Log.i(TAG, "Stopped")
     }
 
     fun restart(config: MavlinkConfig) {
         stop()
         start(config)
+    }
+
+    @Synchronized
+    fun send2(systemId: Int, componentId: Int, payload: Any) {
+        mavCon?.send2(systemId, componentId, payload)
     }
 
     fun messages(): Observable<MavlinkMessage<*>> = msgSubject.hide()
@@ -92,8 +103,23 @@ class MavlinkRepository {
                     }
                 },
                 { err ->
-                    Log.e("MavlinkRepository", "Reader error: ${err.message}", err)
+                    Log.e(TAG, "Reader error: ${err.message}", err)
                 }
             )
     }
+
+    fun <T : Any> waitFor(
+        clazz: Class<T>,
+        timeoutMs: Long,
+        filter: (MavlinkMessage<*>) -> Boolean = { true }
+    ): MavlinkMessage<T>? {
+        return runCatching {
+            @Suppress("UNCHECKED_CAST")
+            messages()
+                .filter { clazz.isInstance(it.payload) && filter(it) }
+                .timeout(timeoutMs, TimeUnit.MILLISECONDS)
+                .blockingFirst() as MavlinkMessage<T>
+        }.getOrNull()
+    }
+
 }

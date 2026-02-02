@@ -14,9 +14,17 @@ import android.widget.TextView
 import android.widget.Toast
 import com.example.droneservicesapp.R
 import com.google.android.gms.maps.GoogleMap
-import com.google.android.gms.maps.model.*
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.LatLng
+import com.google.android.gms.maps.model.LatLngBounds
+import com.google.android.gms.maps.model.Marker
+import com.google.android.gms.maps.model.MarkerOptions
+import com.google.android.gms.maps.model.Polygon
+import com.google.android.gms.maps.model.PolygonOptions
+import com.google.android.gms.maps.model.Polyline
+import com.google.android.gms.maps.model.PolylineOptions
 import com.google.maps.android.SphericalUtil
-import java.util.*
+import java.util.Collections
 import kotlin.math.roundToInt
 
 class PolygonArea {
@@ -24,17 +32,17 @@ class PolygonArea {
     var latLngArrayListMarkers: ArrayList<Marker> = ArrayList()
     var mapLabelMarkers: ArrayList<Marker> = ArrayList()
     var polygonAreaMarker: Marker? = null
-    var polygonEdges : ArrayList<LatLng> = ArrayList()
+    var polygonEdges: ArrayList<LatLng> = ArrayList()
     var polygon: Polygon? = null
     private var distancesFromMidPointsOfPolygonEdges: ArrayList<Double> = ArrayList()
 
-    private var polygonOptions : PolygonOptions = polygonOptionInit()
+    private var polygonOptions: PolygonOptions = polygonOptionInit()
 
-    private lateinit var polylineOptions : PolylineOptions
-    private var polyline : Polyline? = null
-    var surveyPath : ArrayList<LatLng> = ArrayList()
+    private lateinit var polylineOptions: PolylineOptions
+    private var polyline: Polyline? = null
+    var surveyPath: ArrayList<LatLng> = ArrayList()
 
-    private var firstPolygonEdgeAdded : Boolean = false
+    private var firstPolygonEdgeAdded: Boolean = false
 
 
     private fun polygonOptionInit(): PolygonOptions {
@@ -134,15 +142,12 @@ class PolygonArea {
     }
 
 
-    private fun alignMarkersWithEdges()
-    {
-        val newMarkers : ArrayList<Marker> = ArrayList()
+    private fun alignMarkersWithEdges() {
+        val newMarkers: ArrayList<Marker> = ArrayList()
 
-        for(e in polygonEdges)
-        {
-            for(m in latLngArrayListMarkers)
-            {
-                if(m.position == e)
+        for (e in polygonEdges) {
+            for (m in latLngArrayListMarkers) {
+                if (m.position == e)
                     newMarkers.add(m)
             }
         }
@@ -151,15 +156,12 @@ class PolygonArea {
         latLngArrayListMarkers = newMarkers
     }
 
-    private fun alignEdgesWithMarkers()
-    {
-        val newEdges : ArrayList<LatLng> = ArrayList()
+    private fun alignEdgesWithMarkers() {
+        val newEdges: ArrayList<LatLng> = ArrayList()
 
-        for(m in latLngArrayListMarkers)
-        {
-            for(e in polygonEdges)
-            {
-                if(e == m.position)
+        for (m in latLngArrayListMarkers) {
+            for (e in polygonEdges) {
+                if (e == m.position)
                     newEdges.add(e)
             }
         }
@@ -168,8 +170,7 @@ class PolygonArea {
         polygonEdges = newEdges
     }
 
-    fun adjustEdgeToPolygon(newp0: Marker, map: GoogleMap,  activity : Activity)
-    {
+    fun adjustEdgeToPolygon(newp0: Marker, map: GoogleMap, activity: Activity) {
         val adjustingIndex = latLngArrayListMarkers.indexOf(newp0)
         try {
             polygonEdges.removeAt(adjustingIndex)
@@ -187,18 +188,19 @@ class PolygonArea {
             polygon = null
         }
 
-        if (firstPolygonEdgeAdded)
-        {
+        if (firstPolygonEdgeAdded) {
             polygonEdges.add(newp0.position)
             alignEdgesWithMarkers()
 
             polygonOptions = polygonOptionInit()
             for (i in 0 until polygonEdges.size)
-                polygonOptions.add( LatLng(polygonEdges[i].latitude,
-                    polygonEdges[i].longitude) )
-        }
-        else
-        {
+                polygonOptions.add(
+                    LatLng(
+                        polygonEdges[i].latitude,
+                        polygonEdges[i].longitude
+                    )
+                )
+        } else {
             polygonOptions = polygonOptionInit().add(newp0.position)
             polygonEdges.add(newp0.position)
             firstPolygonEdgeAdded = true
@@ -208,7 +210,7 @@ class PolygonArea {
         polygon = map.addPolygon(polygonOptions)
     }
 
-    fun addEdgeToPolygon(m0: Marker, map : GoogleMap, context: Context) {
+    fun addEdgeToPolygon(m0: Marker, map: GoogleMap, context: Context) {
 
         val p0 = LatLng(m0.position.latitude, m0.position.longitude)
 
@@ -217,19 +219,16 @@ class PolygonArea {
             polygon = null
         }
 
-        if (firstPolygonEdgeAdded)
-        {
+        if (firstPolygonEdgeAdded) {
             polygonEdges.adjustPolygonWithRespectTo(p0)
 
             polygonOptions = polygonOptionInit()
 
             for (i in 0 until polygonEdges.size)
-                polygonOptions.add( polygonEdges[i] )
+                polygonOptions.add(polygonEdges[i])
 
             refreshLabels(map, context)
-        }
-        else
-        {
+        } else {
             polygonOptions = polygonOptionInit().add(p0)
             polygonEdges.add(p0)
             firstPolygonEdgeAdded = true
@@ -238,8 +237,7 @@ class PolygonArea {
         polygon = map.addPolygon(polygonOptions)
     }
 
-    fun removeEdgeFromPolygon(m0 : Marker, map : GoogleMap, context: Context)
-    {
+    fun removeEdgeFromPolygon(m0: Marker, map: GoogleMap, context: Context) {
         // remove edge from polygon list
         m0.remove()
         latLngArrayListMarkers.remove(m0)
@@ -261,13 +259,12 @@ class PolygonArea {
     }
 
 
-    private fun refreshLabels(map: GoogleMap, context: Context)
-    {
-        for(labelMarker in mapLabelMarkers)
+    private fun refreshLabels(map: GoogleMap, context: Context) {
+        for (labelMarker in mapLabelMarkers)
             labelMarker.remove()
         mapLabelMarkers.clear()
 
-        if( polygonEdges.size > 1 ) {
+        if (polygonEdges.size > 1) {
             for (i in 0 until polygonEdges.size) {
                 val midpoint = midPoint(
                     polygonEdges[i],
@@ -281,7 +278,14 @@ class PolygonArea {
                 val text = distance.roundToInt().toString() + "m"
                 val markerOptions = MarkerOptions()
                     .position(midpoint)
-                    .icon(BitmapDescriptorFactory.fromBitmap(getMarkerBitmapFromView(text, context)))
+                    .icon(
+                        BitmapDescriptorFactory.fromBitmap(
+                            getMarkerBitmapFromView(
+                                text,
+                                context
+                            )
+                        )
+                    )
                 val marker = map.addMarker(markerOptions)
 
                 if (marker != null) {
@@ -291,17 +295,14 @@ class PolygonArea {
         }
 
         polygonAreaMarker?.remove()
-        polygonAreaMarker = if( polygonEdges.size > 2 )
-        {
+        polygonAreaMarker = if (polygonEdges.size > 2) {
             val areaCalc = SphericalUtil.computeArea(polygonEdges)
             val text = areaCalc.toInt().toString() + Html.fromHtml("m<sup>2</sup>")
             val markerOptions = MarkerOptions()
                 .position(computeCentroid(polygonEdges))
                 .icon(BitmapDescriptorFactory.fromBitmap(getMarkerBitmapFromView(text, context)))
             map.addMarker(markerOptions)
-        }
-        else
-        {
+        } else {
             null
         }
     }
@@ -313,26 +314,22 @@ class PolygonArea {
         return polyline
     }
 
-    fun clearDrawings()
-    {
+    fun clearDrawings() {
         clearPolygon()
         clearSurveyPath()
     }
 
-    fun clearSurveyPath()
-    {
+    fun clearSurveyPath() {
         surveyPath.clear()
         polyline?.remove()
         polyline = null
     }
 
 
-
-    private fun clearPolygon()
-    {
-        for(marker in latLngArrayListMarkers)
+    private fun clearPolygon() {
+        for (marker in latLngArrayListMarkers)
             marker.remove()
-        for(marker in mapLabelMarkers)
+        for (marker in mapLabelMarkers)
             marker.remove()
         polygonAreaMarker?.remove()
         polygonAreaMarker = null
@@ -347,7 +344,7 @@ class PolygonArea {
         firstPolygonEdgeAdded = false
     }
 
-    private fun midPoint(p1: LatLng, p2 : LatLng): LatLng {
+    private fun midPoint(p1: LatLng, p2: LatLng): LatLng {
         val lat1 = p1.latitude
         val lon1 = p1.longitude
         val lat2 = p2.latitude
@@ -358,7 +355,6 @@ class PolygonArea {
 
         return LatLng(lat3, lon3)
     }
-
 
 
 //    fun containsLocation(p : LatLng, rightLimit: LatLng): Boolean
@@ -409,19 +405,26 @@ class PolygonArea {
 //            10.0.pow(decimals))
 
 
-
     private fun getMarkerBitmapFromView(text: String, context: Context): Bitmap {
-        val customMarkerView = LayoutInflater.from(context).inflate(R.layout.num_transp_marker, null)
+        val customMarkerView =
+            LayoutInflater.from(context).inflate(R.layout.num_transp_marker, null)
         val markerTextView = customMarkerView.findViewById<TextView>(R.id.marker_text)
         markerTextView.text = text
 
         val displayMetrics = DisplayMetrics()
         (context as Activity).windowManager.defaultDisplay.getMetrics(displayMetrics)
-        customMarkerView.layoutParams = ViewGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT)
+        customMarkerView.layoutParams = ViewGroup.LayoutParams(
+            ViewGroup.LayoutParams.WRAP_CONTENT,
+            ViewGroup.LayoutParams.WRAP_CONTENT
+        )
         customMarkerView.measure(displayMetrics.widthPixels, displayMetrics.heightPixels)
         customMarkerView.layout(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels)
 
-        val bitmap = Bitmap.createBitmap(customMarkerView.measuredWidth, customMarkerView.measuredHeight, Bitmap.Config.ARGB_8888)
+        val bitmap = Bitmap.createBitmap(
+            customMarkerView.measuredWidth,
+            customMarkerView.measuredHeight,
+            Bitmap.Config.ARGB_8888
+        )
         val canvas = Canvas(bitmap)
         customMarkerView.draw(canvas)
         return bitmap

@@ -6,6 +6,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.mavlink.MavlinkConfig
 import com.example.droneservicesapp.mavlink.MavlinkRepository
+import com.example.droneservicesapp.mavlink.MissionService
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.BatteryStatus
 import io.dronefleet.mavlink.common.DistanceSensor
@@ -15,107 +16,155 @@ import io.dronefleet.mavlink.common.MissionItemInt
 import io.dronefleet.mavlink.common.RcChannels
 import io.dronefleet.mavlink.minimal.Heartbeat
 import io.reactivex.Observable
+import io.reactivex.Single
+import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
+import java.util.concurrent.TimeUnit
 import kotlin.math.pow
-
 
 class DroneViewModel : ViewModel() {
 
+    companion object {
+        private const val TAG = "DroneViewModel"
+        private const val CONNECTION_TICK_MS = 500L
+        private const val HEARTBEAT_STALE_MS = 5500L
+        private const val TELEMETRY_STALE_MS = 2500L
+        private const val MISSION_DEBOUNCE_MS = 1500L
+    }
+
+    // Lifecycle / disposable
     private val repoDisposables = CompositeDisposable()
+
+    // State for connection/filters
     @Volatile private var bridgeAttached = false
     @Volatile private var lastNonHeartbeatMs: Long = 0L
 
+    // Autopilot addressing
     @Volatile private var autopilotSysId: Int = -1
     @Volatile private var autopilotCompId: Int = -1
 
+    // Mission control
+    @Volatile private var missionDownloadInProgress = false
+    @Volatile private var lastDownloadAttemptMs: Long = 0L
 
-    val mavlinkCommunicationLiveData : MutableLiveData<MavLinkComm> by lazy{
-        MutableLiveData<MavLinkComm>().default(MavLinkComm(null))
-    }
+    // Expose target IDs
+    fun getTargetSystemId(): Int = autopilotSysId
+    fun getTargetComponentId(): Int = autopilotCompId
 
+    // Dependencies
     val mavlinkRepository: MavlinkRepository by lazy { MavlinkRepository() }
+    val missionService: MissionService by lazy { MissionService(mavlinkRepository) }
 
+    // LiveData
     val droneLocationLiveData: MutableLiveData<Location> by lazy {
         MutableLiveData<Location>().default(Location(""))
     }
-
     val conStateLiveData: MutableLiveData<Boolean> by lazy {
         MutableLiveData<Boolean>().default(false)
     }
-
     val telemetryAliveLiveData: MutableLiveData<Boolean> by lazy {
         MutableLiveData<Boolean>().default(false)
     }
-
     val armedState: MutableLiveData<Boolean> by lazy {
         MutableLiveData<Boolean>().default(false)
     }
-
     val droneHeading: MutableLiveData<Double> by lazy {
         MutableLiveData<Double>().default(0.0)
     }
-
     val droneBatteryVoltage: MutableLiveData<Float> by lazy {
         MutableLiveData<Float>().default(0.0F)
     }
-
     val droneBatteryPercentage: MutableLiveData<Float> by lazy {
         MutableLiveData<Float>().default(0.0F)
     }
-
     val droneFrontDistance: MutableLiveData<Int> by lazy {
         MutableLiveData<Int>()
     }
-
     val droneBackDistance: MutableLiveData<Int> by lazy {
         MutableLiveData<Int>()
     }
-
     val droneFlightMode: MutableLiveData<Int> by lazy {
         MutableLiveData<Int>().default(0)
     }
-
-    val rcRSSI: MutableLiveData<Float> by lazy{
+    val rcRSSI: MutableLiveData<Float> by lazy {
         MutableLiveData<Float>().default(0.0F)
     }
-
-    val missionItems: MutableLiveData<ArrayList<MissionItemInt>> by lazy{
+    val missionItems: MutableLiveData<ArrayList<MissionItemInt>> by lazy {
         MutableLiveData<ArrayList<MissionItemInt>>().default(ArrayList())
     }
-
     val liquidLevel: MutableLiveData<Float> by lazy {
         MutableLiveData<Float>().default(0.0F)
     }
 
-    private fun <T : Any?> MutableLiveData<T>.default(initialValue: T) = apply { setValue(initialValue) }
+    // Helpers
+    private fun <T : Any?> MutableLiveData<T>.default(initialValue: T) =
+        apply { value = initialValue }
 
-
+    // Public API
     fun startMavlink(config: MavlinkConfig) {
         mavlinkRepository.restart(config)
         attachRepositoryBridgeOnce()
     }
 
-    private fun attachRepositoryBridgeOnce() {
+    fun downloadMissionNew() {
+        val now = System.currentTimeMillis()
 
+        // basic debounce
+        if (now - lastDownloadAttemptMs < MISSION_DEBOUNCE_MS) return
+        lastDownloadAttemptMs = now
+
+        // in-flight guard
+        if (missionDownloadInProgress) return
+        missionDownloadInProgress = true
+
+        repoDisposables.add(
+            Single.fromCallable { missionService.downloadMission() }
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .doFinally { missionDownloadInProgress = false }
+                .subscribe(
+                    { items -> missionItems.postValue(items) },
+                    { err ->
+                        Log.e(TAG, "downloadMission failed: ${err.message}", err)
+                    }
+                )
+        )
+    }
+
+    fun uploadMissionNew(items: ArrayList<MissionItemInt>) {
+        repoDisposables.add(
+            Single.fromCallable { missionService.uploadMission(items) }
+                .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
+                .subscribe(
+                    { ok -> Log.i(TAG, "uploadMission result=$ok") },
+                    { err -> Log.e(TAG, "uploadMission failed: ${err.message}", err) }
+                )
+        )
+    }
+
+    // Internal
+    private fun attachRepositoryBridgeOnce() {
         if (bridgeAttached) return
         bridgeAttached = true
 
         // 1) Connection state ticker (heartbeat freshness)
         repoDisposables.add(
-            Observable.interval(0, 500, java.util.concurrent.TimeUnit.MILLISECONDS)
+            Observable.interval(0, CONNECTION_TICK_MS, TimeUnit.MILLISECONDS)
                 .subscribeOn(Schedulers.io())
                 .subscribe {
-                    val connected = (System.currentTimeMillis() - mavlinkRepository.lastHeartbeatMs) < 5500
+                    val connected =
+                        (System.currentTimeMillis() - mavlinkRepository.lastHeartbeatMs) < HEARTBEAT_STALE_MS
                     conStateLiveData.postValue(connected)
 
-                    val telemetryAlive = (System.currentTimeMillis() - lastNonHeartbeatMs) < 2500
+                    val telemetryAlive =
+                        (System.currentTimeMillis() - lastNonHeartbeatMs) < TELEMETRY_STALE_MS
                     telemetryAliveLiveData.postValue(telemetryAlive)
 
                     if (!connected) {
                         telemetryAliveLiveData.postValue(false)
                     }
-
                 }
         )
 
@@ -125,13 +174,12 @@ class DroneViewModel : ViewModel() {
                 .subscribeOn(Schedulers.io())
                 .subscribe(
                     { msg -> handleMavlinkMessage(msg) },
-                    { err -> Log.e("DroneViewModel", "MAVLink stream error: ${err.message}", err) }
+                    { err -> Log.e(TAG, "MAVLink stream error: ${err.message}", err) }
                 )
         )
     }
 
     private fun handleMavlinkMessage(message: MavlinkMessage<*>) {
-
         if (message.payload !is Heartbeat) {
             lastNonHeartbeatMs = System.currentTimeMillis()
         }
@@ -144,17 +192,19 @@ class DroneViewModel : ViewModel() {
         }
 
         when (val p = message.payload) {
-
             is Heartbeat -> {
                 val isGcs = p.type().entry() == io.dronefleet.mavlink.minimal.MavType.MAV_TYPE_GCS
                 val hasAutopilot =
-                    p.autopilot().entry() != io.dronefleet.mavlink.minimal.MavAutopilot.MAV_AUTOPILOT_INVALID
+                    p.autopilot()
+                        .entry() != io.dronefleet.mavlink.minimal.MavAutopilot.MAV_AUTOPILOT_INVALID
 
                 // Only use real autopilot heartbeat to "lock on"
                 if (!isGcs && hasAutopilot && autopilotSysId == -1) {
                     autopilotSysId = message.originSystemId
                     autopilotCompId = message.originComponentId
                     Log.i("HB_LOCK", "Locked autopilot sys=$autopilotSysId comp=$autopilotCompId")
+                    missionService.targetSystemId = autopilotSysId
+                    missionService.targetComponentId = autopilotCompId
                 }
 
                 // If we’ve locked on already, ignore heartbeats from other components/systems
@@ -170,20 +220,19 @@ class DroneViewModel : ViewModel() {
                 armedState.postValue(isArmed)
             }
 
-
             is GlobalPositionInt -> {
                 val loc = Location("").apply {
                     latitude = p.lat().toDouble() * 10.0.pow(-7.0)
                     longitude = p.lon().toDouble() * 10.0.pow(-7.0)
                     altitude = p.relativeAlt().toDouble() * 10.0.pow(-3.0)
                 }
-                droneHeading.postValue(p.hdg().toDouble())
+                droneHeading.postValue(p.hdg().toDouble() / 100.0)
                 droneLocationLiveData.postValue(loc)
             }
 
             is BatteryStatus -> {
                 droneBatteryVoltage.postValue(p.voltages()[0].toFloat() * 10.0f.pow(-3))
-                droneBatteryPercentage.postValue(p.batteryRemaining().toFloat() * 10.0f.pow(-2))
+                droneBatteryPercentage.postValue(p.batteryRemaining().toFloat() / 100.0F)
 
                 // You were using voltages[1] as liquid level before
                 liquidLevel.postValue(p.voltages()[1].toFloat())
@@ -215,13 +264,12 @@ class DroneViewModel : ViewModel() {
         }
     }
 
+    // Lifecycle
     override fun onCleared() {
         super.onCleared()
         repoDisposables.clear()
         mavlinkRepository.stop()
     }
-
-
 }
 
 

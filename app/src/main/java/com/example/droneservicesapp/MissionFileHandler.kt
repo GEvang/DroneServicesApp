@@ -18,8 +18,7 @@ import javax.xml.transform.stream.StreamResult
 class MissionFileHandler(
     private var activity: FragmentActivity,
     private var activityViewModel: MainActivityViewModel
-)
-{
+) {
 
     fun saveMissionXML(
         polygon: List<LatLng>,
@@ -28,31 +27,37 @@ class MissionFileHandler(
         alt: Int,
         sprayerIntensPerc: Int,
         fileName: String,
-        override: Boolean): Boolean {
+        override: Boolean
+    ): Boolean {
 
         val context = activity.baseContext
 
         // Get the directory for the user's public documents directory.
         val directory = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS), context.getString(
-            R.string.mission_directory))
+            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
+            context.getString(
+                R.string.mission_directory
+            )
+        )
 
         // Create the custom directory if it doesn't exist
-        if ( !directory.exists() ) {
+        if (!directory.exists()) {
             directory.mkdirs()
         }
 
         // Create a new file in the custom directory
-        val file = File(directory, fileName.plus(activity.getString(R.string.DroneServicesFilePageSuffix)))
+        val file =
+            File(directory, fileName.plus(activity.getString(R.string.DroneServicesFilePageSuffix)))
 
-        if( file.exists() )
-        {
-            if( override ){
+        if (file.exists()) {
+            if (override) {
                 file.delete()
-            }
-            else
-            {
-                Toast.makeText(context, context.getString(R.string.file_already_exists), Toast.LENGTH_LONG).show()
+            } else {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.file_already_exists),
+                    Toast.LENGTH_LONG
+                ).show()
                 return false
             }
         }
@@ -87,14 +92,17 @@ class MissionFileHandler(
         val sprayerIntensityPercentage = doc.createElement("sprayerIntensityPercentage")
         sprayerIntensityPercentage.textContent = sprayerIntensPerc.toString()
         root.appendChild(sprayerIntensityPercentage)
-        Log.i("saveMissionXML", "saveMission: added sprayer intensity percentage $sprayerIntensPerc")
+        Log.i(
+            "saveMissionXML",
+            "saveMission: added sprayer intensity percentage $sprayerIntensPerc"
+        )
 
         val latLnglst = doc.createElement("LatLngList")
         latLnglst.setAttribute("size", polygon.size.toString())
         root.appendChild(latLnglst)
         Log.i("saveMissionXML", "saveMission: added latlng list count ${polygon.size}")
 
-        for ( i in polygon.indices) {
+        for (i in polygon.indices) {
             val latLngElement = doc.createElement("LatLng")
             latLngElement.setAttribute("sequence", i.toString())
 
@@ -109,7 +117,8 @@ class MissionFileHandler(
             latLnglst.appendChild(latLngElement)
             Log.i(
                 "saveMissionXML", "saveMission: added latlng list element $i " +
-                    "where latlng ${polygon[i].latitude} ${polygon[i].longitude}")
+                        "where latlng ${polygon[i].latitude} ${polygon[i].longitude}"
+            )
         }
 
         // Write the file contents to the file
@@ -125,10 +134,18 @@ class MissionFileHandler(
             transformer.transform(source, result)
             Log.i("saveMissionXML", "saveMission: transformed Source to Result $result")
 
-            Toast.makeText(context, context.getString(R.string.file_successfully_saved), Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                context,
+                context.getString(R.string.file_successfully_saved),
+                Toast.LENGTH_LONG
+            ).show()
         } catch (e: Exception) {
             // Handle the exception here.
-            Toast.makeText(context, context.getString(R.string.failed_file_creation), Toast.LENGTH_LONG).show()
+            Toast.makeText(
+                context,
+                context.getString(R.string.failed_file_creation),
+                Toast.LENGTH_LONG
+            ).show()
             Log.i("saveMissionXML", "saveMission: Failed to create the mission file: $e")
 
             return false
@@ -136,8 +153,6 @@ class MissionFileHandler(
 
         return true
     }
-
-
 
 
     fun parseXml(inputStream: InputStream) {
@@ -160,7 +175,9 @@ class MissionFileHandler(
                         "altitude" -> altitude = parser.nextText().toInt()
                         "angleDegrees" -> angleDegrees = parser.nextText().toInt()
                         "lineDistance" -> lineDistance = parser.nextText().toInt()
-                        "sprayerIntensityPercentage" -> sprayerIntensityPercentage = parser.nextText().toInt()
+                        "sprayerIntensityPercentage" -> sprayerIntensityPercentage =
+                            parser.nextText().toInt()
+
                         "LatLngList" -> {
                             while (parser.next() != XmlPullParser.END_TAG) {
                                 when (parser.name) {
@@ -169,8 +186,11 @@ class MissionFileHandler(
                                         var longitude = -1000.0
                                         while (parser.next() != XmlPullParser.END_TAG) {
                                             when (parser.name) {
-                                                "Latitude" -> latitude = parser.nextText().toDouble()
-                                                "Longitude" -> longitude = parser.nextText().toDouble()
+                                                "Latitude" -> latitude =
+                                                    parser.nextText().toDouble()
+
+                                                "Longitude" -> longitude =
+                                                    parser.nextText().toDouble()
                                             }
                                         }
                                         latLngList.add(LatLng(latitude, longitude))

@@ -38,13 +38,6 @@ public class LocaleUtils {
 
     }
 
-    @Retention(RetentionPolicy.SOURCE)
-    @StringDef({ENGLISH, GREEK})
-    public @interface LocaleDef {
-        String[] SUPPORTED_LOCALES = {ENGLISH, GREEK};
-    }
-
-
     private static SharedPreferences getDefaultSharedPreference() {
         if (PreferenceManager.getDefaultSharedPreferences(Application.getInstance().getApplicationContext()) != null)
             return PreferenceManager.getDefaultSharedPreferences(Application.getInstance().getApplicationContext());
@@ -52,7 +45,12 @@ public class LocaleUtils {
             return null;
     }
 
-    public static void setSelectedLanguageId(String id){
+    public static String getSelectedLanguageId() {
+        return Objects.requireNonNull(getDefaultSharedPreference())
+                .getString(Application.getInstance().getApplicationContext().getString(R.string.language_pref), "en");
+    }
+
+    public static void setSelectedLanguageId(String id) {
         final SharedPreferences prefs = getDefaultSharedPreference();
         assert prefs != null;
         SharedPreferences.Editor editor = prefs.edit();
@@ -60,8 +58,9 @@ public class LocaleUtils {
         editor.apply();
     }
 
-    public static String getSelectedLanguageId(){
-        return Objects.requireNonNull(getDefaultSharedPreference())
-                .getString(Application.getInstance().getApplicationContext().getString(R.string.language_pref), "en");
+    @Retention(RetentionPolicy.SOURCE)
+    @StringDef({ENGLISH, GREEK})
+    public @interface LocaleDef {
+        String[] SUPPORTED_LOCALES = {ENGLISH, GREEK};
     }
 }

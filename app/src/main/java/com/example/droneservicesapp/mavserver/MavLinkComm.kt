@@ -51,15 +51,14 @@ import java.net.InetAddress
 import kotlin.math.pow
 
 
-class MavLinkComm(private var activity: FragmentActivity?)
-{
+class MavLinkComm(private var activity: FragmentActivity?) {
     private val COM_MISSION_TYPE_CLEAR_ALL = 0
 
     private var missionUploadCountInt = 0
     private var expectedDownloadItemInt = -1
 
-    private lateinit var droneViewModel : DroneViewModel
-    private lateinit var activityViewModel : MainActivityViewModel
+    private lateinit var droneViewModel: DroneViewModel
+    private lateinit var activityViewModel: MainActivityViewModel
 
     private val disposables: MutableList<Disposable?> = ArrayList()
 
@@ -68,14 +67,15 @@ class MavLinkComm(private var activity: FragmentActivity?)
     private lateinit var mavUpCon: MavlinkConnection
     private lateinit var mavHrtbtCon: MavlinkConnection
 
-    private var targetComponentId : Int = 0
-    private var targetSystemId : Int = 0
-    private var componentId : Int = 99
-    private var systemId : Int = 254
+    private var targetComponentId: Int = 0
+    private var targetSystemId: Int = 0
+    private var componentId: Int = 99
+    private var systemId: Int = 254
 
     private var listenPort: Int = 14550
 
-    @Volatile private var lastNonHeartbeatMs: Long = 0L
+    @Volatile
+    private var lastNonHeartbeatMs: Long = 0L
 
 
     // Create PipedInputStream and PipedOutputStream for input and output streams respectively
@@ -91,14 +91,12 @@ class MavLinkComm(private var activity: FragmentActivity?)
     private val mavHrtbtPOS = PipedOutputStream(mavHrtbtPIS)
 
 
-    fun setActivity(activity: FragmentActivity?)
-    {
+    fun setActivity(activity: FragmentActivity?) {
         this.activity = activity
     }
 
     @RequiresApi(Build.VERSION_CODES.TIRAMISU)
-    fun startConn(conn : String, port : Int)
-    {
+    fun startConn(conn: String, port: Int) {
         droneViewModel = ViewModelProvider(activity!!)[DroneViewModel::class.java]
         activityViewModel = ViewModelProvider(activity!!)[MainActivityViewModel::class.java]
 
@@ -118,8 +116,7 @@ class MavLinkComm(private var activity: FragmentActivity?)
 //        subscribeLiquidLevel()
     }
 
-    fun stopConn()
-    {
+    fun stopConn() {
         for (disposable in disposables) {
             disposable?.dispose()
         }
@@ -129,15 +126,13 @@ class MavLinkComm(private var activity: FragmentActivity?)
     }
 
 
-
-    private fun subscribeUdpConnection()
-    {
+    private fun subscribeUdpConnection() {
         disposables.add(
             // Subscribe to the Observable and update the LiveData value
             Observable.create<Boolean> { emitter ->
 
-                var remoteIP : InetAddress? = null
-                var remotePort : Int = -1
+                var remoteIP: InetAddress? = null
+                var remotePort: Int = -1
                 val outBuffer = ByteArray(4096)
 
                 try {
@@ -146,8 +141,7 @@ class MavLinkComm(private var activity: FragmentActivity?)
                     val receiveData = ByteArray(4096)
                     while (!emitter.isDisposed) {
 
-                        if( udpSocket.receiveBufferSize > 0 )
-                        {
+                        if (udpSocket.receiveBufferSize > 0) {
                             Log.i("udpThread", "emitter.isDisposed ${emitter.isDisposed}")
 
                             // Receive data from UDP port
@@ -157,8 +151,9 @@ class MavLinkComm(private var activity: FragmentActivity?)
                             // Write the received data to PipedOutputStream
                             Log.i("UDP_RAW_LEN", "len=" + receivePacket.length)
                             mavRcvPOS.write(receivePacket.data, 0, receivePacket.length)
-                            Log.i("UDP_RAW_HEX", receivePacket.data.take(receivePacket.length)
-                                .joinToString(" ") { "%02X".format(it) })
+                            Log.i(
+                                "UDP_RAW_HEX", receivePacket.data.take(receivePacket.length)
+                                    .joinToString(" ") { "%02X".format(it) })
 
                             mavRcvPOS.flush()
                             Log.i("udpThread", "receivePacket.data ${receivePacket.data}")
@@ -168,13 +163,14 @@ class MavLinkComm(private var activity: FragmentActivity?)
                         }
 
                         Log.i("udpThread", "mavSenderPIS.available() ${mavSndPIS.available()}")
-                        if( mavSndPIS.available() > 0 && remoteIP != null )
-                        {
+                        if (mavSndPIS.available() > 0 && remoteIP != null) {
                             val bytesRead = mavSndPIS.read(outBuffer)
                             Log.i("udpThread", "bytesRead $bytesRead")
 
-                            val outputPacket = DatagramPacket(outBuffer, bytesRead,
-                                remoteIP, remotePort)
+                            val outputPacket = DatagramPacket(
+                                outBuffer, bytesRead,
+                                remoteIP, remotePort
+                            )
 
                             udpSocket.send(outputPacket)
                         }
@@ -201,9 +197,7 @@ class MavLinkComm(private var activity: FragmentActivity?)
     }
 
 
-
-    private fun subscribeMavlinkMsgReader()
-    {
+    private fun subscribeMavlinkMsgReader() {
         disposables.add(
             Observable.create<MavlinkMessage<*>> { emitter ->
 
@@ -225,16 +219,24 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                                 val isGcs = hb.type().entry() == MavType.MAV_TYPE_GCS
                                 val hasAutopilot =
-                                    hb.autopilot().entry() != io.dronefleet.mavlink.minimal.MavAutopilot.MAV_AUTOPILOT_INVALID
+                                    hb.autopilot()
+                                        .entry() != io.dronefleet.mavlink.minimal.MavAutopilot.MAV_AUTOPILOT_INVALID
 
                                 if (isGcs || !hasAutopilot) return@heartbeat
 
-                                Log.i("HB_SRC", "sys=${message.originSystemId} comp=${message.originComponentId} baseMode=0x${(message as MavlinkMessage<Heartbeat>).payload.baseMode().value().toString(16)}")
+                                Log.i(
+                                    "HB_SRC",
+                                    "sys=${message.originSystemId} comp=${message.originComponentId} baseMode=0x${
+                                        (message as MavlinkMessage<Heartbeat>).payload.baseMode()
+                                            .value().toString(16)
+                                    }"
+                                )
 
 
                                 // ---- ARMED STATE (CORRECT) ----
                                 val baseMode = hb.baseMode().value()
-                                val isArmed = (baseMode and 0x80) != 0   // MAV_MODE_FLAG_SAFETY_ARMED
+                                val isArmed =
+                                    (baseMode and 0x80) != 0   // MAV_MODE_FLAG_SAFETY_ARMED
 
                                 handler.post {
                                     droneViewModel.armedState.postValue(isArmed)
@@ -249,7 +251,10 @@ class MavLinkComm(private var activity: FragmentActivity?)
                                         heartbeatMessage.payload.customMode().toInt()
                                     )
                                 }
-                                Log.i("MavlinkHeartbeat", "Heartbeat flightMode: ${heartbeatMessage.payload.customMode()}")
+                                Log.i(
+                                    "MavlinkHeartbeat",
+                                    "Heartbeat flightMode: ${heartbeatMessage.payload.customMode()}"
+                                )
 
 
                                 mavHrtbtCon.send2(
@@ -266,8 +271,14 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                                 val batteryMessage = message as MavlinkMessage<BatteryStatus>
 
-                                Log.i("MavlinkBattery", "BatteryStatus voltage percentage: ${batteryMessage.payload.batteryRemaining()}")
-                                Log.i("MavlinkBattery", "Battery1Status voltage: ${batteryMessage.payload.voltages()[0].toFloat()}")
+                                Log.i(
+                                    "MavlinkBattery",
+                                    "BatteryStatus voltage percentage: ${batteryMessage.payload.batteryRemaining()}"
+                                )
+                                Log.i(
+                                    "MavlinkBattery",
+                                    "Battery1Status voltage: ${batteryMessage.payload.voltages()[0].toFloat()}"
+                                )
 
                                 handler.post {
                                     droneViewModel.droneBatteryVoltage.postValue(
@@ -281,7 +292,10 @@ class MavLinkComm(private var activity: FragmentActivity?)
                                     )
                                 }
 
-                                Log.i("MavlinkBattery2", "Battery2Status voltage: ${batteryMessage.payload.voltages()[1].toFloat()}")
+                                Log.i(
+                                    "MavlinkBattery2",
+                                    "Battery2Status voltage: ${batteryMessage.payload.voltages()[1].toFloat()}"
+                                )
                                 handler.post {
                                     droneViewModel.liquidLevel.postValue(batteryMessage.payload.voltages()[1].toFloat())
                                 }
@@ -293,10 +307,28 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                                 val positionMessage = message as MavlinkMessage<GlobalPositionInt>
 
-                                Log.i("MavlinkLocation", "Location   lat: ${positionMessage.payload.lat().toFloat() * 10.0.pow(-7)}")
-                                Log.i("MavlinkLocation", "Location   lon: ${positionMessage.payload.lon().toFloat() * 10.0.pow(-7)}")
-                                Log.i("MavlinkLocation", "Location   relativeAlt: ${positionMessage.payload.relativeAlt() * 10.0.pow(-3)}")
-                                Log.i("MavlinkLocation", "Location   heading: ${positionMessage.payload.hdg()}")
+                                Log.i(
+                                    "MavlinkLocation",
+                                    "Location   lat: ${
+                                        positionMessage.payload.lat().toFloat() * 10.0.pow(-7)
+                                    }"
+                                )
+                                Log.i(
+                                    "MavlinkLocation",
+                                    "Location   lon: ${
+                                        positionMessage.payload.lon().toFloat() * 10.0.pow(-7)
+                                    }"
+                                )
+                                Log.i(
+                                    "MavlinkLocation",
+                                    "Location   relativeAlt: ${
+                                        positionMessage.payload.relativeAlt() * 10.0.pow(-3)
+                                    }"
+                                )
+                                Log.i(
+                                    "MavlinkLocation",
+                                    "Location   heading: ${positionMessage.payload.hdg()}"
+                                )
 
                                 val loc = Location("")
                                 loc.latitude =
@@ -319,7 +351,10 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                                 val positionMessage = message as MavlinkMessage<RcChannels>
 
-                                Log.i("MavlinkRcChannels", "RcChannels   rssi: ${positionMessage.payload.rssi()}")
+                                Log.i(
+                                    "MavlinkRcChannels",
+                                    "RcChannels   rssi: ${positionMessage.payload.rssi()}"
+                                )
 
                                 handler.post {
                                     droneViewModel.rcRSSI.postValue(positionMessage.payload.rssi() * 100.0F / 255.0F)
@@ -333,8 +368,9 @@ class MavLinkComm(private var activity: FragmentActivity?)
                                 val missionAckMsg = message as MavlinkMessage<MissionAck>
                                 Log.i("MavlinkAck", "missionAckMsg ${missionAckMsg.payload.type()}")
 
-                                if( missionAckMsg.payload.targetSystem() == systemId &&
-                                    missionAckMsg.payload.targetComponent() == componentId ) {
+                                if (missionAckMsg.payload.targetSystem() == systemId &&
+                                    missionAckMsg.payload.targetComponent() == componentId
+                                ) {
 
                                     mavUpCon.send2(
                                         missionAckMsg.originSystemId,
@@ -350,7 +386,10 @@ class MavLinkComm(private var activity: FragmentActivity?)
                                 lastNonHeartbeatMs = System.currentTimeMillis()
 
                                 val missionCurrentMsg = message as MavlinkMessage<MissionCurrent>
-                                Log.i("MissionCurrent", "missionCurrentMsg ${missionCurrentMsg.payload}")
+                                Log.i(
+                                    "MissionCurrent",
+                                    "missionCurrentMsg ${missionCurrentMsg.payload}"
+                                )
                             }
 
                             is MissionRequestInt -> {
@@ -358,11 +397,14 @@ class MavLinkComm(private var activity: FragmentActivity?)
                                 lastNonHeartbeatMs = System.currentTimeMillis()
 
                                 val missionReqIntMsg = message as MavlinkMessage<MissionRequestInt>
-                                Log.i("MissionRequestInt", "Received MissionRequestInt ${missionReqIntMsg.payload}")
+                                Log.i(
+                                    "MissionRequestInt",
+                                    "Received MissionRequestInt ${missionReqIntMsg.payload}"
+                                )
 
-                                if( missionReqIntMsg.payload.targetSystem() == systemId &&
-                                    missionReqIntMsg.payload.targetComponent() == componentId )
-                                {
+                                if (missionReqIntMsg.payload.targetSystem() == systemId &&
+                                    missionReqIntMsg.payload.targetComponent() == componentId
+                                ) {
                                     missionUploadCountInt = missionReqIntMsg.payload.seq()
 
                                     mavUpCon.send2(
@@ -379,11 +421,14 @@ class MavLinkComm(private var activity: FragmentActivity?)
                                 lastNonHeartbeatMs = System.currentTimeMillis()
 
                                 val missionReqMsg = message as MavlinkMessage<MissionRequest>
-                                Log.i("MissionRequest", "Received missionReqMsg ${missionReqMsg.payload}")
+                                Log.i(
+                                    "MissionRequest",
+                                    "Received missionReqMsg ${missionReqMsg.payload}"
+                                )
 
-                                if( missionReqMsg.payload.targetSystem() == systemId &&
-                                    missionReqMsg.payload.targetComponent() == componentId )
-                                {
+                                if (missionReqMsg.payload.targetSystem() == systemId &&
+                                    missionReqMsg.payload.targetComponent() == componentId
+                                ) {
                                     missionUploadCountInt = missionReqMsg.payload.seq()
 
                                     mavUpCon.send2(
@@ -400,11 +445,14 @@ class MavLinkComm(private var activity: FragmentActivity?)
                                 lastNonHeartbeatMs = System.currentTimeMillis()
 
                                 val missionCountMsg = message as MavlinkMessage<MissionCount>
-                                Log.i("MissionCount", "Received missionReqMsg ${missionCountMsg.payload}")
+                                Log.i(
+                                    "MissionCount",
+                                    "Received missionReqMsg ${missionCountMsg.payload}"
+                                )
 
-                                if( missionCountMsg.payload.targetSystem() == systemId &&
-                                    missionCountMsg.payload.targetComponent() == componentId )
-                                {
+                                if (missionCountMsg.payload.targetSystem() == systemId &&
+                                    missionCountMsg.payload.targetComponent() == componentId
+                                ) {
                                     mavDownCon.send2(
                                         missionCountMsg.originSystemId,
                                         missionCountMsg.originComponentId,
@@ -419,11 +467,14 @@ class MavLinkComm(private var activity: FragmentActivity?)
                                 lastNonHeartbeatMs = System.currentTimeMillis()
 
                                 val missionItemIntMsg = message as MavlinkMessage<MissionItemInt>
-                                Log.i("MissionItemInt", "Received MissionItemInt ${missionItemIntMsg.payload}")
+                                Log.i(
+                                    "MissionItemInt",
+                                    "Received MissionItemInt ${missionItemIntMsg.payload}"
+                                )
 
-                                if( missionItemIntMsg.payload.targetSystem() == systemId &&
-                                    missionItemIntMsg.payload.targetComponent() == componentId )
-                                {
+                                if (missionItemIntMsg.payload.targetSystem() == systemId &&
+                                    missionItemIntMsg.payload.targetComponent() == componentId
+                                ) {
                                     mavDownCon.send2(
                                         missionItemIntMsg.originSystemId,
                                         missionItemIntMsg.originComponentId,
@@ -433,34 +484,45 @@ class MavLinkComm(private var activity: FragmentActivity?)
                                 }
                             }
 
-                            is DistanceSensor ->{
+                            is DistanceSensor -> {
 
                                 lastNonHeartbeatMs = System.currentTimeMillis()
 
                                 val distanceSensorMsg = message as MavlinkMessage<DistanceSensor>
-                                Log.i("DistanceSensor", "Received DistanceSensor ${distanceSensorMsg.payload}")
+                                Log.i(
+                                    "DistanceSensor",
+                                    "Received DistanceSensor ${distanceSensorMsg.payload}"
+                                )
 
-                                if( distanceSensorMsg.payload.orientation().entry() == MavSensorOrientation.MAV_SENSOR_ROTATION_NONE ||
-                                    distanceSensorMsg.payload.orientation().entry() == MavSensorOrientation.MAV_SENSOR_ROTATION_YAW_45 ||
-                                    distanceSensorMsg.payload.orientation().entry() == MavSensorOrientation.MAV_SENSOR_ROTATION_YAW_315)
-                                {
-                                    Log.i("DistanceSensor",
-                                        "Received Front ${distanceSensorMsg.payload.currentDistance()} cm")
-                                    droneViewModel.droneFrontDistance.postValue(distanceSensorMsg.payload.currentDistance()/100)
-                                }
-                                else if( distanceSensorMsg.payload.orientation().entry() == MavSensorOrientation.MAV_SENSOR_ROTATION_YAW_180 ||
-                                    distanceSensorMsg.payload.orientation().entry() == MavSensorOrientation.MAV_SENSOR_ROTATION_YAW_135 ||
-                                    distanceSensorMsg.payload.orientation().entry() == MavSensorOrientation.MAV_SENSOR_ROTATION_YAW_225 )
-                                {
-                                    Log.i("DistanceSensor",
-                                        "Received Back ${distanceSensorMsg.payload.currentDistance()} cm")
-                                    droneViewModel.droneBackDistance.postValue(distanceSensorMsg.payload.currentDistance()/100)
+                                if (distanceSensorMsg.payload.orientation()
+                                        .entry() == MavSensorOrientation.MAV_SENSOR_ROTATION_NONE ||
+                                    distanceSensorMsg.payload.orientation()
+                                        .entry() == MavSensorOrientation.MAV_SENSOR_ROTATION_YAW_45 ||
+                                    distanceSensorMsg.payload.orientation()
+                                        .entry() == MavSensorOrientation.MAV_SENSOR_ROTATION_YAW_315
+                                ) {
+                                    Log.i(
+                                        "DistanceSensor",
+                                        "Received Front ${distanceSensorMsg.payload.currentDistance()} cm"
+                                    )
+                                    droneViewModel.droneFrontDistance.postValue(distanceSensorMsg.payload.currentDistance() / 100)
+                                } else if (distanceSensorMsg.payload.orientation()
+                                        .entry() == MavSensorOrientation.MAV_SENSOR_ROTATION_YAW_180 ||
+                                    distanceSensorMsg.payload.orientation()
+                                        .entry() == MavSensorOrientation.MAV_SENSOR_ROTATION_YAW_135 ||
+                                    distanceSensorMsg.payload.orientation()
+                                        .entry() == MavSensorOrientation.MAV_SENSOR_ROTATION_YAW_225
+                                ) {
+                                    Log.i(
+                                        "DistanceSensor",
+                                        "Received Back ${distanceSensorMsg.payload.currentDistance()} cm"
+                                    )
+                                    droneViewModel.droneBackDistance.postValue(distanceSensorMsg.payload.currentDistance() / 100)
                                 }
                             }
                         }
 
-                        if( emitter.isDisposed )
-                        {
+                        if (emitter.isDisposed) {
                             break
                         }
                     }
@@ -482,12 +544,11 @@ class MavLinkComm(private var activity: FragmentActivity?)
         )
     }
 
-    private fun subscribeGcsHeartbeat()
-    {
+    private fun subscribeGcsHeartbeat() {
         disposables.add(
             Observable.create<Boolean> { emitter ->
 
-                while( !emitter.isDisposed ) {
+                while (!emitter.isDisposed) {
                     val heartbeatMsg = Heartbeat.builder()
                         .mavlinkVersion(3)
                         .systemStatus(MavState.MAV_STATE_ACTIVE)
@@ -518,63 +579,66 @@ class MavLinkComm(private var activity: FragmentActivity?)
         )
     }
 
-    private fun subscribeConnectionState()
-    {
+    private fun subscribeConnectionState() {
         disposables.add(
             Observable.create<Boolean> { emitter ->
 
-                var lastHeartbeat : Long = 0
+                var lastHeartbeat: Long = 0
 
                 try {
-                    while ( !emitter.isDisposed ) {
+                    while (!emitter.isDisposed) {
 
-                        if( mavHrtbtPIS.available() > 0 )
-                        {
+                        if (mavHrtbtPIS.available() > 0) {
                             val message = mavHrtbtCon.next()
                             lastHeartbeat = System.currentTimeMillis()
-                            Log.i("subscribeConnectionState", "Received $message  ${System.currentTimeMillis()}")
+                            Log.i(
+                                "subscribeConnectionState",
+                                "Received $message  ${System.currentTimeMillis()}"
+                            )
                         }
 
-                        val telemetryAlive = (System.currentTimeMillis() - lastNonHeartbeatMs) < 2500
+                        val telemetryAlive =
+                            (System.currentTimeMillis() - lastNonHeartbeatMs) < 2500
                         droneViewModel.telemetryAliveLiveData.postValue(telemetryAlive)
 
 
                         emitter.onNext(System.currentTimeMillis() - lastHeartbeat < 5500)
-                        Log.i("subscribeConnectionState", "Loop ${System.currentTimeMillis() - lastHeartbeat}")
+                        Log.i(
+                            "subscribeConnectionState",
+                            "Loop ${System.currentTimeMillis() - lastHeartbeat}"
+                        )
                         Thread.sleep(500)
                     }
                 } catch (e: Exception) {
                     e.printStackTrace()
                 }
             }
-            .distinctUntilChanged()
-            .subscribeOn(Schedulers.io()) // Specify the scheduler for the operation
-            .observeOn(AndroidSchedulers.mainThread()) // Specify the scheduler for the result handling
-            .subscribe(
-                { conState ->
-                    Log.i("subscribeConnectionState", "Message $conState")
+                .distinctUntilChanged()
+                .subscribeOn(Schedulers.io()) // Specify the scheduler for the operation
+                .observeOn(AndroidSchedulers.mainThread()) // Specify the scheduler for the result handling
+                .subscribe(
+                    { conState ->
+                        Log.i("subscribeConnectionState", "Message $conState")
 
-                    droneViewModel.conStateLiveData.postValue(conState)
-                },
-                { error ->
-                    // Handle any errors that may occur during the operation
-                    Log.e("subscribeConnectionState", "Error: ${error.message}")
-                }
-            )
+                        droneViewModel.conStateLiveData.postValue(conState)
+                    },
+                    { error ->
+                        // Handle any errors that may occur during the operation
+                        Log.e("subscribeConnectionState", "Error: ${error.message}")
+                    }
+                )
         )
     }
 
 
-
-    fun downloadMission()
-    {
+    fun downloadMission() {
         Log.i("downloadMission", "downloadMission CALL")
 
         disposables.add(
             // Subscribe to the Observable
             Single.create<ArrayList<MissionItemInt>> { emitter ->
 
-                if( !droneViewModel.conStateLiveData.value!! ) {
+                if (!droneViewModel.conStateLiveData.value!!) {
                     emitter.onSuccess(ArrayList<MissionItemInt>())
                     return@create
                 }
@@ -586,38 +650,36 @@ class MavLinkComm(private var activity: FragmentActivity?)
                 var requestIntNumOfRetries = 0
 
 
-                endlessLoop@ while( true )
-                {
+                endlessLoop@ while (true) {
                     val msg = timeoutMav(mavMisDwnPIS, mavDownCon)
 
-                    if( msg != null )
-                    {
+                    if (msg != null) {
                         Log.i("downloadMission", "Message received: ${msg.payload}")
 
-                        when( msg.payload )
-                        {
+                        when (msg.payload) {
                             is MissionCount -> {
                                 val missionCountMsg = msg as MavlinkMessage<MissionCount>
 
-                                if( missionCountMsg.payload.targetSystem() == systemId &&
-                                    missionCountMsg.payload.targetComponent() == componentId )
-                                {
+                                if (missionCountMsg.payload.targetSystem() == systemId &&
+                                    missionCountMsg.payload.targetComponent() == componentId
+                                ) {
                                     countItems = missionCountMsg.payload.count()
 
-                                    if( countItems == 0 ) {
+                                    if (countItems == 0) {
                                         emitter.onSuccess(ArrayList<MissionItemInt>())
                                         break@endlessLoop
-                                    }
-                                    else
+                                    } else
                                         missionItems = ArrayList<MissionItemInt>(countItems)
                                 }
 
                             }
+
                             is MissionItemInt -> {
                                 val missionItemMsg = msg as MavlinkMessage<MissionItemInt>
 
-                                if( missionItemMsg.payload.targetSystem() == systemId &&
-                                    missionItemMsg.payload.targetComponent() == componentId ) {
+                                if (missionItemMsg.payload.targetSystem() == systemId &&
+                                    missionItemMsg.payload.targetComponent() == componentId
+                                ) {
                                     requestIntNumOfRetries = 0
 
                                     val seq = missionItemMsg.payload.seq()
@@ -631,9 +693,8 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
 
 
-                    if( countItems == -1 )
-                    {
-                        if( requestListNumOfRetries == 5 )
+                    if (countItems == -1) {
+                        if (requestListNumOfRetries == 5)
                             emitter.onError(IllegalThreadStateException("Exceeded num of retries on MissionRequestList"))
 
                         val missionRequestListMsg = MissionRequestList.builder()
@@ -648,16 +709,17 @@ class MavLinkComm(private var activity: FragmentActivity?)
                         Log.i("downloadMission", "Message sent: $missionRequestListMsg")
 
                         requestListNumOfRetries += 1
-                    }
-                    else if( lastSeq == countItems - 1 )
-                    {
+                    } else if (lastSeq == countItems - 1) {
                         val missionAckMsg = MissionAck.builder()
                             .targetSystem(targetSystemId)
                             .targetComponent(targetComponentId)
                             .missionType(MavMissionType.MAV_MISSION_TYPE_MISSION)
                             .type(
-                                EnumValue.create(MavMissionResult.MAV_MISSION_ACCEPTED,
-                                    MavMissionResult.valueOf("MAV_MISSION_ACCEPTED")))
+                                EnumValue.create(
+                                    MavMissionResult.MAV_MISSION_ACCEPTED,
+                                    MavMissionResult.valueOf("MAV_MISSION_ACCEPTED")
+                                )
+                            )
                             .build()
 
                         mavCon.send2(systemId, componentId, missionAckMsg)
@@ -667,10 +729,8 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                         emitter.onSuccess(missionItems)
                         break@endlessLoop
-                    }
-                    else if( countItems > 0 )
-                    {
-                        if( requestIntNumOfRetries == 5 )
+                    } else if (countItems > 0) {
+                        if (requestIntNumOfRetries == 5)
                             emitter.onError(IllegalThreadStateException("Exceeded num of retries on MissionRequestInt"))
 
                         val missionRequestIntMsg = MissionRequestInt.builder()
@@ -689,30 +749,31 @@ class MavLinkComm(private var activity: FragmentActivity?)
                     }
                 }
             }
-            .subscribeOn(Schedulers.io()) // Specify the scheduler for the operation
-            .observeOn(AndroidSchedulers.mainThread()) // Specify the scheduler for the result handling
-            .subscribe(
-                { missionItems ->
-                    Log.i("downloadMission", "downloadMissionResult $missionItems")
-                    Toast.makeText(activity!!.baseContext, activity?.getString(R.string.download_mission_succeded), Toast.LENGTH_LONG).show()
+                .subscribeOn(Schedulers.io()) // Specify the scheduler for the operation
+                .observeOn(AndroidSchedulers.mainThread()) // Specify the scheduler for the result handling
+                .subscribe(
+                    { missionItems ->
+                        Log.i("downloadMission", "downloadMissionResult $missionItems")
+                        Toast.makeText(
+                            activity!!.baseContext,
+                            activity?.getString(R.string.download_mission_succeded),
+                            Toast.LENGTH_LONG
+                        ).show()
 
-                    if(missionItems.size>0)
-                    {
-                        droneViewModel.missionItems.postValue(missionItems as ArrayList<MissionItemInt>)
+                        if (missionItems.size > 0) {
+                            droneViewModel.missionItems.postValue(missionItems as ArrayList<MissionItemInt>)
+                        }
+                    },
+                    { error ->
+                        // Handle any errors that may occur during the operation
+                        Log.e("downloadMission", "Error: ${error.message}")
                     }
-                },
-                { error ->
-                    // Handle any errors that may occur during the operation
-                    Log.e("downloadMission", "Error: ${error.message}")
-                }
-            )
+                )
         )
     }
 
 
-
-    fun uploadMission(missionItems : ArrayList<MissionItemInt>)
-    {
+    fun uploadMission(missionItems: ArrayList<MissionItemInt>) {
         Log.i("uploadMission", "uploadMission CALL")
 
         disposables.add(
@@ -720,7 +781,7 @@ class MavLinkComm(private var activity: FragmentActivity?)
             Single.create<MavlinkMessage<MissionAck>> { emitter ->
 
                 var missionAckRetries = 0
-                var missionRequestMsg : MavlinkMessage<MissionRequest>? = null
+                var missionRequestMsg: MavlinkMessage<MissionRequest>? = null
 
                 val missionCountMsg = MissionCount.builder()
                     .targetSystem(targetSystemId)
@@ -738,14 +799,12 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                 var lastSeq = -1
                 var seq = -1
-                endlessLoop@ while( true )
-                {
+                endlessLoop@ while (true) {
                     val msg = timeoutMav(mavMisUpPIS, mavUpCon)
                     Log.i("uploadMission", "Message received: $msg")
 
-                    if( msg!= null )
-                    {
-                        when ( msg.payload ) {
+                    if (msg != null) {
+                        when (msg.payload) {
 
                             is MissionRequest -> {
                                 missionRequestMsg = msg as MavlinkMessage<MissionRequest>
@@ -774,8 +833,7 @@ class MavLinkComm(private var activity: FragmentActivity?)
                                     if (missionAckMsg.payload.type().value() == 0 &&
                                         missionAckMsg.payload.type()
                                             .entry() == MavMissionResult.MAV_MISSION_ACCEPTED
-                                    )
-                                    {
+                                    ) {
                                         Log.i(
                                             "uploadMission",
                                             "Message missionAckMsg received $missionAckMsg"
@@ -785,7 +843,7 @@ class MavLinkComm(private var activity: FragmentActivity?)
                                         break@endlessLoop
                                     }
 
-                                    if( missionAckRetries == 5 )
+                                    if (missionAckRetries == 5)
                                         break@endlessLoop
                                 }
                             }
@@ -794,34 +852,39 @@ class MavLinkComm(private var activity: FragmentActivity?)
                 }
 
 
-
                 val msg = timeoutMav(mavMisUpPIS, mavUpCon)
                 Log.i("uploadMission", "Message received: $msg")
 
-                if( msg != null && msg.payload is MissionAck )
-                {
+                if (msg != null && msg.payload is MissionAck) {
 
                 }
 
             }
-            .subscribeOn(Schedulers.io()) // Specify the scheduler for the operation
-            .observeOn(AndroidSchedulers.mainThread()) // Specify the scheduler for the result handling
-            .subscribe(
-                { missionUploadResult ->
-                    Log.i("uploadMission", "missionUploadResult $missionUploadResult")
-                    Toast.makeText(activity?.baseContext, activity?.getString(R.string.mission_upload_success), Toast.LENGTH_LONG).show()
-                    activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
-                },
-                { error ->
-                    // Handle any errors that may occur during the operation
-                    Log.e("uploadMission", "Error: ${error.message}")
-                    Toast.makeText(activity?.baseContext, activity?.getString(R.string.mission_upload_failure), Toast.LENGTH_LONG).show()
-                    activityViewModel.mapState.postValue(MainActivityViewModel.MapState.SetFlightParams)
-                }
-            )
+                .subscribeOn(Schedulers.io()) // Specify the scheduler for the operation
+                .observeOn(AndroidSchedulers.mainThread()) // Specify the scheduler for the result handling
+                .subscribe(
+                    { missionUploadResult ->
+                        Log.i("uploadMission", "missionUploadResult $missionUploadResult")
+                        Toast.makeText(
+                            activity?.baseContext,
+                            activity?.getString(R.string.mission_upload_success),
+                            Toast.LENGTH_LONG
+                        ).show()
+                        activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
+                    },
+                    { error ->
+                        // Handle any errors that may occur during the operation
+                        Log.e("uploadMission", "Error: ${error.message}")
+                        Toast.makeText(
+                            activity?.baseContext,
+                            activity?.getString(R.string.mission_upload_failure),
+                            Toast.LENGTH_LONG
+                        ).show()
+                        activityViewModel.mapState.postValue(MainActivityViewModel.MapState.SetFlightParams)
+                    }
+                )
         )
     }
-
 
 
     fun clearMission() {
@@ -829,11 +892,10 @@ class MavLinkComm(private var activity: FragmentActivity?)
         disposables.add(
             Single.create<Boolean> { emitter ->
 
-                var missionAckMsg : MavlinkMessage<MissionAck>? = null
+                var missionAckMsg: MavlinkMessage<MissionAck>? = null
 
-                for( i in 1..5)
-                {
-                    val missionClearAll =  MissionClearAll.builder()
+                for (i in 1..5) {
+                    val missionClearAll = MissionClearAll.builder()
                         .targetSystem(targetSystemId)
                         .targetComponent(targetComponentId)
                         .missionType(MavMissionType.MAV_MISSION_TYPE_MISSION)
@@ -846,42 +908,43 @@ class MavLinkComm(private var activity: FragmentActivity?)
 
                     missionAckMsg = timeoutMav(mavMisUpPIS, mavUpCon) as MavlinkMessage<MissionAck>?
 
-                    if( missionAckMsg != null )
-                    {
-                        emitter.onSuccess( missionAckMsg.payload.type().value() == 0
-                                && missionAckMsg.payload.type().entry() == MavMissionResult.MAV_MISSION_ACCEPTED )
+                    if (missionAckMsg != null) {
+                        emitter.onSuccess(
+                            missionAckMsg.payload.type().value() == 0
+                                    && missionAckMsg.payload.type()
+                                .entry() == MavMissionResult.MAV_MISSION_ACCEPTED
+                        )
                         break
                     }
                 }
             }
-            .subscribeOn(Schedulers.io()) // Specify the scheduler for the operation
-            .observeOn(AndroidSchedulers.mainThread()) // Specify the scheduler for the result handling
-            .subscribe(
-                { missionClearResult ->
-                    Log.i("missionClear", "missionClearResult $missionClearResult")
-                },
-                { error ->
-                    // Handle any errors that may occur during the operation
-                    Log.e("missionClear", "Error: ${error.message}")
-                }
-            )
+                .subscribeOn(Schedulers.io()) // Specify the scheduler for the operation
+                .observeOn(AndroidSchedulers.mainThread()) // Specify the scheduler for the result handling
+                .subscribe(
+                    { missionClearResult ->
+                        Log.i("missionClear", "missionClearResult $missionClearResult")
+                    },
+                    { error ->
+                        // Handle any errors that may occur during the operation
+                        Log.e("missionClear", "Error: ${error.message}")
+                    }
+                )
         )
     }
 
 
-
-    fun setupMission(waypoints : ArrayList<LatLng>,
-                     currentPos : Location,
-                     alt: Float,
-                     sprayerIntensity: Int,
-                     context : Context
-    ) : ArrayList<MissionItemInt>
-    {
+    fun setupMission(
+        waypoints: ArrayList<LatLng>,
+        currentPos: Location,
+        alt: Float,
+        sprayerIntensity: Int,
+        context: Context
+    ): ArrayList<MissionItemInt> {
         val min = 1000.0F
         val max = 2000.0F
-        val sprayerIntensityPWM = ((max - min) * (sprayerIntensity/100.0F)) + min
+        val sprayerIntensityPWM = ((max - min) * (sprayerIntensity / 100.0F)) + min
 
-        val missionItems : ArrayList<MissionItemInt> = ArrayList()
+        val missionItems: ArrayList<MissionItemInt> = ArrayList()
         var seq = 0
 
 
@@ -909,17 +972,18 @@ class MavLinkComm(private var activity: FragmentActivity?)
                 .targetSystem(targetSystemId).targetComponent(targetComponentId).build()
         )
 
-        for( i in waypoints.indices)
-        {
+        for (i in waypoints.indices) {
             // Before the first waypoint is added
-            if(i == 0) {
+            if (i == 0) {
                 // Set user preferable speed in m/s
                 missionItems.add(
                     MissionItemInt.builder()
                         .seq(seq++)
-                        .frame(MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT).command(MavCmd.MAV_CMD_DO_CHANGE_SPEED)
+                        .frame(MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT)
+                        .command(MavCmd.MAV_CMD_DO_CHANGE_SPEED)
                         .current(0).autocontinue(1)
-                        .param1(1.0f).param2(activityViewModel.flightSpeed.value!!.toFloat()).param3(0.0f).param4(0.0f)
+                        .param1(1.0f).param2(activityViewModel.flightSpeed.value!!.toFloat())
+                        .param3(0.0f).param4(0.0f)
                         .x(0).y(0).z(0.0F)
                         .missionType(MavMissionType.MAV_MISSION_TYPE_MISSION)
                         .targetSystem(targetSystemId).targetComponent(targetComponentId).build()
@@ -930,9 +994,11 @@ class MavLinkComm(private var activity: FragmentActivity?)
             missionItems.add(
                 MissionItemInt.builder()
                     .seq(seq++)
-                    .frame(MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT).command(MavCmd.MAV_CMD_CONDITION_YAW)
+                    .frame(MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT)
+                    .command(MavCmd.MAV_CMD_CONDITION_YAW)
                     .current(0).autocontinue(1)
-                    .param1(90.0F - activityViewModel.angleProgress.value!!.toFloat()).param2(0.0f).param3(0.0f).param4(0.0f)
+                    .param1(90.0F - activityViewModel.angleProgress.value!!.toFloat()).param2(0.0f)
+                    .param3(0.0f).param4(0.0f)
                     .x(0).y(0).z(0.0F)
                     .missionType(MavMissionType.MAV_MISSION_TYPE_MISSION)
                     .targetSystem(targetSystemId).targetComponent(targetComponentId).build()
@@ -943,7 +1009,8 @@ class MavLinkComm(private var activity: FragmentActivity?)
             missionItems.add(
                 MissionItemInt.builder()
                     .seq(seq++)
-                    .frame(MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT).command(MavCmd.MAV_CMD_NAV_WAYPOINT)
+                    .frame(MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT)
+                    .command(MavCmd.MAV_CMD_NAV_WAYPOINT)
                     .current(0).autocontinue(1)
                     .param1(0.0f).param2(0.0f).param3(0.0f).param4(Float.NaN)
                     .x((waypoints[i].latitude * 10.0F.pow(7)).toInt())
@@ -954,13 +1021,13 @@ class MavLinkComm(private var activity: FragmentActivity?)
             )
 
             // After First Mission waypoint added
-            if(i == 0)
-            {
+            if (i == 0) {
                 // Set Sprayer Enable ON
                 missionItems.add(
                     MissionItemInt.builder()
                         .seq(seq++)
-                        .frame(MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT).command(MavCmd.MAV_CMD_DO_SPRAYER)
+                        .frame(MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT)
+                        .command(MavCmd.MAV_CMD_DO_SPRAYER)
                         .current(0).autocontinue(1)
                         .param1(1.0f).param2(0.0f).param3(0.0f).param4(0.0f)
                         .x(0).y(0).z(0.0f)
@@ -972,7 +1039,8 @@ class MavLinkComm(private var activity: FragmentActivity?)
                 missionItems.add(
                     MissionItemInt.builder()
                         .seq(seq++)
-                        .frame(MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT).command(MavCmd.MAV_CMD_DO_SET_SERVO)
+                        .frame(MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT)
+                        .command(MavCmd.MAV_CMD_DO_SET_SERVO)
                         .current(0).autocontinue(1)
                         .param1(5.0f).param2(sprayerIntensityPWM).param3(0.0f).param4(0.0f)
                         .x(0).y(0).z(0.0f)
@@ -1011,7 +1079,8 @@ class MavLinkComm(private var activity: FragmentActivity?)
         missionItems.add(
             MissionItemInt.builder()
                 .seq(seq)
-                .frame(MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT).command(MavCmd.MAV_CMD_NAV_RETURN_TO_LAUNCH)
+                .frame(MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT)
+                .command(MavCmd.MAV_CMD_NAV_RETURN_TO_LAUNCH)
                 .current(0).autocontinue(1)
                 .param1(0.0f).param2(0.0f).param3(0.0f).param4(0.0f)
                 .x(0).y(0).z(0.0f)
@@ -1020,10 +1089,9 @@ class MavLinkComm(private var activity: FragmentActivity?)
         )
 
 
-        for(item in missionItems)
-        {
+        for (item in missionItems) {
             Log.i(
-                "setupMission","seq: ${item.seq()}  " +
+                "setupMission", "seq: ${item.seq()}  " +
                         "frame: ${item.frame()}  " +
                         "command: ${item.command()}  " +
                         "current: ${item.current()}  " +
@@ -1039,13 +1107,8 @@ class MavLinkComm(private var activity: FragmentActivity?)
             )
         }
 
-        return missionItems;
+        return missionItems
     }
-
-
-
-
-
 
 
 //
@@ -1195,21 +1258,17 @@ class MavLinkComm(private var activity: FragmentActivity?)
 //    }
 
 
-
-    private fun timeoutMav(pis: PipedInputStream, conn : MavlinkConnection): MavlinkMessage<*>?
-    {
-        var mavMsg : MavlinkMessage<*>? = null
+    private fun timeoutMav(pis: PipedInputStream, conn: MavlinkConnection): MavlinkMessage<*>? {
+        var mavMsg: MavlinkMessage<*>? = null
 
         val timeout = System.currentTimeMillis() + 1500
-        while (pis.available() <= 0 && System.currentTimeMillis() <= timeout )
+        while (pis.available() <= 0 && System.currentTimeMillis() <= timeout)
             Thread.sleep(20)
 
-        if( pis.available() > 0)
-        {
+        if (pis.available() > 0) {
             mavMsg = conn.next() as MavlinkMessage<*>
             Log.i("timeoutMav", "mavMsg: $mavMsg")
-        }
-        else{
+        } else {
             Log.i("timeoutMav", "missionCountMsg: TIMEOUT")
         }
 
