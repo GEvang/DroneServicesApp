@@ -172,6 +172,7 @@ class DroneViewModel : ViewModel() {
         repoDisposables.add(
             mavlinkRepository.messages()
                 .subscribeOn(Schedulers.io())
+                .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
                     { msg -> handleMavlinkMessage(msg) },
                     { err -> Log.e(TAG, "MAVLink stream error: ${err.message}", err) }

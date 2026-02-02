@@ -7,7 +7,6 @@ import io.dronefleet.mavlink.MavlinkConnection
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.minimal.Heartbeat
 import io.reactivex.Observable
-import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.Disposable
 import io.reactivex.schedulers.Schedulers
 import io.reactivex.subjects.PublishSubject
@@ -94,7 +93,6 @@ class MavlinkRepository {
             }
         }
             .subscribeOn(Schedulers.io())
-            .observeOn(AndroidSchedulers.mainThread())
             .subscribe(
                 { msg ->
                     msgSubject.onNext(msg)

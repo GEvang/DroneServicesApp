@@ -35,6 +35,7 @@ class UdpTransport(
 
         try {
             socket = DatagramSocket(listenPort)
+            socket?.soTimeout = 200  // 200ms timeout to periodically wake up and flush
             Thread({ runLoop() }, "UdpTransport-$listenPort").apply { isDaemon = true }.start()
             Log.i("UdpTransport", "Started UDP listen on $listenPort")
         } catch (e: Exception) {
@@ -95,6 +96,15 @@ class UdpTransport(
                     val bytesRead = sndPIS.read(outBuffer)
                     val outputPacket = DatagramPacket(outBuffer, bytesRead, remoteIP, remotePort)
                     udpSocket.send(outputPacket)
+                }
+            } catch (e: java.net.SocketTimeoutException) {
+                // Timeout occurred - loop continues, allowing outgoing bytes to flush
+                // 2) Pipe from MAVLink output -> send back to last sender (even without new input)
+                if (sndPIS.available() > 0 && remoteIP != null && remotePort > 0) {
+                    val bytesRead = sndPIS.read(outBuffer)
+                    val outputPacket = DatagramPacket(outBuffer, bytesRead, remoteIP, remotePort)
+                    udpSocket.send(outputPacket)
+                    Log.i("UdpTransport", "SENT ${bytesRead} bytes -> ${remoteIP?.hostAddress}:${remotePort}")
                 }
             } catch (e: SocketException) {
                 // Happens on stop() because close() breaks receive()
