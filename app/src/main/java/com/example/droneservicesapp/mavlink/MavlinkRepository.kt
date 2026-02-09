@@ -31,6 +31,9 @@ class MavlinkRepository {
     private val msgSubject: Subject<MavlinkMessage<*>> =
         PublishSubject.create<MavlinkMessage<*>>().toSerialized()
 
+    //private val msgSubject: Subject<MavlinkMessage<*>> =
+       // ReplaySubject.createWithSize<MavlinkMessage<*>>(256).toSerialized()
+
     @Volatile
     var lastHeartbeatMs: Long = 0L
         private set
@@ -95,6 +98,9 @@ class MavlinkRepository {
             .subscribeOn(Schedulers.io())
             .subscribe(
                 { msg ->
+
+                    //Log.i("MavRx", "RX ${msg.payload.javaClass.simpleName}")
+
                     msgSubject.onNext(msg)
                     if (msg.payload is Heartbeat) {
                         lastHeartbeatMs = System.currentTimeMillis()

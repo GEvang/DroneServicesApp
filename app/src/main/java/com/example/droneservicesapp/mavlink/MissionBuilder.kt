@@ -29,6 +29,8 @@ object MissionBuilder {
         val max = 2000.0F
         val sprayerIntensityPWM = ((max - min) * (sprayerIntensity / 100.0F)) + min
 
+        val SEND_DO_SPRAYER = false
+
         val missionItems = ArrayList<MissionItemInt>()
         var seq = 0
 
@@ -125,15 +127,18 @@ object MissionBuilder {
             // After first mission waypoint added: enable sprayer + servo
             if (i == 0) {
                 // Sprayer ON
-                missionItems.add(
-                    buildItem(
-                        frame = MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT,
-                        command = MavCmd.MAV_CMD_DO_SPRAYER,
-                        currentFlag = 0,
-                        p1 = 1.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
-                        x = 0, y = 0, z = 0.0f
+                if (SEND_DO_SPRAYER) {
+                    missionItems.add(
+                        buildItem(
+                            frame = MavFrame.MAV_FRAME_MISSION,
+                            command = MavCmd.MAV_CMD_DO_SPRAYER,
+                            currentFlag = 0,
+                            p1 = 1.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
+                            x = 0, y = 0, z = 0.0f
+                        )
                     )
-                )
+                }
+                
 
                 // Servo ON
                 missionItems.add(
@@ -149,15 +154,17 @@ object MissionBuilder {
         }
 
         // Sprayer OFF
-        missionItems.add(
-            buildItem(
-                frame = MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT,
-                command = MavCmd.MAV_CMD_DO_SPRAYER,
-                currentFlag = 0,
-                p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
-                x = 0, y = 0, z = 0.0f
+        if (SEND_DO_SPRAYER) {
+            missionItems.add(
+                buildItem(
+                    frame = MavFrame.MAV_FRAME_MISSION,
+                    command = MavCmd.MAV_CMD_DO_SPRAYER,
+                    currentFlag = 0,
+                    p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
+                    x = 0, y = 0, z = 0.0f
+                )
             )
-        )
+        }
 
         // Servo OFF
         missionItems.add(
@@ -173,7 +180,7 @@ object MissionBuilder {
         // RTL
         missionItems.add(
             buildItem(
-                frame = MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT,
+                frame = MavFrame.MAV_FRAME_MISSION,
                 command = MavCmd.MAV_CMD_NAV_RETURN_TO_LAUNCH,
                 currentFlag = 0,
                 p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
