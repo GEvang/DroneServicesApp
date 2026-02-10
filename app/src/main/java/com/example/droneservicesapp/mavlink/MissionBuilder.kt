@@ -25,11 +25,12 @@ object MissionBuilder {
         targetComponentId: Int
     ): ArrayList<MissionItemInt> {
 
+        // TEMP SWITCH: disable DO_SPRAYER to confirm mission uploads cleanly
+        val ENABLE_DO_SPRAYER = false
+
         val min = 1000.0F
         val max = 2000.0F
         val sprayerIntensityPWM = ((max - min) * (sprayerIntensity / 100.0F)) + min
-
-        val SEND_DO_SPRAYER = false
 
         val missionItems = ArrayList<MissionItemInt>()
         var seq = 0
@@ -91,7 +92,8 @@ object MissionBuilder {
             if (i == 0) {
                 missionItems.add(
                     buildItem(
-                        frame = MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT,
+                        // Non-positional DO_* commands should use MAV_FRAME_MISSION
+                        frame = MavFrame.MAV_FRAME_MISSION,
                         command = MavCmd.MAV_CMD_DO_CHANGE_SPEED,
                         currentFlag = 0,
                         p1 = 1.0f, p2 = flightSpeed, p3 = 0.0f, p4 = 0.0f,
@@ -103,7 +105,8 @@ object MissionBuilder {
             // Set steady heading for each mission waypoint
             missionItems.add(
                 buildItem(
-                    frame = MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT,
+                    // Non-positional CONDITION_* commands should use MAV_FRAME_MISSION
+                    frame = MavFrame.MAV_FRAME_MISSION,
                     command = MavCmd.MAV_CMD_CONDITION_YAW,
                     currentFlag = 0,
                     p1 = 90.0f - angleProgress, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
@@ -114,7 +117,8 @@ object MissionBuilder {
             // Add relative waypoint to mission
             missionItems.add(
                 buildItem(
-                    frame = MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT,
+                    // Waypoints use a positional frame; alt in this builder is relative.
+                    frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT,
                     command = MavCmd.MAV_CMD_NAV_WAYPOINT,
                     currentFlag = 0,
                     p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = Float.NaN,
@@ -126,10 +130,11 @@ object MissionBuilder {
 
             // After first mission waypoint added: enable sprayer + servo
             if (i == 0) {
-                // Sprayer ON
-                if (SEND_DO_SPRAYER) {
+                // Sprayer ON (TEMP disabled via ENABLE_DO_SPRAYER)
+                if (ENABLE_DO_SPRAYER) {
                     missionItems.add(
                         buildItem(
+                            // Non-positional DO_* commands should use MAV_FRAME_MISSION
                             frame = MavFrame.MAV_FRAME_MISSION,
                             command = MavCmd.MAV_CMD_DO_SPRAYER,
                             currentFlag = 0,
@@ -138,12 +143,12 @@ object MissionBuilder {
                         )
                     )
                 }
-                
 
                 // Servo ON
                 missionItems.add(
                     buildItem(
-                        frame = MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT,
+                        // Non-positional DO_* commands should use MAV_FRAME_MISSION
+                        frame = MavFrame.MAV_FRAME_MISSION,
                         command = MavCmd.MAV_CMD_DO_SET_SERVO,
                         currentFlag = 0,
                         p1 = 5.0f, p2 = sprayerIntensityPWM, p3 = 0.0f, p4 = 0.0f,
@@ -153,10 +158,11 @@ object MissionBuilder {
             }
         }
 
-        // Sprayer OFF
-        if (SEND_DO_SPRAYER) {
+        // Sprayer OFF (TEMP disabled via ENABLE_DO_SPRAYER)
+        if (ENABLE_DO_SPRAYER) {
             missionItems.add(
                 buildItem(
+                    // Non-positional DO_* commands should use MAV_FRAME_MISSION
                     frame = MavFrame.MAV_FRAME_MISSION,
                     command = MavCmd.MAV_CMD_DO_SPRAYER,
                     currentFlag = 0,
@@ -169,7 +175,8 @@ object MissionBuilder {
         // Servo OFF
         missionItems.add(
             buildItem(
-                frame = MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT,
+                // Non-positional DO_* commands should use MAV_FRAME_MISSION
+                frame = MavFrame.MAV_FRAME_MISSION,
                 command = MavCmd.MAV_CMD_DO_SET_SERVO,
                 currentFlag = 0,
                 p1 = 5.0f, p2 = 1000.0f, p3 = 0.0f, p4 = 0.0f,
@@ -180,6 +187,7 @@ object MissionBuilder {
         // RTL
         missionItems.add(
             buildItem(
+                // Non-positional NAV_RETURN_TO_LAUNCH should use MAV_FRAME_MISSION
                 frame = MavFrame.MAV_FRAME_MISSION,
                 command = MavCmd.MAV_CMD_NAV_RETURN_TO_LAUNCH,
                 currentFlag = 0,
