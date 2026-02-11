@@ -19,8 +19,10 @@ import io.reactivex.Observable
 import io.reactivex.Single
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.disposables.Disposable
 import io.reactivex.schedulers.Schedulers
 import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.pow
 
 class DroneViewModel : ViewModel() {
@@ -31,6 +33,9 @@ class DroneViewModel : ViewModel() {
         private const val HEARTBEAT_STALE_MS = 5500L
         private const val TELEMETRY_STALE_MS = 2500L
         private const val MISSION_DEBOUNCE_MS = 1500L
+
+        // How long each wait cycle in MissionService uses (your default is fine; keep consistent)
+        private const val UPLOAD_TIMEOUT_MS = 2000L
     }
 
     // Lifecycle / disposable
@@ -44,9 +49,13 @@ class DroneViewModel : ViewModel() {
     @Volatile private var autopilotSysId: Int = -1
     @Volatile private var autopilotCompId: Int = -1
 
-    // Mission control
+    // Mission control (download)
     @Volatile private var missionDownloadInProgress = false
     @Volatile private var lastDownloadAttemptMs: Long = 0L
+
+    // Mission control (upload) — NEW
+    @Volatile private var currentUploadDisposable: Disposable? = null
+    @Volatile private var currentUploadCancelToken: AtomicBoolean? = null
 
     // Expose target IDs
     fun getTargetSystemId(): Int = autopilotSysId
@@ -132,16 +141,47 @@ class DroneViewModel : ViewModel() {
         )
     }
 
+    /**
+     * Latest-press-wins upload:
+     * - If an upload is running, cancel it immediately.
+     * - Start a new upload with the new items.
+     */
     fun uploadMissionNew(items: ArrayList<MissionItemInt>) {
-        repoDisposables.add(
-            Single.fromCallable { missionService.uploadMission(items) }
+        // Cancel any in-flight upload (if exists)
+        currentUploadCancelToken?.set(true)
+        currentUploadDisposable?.dispose()
+        currentUploadDisposable = null
+        currentUploadCancelToken = null
+
+        // Create a fresh cancel token for this run
+        val token = AtomicBoolean(false)
+        currentUploadCancelToken = token
+
+        // Start new upload
+        val d =
+            Single.fromCallable {
+                missionService.uploadMission(items, timeoutMs = UPLOAD_TIMEOUT_MS, cancel = token)
+            }
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
+                .doFinally {
+                    // Only clear if this run is still the active one
+                    if (currentUploadCancelToken === token) {
+                        currentUploadDisposable = null
+                        currentUploadCancelToken = null
+                    }
+                }
                 .subscribe(
-                    { ok -> Log.i(TAG, "uploadMission result=$ok") },
-                    { err -> Log.e(TAG, "uploadMission failed: ${err.message}", err) }
+                    { ok ->
+                        Log.i(TAG, "uploadMission result=$ok")
+                    },
+                    { err ->
+                        Log.e(TAG, "uploadMission failed: ${err.message}", err)
+                    }
                 )
-        )
+
+        currentUploadDisposable = d
+        repoDisposables.add(d)
     }
 
     // Internal
@@ -268,9 +308,14 @@ class DroneViewModel : ViewModel() {
     // Lifecycle
     override fun onCleared() {
         super.onCleared()
+
+        // Cancel any in-flight upload immediately
+        currentUploadCancelToken?.set(true)
+        currentUploadDisposable?.dispose()
+        currentUploadDisposable = null
+        currentUploadCancelToken = null
+
         repoDisposables.clear()
         mavlinkRepository.stop()
     }
 }
-
-
