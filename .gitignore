@@ -84,9 +84,13 @@ ardupilot/
 *.svg
 
 # (keep app icons by exception if needed)
-!app/src/main/res/**/ic_*.png
-!app/src/main/res/**/ic_*.webp
-!app/src/main/res/**/ic_*.xml
+# Keep ignoring images globally, but track Android resources
+!**/src/main/res/**/*.png
+!**/src/main/res/**/*.jpg
+!**/src/main/res/**/*.jpeg
+!**/src/main/res/**/*.webp
+!**/src/main/res/**/*.svg
+
 
 # =========================
 # Reports / exports
