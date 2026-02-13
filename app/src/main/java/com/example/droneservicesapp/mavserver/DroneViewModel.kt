@@ -108,7 +108,7 @@ class DroneViewModel : ViewModel() {
 
     // Helpers
     private fun <T : Any?> MutableLiveData<T>.default(initialValue: T) =
-        apply { value = initialValue }
+        apply { postValue(initialValue) }
 
     // Public API
     fun startMavlink(config: MavlinkConfig) {
