@@ -14,8 +14,6 @@ import android.location.Location
 import android.location.LocationManager
 import android.os.Bundle
 import android.os.Environment
-import android.text.Editable
-import android.text.TextWatcher
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -26,14 +24,12 @@ import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.ImageView
 import android.widget.ListView
-import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.distinctUntilChanged
@@ -42,7 +38,6 @@ import com.example.droneservicesapp.MissionFileHandler
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.activities.MainActivityViewModel
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
-import com.example.droneservicesapp.mavlink.MissionBuilder
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.shape.Survey
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -64,8 +59,7 @@ import java.util.Locale
 
 
 //abstract
-class HomeMapsFragment : Fragment(), GoogleMap.OnMapClickListener, GoogleMap.OnMarkerClickListener,
-    GoogleMap.OnMarkerDragListener {
+class HomeMapsFragment : Fragment(), OnMapReadyCallback {
 
     private var _binding: FragmentHomeMapsBinding? = null
 
@@ -73,6 +67,11 @@ class HomeMapsFragment : Fragment(), GoogleMap.OnMapClickListener, GoogleMap.OnM
 
     private lateinit var droneViewModel: DroneViewModel
     private lateinit var activityViewModel: MainActivityViewModel
+
+    private lateinit var missionParamsController: MissionParamsController
+
+    private lateinit var polygonEditor: PolygonEditor
+
 
     // This property is only valid between onCreateView and onDestroyView.
     private val binding get() = _binding!!
@@ -131,16 +130,11 @@ class HomeMapsFragment : Fragment(), GoogleMap.OnMapClickListener, GoogleMap.OnM
         super.onViewCreated(view, savedInstanceState)
 
         val mapFragment = childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?
-        mapFragment?.getMapAsync(callback)
+        mapFragment?.getMapAsync(this)
 
         droneViewModel.droneLocationLiveData.observe(this.viewLifecycleOwner) { droneLocation ->
             droneMarker?.let { setMarkerLocation(droneLocation) }
 
-//            Log.i(
-//                Log.DEBUG.toString(),
-//                "position lat: " + droneLocation.latitude + "  long: " + droneLocation.longitude +
-//                        "  rel-alt: " + droneLocation.altitude
-//            )
 
             droneViewModel.telemetryAliveLiveData.observe(viewLifecycleOwner) { telemetryAlive ->
                 val connected = droneViewModel.conStateLiveData.value == true
@@ -328,7 +322,8 @@ class HomeMapsFragment : Fragment(), GoogleMap.OnMapClickListener, GoogleMap.OnM
                     )
                 }
 
-                initMissionParams()
+                missionParamsController.show()
+
             } else if (mapState == MainActivityViewModel.MapState.LoadMissionFromFile) {
                 fileLoaderDialog()
             }
@@ -381,6 +376,24 @@ class HomeMapsFragment : Fragment(), GoogleMap.OnMapClickListener, GoogleMap.OnM
 
 
         _binding = null
+
+        missionParamsController = MissionParamsController(
+            context = requireContext(),
+            rootView = requireView(),
+            lifecycleOwner = viewLifecycleOwner,
+            activityViewModel = activityViewModel,
+            droneViewModel = droneViewModel,
+            onSaveMissionRequested = { initMissionSave() }
+        )
+
+        polygonEditor = PolygonEditor(
+            activity = requireActivity(),
+            activityViewModel = activityViewModel,
+            iconFactory = { act, drawableId ->
+                bitmapDescriptorFromVector(act, drawableId)!!
+            }
+        )
+
     }
 
     private fun drawSurveyMissionOnMap(distance: Double, angle: Int, map: GoogleMap) {
@@ -475,43 +488,49 @@ class HomeMapsFragment : Fragment(), GoogleMap.OnMapClickListener, GoogleMap.OnM
 
 
     @SuppressLint("MissingPermission")
-    private val callback = OnMapReadyCallback { googleMap ->
+    override fun onMapReady(googleMap: GoogleMap) {
         mMap = googleMap
 
-        if (activity?.let {
-                ContextCompat.checkSelfPermission(
-                    it.applicationContext,
-                    Manifest.permission.ACCESS_FINE_LOCATION
-                )
-            } == PackageManager.PERMISSION_GRANTED) {
-            mMap?.isMyLocationEnabled = true
-            mMap?.uiSettings?.isMyLocationButtonEnabled = false
+        val act = activity
+        if (act != null) {
+            val fineGranted = ContextCompat.checkSelfPermission(
+                act.applicationContext,
+                Manifest.permission.ACCESS_FINE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
 
-            zoomToCurrentLocation()
+            val coarseGranted = ContextCompat.checkSelfPermission(
+                act.applicationContext,
+                Manifest.permission.ACCESS_COARSE_LOCATION
+            ) == PackageManager.PERMISSION_GRANTED
 
-            droneMarker = mMap?.addMarker(
-                MarkerOptions()
-                    .visible(false)
-                    .position(LatLng(0.0, 0.0))
-                    .anchor(0.5F, 0.5F)
-                    .icon(context?.let {
-                        bitmapDescriptorFromVector(
-                            it,
-                            R.drawable.drone_marker_36
-                        )
-                    })
-            )!!
+            if (fineGranted || coarseGranted) {
+                // Enable user location layer
+                googleMap.isMyLocationEnabled = true
+                zoomToCurrentLocation()
+            } else {
+                Toast.makeText(
+                    act.applicationContext,
+                    getString(R.string.invalid_location_permissions),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
 
-            mMap?.setOnMapClickListener(this)
-            mMap?.setOnMarkerClickListener(this)
-            mMap?.setOnMarkerDragListener(this)
-        } else
-            Toast.makeText(
-                activity?.applicationContext,
-                getString(R.string.invalid_location_permissions),
-                Toast.LENGTH_LONG
-            )
+        // Configure map UI + location layer (if permitted)
+        googleMap.uiSettings.isMyLocationButtonEnabled = false
+
+        // Initialize drone marker (hidden until we get first position)
+        droneMarker = googleMap.addMarker(
+            MarkerOptions()
+                .visible(false)
+                .position(LatLng(0.0, 0.0))
+                .anchor(0.5f, 0.5f)
+                .icon(bitmapDescriptorFromVector(requireContext(), R.drawable.drone_marker_36)!!)
+        )
+
+        polygonEditor.bind(googleMap)
     }
+
 
     private fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor? {
         return ContextCompat.getDrawable(context, vectorResId)?.run {
@@ -522,56 +541,6 @@ class HomeMapsFragment : Fragment(), GoogleMap.OnMapClickListener, GoogleMap.OnM
             BitmapDescriptorFactory.fromBitmap(bitmap)
         }
     }
-
-
-    override fun onMapClick(p0: LatLng) {
-        if (activityViewModel.drawEnableLiveData.value == true) {
-            val marker = mMap?.addMarker(
-                MarkerOptions().anchor(0.5f, 0.5f)
-                    .position(p0)
-                    .icon(context?.let {
-                        bitmapDescriptorFromVector(
-                            it,
-                            R.drawable.ic_baseline_mission_marker
-                        )
-                    })
-                    .draggable(true)
-            )!!
-
-            // add marker to location clicked
-            activityViewModel.area.value!!.latLngArrayListMarkers.add(marker)
-
-            activityViewModel.area.value!!.addEdgeToPolygon(marker, mMap!!, requireContext())
-
-        }
-    }
-
-
-    override fun onMarkerClick(p0: Marker): Boolean {
-
-        val index = activityViewModel.area.value!!.latLngArrayListMarkers.indexOf(p0)
-
-        if (index != -1 && activityViewModel.drawEnableLiveData.value == true) {
-            mMap?.let {
-                activityViewModel.area.value!!.removeEdgeFromPolygon(
-                    p0,
-                    it,
-                    requireContext()
-                )
-            }
-            return true
-        }
-
-        return false
-    }
-
-    override fun onMarkerDrag(p0: Marker) {}
-
-    override fun onMarkerDragEnd(p0: Marker) {
-        activityViewModel.area.value!!.adjustEdgeToPolygon(p0, mMap!!, requireActivity())
-    }
-
-    override fun onMarkerDragStart(p0: Marker) {}
 
 
     private fun fileLoaderDialog() {
@@ -638,256 +607,6 @@ class HomeMapsFragment : Fragment(), GoogleMap.OnMapClickListener, GoogleMap.OnM
         requireActivity().findViewById<Button>(R.id.btn_cancel).setOnClickListener {
             loadFileView.isVisible = false
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
-        }
-    }
-
-
-    @SuppressLint("CheckResult")
-    private fun initMissionParams() {
-        val minSpeed = 1
-        val maxSpeed = 5
-
-        getWindowPreferences()
-
-        val missionParamsSideView =
-            activity?.findViewById<LinearLayoutCompat>(R.id.mission_params_side_view)!!
-        missionParamsSideView.isVisible = true
-
-        val flightTimeText = activity?.findViewById<TextView>(R.id.flight_time)
-        val flightSpeedView = activity?.findViewById<TextView>(R.id.flight_speed)
-
-        flightSpeedView?.text = activityViewModel.flightSpeed.value?.toInt().toString()
-        activityViewModel.flightSpeed.observe(viewLifecycleOwner) { flightSpeed ->
-            flightSpeedView?.text = flightSpeed.toInt().toString()
-
-            // surveyDistance in m / ( flightSpeed in m/sec * 60 sec/min ) =>
-            //  m / ( m/sec * sec/min ) => m / (m / min) => min
-            val time =
-                (activityViewModel.flightDistance.value!! / (flightSpeed * 60)).toInt()
-            if (time > 0)
-                flightTimeText?.text = time.toString()
-            else
-                flightTimeText?.text = "1"
-        }
-
-        activityViewModel.flightDistance.observe(viewLifecycleOwner) { distance ->
-
-            // surveyDistance in m / ( flightSpeed in m/sec * 60 sec/min ) =>
-            //  m / ( m/sec * sec/min ) => m / (m / min) => min
-            val time = (distance / (activityViewModel.flightSpeed.value!! * 60)).toInt()
-            if (time > 0)
-                flightTimeText?.text = time.toString()
-            else
-                flightTimeText?.text = "1"
-        }
-
-        activityViewModel.mapState.observe(viewLifecycleOwner) { mapState ->
-            if (mapState == MainActivityViewModel.MapState.UploadMissionSuccess) {
-                activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Reset)
-
-                missionParamsSideView.isVisible = false
-            }
-        }
-
-        val angleSeekBarValue = activity?.findViewById<EditText>(R.id.line_angle_value)
-        val angleSeekBar = activity?.findViewById<SeekBar>(R.id.line_angle_seekbar)
-        if (angleSeekBar != null && angleSeekBarValue != null) {
-            initSeekbar(angleSeekBar, angleSeekBarValue, activityViewModel.angleProgress)
-        }
-
-        val lineDistanceSeekBarValue = activity?.findViewById<EditText>(R.id.line_distance_value)
-        val lineDistanceSeekBar = activity?.findViewById<SeekBar>(R.id.line_distance_seekbar)
-        if (lineDistanceSeekBar != null && lineDistanceSeekBarValue != null) {
-            initSeekbar(
-                lineDistanceSeekBar,
-                lineDistanceSeekBarValue,
-                activityViewModel.lineDistanceProgress
-            )
-        }
-
-        val altitudeSeekBarValue = activity?.findViewById<EditText>(R.id.altitude_value)
-        val altitudeSeekBar = activity?.findViewById<SeekBar>(R.id.altitude_seekbar)
-        if (altitudeSeekBar != null && altitudeSeekBarValue != null) {
-            initSeekbar(altitudeSeekBar, altitudeSeekBarValue, activityViewModel.flightAltProgress)
-        }
-
-        val sprayerSeekbarValue = activity?.findViewById<EditText>(R.id.sprayer_seekbar_value)
-        val sprayerSeekBar = activity?.findViewById<SeekBar>(R.id.sprayer_seekbar)
-        if (sprayerSeekBar != null && sprayerSeekbarValue != null) {
-            initSeekbar(sprayerSeekBar, sprayerSeekbarValue, activityViewModel.sprayerProgress)
-        }
-
-        val buttonMinus = activity?.findViewById<Button>(R.id.minus_button)
-        buttonMinus?.setOnClickListener {
-            if (activityViewModel.flightSpeed.value!!.toInt() > minSpeed) {
-                activityViewModel.flightSpeed.postValue(activityViewModel.flightSpeed.value!!.toDouble() - 1)
-            }
-        }
-
-        val buttonPlus = activity?.findViewById<Button>(R.id.plus_button)
-        buttonPlus?.setOnClickListener {
-            if (activityViewModel.flightSpeed.value!!.toInt() < maxSpeed) {
-                activityViewModel.flightSpeed.postValue(activityViewModel.flightSpeed.value!!.toDouble() + 1)
-            }
-        }
-
-        //Initialize the elements of our window, install the handler
-        val buttonUploadMission = activity?.findViewById<Button>(R.id.uploadMission)
-        buttonUploadMission?.setOnClickListener { //As an example, display the message
-            if (droneViewModel.conStateLiveData.value == null || !droneViewModel.conStateLiveData.value!!) {
-                Toast.makeText(
-                    activity?.baseContext,
-                    activity?.getString(R.string.no_conn_msg),
-                    Toast.LENGTH_LONG
-                ).show()
-            } else if (activityViewModel.flightAltProgress.value == null) {
-                Toast.makeText(
-                    activity?.baseContext,
-                    activity?.getString(R.string.select_alt_msg),
-                    Toast.LENGTH_LONG
-                ).show()
-            } else {
-                val missionItems =
-                    MissionBuilder.buildSurveyMission(
-                        waypoints = activityViewModel.area.value!!.surveyPath,
-                        currentPos = droneViewModel.droneLocationLiveData.value!!,
-                        alt = activityViewModel.flightAltProgress.value!!.toFloat(),
-                        sprayerIntensity = activityViewModel.sprayerProgress.value!!.toInt(),
-                        flightSpeed = activityViewModel.flightSpeed.value!!.toFloat(),
-                        angleProgress = activityViewModel.angleProgress.value!!.toFloat(),
-                        targetSystemId = droneViewModel.getTargetSystemId(),
-                        targetComponentId = droneViewModel.getTargetComponentId()
-                    )
-
-                droneViewModel.uploadMissionNew(missionItems)
-
-                missionParamsSideView.isVisible = false
-            }
-
-            setWindowPreferences()
-        }
-
-        val buttonExit = activity?.findViewById<Button>(R.id.exit)
-        buttonExit?.setOnClickListener {
-            setWindowPreferences()
-            activityViewModel.mapState.postValue(MainActivityViewModel.MapState.ClearKeepDrawing)
-
-            missionParamsSideView.isVisible = false
-        }
-
-        val buttonSaveMission = activity?.findViewById<Button>(R.id.save_mission)
-        buttonSaveMission?.setOnClickListener {
-
-            missionParamsSideView.isVisible = false
-            initMissionSave()
-        }
-    }
-
-
-    private fun initSeekbar(
-        seekbar: SeekBar,
-        seekbarValue: EditText,
-        mutable: MutableLiveData<Double>
-    ) {
-        seekbar.progress = mutable.value!!.toInt()
-        seekbarValue.setText("${mutable.value!!.toInt()}")
-
-        seekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
-                // Display the current progress of SeekBar
-                seekbarValue.setText("$progress")
-                mutable.postValue(progress.toDouble())
-            }
-
-            override fun onStartTrackingTouch(seekBar: SeekBar) {}
-
-            override fun onStopTrackingTouch(seekBar: SeekBar) {}
-        })
-
-        seekbarValue.addTextChangedListener(object : TextWatcher {
-
-            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
-                seekbarValue.setSelection(seekbarValue.length())
-            }
-
-            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-
-            override fun afterTextChanged(s: Editable?) {
-                try {
-                    val progress = s.toString().toInt()
-                    seekbar.setProgress(progress, true)
-                } catch (e: NumberFormatException) {
-                    Log.d("SeekBar Mission Params", "Error on casting String to Int on TextChange ")
-                }
-            }
-        })
-    }
-
-    private fun getWindowPreferences() {
-        getSharedPreferenceById(R.string.survey_angle_pref, activityViewModel.angleProgress, "0")
-        getSharedPreferenceById(
-            R.string.survey_line_distance_pref,
-            activityViewModel.lineDistanceProgress,
-            "1"
-        )
-        getSharedPreferenceById(
-            R.string.survey_altitude_pref,
-            activityViewModel.flightAltProgress,
-            "2"
-        )
-        getSharedPreferenceById(R.string.sprayer_intensity, activityViewModel.sprayerProgress, "0")
-        getSharedPreferenceById(R.string.flight_speed_pref, activityViewModel.flightSpeed, "1")
-    }
-
-    private fun setWindowPreferences() {
-        setSharedPreferenceById(
-            R.id.survey_angle_pref,
-            activityViewModel.angleProgress.value!!.toInt()
-        )
-        setSharedPreferenceById(
-            R.id.survey_line_dist_pos_pref,
-            activityViewModel.lineDistanceProgress.value!!.toInt()
-        )
-        setSharedPreferenceById(
-            R.id.mission_alt_pref,
-            activityViewModel.flightAltProgress.value!!.toInt()
-        )
-        setSharedPreferenceById(
-            R.id.sprayer_intensity_pref,
-            activityViewModel.sprayerProgress.value!!.toInt()
-        )
-        setSharedPreferenceById(
-            R.id.flight_speed_pref,
-            activityViewModel.flightSpeed.value!!.toInt()
-        )
-    }
-
-    private fun getSharedPreferenceById(
-        stringResourceId: Int,
-        mutable: MutableLiveData<Double>,
-        defValue: String
-    ) {
-        val prefs =
-            activity?.let { PreferenceManager.getDefaultSharedPreferences(it.applicationContext) }
-
-        mutable.postValue(
-            prefs?.getString(activity?.getString(stringResourceId), defValue)?.toDouble()
-        )
-    }
-
-    private fun setSharedPreferenceById(id: Int, value: Int) {
-        val prefs =
-            activity?.let { PreferenceManager.getDefaultSharedPreferences(it.applicationContext) }
-        val editor = prefs?.edit()
-        if (editor != null) {
-            editor.putString(
-                com.example.droneservicesapp.Application.getInstance().applicationContext.getString(
-                    id
-                ),
-                value.toString()
-            )
-
-            editor.apply()
         }
     }
 

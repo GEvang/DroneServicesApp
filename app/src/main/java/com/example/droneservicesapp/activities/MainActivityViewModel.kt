@@ -1,5 +1,6 @@
 package com.example.droneservicesapp.activities
 
+import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.shape.PolygonArea
@@ -49,6 +50,22 @@ class MainActivityViewModel : ViewModel() {
     val flightDistance: MutableLiveData<Int> by lazy {
         MutableLiveData(0)
     }
+
+    val estimatedFlightMinutes = MediatorLiveData<Int>().apply {
+        fun recompute() {
+            val speed = flightSpeed.value?.toDouble() ?: 1.0
+            val dist = flightDistance.value?.toDouble() ?: 0.0
+
+            val minutes = (dist / (speed * 60.0)).toInt()
+            value = if (minutes > 0) minutes else 1
+        }
+
+        addSource(flightSpeed) { recompute() }
+        addSource(flightDistance) { recompute() }
+
+        recompute()
+    }
+
 
     val area: MutableLiveData<PolygonArea> by lazy {
         MutableLiveData(PolygonArea())
