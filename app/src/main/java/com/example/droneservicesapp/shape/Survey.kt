@@ -7,7 +7,6 @@ import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModelProvider
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.activities.MainActivityViewModel
-import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.maps.android.PolyUtil
@@ -29,7 +28,6 @@ class Survey(private var area: PolygonArea, var activity: FragmentActivity) {
         distance: Double,
         angle: Int,
         context: Context?,
-        map: GoogleMap
     ): ArrayList<LatLng> {
         val activityViewModel = ViewModelProvider(activity)[MainActivityViewModel::class.java]
 
@@ -44,7 +42,7 @@ class Survey(private var area: PolygonArea, var activity: FragmentActivity) {
             return result
         }
 
-        result = angledSurvey(distance, angle, map)
+        result = angledSurvey(distance, angle)
 
         var surveyDistance = 0.0
         if (result.size > 0 && result.size % 2 == 0) {
@@ -58,7 +56,7 @@ class Survey(private var area: PolygonArea, var activity: FragmentActivity) {
     }
 
 
-    private fun angledSurvey(distance: Double, angle: Int, map: GoogleMap): ArrayList<LatLng> {
+    private fun angledSurvey(distance: Double, angle: Int): ArrayList<LatLng> {
         clearMarkers()
 
         val eastOrientationLines: ArrayList<Line> = ArrayList()
@@ -193,16 +191,14 @@ class Survey(private var area: PolygonArea, var activity: FragmentActivity) {
 
         return mergeEastWestWPlistsbyMinDistanceSorting(
             eastOrientationLines,
-            westOrientationLines,
-            map
+            westOrientationLines
         )
     }
 
 
     private fun mergeEastWestWPlistsbyMinDistanceSorting(
         eastLines: ArrayList<Line>,
-        westLines: ArrayList<Line>,
-        map: GoogleMap
+        westLines: ArrayList<Line>
     ): ArrayList<LatLng> {
         val result = ArrayList<LatLng>()
         lateinit var curLine: Line

@@ -76,6 +76,7 @@ dependencies {
 //    implementation 'io.mavsdk:mavsdk-server:1.1.1'
 
     implementation 'io.dronefleet.mavlink:mavlink:1.1.11'
+    implementation "org.osmdroid:osmdroid-android:6.1.20"
 
 //    implementation "xyz.urbanmatrix.mavlink:mavlink-kotlin:0.16.8"
 //    implementation "xyz.urbanmatrix.mavlink:definitions:0.16.8"

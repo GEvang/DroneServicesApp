@@ -1,11 +1,6 @@
 package com.example.droneservicesapp.ui.home_maps
 
-import android.Manifest
-import android.annotation.SuppressLint
 import android.content.Context
-import android.content.pm.PackageManager
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -18,6 +13,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.createBitmap
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
@@ -29,39 +25,35 @@ import com.example.droneservicesapp.activities.MainActivityViewModel
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.shape.Survey
-import com.google.android.gms.maps.GoogleMap
-import com.google.android.gms.maps.OnMapReadyCallback
-import com.google.android.gms.maps.SupportMapFragment
-import com.google.android.gms.maps.model.BitmapDescriptor
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
-import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.floatingactionbutton.FloatingActionButton
 import io.dronefleet.mavlink.common.MavCmd
+import org.osmdroid.tileprovider.cachemanager.CacheManager
+import org.osmdroid.util.GeoPoint
+import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.Marker
 
 
-//abstract
-class HomeMapsFragment : Fragment(), OnMapReadyCallback {
+// NOTE: Google Maps callback removed
+class HomeMapsFragment : Fragment() {
 
     private var _binding: FragmentHomeMapsBinding? = null
+    private val binding get() = _binding!!
 
-    private var mMap: GoogleMap? = null
+    private lateinit var mapView: MapView
 
     private lateinit var droneViewModel: DroneViewModel
     private lateinit var activityViewModel: MainActivityViewModel
 
     private lateinit var missionParamsController: MissionParamsController
-
     private lateinit var polygonEditor: PolygonEditor
-
     private lateinit var mapController: MapController
-
     private lateinit var missionSaveController: MissionSaveController
-
     private lateinit var missionLoadController: MissionLoadController
+    private lateinit var osmdroidMapController: OsmdroidMapController
+    private lateinit var osmdroidPolygonEditor: OsmdroidPolygonEditor
 
-    // This property is only valid between onCreateView and onDestroyView.
-    private val binding get() = _binding!!
+    private var droneMarker: Marker? = null
 
     private var survey: Survey? = null
 
@@ -81,6 +73,41 @@ class HomeMapsFragment : Fragment(), OnMapReadyCallback {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // osmdroid MapView from fragment_home_maps.xml
+        mapView = view.findViewById(R.id.osmMap)
+        mapView.setMultiTouchControls(true)
+
+        // Satellite tiles
+        mapView.setTileSource(com.example.droneservicesapp.maps.EsriWorldImageryTileSource)
+
+        // Over-zoom behavior (visual scaling; Esri native max ~19)
+        mapView.isTilesScaledToDpi = true
+        mapView.maxZoomLevel = 20.0
+
+        mapView.controller.setZoom(18.0)
+        mapView.controller.setCenter(GeoPoint(35.36449, 24.48730)) // Rethymno
+
+        // My location dot (osmdroid)
+        osmdroidMapController = OsmdroidMapController(requireContext(), mapView)
+        osmdroidMapController.initOverlays()
+
+        osmdroidPolygonEditor = OsmdroidPolygonEditor(requireActivity(), activityViewModel, mapView)
+        osmdroidPolygonEditor.init()
+
+
+        // Drone marker (osmdroid)
+        droneMarker = Marker(mapView).apply {
+            position = GeoPoint(0.0, 0.0) // temporary, hidden until we get first location
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            isEnabled = false
+            setVisible(false)
+
+            // Use your existing drone icon drawable
+            icon = ContextCompat.getDrawable(requireContext(), R.drawable.drone_marker_48_black)
+        }
+        mapView.overlays.add(droneMarker)
+        mapView.invalidate()
+
         initControllers()
         bindUiButtons()
         observeDroneViewModel()
@@ -88,9 +115,6 @@ class HomeMapsFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun initControllers() {
-        val mapFragment = childFragmentManager.findFragmentById(R.id.map) as SupportMapFragment?
-        mapFragment?.getMapAsync(this)
-
         missionParamsController = MissionParamsController(
             context = requireContext(),
             rootView = requireView(),
@@ -100,6 +124,7 @@ class HomeMapsFragment : Fragment(), OnMapReadyCallback {
             onSaveMissionRequested = { missionSaveController.show() }
         )
 
+        // These controllers are still GoogleMap-based today.
         polygonEditor = PolygonEditor(
             activity = requireActivity(),
             activityViewModel = activityViewModel,
@@ -143,17 +168,25 @@ class HomeMapsFragment : Fragment(), OnMapReadyCallback {
         val bottomNavigationView: BottomNavigationView? =
             requireActivity().findViewById(R.id.bottom_nav_view)
 
-        // Wire UI buttons
+        // Download current viewport for offline use
+        binding.downloadOfflineButton.setOnClickListener {
+            downloadCurrentViewOffline(minZoom = 14, maxZoom = 18)
+        }
+
         binding.myLocationButton.setOnClickListener {
-            if (activityViewModel.drawEnableLiveData.value == false)
-                mapController.zoomToCurrentLocation()
+            if (activityViewModel.drawEnableLiveData.value == false) {
+                osmdroidMapController.centerOnUserIfPermitted()
+            }
         }
+
         binding.droneLocationButton.setOnClickListener {
-            if (droneViewModel.conStateLiveData.value == true)
-                mapController.zoomToDroneLocation(droneViewModel.droneLocationLiveData.value)
-            else
+            if (droneViewModel.conStateLiveData.value == true) {
+                osmdroidMapController.centerOnDrone()
+            } else {
                 Toast.makeText(context, getString(R.string.no_conn_msg), Toast.LENGTH_LONG).show()
+            }
         }
+
 
         bottomNavigationView?.isVisible = true
         bottomNavigationView?.menu?.findItem(R.id.action_cancel)?.isVisible = false
@@ -172,21 +205,23 @@ class HomeMapsFragment : Fragment(), OnMapReadyCallback {
     }
 
     private fun observeDroneViewModel() {
+        // Drone position -> update marker
         droneViewModel.droneLocationLiveData.observe(viewLifecycleOwner) { droneLocation ->
             if (droneLocation != null) {
-                mapController.setDroneMarkerVisible(true)
-                mapController.updateDroneLocation(droneLocation)
+                osmdroidMapController.updateDronePosition(droneLocation.latitude, droneLocation.longitude)
+            } else {
+                osmdroidMapController.setDroneVisible(false)
             }
         }
-
+        // Drone heading -> rotate marker (optional)
         droneViewModel.droneHeading.observe(viewLifecycleOwner) { droneHeading ->
             droneHeading?.let { heading ->
-                mapController.updateDroneHeading(heading)
+                osmdroidMapController.updateDroneHeadingDegrees(heading.toFloat())
             }
         }
 
-        droneViewModel.conStateLiveData.observe(viewLifecycleOwner) { connState ->
-            mapController.setDroneMarkerVisible(connState == true)
+        droneViewModel.conStateLiveData.observe(viewLifecycleOwner) { _ ->
+            // TEMP: MapController migration required for marker visibility
         }
 
         droneViewModel.droneFrontDistance.distinctUntilChanged()
@@ -226,46 +261,34 @@ class HomeMapsFragment : Fragment(), OnMapReadyCallback {
             }
 
         droneViewModel.missionItems.observe(viewLifecycleOwner) { missionItems ->
-            if (droneViewModel.conStateLiveData.value!! && missionItems.size > 0) {
+            if (droneViewModel.conStateLiveData.value == true && missionItems.isNotEmpty()) {
                 activityViewModel.area.value!!.clearSurveyPath()
-
+                osmdroidMapController.clearSurveyPath()
                 survey?.clearMarkers()
                 survey = Survey(activityViewModel.area.value!!, requireActivity())
 
-                val surveyPath = ArrayList<LatLng>()
+                val surveyPath = ArrayList<com.google.android.gms.maps.model.LatLng>()
                 for (item in missionItems) {
-                    if (item.seq() > 0 && item.command().entry() == MavCmd.MAV_CMD_NAV_WAYPOINT)
-                        surveyPath.add(LatLng(item.x() * 10e-8, item.y() * 10e-8))
+                    if (item.seq() > 0 && item.command().entry() == MavCmd.MAV_CMD_NAV_WAYPOINT) {
+                        surveyPath.add(
+                            com.google.android.gms.maps.model.LatLng(
+                                item.x() * 10e-8,
+                                item.y() * 10e-8
+                            )
+                        )
+                    }
                 }
 
                 activityViewModel.area.value!!.surveyPath = surveyPath
-                mMap?.let { activityViewModel.area.value!!.surveyPolylineOptions(it) }
+
+                // REMOVED: needs GoogleMap drawing
             }
         }
     }
 
     private fun observeMapState() {
         activityViewModel.angleProgress.observe(viewLifecycleOwner, Observer { angle ->
-            Log.i(
-                "Angle Progress Observer",
-                "MainActivityViewModel.MapState: " + MainActivityViewModel.MapState.SetFlightParams
-            )
-
             if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams) {
-                Log.i(
-                    "Angle Progress Observer",
-                    "angle call distance: " + activityViewModel.lineDistanceProgress.value!! +
-                            "   angle: " + activityViewModel.angleProgress.value!!.toInt()
-                )
-
-                this.run {
-                    drawSurveyMissionOnMap(
-                        activityViewModel.lineDistanceProgress.value!!,
-                        angle.toInt(),
-                        mMap!!
-                    )
-                }
-
                 val sharedPref =
                     PreferenceManager.getDefaultSharedPreferences(requireActivity().applicationContext)
                         ?: return@Observer
@@ -273,39 +296,36 @@ class HomeMapsFragment : Fragment(), OnMapReadyCallback {
                     putString(getString(R.string.survey_angle_pref), angle.toInt().toString())
                     apply()
                 }
+
+                if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams) {
+                    drawSurveyMissionOnMap(
+                        activityViewModel.lineDistanceProgress.value!!,
+                        angle.toInt()
+                    )
+                }
+
             }
         })
 
-        activityViewModel.lineDistanceProgress.observe(
-            viewLifecycleOwner,
-            Observer { distance ->
-                if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams) {
-                    Log.i(
-                        Log.INFO.toString(),
-                        "distance call distance: " + distance + "   angle: " +
-                                activityViewModel.angleProgress.value!!.toInt()
-                    )
-
-                    this.run {
-                        drawSurveyMissionOnMap(
-                            distance,
-                            activityViewModel.angleProgress.value!!.toInt(),
-                            mMap!!
-                        )
-                    }
-
-                    val sharedPref =
-                        PreferenceManager.getDefaultSharedPreferences(requireActivity().applicationContext)
-                            ?: return@Observer
-                    with(sharedPref.edit()) {
-                        putString(
-                            getString(R.string.survey_line_distance_pref),
-                            distance.toInt().toString()
-                        )
-                        apply()
-                    }
+        activityViewModel.lineDistanceProgress.observe(viewLifecycleOwner, Observer { distance ->
+            if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams) {
+                val sharedPref =
+                    PreferenceManager.getDefaultSharedPreferences(requireActivity().applicationContext)
+                        ?: return@Observer
+                with(sharedPref.edit()) {
+                    putString(getString(R.string.survey_line_distance_pref), distance.toInt().toString())
+                    apply()
                 }
-            })
+
+                if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams) {
+                    drawSurveyMissionOnMap(
+                        distance,
+                        activityViewModel.angleProgress.value!!.toInt()
+                    )
+                }
+
+            }
+        })
 
         activityViewModel.flightAltProgress.observe(viewLifecycleOwner, Observer { altitude ->
             if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams) {
@@ -336,47 +356,36 @@ class HomeMapsFragment : Fragment(), OnMapReadyCallback {
 
     private fun handleIdleState() {
         activityViewModel.drawEnableLiveData.value = false
-        if (mMap != null) {
-            droneViewModel.downloadMissionNew()
-        }
+        osmdroidPolygonEditor.setEnabled(false)
+        droneViewModel.downloadMissionNew()
     }
 
     private fun handleResetState() {
         activityViewModel.area.value!!.clearDrawings()
+        osmdroidPolygonEditor.clear()
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
     }
 
     private fun handleClearAllState() {
         activityViewModel.area.value!!.clearDrawings()
+        osmdroidPolygonEditor.clear()
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
     }
 
     private fun handleClearKeepDrawingState() {
         activityViewModel.area.value!!.clearSurveyPath()
+        osmdroidMapController.clearSurveyPath()
+        osmdroidPolygonEditor.clear()
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
     }
 
     private fun handleDrawState() {
         activityViewModel.drawEnableLiveData.value = true
+        osmdroidPolygonEditor.setEnabled(true)
     }
 
     private fun handleSetFlightParamsState() {
         activityViewModel.drawEnableLiveData.value = false
-
-        Log.i(
-            Log.INFO.toString(),
-            "generic distance: " + activityViewModel.lineDistanceProgress.value!! + "   angle: " +
-                    activityViewModel.angleProgress.value!!.toInt()
-        )
-
-        this.run {
-            drawSurveyMissionOnMap(
-                activityViewModel.lineDistanceProgress.value!!,
-                activityViewModel.angleProgress.value!!.toInt(),
-                mMap!!
-            )
-        }
-
         missionParamsController.show()
     }
 
@@ -392,64 +401,73 @@ class HomeMapsFragment : Fragment(), OnMapReadyCallback {
         missionSaveController.show()
     }
 
-    private fun drawSurveyMissionOnMap(distance: Double, angle: Int, map: GoogleMap) {
-        activityViewModel.area.value!!.clearSurveyPath()
+    private fun downloadCurrentViewOffline(minZoom: Int, maxZoom: Int) {
+        val bbox = mapView.boundingBox
+        val cacheManager = CacheManager(mapView)
 
+        cacheManager.downloadAreaAsync(
+            requireContext(),
+            bbox,
+            minZoom,
+            maxZoom,
+            object : CacheManager.CacheManagerCallback {
+                override fun downloadStarted() {
+                    Toast.makeText(requireContext(), "Offline download started", Toast.LENGTH_SHORT).show()
+                }
+
+                override fun setPossibleTilesInArea(total: Int) {
+                    // Optional: show estimated tiles
+                }
+
+                override fun updateProgress(progress: Int, currentZoomLevel: Int, zoomMin: Int, zoomMax: Int) {
+                    // Optional: hook to progress UI later
+                }
+
+                override fun onTaskComplete() {
+                    Toast.makeText(requireContext(), "Offline download complete", Toast.LENGTH_LONG).show()
+                }
+
+                override fun onTaskFailed(errors: Int) {
+                    Toast.makeText(requireContext(), "Offline download failed ($errors)", Toast.LENGTH_LONG).show()
+                }
+            }
+        )
+    }
+
+    private fun drawSurveyMissionOnMap(distance: Double, angle: Int) {
+        // Clear existing stored path + overlay
+        activityViewModel.area.value!!.clearSurveyPath()
+        osmdroidMapController.clearSurveyPath()
+
+        // Compute new path
         survey?.clearMarkers()
         survey = Survey(activityViewModel.area.value!!, requireActivity())
-        activityViewModel.area.value!!.surveyPath =
-            survey?.createSurveyPath(distance, angle, this.context, map)!!
 
-        if (activityViewModel.area.value!!.surveyPath.size == 0) {
+        val path = survey!!.createSurveyPath(distance, angle, context)
+
+        activityViewModel.area.value!!.surveyPath = path
+
+        if (path.isEmpty()) {
+            // Geometry invalid / too big / etc.
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
         } else {
-            mMap?.let { activityViewModel.area.value!!.surveyPolylineOptions(it) }
+            // Render on osmdroid
+            osmdroidMapController.setSurveyPath(path)
         }
     }
 
 
-    @SuppressLint("MissingPermission")
-    override fun onMapReady(googleMap: GoogleMap) {
-        mMap = googleMap
-
-        val act = activity
-        if (act != null) {
-            val fineGranted = ContextCompat.checkSelfPermission(
-                act.applicationContext,
-                Manifest.permission.ACCESS_FINE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-
-            val coarseGranted = ContextCompat.checkSelfPermission(
-                act.applicationContext,
-                Manifest.permission.ACCESS_COARSE_LOCATION
-            ) == PackageManager.PERMISSION_GRANTED
-
-            if (fineGranted || coarseGranted) {
-                mapController.zoomToCurrentLocation()
-            } else {
-                Toast.makeText(
-                    act.applicationContext,
-                    getString(R.string.invalid_location_permissions),
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-
-        mapController.bind(googleMap)
-        polygonEditor.bind(googleMap)
-    }
-
-
-    private fun bitmapDescriptorFromVector(context: Context, vectorResId: Int): BitmapDescriptor? {
+    private fun bitmapDescriptorFromVector(
+        context: Context,
+        vectorResId: Int
+    ): com.google.android.gms.maps.model.BitmapDescriptor? {
         return ContextCompat.getDrawable(context, vectorResId)?.run {
             setBounds(0, 0, intrinsicWidth, intrinsicHeight)
-            val bitmap =
-                Bitmap.createBitmap(intrinsicWidth, intrinsicHeight, Bitmap.Config.ARGB_8888)
-            draw(Canvas(bitmap))
-            BitmapDescriptorFactory.fromBitmap(bitmap)
+            val bitmap = createBitmap(intrinsicWidth, intrinsicHeight)
+            draw(android.graphics.Canvas(bitmap))
+            com.google.android.gms.maps.model.BitmapDescriptorFactory.fromBitmap(bitmap)
         }
     }
-
 
     private fun getColor(inValue: Int): Int {
         val minValue = 5
@@ -467,10 +485,14 @@ class HomeMapsFragment : Fragment(), OnMapReadyCallback {
         _binding = null
     }
 
+    override fun onResume() {
+        super.onResume()
+        mapView.onResume()
+        osmdroidMapController.onResume()    }
 
+    override fun onPause() {
+        osmdroidMapController.onResume()
+        mapView.onPause()
+        super.onPause()
+    }
 }
-
-
-
-
-
