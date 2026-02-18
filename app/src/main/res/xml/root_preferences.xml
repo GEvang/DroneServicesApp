@@ -38,8 +38,22 @@
     </PreferenceCategory>
 
 
+    <PreferenceCategory
+        app:key="offlineMapsCategory"
+        app:title="Offline Maps">
 
+        <!-- Displays current cache size -->
+        <Preference
+            app:key="offline_cache_size"
+            app:title="Cached offline maps"
+            app:summary="Calculating…" />
 
+        <!-- Clears osmdroid tile cache -->
+        <Preference
+            app:key="offline_clear_cache"
+            app:title="Clear offline map cache"
+            app:summary="Deletes downloaded tiles from this device" />
+    </PreferenceCategory>
 
 
     <EditTextPreference

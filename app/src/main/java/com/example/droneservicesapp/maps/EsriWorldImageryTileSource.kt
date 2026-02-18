@@ -6,7 +6,7 @@ import org.osmdroid.util.MapTileIndex
 object EsriWorldImageryTileSource : OnlineTileSourceBase(
     "EsriWorldImagery",
     1,
-    19,
+    18,
     256,
     ".jpg",
     arrayOf("https://services.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"),
