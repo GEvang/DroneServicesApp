@@ -1,22 +1,61 @@
 plugins {
     id 'com.android.application'
-    id 'kotlin-android'
     id 'org.jetbrains.kotlin.android'
 }
-apply plugin: 'kotlin-android'
+
+def versions = [
+        // Logging
+        kotlinLogging       : '2.1.21',
+
+        // Core Android & UI (SDK 33–friendly set)
+        coreKtx             : '1.10.1',
+        material            : '1.8.0',
+        constraintLayout    : '2.1.4',
+        appCompat           : '1.6.1',
+        legacySupportV4     : '1.0.0',
+        cardview            : '1.0.0',
+        preference          : '1.2.0',
+
+        // Lifecycle & Navigation (avoid 2.7+ which requires compileSdk 34)
+        lifecycle           : '2.6.1',
+        navigation          : '2.5.3',
+
+        // Google Play Services
+        playServicesMaps    : '18.1.0',
+        playServicesLocation: '21.0.1',
+        mapsUtils           : '3.4.0',
+
+        // Reactive (RxJava 2 — matches your imports io.reactivex.*)
+        rxjava2             : '2.2.21',
+        rxandroid2          : '2.1.1',
+
+        // Utilities
+        processPhoenix      : '2.1.2',
+        mavlink             : '1.1.11',
+        osmdroid            : '6.1.20',
+
+        // Testing
+        junit               : '4.13.2',
+        junitKtx            : '1.1.5',
+        testMonitor         : '1.6.1',
+]
 
 android {
     compileSdk 33
+    namespace 'com.example.droneservicesapp'
 
     defaultConfig {
-        resourceConfigurations += ['en', 'el']
         applicationId "com.example.droneservicesapp"
         minSdk 30
         targetSdk 33
+
         versionCode 1
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        // Keep only these locales packaged (as you had it)
+        resourceConfigurations += ['en', 'el']
     }
 
     buildTypes {
@@ -25,61 +64,62 @@ android {
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
         targetCompatibility JavaVersion.VERSION_11
     }
+
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_11
+        jvmTarget = "11"
     }
+
     buildFeatures {
         viewBinding true
     }
-    namespace 'com.example.droneservicesapp'
 }
 
 dependencies {
+    // Logging
+    implementation "io.github.microutils:kotlin-logging-jvm:${versions.kotlinLogging}"
 
-    implementation 'io.github.microutils:kotlin-logging-jvm:2.1.21'
+    // Core Android
+    implementation "androidx.core:core-ktx:${versions.coreKtx}"
+    implementation "androidx.appcompat:appcompat:${versions.appCompat}"
+    implementation "com.google.android.material:material:${versions.material}"
+    implementation "androidx.constraintlayout:constraintlayout:${versions.constraintLayout}"
 
-    implementation 'androidx.core:core-ktx:1.10.0'
-    implementation 'com.google.android.material:material:1.8.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
-    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.6.1'
-    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1'
-    implementation 'androidx.navigation:navigation-fragment-ktx:2.5.3'
-    implementation 'androidx.navigation:navigation-ui-ktx:2.5.3'
-    implementation 'androidx.preference:preference-ktx:1.2.0'
-    implementation 'com.google.android.gms:play-services-maps:18.1.0'
-    implementation 'com.google.android.gms:play-services-location:21.0.1'
-    implementation 'androidx.legacy:legacy-support-v4:1.0.0'
-    implementation 'androidx.cardview:cardview:1.0.0'
-    implementation 'androidx.appcompat:appcompat:1.6.1'
-    implementation 'androidx.test:monitor:1.6.1'
-    implementation 'androidx.test.ext:junit-ktx:1.1.5'
-    testImplementation 'junit:junit:4.13.2'
-    implementation 'com.google.maps.android:android-maps-utils:3.4.0'
+    // Lifecycle & ViewModel
+    implementation "androidx.lifecycle:lifecycle-livedata-ktx:${versions.lifecycle}"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:${versions.lifecycle}"
 
-    implementation 'io.reactivex.rxjava2:rxandroid:2.1.1'
-    implementation 'io.reactivex.rxjava2:rxjava:2.2.21'
+    // Navigation
+    implementation "androidx.navigation:navigation-fragment-ktx:${versions.navigation}"
+    implementation "androidx.navigation:navigation-ui-ktx:${versions.navigation}"
 
-    implementation 'com.jakewharton:process-phoenix:2.1.2'
+    // UI Components
+    implementation "androidx.preference:preference-ktx:${versions.preference}"
+    implementation "androidx.legacy:legacy-support-v4:${versions.legacySupportV4}"
+    implementation "androidx.cardview:cardview:${versions.cardview}"
 
-    implementation 'com.google.maps.android:android-maps-utils:3.4.0'
-    implementation 'androidx.cardview:cardview:1.0.0'
+    // Google Play Services
+    implementation "com.google.android.gms:play-services-maps:${versions.playServicesMaps}"
+    implementation "com.google.android.gms:play-services-location:${versions.playServicesLocation}"
+    implementation "com.google.maps.android:android-maps-utils:${versions.mapsUtils}"
 
+    // Reactive (RxJava 2)
+    implementation "io.reactivex.rxjava2:rxjava:${versions.rxjava2}"
+    implementation "io.reactivex.rxjava2:rxandroid:${versions.rxandroid2}"
 
-    //implementation files('libs/mavsdk-1.1.1.jar')
-//    implementation 'io.mavsdk:mavsdk:1.1.1'
+    // Utilities
+    implementation "com.jakewharton:process-phoenix:${versions.processPhoenix}"
+    implementation "io.dronefleet.mavlink:mavlink:${versions.mavlink}"
+    implementation "org.osmdroid:osmdroid-android:${versions.osmdroid}"
 
-    //implementation files('libs/mavsdk-server-debug.aar')
-//    implementation 'io.mavsdk:mavsdk-server:1.1.1'
+    // Unit testing
+    testImplementation "junit:junit:${versions.junit}"
 
-    implementation 'io.dronefleet.mavlink:mavlink:1.1.11'
-    implementation "org.osmdroid:osmdroid-android:6.1.20"
-
-//    implementation "xyz.urbanmatrix.mavlink:mavlink-kotlin:0.16.8"
-//    implementation "xyz.urbanmatrix.mavlink:definitions:0.16.8"
-//    implementation "xyz.urbanmatrix.mavlink:rxjava2:0.16.8"
+    // Instrumentation testing (correct scope)
+    androidTestImplementation "androidx.test:monitor:${versions.testMonitor}"
+    androidTestImplementation "androidx.test.ext:junit-ktx:${versions.junitKtx}"
 }
-
