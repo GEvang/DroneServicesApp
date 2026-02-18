@@ -5,7 +5,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".ui.home_maps.HomeMapsFragment">
+    tools:context=".ui.home_maps.HomeMapsFragment"
+    android:background="@color/bg">
 
     <org.osmdroid.views.MapView
         android:id="@+id/osmMap"
@@ -18,91 +19,84 @@
         android:layout_height="match_parent"
         android:focusableInTouchMode="true">
 
+        <!-- My location -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/my_location_button"
-            android:layout_alignParentEnd="true"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:maxImageSize = "25dp"
-            app:fabSize="mini"
+            android:layout_alignParentEnd="true"
             android:layout_marginTop="70dp"
-            android:layout_marginEnd="5dp"
+            android:layout_marginEnd="8dp"
             android:clickable="true"
-            android:backgroundTint="@color/white"
-            android:src="@drawable/ic_baseline_my_location_48"
             android:contentDescription="@string/my_location_button_desc"
-            android:focusable="true" />
+            android:focusable="true"
+            android:src="@drawable/ic_baseline_my_location_48"
+            app:fabSize="mini"
+            app:maxImageSize="25dp"
+            app:backgroundTint="@color/fab_bg"
+            app:tint="@color/icon_on_dark" />
 
+        <!-- Drone location -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/drone_location_button"
-            android:layout_alignParentEnd="true"
-            android:layout_marginTop="10dp"
-            android:layout_marginEnd="5dp"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            app:maxImageSize = "25dp"
-            app:fabSize="mini"
+            android:layout_alignParentEnd="true"
             android:layout_below="@id/my_location_button"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="8dp"
             android:clickable="true"
-            android:backgroundTint="@color/white"
-            android:src="@drawable/drone_marker_48_black"
             android:contentDescription="@string/drone_location_button"
-            android:focusable="true" />
+            android:focusable="true"
+            android:src="@drawable/drone_marker_48_black"
+            app:fabSize="mini"
+            app:maxImageSize="25dp"
+            app:backgroundTint="@color/fab_bg"
+            app:tint="@color/icon_on_dark" />
 
+        <!-- Download offline -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
             android:id="@+id/download_offline_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentEnd="true"
-            android:layout_marginTop="10dp"
-            android:layout_marginEnd="5dp"
             android:layout_below="@id/drone_location_button"
+            android:layout_marginTop="10dp"
+            android:layout_marginEnd="8dp"
+            android:clickable="true"
+            android:contentDescription="Download offline area"
+            android:focusable="true"
+            android:src="@android:drawable/stat_sys_download"
             app:fabSize="mini"
             app:maxImageSize="25dp"
-            android:clickable="true"
-            android:backgroundTint="@color/white"
-            android:src="@android:drawable/stat_sys_download"
-            android:contentDescription="Download offline area"
-            android:focusable="true" />
+            app:backgroundTint="@color/fab_bg"
+            app:tint="@color/icon_on_dark" />
+
 
         <include
-            android:layout_alignParentEnd="true"
-            android:layout_marginTop="200dp"
-            android:layout_marginEnd="5dp"
-            android:layout_width="@dimen/circle_diameter"
-            android:layout_height="@dimen/circle_diameter"
-            layout="@layout/collission_compass"
-            />
-
-        <include
-            android:layout_alignParentEnd="true"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:layout_alignParentEnd="true"
             android:layout_gravity="bottom|end"
-            layout="@layout/mission_params_side_view"
-            />
+            layout="@layout/mission_params_side_view" />
 
     </RelativeLayout>
 
-
-
-
-
-
-
+    <!-- SAVE FILE PANEL -->
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/save_file_layout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:layout_gravity="center"
-        android:background="@color/white"
-        android:padding="10dp">
+        android:orientation="vertical"
+        android:background="@drawable/bg_card_gold_stroke"
+        android:padding="16dp">
 
         <androidx.appcompat.widget.LinearLayoutCompat
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
 
             <TextView
                 android:id="@+id/filename"
@@ -110,17 +104,23 @@
                 android:layout_height="wrap_content"
                 android:paddingEnd="8dp"
                 android:text="@string/name"
+                android:textColor="@color/text_secondary"
+                android:fontFamily="@font/inter"
                 tools:ignore="RtlSymmetry" />
 
             <EditText
                 android:id="@+id/input_filename"
                 android:layout_width="200dp"
-                android:maxWidth="200dp"
-                android:layout_weight="1"
                 android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:maxWidth="200dp"
                 android:hint="@string/enter_text"
                 android:autofillHints="Insert the file name here"
-                android:inputType="textShortMessage" />
+                android:inputType="textShortMessage"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_secondary"
+                android:fontFamily="@font/inter"
+                android:backgroundTint="@color/accent_gold" />
 
             <TextView
                 android:id="@+id/suffix"
@@ -128,66 +128,81 @@
                 android:layout_height="wrap_content"
                 android:paddingLeft="8dp"
                 android:text="@string/waypoints"
+                android:textColor="@color/text_secondary"
+                android:fontFamily="@font/inter"
                 tools:ignore="RtlHardcoded,RtlSymmetry" />
+
         </androidx.appcompat.widget.LinearLayoutCompat>
 
         <androidx.appcompat.widget.LinearLayoutCompat
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="10dp">
 
             <CheckBox
                 android:id="@+id/override_checkbox"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content">
-            </CheckBox>
+                android:layout_height="wrap_content"
+                android:buttonTint="@color/accent_gold" />
 
             <TextView
                 android:id="@+id/checkbox_description"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/override_existing_file" />
+                android:text="@string/override_existing_file"
+                android:textColor="@color/text_secondary"
+                android:fontFamily="@font/inter"
+                android:layout_marginStart="8dp" />
         </androidx.appcompat.widget.LinearLayoutCompat>
 
         <androidx.appcompat.widget.LinearLayoutCompat
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="center"
-            android:orientation="horizontal">
+            android:orientation="horizontal"
+            android:layout_marginTop="12dp">
 
             <Button
                 android:id="@+id/save_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/save"
-                style="?android:attr/buttonBarButtonStyle" />
+                android:fontFamily="@font/inter"
+                android:textColor="@color/icon_on_gold"
+                android:backgroundTint="@color/accent_gold" />
 
             <Button
                 android:id="@+id/cancel_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/cancel"
-                style="?android:attr/buttonBarButtonStyle" />
+                android:layout_marginStart="12dp"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_primary"
+                android:backgroundTint="@color/surface" />
         </androidx.appcompat.widget.LinearLayoutCompat>
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 
-
-
+    <!-- LOAD FILE PANEL -->
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/load_file_selector_layout"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
         android:layout_gravity="center"
-        android:background="@color/white"
-        android:padding="10dp">
+        android:orientation="vertical"
+        android:background="@drawable/bg_card_gold_stroke"
+        android:padding="16dp">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/select_a_file"
-            android:textSize="18sp" />
+            android:textSize="18sp"
+            android:textColor="@color/text_primary"
+            android:fontFamily="@font/inter" />
 
         <ListView
             android:id="@+id/file_list"
@@ -200,29 +215,30 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
             android:gravity="end"
-            android:orientation="horizontal"
-            android:layout_marginTop="16dp">
+            android:orientation="horizontal">
 
             <Button
                 android:id="@+id/btn_cancel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/cancel"
-                style="?android:attr/buttonBarButtonStyle" />
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_primary"
+                android:backgroundTint="@color/surface" />
 
             <Button
                 android:id="@+id/btn_ok"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/ok"
                 android:layout_marginStart="16dp"
-                style="?android:attr/buttonBarButtonStyle" />
-
+                android:text="@string/ok"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/icon_on_gold"
+                android:backgroundTint="@color/accent_gold" />
         </LinearLayout>
 
     </androidx.appcompat.widget.LinearLayoutCompat>
 
 </FrameLayout>
-
-

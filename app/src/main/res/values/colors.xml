@@ -12,11 +12,28 @@
     <color name="red">#FFFA0000</color>
     <color name="green">#00FF00</color>
 
-
     <color name="outer_circle_color">#FFFFFFFF</color>
     <color name="top_circle_color">#00FF00</color>
     <color name="bottom_circle_color">#00FF00</color>
 
+    <!-- Base dark -->
+    <color name="bg">#0B0B0D</color>
+    <color name="surface">#121216</color>
+    <color name="surface_2">#17171D</color>
 
+    <!-- Text -->
+    <color name="text_primary">#F2F2F3</color>
+    <color name="text_secondary">#A7A7AD</color>
 
+    <!-- Accent (gold) -->
+    <color name="accent_gold">#D1B15C</color>
+    <color name="accent_gold_dim">#9C8343</color>
+
+    <!-- Strokes / dividers -->
+    <color name="stroke_subtle">#2A2A31</color>
+
+    <!-- Helpful extras -->
+    <color name="fab_bg">@color/surface_2</color>
+    <color name="icon_on_dark">@color/text_primary</color>
+    <color name="icon_on_gold">#141416</color>
 </resources>
