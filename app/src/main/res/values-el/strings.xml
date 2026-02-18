@@ -65,5 +65,6 @@
     <string name="select_a_file">Επιλέξτε αρχείο:</string>
     <string name="chose_file">Επιλέξτε αρχείο:</string>
     <string name="download_mission_succeded">Επιτυχίας Κατεβάσματος Αποστολής</string>
+    <string name="no_telemetry_forwarding_msg">Connected (heartbeat), but telemetry isn’t forwarding. Check Herelink MAVLink forwarding / bridge.</string>
 
 </resources>
