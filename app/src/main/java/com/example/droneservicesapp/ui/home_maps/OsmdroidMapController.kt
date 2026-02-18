@@ -3,18 +3,17 @@ package com.example.droneservicesapp.ui.home_maps
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.widget.Toast
 import android.graphics.Color
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.example.droneservicesapp.R
+import com.google.android.gms.maps.model.LatLng
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
-import org.osmdroid.views.overlay.Polyline
-import com.google.android.gms.maps.model.LatLng
-
 
 
 /**
