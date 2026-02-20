@@ -26,14 +26,12 @@ import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.shape.Survey
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.floatingactionbutton.FloatingActionButton
 import io.dronefleet.mavlink.common.MavCmd
 import org.osmdroid.tileprovider.cachemanager.CacheManager
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 
-// NOTE: Google Maps callback removed
 class HomeMapsFragment : Fragment() {
     private var _binding: FragmentHomeMapsBinding? = null
     private val binding get() = _binding!!
@@ -50,6 +48,14 @@ class HomeMapsFragment : Fragment() {
 
     private var droneMarker: Marker? = null
     private var survey: Survey? = null
+
+    // Fragment-owned views (safe)
+    private lateinit var paramsSideView: LinearLayoutCompat
+    private lateinit var saveFileView: LinearLayoutCompat
+    private lateinit var loadFileView: LinearLayoutCompat
+
+    // Bottom nav lives in Activity
+    private var bottomNavigationView: BottomNavigationView? = null
 
     companion object {
         private const val LOG_TAG_FRONT_DISTANCE = "frontDistance"
@@ -79,11 +85,22 @@ class HomeMapsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // Bind fragment-owned views from fragment layout (safe)
+        paramsSideView = view.findViewById(R.id.mission_params_side_view)
+        saveFileView = view.findViewById(R.id.save_file_layout)
+        loadFileView = view.findViewById(R.id.load_file_selector_layout)
+
+        // Bottom nav from Activity (exists regardless of fragment)
+        bottomNavigationView = requireActivity().findViewById(R.id.bottom_nav_view)
+
         initializeMapView(view)
         initControllers()
         bindUiButtons()
         observeDroneViewModel()
         observeMapState()
+
+        // Ensure initial UI matches state
+        applyMapStateUi(activityViewModel.mapState.value ?: MainActivityViewModel.MapState.Idle)
     }
 
     private fun initializeMapView(view: View) {
@@ -136,8 +153,6 @@ class HomeMapsFragment : Fragment() {
     }
 
     private fun bindUiButtons() {
-        val bottomNavigationView = findActivityViewById<BottomNavigationView>(R.id.bottom_nav_view)
-
         binding.downloadOfflineButton.setOnClickListener {
             downloadCurrentViewOffline(minZoom = OFFLINE_MIN_ZOOM, maxZoom = OFFLINE_MAX_ZOOM)
         }
@@ -157,32 +172,14 @@ class HomeMapsFragment : Fragment() {
         }
 
         configureBottomNavigationView(bottomNavigationView)
-        configureActivityUiElements()
 
+        // Start in idle
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
     }
 
     private fun configureBottomNavigationView(navigationView: BottomNavigationView?) {
         navigationView?.isVisible = true
-        navigationView?.menu?.apply {
-            findItem(R.id.action_cancel)?.isVisible = false
-            findItem(R.id.action_accept)?.isVisible = false
-            findItem(R.id.action_erase)?.isVisible = false
-            findItem(R.id.action_draw)?.isVisible = true
-            findItem(R.id.action_load)?.isVisible = true
-        }
-    }
-
-    private fun configureActivityUiElements() {
-        findActivityViewById<LinearLayoutCompat>(R.id.mission_params_side_view)?.isVisible = false
-        findActivityViewById<LinearLayoutCompat>(R.id.save_file_layout)?.isVisible = false
-        findActivityViewById<LinearLayoutCompat>(R.id.load_file_selector_layout)?.isVisible = false
-        findActivityViewById<FloatingActionButton>(R.id.my_location_button)?.isVisible = true
-        findActivityViewById<FloatingActionButton>(R.id.drone_location_button)?.isVisible = true
-    }
-
-    private inline fun <reified T : View> findActivityViewById(viewId: Int): T? {
-        return requireActivity().findViewById(viewId)
+        // Menu visibility itself is handled in MainActivity now.
     }
 
     private fun observeDroneViewModel() {
@@ -201,10 +198,6 @@ class HomeMapsFragment : Fragment() {
             droneHeading?.let { heading ->
                 osmdroidMapController.updateDroneHeadingDegrees(heading.toFloat())
             }
-        }
-
-        droneViewModel.conStateLiveData.observe(viewLifecycleOwner) { _ ->
-            // TEMP: MapController migration required for marker visibility
         }
 
         droneViewModel.droneFrontDistance.distinctUntilChanged()
@@ -263,9 +256,11 @@ class HomeMapsFragment : Fragment() {
         val color = getColor(distance)
         Log.i(logTag, "distance: $distance    color: $color")
 
-        findActivityViewById<TextView>(textViewId)?.text = "$distance m"
+        // These look like they might be in Activity toolbar or fragment;
+        // keep requireActivity lookup IF they are truly in Activity.
+        requireActivity().findViewById<TextView>(textViewId)?.text = "$distance m"
 
-        val compassImageView = findActivityViewById<ImageView>(R.id.avoidance_compass)
+        val compassImageView = requireActivity().findViewById<ImageView>(R.id.avoidance_compass)
         val drawable = compassImageView?.drawable as? GradientDrawable
 
         drawable?.colors?.let { colors ->
@@ -309,6 +304,8 @@ class HomeMapsFragment : Fragment() {
         })
 
         activityViewModel.mapState.observe(viewLifecycleOwner) { mapState ->
+            applyMapStateUi(mapState)
+
             when (mapState) {
                 MainActivityViewModel.MapState.Idle -> handleIdleState()
                 MainActivityViewModel.MapState.Reset -> handleResetState()
@@ -319,6 +316,53 @@ class HomeMapsFragment : Fragment() {
                 MainActivityViewModel.MapState.LoadMissionFromFile -> handleLoadMissionState()
                 MainActivityViewModel.MapState.UploadMissionSuccess -> handleUploadMissionSuccessState()
                 MainActivityViewModel.MapState.SaveMissionToFile -> handleSaveMissionToFileState()
+            }
+        }
+    }
+
+    /**
+     * Fragment-owned visibility policy (previously in MainActivity)
+     */
+    private fun applyMapStateUi(mapState: MainActivityViewModel.MapState) {
+        when (mapState) {
+            MainActivityViewModel.MapState.Idle,
+            MainActivityViewModel.MapState.Reset -> {
+                paramsSideView.isVisible = false
+                saveFileView.isVisible = false
+                loadFileView.isVisible = false
+                binding.myLocationButton.isVisible = true
+                binding.droneLocationButton.isVisible = true
+            }
+
+            MainActivityViewModel.MapState.Draw,
+            MainActivityViewModel.MapState.ClearKeepDrawing,
+            MainActivityViewModel.MapState.ClearAll -> {
+                paramsSideView.isVisible = false
+                saveFileView.isVisible = false
+                loadFileView.isVisible = false
+                binding.myLocationButton.isVisible = true
+                binding.droneLocationButton.isVisible = true
+            }
+
+            MainActivityViewModel.MapState.SetFlightParams -> {
+                paramsSideView.isVisible = true
+                saveFileView.isVisible = false
+                loadFileView.isVisible = false
+                binding.myLocationButton.isVisible = false
+                binding.droneLocationButton.isVisible = false
+            }
+
+            MainActivityViewModel.MapState.LoadMissionFromFile -> {
+                paramsSideView.isVisible = false
+                saveFileView.isVisible = false
+                loadFileView.isVisible = true
+                binding.myLocationButton.isVisible = false
+                binding.droneLocationButton.isVisible = false
+            }
+
+            MainActivityViewModel.MapState.UploadMissionSuccess,
+            MainActivityViewModel.MapState.SaveMissionToFile -> {
+                // handled by controllers; keep as-is
             }
         }
     }
@@ -395,15 +439,7 @@ class HomeMapsFragment : Fragment() {
                 }
 
                 override fun setPossibleTilesInArea(total: Int) {}
-
-                override fun updateProgress(
-                    progress: Int,
-                    currentZoomLevel: Int,
-                    zoomMin: Int,
-                    zoomMax: Int
-                ) {
-                }
-
+                override fun updateProgress(progress: Int, currentZoomLevel: Int, zoomMin: Int, zoomMax: Int) {}
                 override fun onTaskComplete() {
                     Toast.makeText(requireContext(), "Offline download complete", Toast.LENGTH_LONG)
                         .show()

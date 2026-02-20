@@ -36,8 +36,8 @@
 
                 <androidx.appcompat.widget.AppCompatImageView
                     android:id="@+id/drone_battery_image"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:contentDescription="@string/nav_header_desc"
                     android:src="@drawable/ic_baseline_battery_full_24"
                     app:tint="@color/text_primary" />
@@ -55,8 +55,8 @@
 
                 <androidx.appcompat.widget.AppCompatImageView
                     android:id="@+id/sprayer_img"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginStart="12dp"
                     android:contentDescription="@string/drone_services_sprayer"
                     android:src="@drawable/ic_sprayer_image"
@@ -74,8 +74,8 @@
 
                 <androidx.appcompat.widget.AppCompatImageView
                     android:id="@+id/drone_alt_img"
-                    android:layout_width="20dp"
-                    android:layout_height="20dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginStart="12dp"
                     android:contentDescription="@string/drone_services_sprayer"
                     android:src="@drawable/ic_drone_alt"
@@ -115,6 +115,14 @@
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <include layout="@layout/content_main" />
+    <FrameLayout
+        android:id="@+id/main_content_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/appBarMain"
+        android:fitsSystemWindows="true">
+
+        <include layout="@layout/content_main" />
+    </FrameLayout>
 
 </RelativeLayout>

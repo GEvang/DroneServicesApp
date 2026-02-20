@@ -4,368 +4,587 @@
     android:id="@+id/mission_params_side_view"
     android:layout_width="wrap_content"
     android:layout_height="wrap_content"
+    android:minWidth="260dp"
+    android:maxWidth="320dp"
     android:orientation="vertical"
     android:background="@drawable/bg_card_gold_stroke"
-    android:paddingTop="12dp"
-    android:paddingStart="12dp"
-    android:paddingEnd="12dp"
-    android:paddingBottom="12dp">
+    android:padding="8dp">
 
-    <ScrollView
-        android:layout_width="wrap_content"
+    <!-- Removed ScrollView to eliminate scrolling -->
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:fillViewport="true">
+        android:orientation="vertical">
 
-        <androidx.appcompat.widget.LinearLayoutCompat
-            android:layout_width="wrap_content"
+        <!-- ========= PARAM: Mission Angle ========= -->
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
             android:orientation="vertical">
 
-            <!-- Mission Angle -->
-            <TextView
-                android:id="@+id/flight_lines_angle_title"
-                android:layout_width="wrap_content"
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:paddingTop="8dp"
-                android:text="@string/mission_angle"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter"
-                android:textStyle="bold" />
-
-            <androidx.appcompat.widget.LinearLayoutCompat
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
+                android:orientation="horizontal"
                 android:gravity="center_vertical">
 
-                <EditText
-                    android:id="@+id/line_angle_value"
-                    android:layout_width="56dp"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:textSize="16sp"
-                    android:text="@string/unknown_value_three_questionmarks"
-                    android:autofillHints="0-359°"
-                    android:inputType="phone"
-                    android:hint="@string/set_value_from_0_to_359"
-                    android:textColor="@color/text_primary"
-                    android:textColorHint="@color/text_secondary"
-                    android:fontFamily="@font/inter"
-                    android:backgroundTint="@color/accent_gold"
-                    android:padding="6dp" />
-
                 <TextView
+                    android:id="@+id/flight_lines_angle_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/mission_angle"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_secondary"
+                    android:fontFamily="@font/inter" />
+
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:textSize="16sp"
-                    android:textColor="@color/text_secondary"
+                    android:gravity="center_vertical">
+
+                    <EditText
+                        android:id="@+id/line_angle_value"
+                        android:layout_width="56dp"
+                        android:layout_height="wrap_content"
+                        android:background="@null"
+                        android:gravity="end"
+                        android:inputType="phone"
+                        android:text="@string/unknown_value_three_questionmarks"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_primary"
+                        android:textColorHint="@color/text_secondary"
+                        android:hint="@string/set_value_from_0_to_359"
+                        android:fontFamily="@font/inter" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="@string/degrees"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_secondary"
+                        android:fontFamily="@font/inter" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_param_row_pill"
+                android:padding="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_angle_minus"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:minWidth="32dp"
+                    android:minHeight="32dp"
+                    android:padding="0dp"
+                    android:background="@drawable/bg_circle_button"
+                    android:text="−"
+                    android:textSize="20sp"
+                    android:textAllCaps="false"
+                    android:includeFontPadding="false"
+                    android:gravity="center"
                     android:fontFamily="@font/inter"
-                    android:text="@string/degrees" />
+                    android:textColor="@color/text_primary" />
 
                 <SeekBar
                     android:id="@+id/line_angle_seekbar"
-                    android:layout_width="220dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
+                    android:layout_width="0dp"
+                    android:layout_height="28dp"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="8dp"
                     android:max="359"
                     android:progress="0"
                     android:progressTint="@color/accent_gold"
                     android:thumbTint="@color/accent_gold" />
-            </androidx.appcompat.widget.LinearLayoutCompat>
 
-            <!-- Line Distance -->
-            <TextView
-                android:id="@+id/overlap_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:paddingTop="12dp"
-                android:text="@string/line_distance"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter"
-                android:textStyle="bold" />
+                <Button
+                    android:id="@+id/btn_angle_plus"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:minWidth="32dp"
+                    android:minHeight="32dp"
+                    android:padding="0dp"
+                    android:background="@drawable/bg_circle_button"
+                    android:text="+"
+                    android:textSize="20sp"
+                    android:textAllCaps="false"
+                    android:includeFontPadding="false"
+                    android:gravity="center"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary" />
+            </LinearLayout>
+        </LinearLayout>
 
-            <androidx.appcompat.widget.LinearLayoutCompat
+        <!-- ========= PARAM: Line Distance ========= -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:orientation="vertical">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:orientation="horizontal"
                 android:gravity="center_vertical">
 
-                <EditText
-                    android:id="@+id/line_distance_value"
-                    android:layout_width="56dp"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:textSize="16sp"
-                    android:text="@string/unknown_value_three_questionmarks"
-                    android:autofillHints="0-20m"
-                    android:inputType="phone"
-                    android:hint="@string/set_value_from_2_to_20m"
-                    android:textColor="@color/text_primary"
-                    android:textColorHint="@color/text_secondary"
-                    android:fontFamily="@font/inter"
-                    android:backgroundTint="@color/accent_gold"
-                    android:padding="6dp" />
-
                 <TextView
+                    android:id="@+id/overlap_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/line_distance"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_secondary"
+                    android:fontFamily="@font/inter" />
+
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:textSize="16sp"
-                    android:textColor="@color/text_secondary"
+                    android:gravity="center_vertical">
+
+                    <EditText
+                        android:id="@+id/line_distance_value"
+                        android:layout_width="56dp"
+                        android:layout_height="wrap_content"
+                        android:background="@null"
+                        android:gravity="end"
+                        android:inputType="phone"
+                        android:text="@string/unknown_value_three_questionmarks"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_primary"
+                        android:textColorHint="@color/text_secondary"
+                        android:hint="@string/set_value_from_2_to_20m"
+                        android:fontFamily="@font/inter" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="@string/m"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_secondary"
+                        android:fontFamily="@font/inter" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_param_row_pill"
+                android:padding="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_distance_minus"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:minWidth="32dp"
+                    android:minHeight="32dp"
+                    android:padding="0dp"
+                    android:background="@drawable/bg_circle_button"
+                    android:text="−"
+                    android:textSize="20sp"
+                    android:textAllCaps="false"
+                    android:includeFontPadding="false"
+                    android:gravity="center"
                     android:fontFamily="@font/inter"
-                    android:text="@string/m" />
+                    android:textColor="@color/text_primary" />
 
                 <SeekBar
                     android:id="@+id/line_distance_seekbar"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:max="20"
-                    android:min="1"
-                    android:progress="1"
-                    android:progressTint="@color/accent_gold"
-                    android:thumbTint="@color/accent_gold" />
-            </androidx.appcompat.widget.LinearLayoutCompat>
-
-            <!-- Altitude -->
-            <TextView
-                android:id="@+id/altitude_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:paddingTop="12dp"
-                android:text="@string/flight_altitude"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter"
-                android:textStyle="bold" />
-
-            <androidx.appcompat.widget.LinearLayoutCompat
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:gravity="center_vertical">
-
-                <EditText
-                    android:id="@+id/altitude_value"
-                    android:layout_width="56dp"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:textSize="16sp"
-                    android:text="@string/unknown_value_three_questionmarks"
-                    android:autofillHints="0-20m"
-                    android:inputType="phone"
-                    android:hint="@string/set_value_from_2_to_20m"
-                    android:textColor="@color/text_primary"
-                    android:textColorHint="@color/text_secondary"
-                    android:fontFamily="@font/inter"
-                    android:backgroundTint="@color/accent_gold"
-                    android:padding="6dp" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:textSize="16sp"
-                    android:textColor="@color/text_secondary"
-                    android:fontFamily="@font/inter"
-                    android:text="@string/m" />
-
-                <SeekBar
-                    android:id="@+id/altitude_seekbar"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
+                    android:layout_width="0dp"
+                    android:layout_height="28dp"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="8dp"
                     android:max="20"
                     android:min="2"
                     android:progress="2"
                     android:progressTint="@color/accent_gold"
                     android:thumbTint="@color/accent_gold" />
-            </androidx.appcompat.widget.LinearLayoutCompat>
 
-            <!-- Sprayer Intensity -->
-            <TextView
-                android:id="@+id/spray_intensity_title"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:paddingTop="12dp"
-                android:text="@string/sprayer_intensity"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter"
-                android:textStyle="bold" />
+                <Button
+                    android:id="@+id/btn_distance_plus"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:minWidth="32dp"
+                    android:minHeight="32dp"
+                    android:padding="0dp"
+                    android:background="@drawable/bg_circle_button"
+                    android:text="+"
+                    android:textSize="20sp"
+                    android:textAllCaps="false"
+                    android:includeFontPadding="false"
+                    android:gravity="center"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary" />
+            </LinearLayout>
+        </LinearLayout>
 
-            <androidx.appcompat.widget.LinearLayoutCompat
+        <!-- ========= PARAM: Altitude ========= -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="6dp"
+            android:orientation="vertical">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
+                android:orientation="horizontal"
                 android:gravity="center_vertical">
 
-                <EditText
-                    android:id="@+id/sprayer_seekbar_value"
-                    android:layout_width="56dp"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:textSize="16sp"
-                    android:text="@string/unknown_value_three_questionmarks"
-                    android:autofillHints="0-100%"
-                    android:inputType="phone"
-                    android:hint="@string/set_value_from_0_to_100"
-                    android:textColor="@color/text_primary"
-                    android:textColorHint="@color/text_secondary"
-                    android:fontFamily="@font/inter"
-                    android:backgroundTint="@color/accent_gold"
-                    android:padding="6dp" />
-
                 <TextView
+                    android:id="@+id/altitude_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/flight_altitude"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_secondary"
+                    android:fontFamily="@font/inter" />
+
+                <LinearLayout
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:textSize="16sp"
-                    android:textColor="@color/text_secondary"
+                    android:gravity="center_vertical">
+
+                    <EditText
+                        android:id="@+id/altitude_value"
+                        android:layout_width="56dp"
+                        android:layout_height="wrap_content"
+                        android:background="@null"
+                        android:gravity="end"
+                        android:inputType="phone"
+                        android:text="@string/unknown_value_three_questionmarks"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_primary"
+                        android:textColorHint="@color/text_secondary"
+                        android:hint="@string/set_value_from_2_to_20m"
+                        android:fontFamily="@font/inter" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="@string/m"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_secondary"
+                        android:fontFamily="@font/inter" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_param_row_pill"
+                android:padding="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_alt_minus"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:minWidth="32dp"
+                    android:minHeight="32dp"
+                    android:padding="0dp"
+                    android:background="@drawable/bg_circle_button"
+                    android:text="−"
+                    android:textSize="20sp"
+                    android:textAllCaps="false"
+                    android:includeFontPadding="false"
+                    android:gravity="center"
                     android:fontFamily="@font/inter"
-                    android:text="@string/percentage_symbol" />
+                    android:textColor="@color/text_primary" />
+
+                <SeekBar
+                    android:id="@+id/altitude_seekbar"
+                    android:layout_width="0dp"
+                    android:layout_height="28dp"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="8dp"
+                    android:max="20"
+                    android:min="2"
+                    android:progress="5"
+                    android:progressTint="@color/accent_gold"
+                    android:thumbTint="@color/accent_gold" />
+
+                <Button
+                    android:id="@+id/btn_alt_plus"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:minWidth="32dp"
+                    android:minHeight="32dp"
+                    android:padding="0dp"
+                    android:background="@drawable/bg_circle_button"
+                    android:text="+"
+                    android:textSize="20sp"
+                    android:textAllCaps="false"
+                    android:includeFontPadding="false"
+                    android:gravity="center"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ========= PARAM: Sprayer Intensity ========= -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:orientation="vertical">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+
+                <TextView
+                    android:id="@+id/spray_intensity_title"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/sprayer_intensity"
+                    android:textSize="12sp"
+                    android:textStyle="bold"
+                    android:textColor="@color/text_secondary"
+                    android:fontFamily="@font/inter" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical">
+
+                    <EditText
+                        android:id="@+id/sprayer_seekbar_value"
+                        android:layout_width="56dp"
+                        android:layout_height="wrap_content"
+                        android:background="@null"
+                        android:gravity="end"
+                        android:inputType="phone"
+                        android:text="@string/unknown_value_three_questionmarks"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_primary"
+                        android:textColorHint="@color/text_secondary"
+                        android:hint="@string/set_value_from_0_to_100"
+                        android:fontFamily="@font/inter" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="6dp"
+                        android:text="@string/percentage_symbol"
+                        android:textSize="14sp"
+                        android:textColor="@color/text_secondary"
+                        android:fontFamily="@font/inter" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:background="@drawable/bg_param_row_pill"
+                android:padding="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/btn_spray_minus"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:minWidth="32dp"
+                    android:minHeight="32dp"
+                    android:padding="0dp"
+                    android:background="@drawable/bg_circle_button"
+                    android:text="−"
+                    android:textSize="20sp"
+                    android:textAllCaps="false"
+                    android:includeFontPadding="false"
+                    android:gravity="center"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary" />
 
                 <SeekBar
                     android:id="@+id/sprayer_seekbar"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
+                    android:layout_width="0dp"
+                    android:layout_height="28dp"
+                    android:layout_weight="1"
+                    android:layout_marginHorizontal="8dp"
                     android:max="100"
                     android:progress="0"
                     android:progressTint="@color/accent_gold"
                     android:thumbTint="@color/accent_gold" />
-            </androidx.appcompat.widget.LinearLayoutCompat>
 
-            <!-- Flight speed / time -->
+                <Button
+                    android:id="@+id/btn_spray_plus"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:minWidth="32dp"
+                    android:minHeight="32dp"
+                    android:padding="0dp"
+                    android:background="@drawable/bg_circle_button"
+                    android:text="+"
+                    android:textSize="20sp"
+                    android:textAllCaps="false"
+                    android:includeFontPadding="false"
+                    android:gravity="center"
+                    android:fontFamily="@font/inter"
+                    android:textColor="@color/text_primary" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- ========= Flight speed / time ========= -->
+        <TextView
+            android:id="@+id/flight_speed_time_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="4dp"
+            android:text="@string/flight_time"
+            android:textSize="12sp"
+            android:textStyle="bold"
+            android:textColor="@color/text_secondary"
+            android:fontFamily="@font/inter" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_param_row_pill"
+            android:padding="8dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/minus_button"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:minWidth="32dp"
+                android:minHeight="32dp"
+                android:padding="0dp"
+                android:background="@drawable/bg_circle_button"
+                android:text="−"
+                android:textSize="20sp"
+                android:textAllCaps="false"
+                android:includeFontPadding="false"
+                android:gravity="center"
+                android:fontFamily="@font/inter"
+                android:textColor="@color/text_primary" />
+
             <TextView
-                android:id="@+id/flight_speed_time_title"
+                android:id="@+id/flight_speed"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_gravity="center_horizontal"
-                android:paddingTop="12dp"
-                android:text="@string/flight_time"
-                android:textSize="13sp"
+                android:layout_marginStart="10dp"
+                android:text="@string/unknown_value"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:fontFamily="@font/inter" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="@string/meters_per_second"
+                android:textSize="14sp"
                 android:textColor="@color/text_secondary"
+                android:fontFamily="@font/inter" />
+
+            <Button
+                android:id="@+id/plus_button"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:minWidth="32dp"
+                android:minHeight="32dp"
+                android:padding="0dp"
+                android:layout_marginStart="10dp"
+                android:text="+"
+                android:textSize="20sp"
+                android:textAllCaps="false"
+                android:includeFontPadding="false"
+                android:gravity="center"
                 android:fontFamily="@font/inter"
-                android:textStyle="bold" />
+                android:textColor="@color/text_primary"
+                android:background="@drawable/bg_circle_button" />
 
-            <androidx.appcompat.widget.LinearLayoutCompat
+            <TextView
+                android:id="@+id/flight_time"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:text="@string/unknown_value"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:fontFamily="@font/inter" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="6dp"
+                android:text="@string/mins"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:fontFamily="@font/inter" />
+        </LinearLayout>
+
+        <!-- Actions -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:orientation="vertical">
+
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:gravity="center_vertical"
-                android:layout_marginTop="6dp">
-
-                <Button
-                    android:id="@+id/minus_button"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:gravity="center"
-                    android:backgroundTint="@color/surface"
-                    android:text="-"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="@font/inter" />
-
-                <TextView
-                    android:id="@+id/flight_speed"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:padding="5dp"
-                    android:text="@string/unknown_value"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="@font/inter"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:textSize="14sp"
-                    android:textColor="@color/text_secondary"
-                    android:fontFamily="@font/inter"
-                    android:text="@string/meters_per_second" />
-
-                <Button
-                    android:id="@+id/plus_button"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="10dp"
-                    android:gravity="center"
-                    android:backgroundTint="@color/surface"
-                    android:text="+"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="@font/inter" />
-
-                <TextView
-                    android:id="@+id/flight_time"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="10dp"
-                    android:padding="5dp"
-                    android:text="@string/unknown_value"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="@font/inter"
-                    android:textStyle="bold" />
-
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="6dp"
-                    android:textSize="14sp"
-                    android:textColor="@color/text_secondary"
-                    android:fontFamily="@font/inter"
-                    android:text="@string/mins" />
-            </androidx.appcompat.widget.LinearLayoutCompat>
-
-            <!-- Actions -->
-            <androidx.appcompat.widget.LinearLayoutCompat
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:orientation="vertical"
-                android:layout_marginTop="16dp">
-
-                <androidx.appcompat.widget.LinearLayoutCompat
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:gravity="center">
-
-                    <Button
-                        android:id="@+id/uploadMission"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_marginEnd="10dp"
-                        android:text="@string/upload_mission"
-                        android:fontFamily="@font/inter"
-                        android:textColor="@color/icon_on_gold"
-                        android:backgroundTint="@color/accent_gold" />
-
-                    <Button
-                        android:id="@+id/exit"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="@string/exit"
-                        android:fontFamily="@font/inter"
-                        android:textColor="@color/text_primary"
-                        android:backgroundTint="@color/surface" />
-                </androidx.appcompat.widget.LinearLayoutCompat>
+                android:gravity="center"
+                android:orientation="horizontal">
 
                 <Button
                     android:id="@+id/save_mission"
-                    android:layout_width="match_parent"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="10dp"
-                    android:text="@string/save_mission"
+                    android:layout_marginEnd="8dp"
+                    android:layout_weight="1"
                     android:fontFamily="@font/inter"
-                    android:textColor="@color/text_primary"
-                    android:backgroundTint="@color/surface" />
-            </androidx.appcompat.widget.LinearLayoutCompat>
+                    android:text="Save" />
 
-        </androidx.appcompat.widget.LinearLayoutCompat>
-    </ScrollView>
+                <Button
+                    android:id="@+id/exit"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/exit"
+                    android:fontFamily="@font/inter" />
+            </LinearLayout>
+
+            <Button
+                android:id="@+id/uploadMission"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/upload_mission"
+                android:fontFamily="@font/inter" />
+        </LinearLayout>
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
 
 </androidx.appcompat.widget.LinearLayoutCompat>

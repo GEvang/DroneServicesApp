@@ -13,10 +13,8 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
-import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import androidx.core.view.isVisible
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.findNavController
@@ -30,11 +28,9 @@ import com.example.droneservicesapp.databinding.ActivityMainBinding
 import com.example.droneservicesapp.mavlink.MavlinkConfig
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
-import com.google.android.material.floatingactionbutton.FloatingActionButton
 import com.google.android.material.navigation.NavigationView
 import java.math.RoundingMode
 import java.text.DecimalFormat
-
 
 class MainActivity : AppCompatActivity() {
 
@@ -45,16 +41,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var activityViewModel: MainActivityViewModel
 
     private lateinit var sharedPreferences: SharedPreferences
-
-    private lateinit var paramsSideView: LinearLayoutCompat
-    private lateinit var saveFileView: LinearLayoutCompat
-    private lateinit var loadFileView: LinearLayoutCompat
     private lateinit var bottomNavigationView: BottomNavigationView
-    private lateinit var userLocationFB: FloatingActionButton
-    private lateinit var droneLocationFB: FloatingActionButton
 
     private fun restartMavlinkFromPrefs() {
-
         val ifaceStr = sharedPreferences.getString(
             getString(R.string.mavlink_interface_pref),
             "UDP"
@@ -69,11 +58,8 @@ class MainActivity : AppCompatActivity() {
             .getOrDefault(MavlinkConfig.InterfaceType.UDP)
 
         val config = MavlinkConfig(interfaceType = iface, port = port)
-
-        // Start repo (idempotent) and ensure parsing bridge is attached
         droneViewModel.startMavlink(config)
     }
-
 
     private val prefListener =
         SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
@@ -81,11 +67,9 @@ class MainActivity : AppCompatActivity() {
                 key == getString(R.string.mavlink_lan_port_pref) ||
                 key == getString(R.string.mavlink_interface_pref)
             ) {
-                // Restart MAVLink immediately on config change
                 restartMavlinkFromPrefs()
             }
         }
-
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -109,28 +93,19 @@ class MainActivity : AppCompatActivity() {
         val navView: NavigationView = binding.navView
         val navController = findNavController(R.id.nav_host_fragment_content_main)
 
-        // Passing each menu ID as a set of Ids because each
-        // menu should be considered as top level destinations.
         appBarConfiguration = AppBarConfiguration(
-            setOf(
-                R.id.nav_maps_home, R.id.nav_settings
-            ), drawerLayout
+            setOf(R.id.nav_maps_home, R.id.nav_settings),
+            drawerLayout
         )
         setupActionBarWithNavController(navController, appBarConfiguration)
         navView.setupWithNavController(navController)
 
-        // ask for location permission
         getLocationPermission()
 
         droneViewModel = ViewModelProvider(this)[DroneViewModel::class.java]
         activityViewModel = ViewModelProvider(this)[MainActivityViewModel::class.java]
 
-        paramsSideView = findViewById(R.id.mission_params_side_view)
-        saveFileView = findViewById(R.id.save_file_layout)
-        loadFileView = findViewById(R.id.load_file_selector_layout)
         bottomNavigationView = findViewById(R.id.bottom_nav_view)
-        userLocationFB = findViewById(R.id.my_location_button)
-        droneLocationFB = findViewById(R.id.drone_location_button)
 
         bottomNavigationView.setOnItemSelectedListener { item ->
             when (item.itemId) {
@@ -163,7 +138,7 @@ class MainActivity : AppCompatActivity() {
             true
         }
 
-        fun applyMapState(mapState: MainActivityViewModel.MapState) {
+        fun applyMapStateToBottomNav(mapState: MainActivityViewModel.MapState) {
             Log.i("Map State", "Map State Changed to: $mapState")
 
             val menu = bottomNavigationView.menu
@@ -179,56 +154,34 @@ class MainActivity : AppCompatActivity() {
                 MainActivityViewModel.MapState.Idle,
                 MainActivityViewModel.MapState.Reset -> {
                     setMenuVisibility(cancel = false, accept = false, erase = false, draw = true, load = true)
-                    paramsSideView.isVisible = false
-                    saveFileView.isVisible = false
-                    loadFileView.isVisible = false
-                    userLocationFB.isVisible = true
-                    droneLocationFB.isVisible = true
                 }
                 MainActivityViewModel.MapState.Draw,
                 MainActivityViewModel.MapState.ClearKeepDrawing,
                 MainActivityViewModel.MapState.ClearAll -> {
                     setMenuVisibility(cancel = true, accept = true, erase = true, draw = false, load = false)
-                    paramsSideView.isVisible = false
-                    saveFileView.isVisible = false
-                    loadFileView.isVisible = false
-                    userLocationFB.isVisible = true
-                    droneLocationFB.isVisible = true
                 }
                 MainActivityViewModel.MapState.SetFlightParams -> {
                     setMenuVisibility(cancel = true, accept = true, erase = true, draw = false, load = false)
-                    paramsSideView.isVisible = true
-                    saveFileView.isVisible = false
-                    loadFileView.isVisible = false
-                    userLocationFB.isVisible = false
-                    droneLocationFB.isVisible = false
                 }
                 MainActivityViewModel.MapState.LoadMissionFromFile -> {
                     setMenuVisibility(cancel = true, accept = true, erase = true, draw = false, load = false)
-                    paramsSideView.isVisible = false
-                    saveFileView.isVisible = false
-                    loadFileView.isVisible = true
-                    userLocationFB.isVisible = false
-                    droneLocationFB.isVisible = false
                 }
                 MainActivityViewModel.MapState.UploadMissionSuccess,
                 MainActivityViewModel.MapState.SaveMissionToFile -> {
-                    // No UI changes required here
+                    // no-op
                 }
             }
         }
 
         activityViewModel.mapState.observe(this) { mapState ->
-            applyMapState(mapState)
+            applyMapStateToBottomNav(mapState)
         }
-
 
         droneViewModel.conStateLiveData.observe(this) { connState ->
             binding.appBarMain.customToolbar.setBackgroundResource(
                 if (connState) R.drawable.action_bar_bg_green else R.drawable.action_bar_bg_red
             )
         }
-
 
         droneViewModel.droneBatteryPercentage.observe(this) { batteryPercentage ->
             if (droneViewModel.conStateLiveData.value != true) return@observe
@@ -262,7 +215,6 @@ class MainActivity : AppCompatActivity() {
                 "$liquid_level%"
         }
 
-
         droneViewModel.armedState.observe(this) { armedState ->
             val resId = if (armedState) R.string.armed else R.string.disarmed
             binding.appBarMain.droneArmText.findViewById<TextView>(R.id.drone_arm_text).text =
@@ -271,21 +223,15 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
-        // Inflate the menu; this adds items to the action bar if it is present.
         menuInflater.inflate(R.menu.main, menu)
-
         return true
     }
-
 
     override fun onSupportNavigateUp(): Boolean {
         val navController = findNavController(R.id.nav_host_fragment_content_main)
         return navController.navigateUp(appBarConfiguration) || super.onSupportNavigateUp()
     }
 
-    /**
-     * Prompts the user for permission to use the device location.
-     */
     private fun getLocationPermission() {
         if (ContextCompat.checkSelfPermission(
                 this,
@@ -299,13 +245,11 @@ class MainActivity : AppCompatActivity() {
             )
         }
     }
-    // [END maps_current_place_location_permission]
 
     override fun onResume() {
         super.onResume()
         restartMavlinkFromPrefs()
     }
-
 
     override fun onPause() {
         super.onPause()
@@ -316,7 +260,4 @@ class MainActivity : AppCompatActivity() {
         super.onDestroy()
         sharedPreferences.unregisterOnSharedPreferenceChangeListener(prefListener)
     }
-
-
 }
-
