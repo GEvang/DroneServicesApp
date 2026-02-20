@@ -14,7 +14,6 @@
         android:layout_height="match_parent" />
 
     <RelativeLayout
-        android:id="@+id/main_content"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:focusableInTouchMode="true">
@@ -31,9 +30,9 @@
             android:contentDescription="@string/my_location_button_desc"
             android:focusable="true"
             android:src="@drawable/ic_baseline_my_location_48"
+            app:backgroundTint="@color/fab_bg"
             app:fabSize="mini"
             app:maxImageSize="25dp"
-            app:backgroundTint="@color/fab_bg"
             app:tint="@color/icon_on_dark" />
 
         <!-- Drone location -->
@@ -72,7 +71,6 @@
             app:backgroundTint="@color/fab_bg"
             app:tint="@color/icon_on_dark" />
 
-
         <include
             android:id="@+id/mission_params_side_view"
             layout="@layout/mission_params_side_view"
@@ -93,8 +91,10 @@
         android:layout_gravity="center"
         android:orientation="vertical"
         android:background="@drawable/bg_card_gold_stroke"
-        android:padding="16dp">
+        android:padding="16dp"
+        android:visibility="gone">
 
+        <!-- (content unchanged) -->
         <androidx.appcompat.widget.LinearLayoutCompat
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -102,7 +102,6 @@
             android:gravity="center_vertical">
 
             <TextView
-                android:id="@+id/filename"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:paddingEnd="8dp"
@@ -126,7 +125,6 @@
                 android:backgroundTint="@color/accent_gold" />
 
             <TextView
-                android:id="@+id/suffix"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:paddingLeft="8dp"
@@ -151,7 +149,6 @@
                 android:buttonTint="@color/accent_gold" />
 
             <TextView
-                android:id="@+id/checkbox_description"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/override_existing_file"
@@ -197,8 +194,10 @@
         android:layout_gravity="center"
         android:orientation="vertical"
         android:background="@drawable/bg_card_gold_stroke"
-        android:padding="16dp">
+        android:padding="16dp"
+        android:visibility="gone">
 
+        <!-- (content unchanged) -->
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -232,7 +231,6 @@
                 android:backgroundTint="@color/surface" />
 
             <Button
-                android:id="@+id/btn_ok"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"

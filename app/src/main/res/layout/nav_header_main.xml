@@ -13,7 +13,6 @@
     android:background="@color/surface">
 
     <ImageView
-        android:id="@+id/imageView"
         android:layout_width="256dp"
         android:layout_height="100dp"
         android:contentDescription="@string/nav_header_desc"

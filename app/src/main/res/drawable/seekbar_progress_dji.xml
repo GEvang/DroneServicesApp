@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Background track (unfilled) -->
+    <item android:id="@android:id/background">
+        <shape>
+            <size android:height="4dp" />
+            <corners android:radius="999dp" />
+            <solid android:color="@color/slider_inactive" />
+        </shape>
+    </item>
+
+    <!-- Filled progress -->
+    <item android:id="@android:id/progress">
+        <clip>
+            <shape>
+                <size android:height="4dp" />
+                <corners android:radius="999dp" />
+                <solid android:color="@color/slider_active" />
+            </shape>
+        </clip>
+    </item>
+
+</layer-list>

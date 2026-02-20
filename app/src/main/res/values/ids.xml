@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="avoidance_compass" type="id" />
+    <item name="back_dist" type="id" />
+    <item name="front_dist" type="id" />
+</resources>

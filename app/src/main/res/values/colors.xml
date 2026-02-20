@@ -1,20 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
     <color name="purple_700">#FF3700B3</color>
     <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
-    <color name="white">#FFFFFFFF</color>
-    <color name="grey">#FFD3D3D3</color>
-    <color name="dark_grey">#252624</color>
-    <color name="red">#FFFA0000</color>
-    <color name="green">#00FF00</color>
-
-    <color name="outer_circle_color">#FFFFFFFF</color>
-    <color name="top_circle_color">#00FF00</color>
-    <color name="bottom_circle_color">#00FF00</color>
 
     <!-- Base dark -->
     <color name="bg">#0B0B0D</color>
@@ -36,4 +25,10 @@
     <color name="fab_bg">@color/surface_2</color>
     <color name="icon_on_dark">@color/text_primary</color>
     <color name="icon_on_gold">#141416</color>
+
+    <color name="slider_active">#1E88E5</color>       <!-- blue -->
+    <color name="slider_inactive">#2A2F35</color>     <!-- dark track -->
+    <color name="slider_thumb">#FFFFFF</color>        <!-- white knob -->
+    <color name="slider_pill_bg">#1F2328</color>      <!-- pill container -->
+    <color name="slider_end_btn_bg">#2B3036</color>   <!-- +/- button bg -->
 </resources>

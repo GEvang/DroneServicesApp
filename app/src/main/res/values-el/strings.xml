@@ -1,13 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="action_draw">Σχέδιο</string>
-    <string name="action_cancel">Ακύρωση</string>
-    <string name="action_start_mission">Εκκίνηση Αποστολής</string>
 
 
     <string name="menu_maps_home">Χάρτης</string>
     <string name="menu_settings">Ρυθμίσεις</string>
-    <string name="testing">Testing</string>
 
 
     <string name="my_location_button_desc">Κουμπί Προσωπικής Τοποθεσίας</string>
@@ -16,7 +12,6 @@
     <string name="accept">Αποδοχή</string>
     <string name="erase">Καθαρισμός</string>
     <string name="cancel">Ακύρωση</string>
-    <string name="survey_options">Επιλογές Αποστολής</string>
     <string name="upload_mission">Ανέβασμα Αποστολής</string>
     <string name="exit">Κλείσιμο</string>
     <string name="flight_altitude">Υψος πτήσης(m)</string>
@@ -24,7 +19,6 @@
     <string name="mission_angle">Κλήση Ευθειών(°)</string>
     <string name="no_conn_msg">Αδυναμία Συνδεσης με Drone!</string>
     <string name="wrong_schema_msg">Η περιοχη πτήσης πρέπει να αποτελείται απο τουλαχιστον 3 σημεία!</string>
-    <string name="no_permissions_msg">Ελειπή δικαιώματα χρησης!</string>
     <string name="invalid_location_permissions">Ελειπή δικαιώματα χρήσης τοποθεσίας!</string>
     <string name="area_too_big_msg">Περιοχή πολύ μεγάλη για αποστολή με drone!</string>
     <string name="select_alt_msg">Επιλέξτε πρώτα ύψος πτήσης!</string>
@@ -33,38 +27,20 @@
     <string name="drone_conn_interface_pref">Διεπαφή με Drone</string>
     <string name="drone_tcpudp_port_pref">TCP/UDP Πόρτα</string>
     <string name="locales_categ_pref">Επιλογές Γλώσσας</string>
-    <string name="app_restart_for_lang">Επανακκινήστε την εφαρμογή για να εφαρμοστούν οι αλλαγές γλώσσας!</string>
     <string name="sprayer_intensity">Ένταση Ψεκασμού(%)</string>
-    <string name="set_value_from_0_to_100">Εισάγετε τιμή απο 0 ως 100%</string>
-    <string name="set_value_from_2_to_20m">Εισάγετε τιμή απο 2 ως 20μ</string>
-    <string name="set_value_from_0_to_359">Εισάγετε τιμή απο 0 εως 359°</string>
     <string name="action_failed">Αποτυχία εκτέλεσης ενέργειας!</string>
     <string name="flight_time">Ταχύτητα - Χρόνος Πτήσης</string>
-    <string name="upload_mission_success">Επιτυχές Ανέβασαμ Αποστολής</string>
-    <string name="upload_mission_failed">Αποτυχία στο Ανέβασμα Αποστολής</string>
-    <string name="download_mission_failed">Αποτυχία Κατεβάσματος Αποστολής</string>
     <string name="armed">ΟΠΛΙΣΜΕΝΟ</string>
     <string name="disarmed">ΑΦΟΠΛΙΣΜΕΝΟ</string>
-    <string name="mission_upload_success">Επιτυχές Ανέβασμα Αποστολής</string>
-    <string name="mission_upload_failure">Αποτυχία Ανεβασματος Αποστολής</string>
-    <string name="connected">ΣΥΝΔΕΜΕΝΟ</string>
-    <string name="disconnected">ΑΠΟΣΥΝΔΕΜΕΝΟ</string>
-    <string name="save_mission">Αποθήκευση Αποστολής</string>
-    <string name="enter_filename_here">Εισάγετε όνομα αρχείου εδώ</string>
     <string name="save">Αποθήκευση</string>
     <string name="enter_text">Εισάγετε όνομα αρχείου</string>
     <string name="name">Όνομα</string>
     <string name="error_name_empty">Το όνομα αρχείου δεν μπορεί να είναι κενό!!!</string>
-    <string name="yes">Ναί</string>
-    <string name="no">Όχι</string>
     <string name="file_already_exists">Το αρχειο υπάρχει ήδη</string>
     <string name="file_successfully_saved">Το αρχείο αποθηκεύτηκε επιτυχώς</string>
     <string name="failed_file_creation">Αποτυχία δημιουργίας αρχείου</string>
     <string name="override_existing_file">Ανανέωση υπάρχοντος αρχείου</string>
     <string name="load">Φόρτωμα</string>
     <string name="select_a_file">Επιλέξτε αρχείο:</string>
-    <string name="chose_file">Επιλέξτε αρχείο:</string>
-    <string name="download_mission_succeded">Επιτυχίας Κατεβάσματος Αποστολής</string>
-    <string name="no_telemetry_forwarding_msg">Connected (heartbeat), but telemetry isn’t forwarding. Check Herelink MAVLink forwarding / bridge.</string>
 
 </resources>

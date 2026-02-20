@@ -38,30 +38,11 @@
     </style>
 
     <!-- FIXED: removed the stray extra '>' -->
-    <style name="Theme.DroneServicesApp.AppBarOverlay" parent="ThemeOverlay.AppCompat.Dark">
-        <item name="android:actionButtonStyle">@style/MyActionButtonStyle</item>
-    </style>
-
-    <style name="Theme.DroneServicesApp.PopupOverlay" parent="ThemeOverlay.AppCompat.Dark" />
 
     <style name="Toolbar.TitleText" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">
         <item name="android:textSize">0sp</item>
     </style>
 
-    <style name="MyActionButtonStyle" parent="Widget.AppCompat.ActionButton">
-        <item name="android:paddingEnd">30dp</item>
-        <item name="android:paddingRight">50dp</item>
-        <item name="android:layout_marginRight">50dp</item>
-        <item name="android:horizontalSpacing">20dp</item>
-    </style>
-
     <!-- Optional: keep if used elsewhere -->
-    <style name="TextStyle">
-        <item name="android:layout_marginTop">2dp</item>
-        <item name="android:layout_marginBottom">2dp</item>
-        <item name="android:layout_marginLeft">2dp</item>
-        <item name="android:layout_marginRight">2dp</item>
-        <item name="android:textSize">24sp</item>
-    </style>
 
 </resources>

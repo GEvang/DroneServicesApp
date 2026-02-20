@@ -2,25 +2,10 @@
 <resources>
 
     <!-- Some layouts reference @style/Text; define it to stop AAPT errors -->
-    <style name="Text">
-        <item name="android:fontFamily">@font/inter</item>
-        <item name="android:textColor">@color/text_primary</item>
-        <item name="android:textSize">14sp</item>
-    </style>
 
     <!-- PANEL STYLES -->
-    <style name="Panel">
-        <item name="android:padding">12dp</item>
-    </style>
-
-    <style name="Panel.CardGold" parent="Panel">
-        <item name="android:background">@drawable/bg_card_gold_stroke</item>
-    </style>
 
     <!-- Optional: use this for centered modal panels like Save/Load -->
-    <style name="Panel.CardGold.Modal" parent="Panel.CardGold">
-        <item name="android:padding">16dp</item>
-    </style>
 
 
 </resources>

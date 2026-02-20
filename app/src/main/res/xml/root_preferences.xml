@@ -5,7 +5,6 @@
         app:key="@string/con_interface_cat_pref">
 
         <ListPreference
-            android:id="@+id/mav_interface"
             app:defaultValue="UDP"
             app:entries="@array/drone_connection_interfaces"
             app:entryValues="@array/drone_connection_interfaces"
@@ -14,7 +13,6 @@
             app:useSimpleSummaryProvider="true" />
 
         <ListPreference
-            android:id="@+id/mav_lan_port"
             app:defaultValue="14550"
             app:entries="@array/drone_tcp_udp_ports"
             app:entryValues="@array/drone_tcp_udp_ports"
@@ -28,7 +26,6 @@
         app:key="languageCategory">
 
         <ListPreference
-            android:id="@+id/language_pref"
             app:defaultValue="el-rGR"
             app:entries="@array/language_entries"
             app:entryValues="@array/language_values"

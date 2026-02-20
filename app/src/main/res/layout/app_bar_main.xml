@@ -54,7 +54,6 @@
                     android:textStyle="bold" />
 
                 <androidx.appcompat.widget.AppCompatImageView
-                    android:id="@+id/sprayer_img"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:layout_marginStart="12dp"
@@ -73,7 +72,6 @@
                     android:fontFamily="@font/inter" />
 
                 <androidx.appcompat.widget.AppCompatImageView
-                    android:id="@+id/drone_alt_img"
                     android:layout_width="24dp"
                     android:layout_height="24dp"
                     android:layout_marginStart="12dp"
@@ -116,7 +114,6 @@
     </com.google.android.material.appbar.AppBarLayout>
 
     <FrameLayout
-        android:id="@+id/main_content_container"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:layout_below="@id/appBarMain"
