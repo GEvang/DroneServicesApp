@@ -5,7 +5,7 @@ import android.util.Log
 import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.activities.MainActivityViewModel
+import com.example.droneservicesapp.ui.main.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory

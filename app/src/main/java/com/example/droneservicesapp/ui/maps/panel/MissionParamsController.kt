@@ -1,6 +1,8 @@
-package com.example.droneservicesapp.ui.home_maps
+package com.example.droneservicesapp.ui.maps.panel
 
 import android.content.Context
+import android.text.Editable
+import android.text.TextWatcher
 import android.util.Log
 import android.view.View
 import android.widget.Button
@@ -15,9 +17,9 @@ import androidx.lifecycle.MutableLiveData
 import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.activities.MainActivityViewModel
 import com.example.droneservicesapp.data.mavlink.MissionBuilder
 import com.example.droneservicesapp.mavserver.DroneViewModel
+import com.example.droneservicesapp.ui.main.MainActivityViewModel
 
 class MissionParamsController(
     private val context: Context,
@@ -199,12 +201,12 @@ class MissionParamsController(
             override fun onStopTrackingTouch(seekBar: SeekBar) {}
         })
 
-        seekbarValue.addTextChangedListener(object : android.text.TextWatcher {
+        seekbarValue.addTextChangedListener(object : TextWatcher {
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
                 seekbarValue.setSelection(seekbarValue.length())
             }
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
-            override fun afterTextChanged(s: android.text.Editable?) {
+            override fun afterTextChanged(s: Editable?) {
                 try {
                     val progress = s.toString().toInt()
                     seekbar.setProgress(progress, true)

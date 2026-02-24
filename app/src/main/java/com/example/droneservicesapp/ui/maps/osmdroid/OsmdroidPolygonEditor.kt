@@ -1,10 +1,10 @@
-package com.example.droneservicesapp.ui.home_maps
+package com.example.droneservicesapp.ui.maps.osmdroid
 
 import android.app.Activity
 import android.graphics.Color
 import androidx.core.content.ContextCompat
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.activities.MainActivityViewModel
+import com.example.droneservicesapp.ui.main.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.util.GeoPoint

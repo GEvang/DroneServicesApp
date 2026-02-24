@@ -27,7 +27,7 @@
             android:value="@string/google_maps_key" />
 
         <activity
-            android:name=".activities.MainActivity"
+            android:name=".ui.main.MainActivity"
             android:exported="true"
             android:screenOrientation="landscape"
             android:theme="@style/Theme.DroneServicesApp.NoActionBar">

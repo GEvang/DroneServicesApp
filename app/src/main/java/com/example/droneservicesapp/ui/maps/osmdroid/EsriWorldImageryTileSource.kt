@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.maps
+package com.example.droneservicesapp.ui.maps.osmdroid
 
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
 import org.osmdroid.util.MapTileIndex

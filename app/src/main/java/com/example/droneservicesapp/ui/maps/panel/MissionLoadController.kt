@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.ui.home_maps
+package com.example.droneservicesapp.ui.maps.panel
 
 import android.os.Environment
 import android.view.View
@@ -9,9 +9,9 @@ import android.widget.Toast
 import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
-import com.example.droneservicesapp.data.storage.MissionFileHandler
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.activities.MainActivityViewModel
+import com.example.droneservicesapp.data.storage.MissionFileHandler
+import com.example.droneservicesapp.ui.main.MainActivityViewModel
 import java.io.File
 import java.io.FileInputStream
 import java.util.Locale

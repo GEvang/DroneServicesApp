@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.activities
+package com.example.droneservicesapp.ui.main
 
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData

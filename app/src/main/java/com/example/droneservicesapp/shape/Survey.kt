@@ -6,7 +6,7 @@ import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.ViewModelProvider
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.activities.MainActivityViewModel
+import com.example.droneservicesapp.ui.main.MainActivityViewModel
 import com.example.droneservicesapp.domain.model.MissionArea
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker

@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.activities
+package com.example.droneservicesapp.ui.main
 
 import android.Manifest
 import android.content.SharedPreferences
@@ -23,9 +23,10 @@ import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
 import androidx.preference.PreferenceManager
+import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.databinding.ActivityMainBinding
 import com.example.droneservicesapp.data.mavlink.MavlinkConfig
+import com.example.droneservicesapp.databinding.ActivityMainBinding
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigation.NavigationView
@@ -78,7 +79,7 @@ class MainActivity : AppCompatActivity() {
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(applicationContext)
         sharedPreferences.registerOnSharedPreferenceChangeListener(prefListener)
 
-        com.example.droneservicesapp.Application.getInstance().initAppLanguage(this)
+        Application.getInstance().initAppLanguage(this)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)

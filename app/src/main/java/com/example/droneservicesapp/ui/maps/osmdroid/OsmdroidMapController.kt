@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.ui.home_maps
+package com.example.droneservicesapp.ui.maps.osmdroid
 
 import android.Manifest
 import android.content.Context

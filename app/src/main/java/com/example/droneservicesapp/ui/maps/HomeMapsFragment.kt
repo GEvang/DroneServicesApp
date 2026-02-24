@@ -1,6 +1,7 @@
-package com.example.droneservicesapp.ui.home_maps
+package com.example.droneservicesapp.ui.maps
 
 import android.content.Context
+import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -21,10 +22,19 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.distinctUntilChanged
 import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.activities.MainActivityViewModel
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
+import com.example.droneservicesapp.ui.maps.osmdroid.EsriWorldImageryTileSource
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.shape.Survey
+import com.example.droneservicesapp.ui.maps.panel.MissionLoadController
+import com.example.droneservicesapp.ui.maps.panel.MissionParamsController
+import com.example.droneservicesapp.ui.maps.panel.MissionSaveController
+import com.example.droneservicesapp.ui.maps.osmdroid.OsmdroidMapController
+import com.example.droneservicesapp.ui.maps.osmdroid.OsmdroidPolygonEditor
+import com.example.droneservicesapp.ui.main.MainActivityViewModel
+import com.google.android.gms.maps.model.BitmapDescriptor
+import com.google.android.gms.maps.model.BitmapDescriptorFactory
+import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import io.dronefleet.mavlink.common.MavCmd
 import org.osmdroid.tileprovider.cachemanager.CacheManager
@@ -101,7 +111,7 @@ class HomeMapsFragment : Fragment() {
     private fun initializeMapView(view: View) {
         mapView = view.findViewById(R.id.osmMap)
         mapView.setMultiTouchControls(true)
-        mapView.setTileSource(com.example.droneservicesapp.maps.EsriWorldImageryTileSource)
+        mapView.setTileSource(EsriWorldImageryTileSource)
         mapView.isTilesScaledToDpi = true
         mapView.maxZoomLevel = 20.0
         mapView.controller.setZoom(DEFAULT_MAP_ZOOM)
@@ -222,11 +232,11 @@ class HomeMapsFragment : Fragment() {
                 val area = activityViewModel.area.value ?: return@observe
                 survey = Survey(area, requireActivity())
 
-                val surveyPath = ArrayList<com.google.android.gms.maps.model.LatLng>()
+                val surveyPath = ArrayList<LatLng>()
                 for (item in missionItems) {
                     if (item.seq() > 0 && item.command().entry() == MavCmd.MAV_CMD_NAV_WAYPOINT) {
                         surveyPath.add(
-                            com.google.android.gms.maps.model.LatLng(
+                            LatLng(
                                 item.x() * 10e-8,
                                 item.y() * 10e-8
                             )
@@ -467,12 +477,12 @@ class HomeMapsFragment : Fragment() {
     private fun bitmapDescriptorFromVector(
         context: Context,
         vectorResId: Int
-    ): com.google.android.gms.maps.model.BitmapDescriptor? {
+    ): BitmapDescriptor? {
         return ContextCompat.getDrawable(context, vectorResId)?.run {
             setBounds(0, 0, intrinsicWidth, intrinsicHeight)
             val bitmap = createBitmap(intrinsicWidth, intrinsicHeight)
-            draw(android.graphics.Canvas(bitmap))
-            com.google.android.gms.maps.model.BitmapDescriptorFactory.fromBitmap(bitmap)
+            draw(Canvas(bitmap))
+            BitmapDescriptorFactory.fromBitmap(bitmap)
         }
     }
 
