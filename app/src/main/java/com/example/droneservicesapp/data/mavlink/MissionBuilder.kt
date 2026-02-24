@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.mavlink
+package com.example.droneservicesapp.data.mavlink
 
 import android.location.Location
 import android.util.Log

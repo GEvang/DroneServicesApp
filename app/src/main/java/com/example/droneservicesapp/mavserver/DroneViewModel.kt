@@ -4,9 +4,9 @@ import android.location.Location
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.example.droneservicesapp.mavlink.MavlinkConfig
-import com.example.droneservicesapp.mavlink.MavlinkRepository
-import com.example.droneservicesapp.mavlink.MissionService
+import com.example.droneservicesapp.data.mavlink.MavlinkConfig
+import com.example.droneservicesapp.data.mavlink.MavlinkRepository
+import com.example.droneservicesapp.data.mavlink.MissionService
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.BatteryStatus
 import io.dronefleet.mavlink.common.DistanceSensor

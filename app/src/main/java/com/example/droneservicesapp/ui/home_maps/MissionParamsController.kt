@@ -16,7 +16,7 @@ import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.activities.MainActivityViewModel
-import com.example.droneservicesapp.mavlink.MissionBuilder
+import com.example.droneservicesapp.data.mavlink.MissionBuilder
 import com.example.droneservicesapp.mavserver.DroneViewModel
 
 class MissionParamsController(

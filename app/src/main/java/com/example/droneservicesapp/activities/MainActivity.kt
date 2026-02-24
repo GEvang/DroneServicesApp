@@ -25,7 +25,7 @@ import androidx.navigation.ui.setupWithNavController
 import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.databinding.ActivityMainBinding
-import com.example.droneservicesapp.mavlink.MavlinkConfig
+import com.example.droneservicesapp.data.mavlink.MavlinkConfig
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigation.NavigationView

@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.mavlink
+package com.example.droneservicesapp.data.mavlink
 
 import android.util.Log
 import com.example.droneservicesapp.data.transport.MavTransport

@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.mavlink
+package com.example.droneservicesapp.data.mavlink
 
 data class MavlinkConfig(
     val interfaceType: InterfaceType = InterfaceType.UDP,
