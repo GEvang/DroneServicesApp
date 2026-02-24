@@ -69,7 +69,7 @@ class MainActivityViewModel : ViewModel() {
     }
 
     // ✅ Pure model
-    val area: MutableLiveData<MissionArea> by lazy {
+    val missionArea: MutableLiveData<MissionArea> by lazy {
         MutableLiveData(MissionArea())
     }
 
@@ -84,15 +84,15 @@ class MainActivityViewModel : ViewModel() {
     }
 
     fun setPolygonVertices(vertices: List<LatLng>) {
-        val a = area.value ?: return
+        val a = missionArea.value ?: return
         a.vertices.clear()
         a.vertices.addAll(vertices)
-        area.postValue(a)
+        missionArea.postValue(a)
     }
 
     fun clearPolygonVertices() {
-        val a = area.value ?: return
+        val a = missionArea.value ?: return
         a.vertices.clear()
-        area.postValue(a)
+        missionArea.postValue(a)
     }
 }

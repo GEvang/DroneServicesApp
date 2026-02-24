@@ -457,7 +457,7 @@ class HomeMapsFragment : Fragment() {
     private fun drawSurveyMissionOnMap(distance: Double, angle: Int) {
         osmdroidMapController.clearSurveyPath()
 
-        val area = activityViewModel.area.value ?: return
+        val area = activityViewModel.missionArea.value ?: return
 
         // Convert current polygon vertices to domain-level LatLon
         val polygonLatLon = area.vertices.map { LatLon(it.latitude, it.longitude) }

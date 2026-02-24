@@ -111,11 +111,11 @@ class MainActivity : AppCompatActivity() {
         bottomNavigationView.setOnItemSelectedListener { item ->
             when (item.itemId) {
                 R.id.action_draw -> {
-                    activityViewModel.area.value?.clearAll()
+                    activityViewModel.missionArea.value?.clearAll()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
                 }
                 R.id.action_accept -> {
-                    val verts = activityViewModel.area.value?.vertices ?: emptyList()
+                    val verts = activityViewModel.missionArea.value?.vertices ?: emptyList()
                     if (verts.size < 3) {
                         Toast.makeText(
                             this,
@@ -133,7 +133,7 @@ class MainActivity : AppCompatActivity() {
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.ClearAll)
                 }
                 R.id.action_load -> {
-                    activityViewModel.area.value?.clearAll()
+                    activityViewModel.missionArea.value?.clearAll()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.LoadMissionFromFile)
                 }
             }

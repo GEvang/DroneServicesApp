@@ -76,7 +76,7 @@ class OsmdroidPolygonEditor(
         points.clear()
 
         // Clear pure model too
-        activityViewModel.area.value?.clearAll()
+        activityViewModel.missionArea.value?.clearAll()
 
         redrawPolygonAndSyncModel()
     }

@@ -77,7 +77,7 @@ class MissionSaveController(
                 return@setOnClickListener
             }
 
-            val area = activityViewModel.area.value
+            val area = activityViewModel.missionArea.value
             if (area == null) {
                 Toast.makeText(activity.baseContext, "No area model available", Toast.LENGTH_LONG).show()
                 return@setOnClickListener

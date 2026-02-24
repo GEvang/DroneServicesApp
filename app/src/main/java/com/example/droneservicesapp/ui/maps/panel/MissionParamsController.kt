@@ -124,7 +124,7 @@ class MissionParamsController(
             // Read values into locals using safe access
             val connected = droneViewModel.conStateLiveData.value == true
             val droneLoc = droneViewModel.droneLocationLiveData.value
-            val area = activityViewModel.area.value
+            val area = activityViewModel.missionArea.value
             val path = activityViewModel.surveyPath.value
             val alt = activityViewModel.flightAltProgress.value
             val sprayer = activityViewModel.sprayerProgress.value

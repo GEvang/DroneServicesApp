@@ -64,7 +64,7 @@ class MissionXmlParser(
         activityViewModel.sprayerProgress.postValue(sprayerIntensityPercentage.toDouble())
 
         // ✅ Write into pure model
-        activityViewModel.area.value?.apply {
+        activityViewModel.missionArea.value?.apply {
             vertices.clear()
             vertices.addAll(latLngList)
             clearSurveyPath()
