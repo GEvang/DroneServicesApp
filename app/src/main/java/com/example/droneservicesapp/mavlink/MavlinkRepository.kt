@@ -1,8 +1,8 @@
 package com.example.droneservicesapp.mavlink
 
 import android.util.Log
-import com.example.droneservicesapp.transport.MavTransport
-import com.example.droneservicesapp.transport.UdpTransport
+import com.example.droneservicesapp.data.transport.MavTransport
+import com.example.droneservicesapp.data.transport.UdpTransport
 import io.dronefleet.mavlink.MavlinkConnection
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.minimal.Heartbeat

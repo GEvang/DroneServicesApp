@@ -1,4 +1,4 @@
-package com.example.droneservicesapp;
+package com.example.droneservicesapp.core.util;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -7,6 +7,9 @@ import android.content.res.Resources;
 
 import androidx.annotation.StringDef;
 import androidx.preference.PreferenceManager;
+
+import com.example.droneservicesapp.Application;
+import com.example.droneservicesapp.R;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

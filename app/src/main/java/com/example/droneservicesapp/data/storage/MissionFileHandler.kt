@@ -1,9 +1,10 @@
-package com.example.droneservicesapp
+package com.example.droneservicesapp.data.storage
 
 import android.os.Environment
 import android.util.Log
 import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
+import com.example.droneservicesapp.R
 import com.example.droneservicesapp.activities.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
 import org.xmlpull.v1.XmlPullParser

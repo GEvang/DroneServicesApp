@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.transport
+package com.example.droneservicesapp.data.transport
 
 import android.util.Log
 import java.io.PipedInputStream
@@ -7,6 +7,7 @@ import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
 import java.net.SocketException
+import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
 
 class UdpTransport(
@@ -97,7 +98,7 @@ class UdpTransport(
                     val outputPacket = DatagramPacket(outBuffer, bytesRead, remoteIP, remotePort)
                     udpSocket.send(outputPacket)
                 }
-            } catch (e: java.net.SocketTimeoutException) {
+            } catch (e: SocketTimeoutException) {
                 // Timeout occurred - loop continues, allowing outgoing bytes to flush
                 // 2) Pipe from MAVLink output -> send back to last sender (even without new input)
                 if (sndPIS.available() > 0 && remoteIP != null && remotePort > 0) {

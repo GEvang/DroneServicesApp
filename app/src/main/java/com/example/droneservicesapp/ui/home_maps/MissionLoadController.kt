@@ -9,7 +9,7 @@ import android.widget.Toast
 import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
-import com.example.droneservicesapp.MissionFileHandler
+import com.example.droneservicesapp.data.storage.MissionFileHandler
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.activities.MainActivityViewModel
 import java.io.File

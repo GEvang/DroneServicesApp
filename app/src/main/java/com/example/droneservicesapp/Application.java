@@ -3,6 +3,8 @@ package com.example.droneservicesapp;
 import android.content.Context;
 import android.preference.PreferenceManager;
 
+import com.example.droneservicesapp.core.util.LocaleUtils;
+
 import org.osmdroid.config.Configuration;
 
 public class Application extends android.app.Application {
