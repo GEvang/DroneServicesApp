@@ -12,7 +12,6 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.Marker
 import com.google.maps.android.PolyUtil
 import com.google.maps.android.SphericalUtil
-import java.util.Collections
 
 class Survey(private var area: MissionArea, var activity: FragmentActivity) {
     private var markers: ArrayList<Marker?> = ArrayList()
@@ -56,6 +55,11 @@ class Survey(private var area: MissionArea, var activity: FragmentActivity) {
     }
 
     private fun angledSurvey(distance: Double, angle: Int): ArrayList<LatLng> {
+        // Early return if polygon has fewer than 3 vertices
+        if (area.vertices.size < 3) {
+            return ArrayList()
+        }
+
         clearMarkers()
 
         val eastOrientationLines: ArrayList<Line> = ArrayList()
@@ -83,9 +87,9 @@ class Survey(private var area: MissionArea, var activity: FragmentActivity) {
 
         val lineIntersections: ArrayList<LatLng> = ArrayList()
 
-        // ✅ CRITICAL: copy list so we don't mutate model vertices
+        // ✅ CRITICAL: create a new ArrayList copy and append first element only to the copy
         val polygonClosed = ArrayList(area.vertices)
-        if (polygonClosed.isNotEmpty()) polygonClosed.add(polygonClosed[0])
+        polygonClosed.add(polygonClosed[0])
 
         val centoid = centoid(area.vertices)
         Log.i(Log.INFO.toString(), "centoid  $centoid")
