@@ -119,37 +119,44 @@ class MissionParamsController(
     private fun bindActionButtons() {
         val buttonUploadMission = rootView.findViewById<Button>(R.id.uploadMission)
         buttonUploadMission.setOnClickListener {
+            // Read values into locals using safe access
             val connected = droneViewModel.conStateLiveData.value == true
+            val droneLoc = droneViewModel.droneLocationLiveData.value
+            val area = activityViewModel.area.value
+            val path = area?.surveyPath
+            val alt = activityViewModel.flightAltProgress.value
+            val sprayer = activityViewModel.sprayerProgress.value
+            val speed = activityViewModel.flightSpeed.value
+            val angle = activityViewModel.angleProgress.value
+
+            // Validation in required order
             if (!connected) {
                 Toast.makeText(context, context.getString(R.string.no_conn_msg), Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
 
-            val alt = activityViewModel.flightAltProgress.value
-            if (alt == null) {
-                Toast.makeText(context, context.getString(R.string.select_alt_msg), Toast.LENGTH_LONG).show()
+            if (droneLoc == null) {
+                Toast.makeText(context, "Drone GPS not available yet", Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
 
-            val currentPos = droneViewModel.droneLocationLiveData.value
-            if (currentPos == null) {
-                Toast.makeText(context, "Drone position not available", Toast.LENGTH_LONG).show()
+            if (path == null || path.isEmpty()) {
+                Toast.makeText(context, "No survey path. Draw area and generate path first.", Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
 
-            val path = activityViewModel.area.value?.surveyPath ?: emptyList()
-            if (path.isEmpty()) {
-                Toast.makeText(context, "No survey path to upload", Toast.LENGTH_LONG).show()
+            if (alt == null || sprayer == null || speed == null || angle == null) {
+                Toast.makeText(context, "Missing mission parameters", Toast.LENGTH_LONG).show()
                 return@setOnClickListener
             }
 
             val missionItems = MissionBuilder.buildSurveyMission(
                 waypoints = ArrayList(path),
-                currentPos = currentPos,
+                currentPos = droneLoc,
                 alt = alt.toFloat(),
-                sprayerIntensity = activityViewModel.sprayerProgress.value?.toInt() ?: 0,
-                flightSpeed = (activityViewModel.flightSpeed.value ?: 1.0).toFloat(),
-                angleProgress = (activityViewModel.angleProgress.value ?: 1.0).toFloat(),
+                sprayerIntensity = sprayer.toInt(),
+                flightSpeed = speed.toFloat(),
+                angleProgress = angle.toFloat(),
                 targetSystemId = droneViewModel.getTargetSystemId(),
                 targetComponentId = droneViewModel.getTargetComponentId()
             )

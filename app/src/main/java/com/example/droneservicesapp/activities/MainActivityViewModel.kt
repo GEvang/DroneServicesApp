@@ -5,6 +5,14 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.domain.model.MissionArea
 
+data class MissionParams(
+    val altitude: Double = 2.0,
+    val lineDistance: Double = 1.0,
+    val angle: Double = 1.0,
+    val sprayer: Double = 0.0,
+    val speed: Double = 1.0
+)
+
 class MainActivityViewModel : ViewModel() {
 
     enum class MapState {
@@ -71,24 +79,8 @@ class MainActivityViewModel : ViewModel() {
         MutableLiveData(MissionArea())
     }
 
-    // ✅ Was global before; now scoped to the ViewModel
+    // ✅ Scoped to the ViewModel
     val missionParams: MutableLiveData<MissionParams> by lazy {
-        MutableLiveData(
-            MissionParams(
-                altitude = flightAltProgress.value ?: 2.0,
-                lineDistance = lineDistanceProgress.value ?: 1.0,
-                angle = angleProgress.value ?: 1.0,
-                sprayer = sprayerProgress.value ?: 0.0,
-                speed = flightSpeed.value ?: 1.0
-            )
-        )
+        MutableLiveData(MissionParams())
     }
 }
-
-data class MissionParams(
-    val altitude: Double = 2.0,
-    val lineDistance: Double = 1.0,
-    val angle: Double = 1.0,
-    val sprayer: Double = 0.0,
-    val speed: Double = 1.0
-)
