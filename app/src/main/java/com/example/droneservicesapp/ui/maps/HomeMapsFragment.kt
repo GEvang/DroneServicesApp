@@ -65,6 +65,7 @@ class HomeMapsFragment : Fragment() {
     private lateinit var loadFileView: LinearLayoutCompat
 
     private var bottomNavigationView: BottomNavigationView? = null
+    
 
     companion object {
         private const val LOG_TAG_FRONT_DISTANCE = "frontDistance"
@@ -76,6 +77,7 @@ class HomeMapsFragment : Fragment() {
         private const val DEFAULT_MAP_LON = 24.48730
         private const val OFFLINE_MIN_ZOOM = 14
         private const val OFFLINE_MAX_ZOOM = 18
+
     }
 
     override fun onCreateView(
@@ -226,10 +228,7 @@ class HomeMapsFragment : Fragment() {
 
         droneViewModel.missionItems.observe(viewLifecycleOwner) { missionItems ->
             if (droneViewModel.conStateLiveData.value == true && missionItems.isNotEmpty()) {
-                activityViewModel.area.value?.clearSurveyPath()
                 osmdroidMapController.clearSurveyPath()
-
-                val area = activityViewModel.area.value ?: return@observe
 
                 val surveyPath = ArrayList<LatLng>()
                 for (item in missionItems) {
@@ -243,7 +242,7 @@ class HomeMapsFragment : Fragment() {
                     }
                 }
 
-                area.surveyPath = surveyPath
+                activityViewModel.surveyPath.postValue(surveyPath)
             }
         }
     }
@@ -382,20 +381,20 @@ class HomeMapsFragment : Fragment() {
     }
 
     private fun handleResetState() {
-        activityViewModel.area.value?.clearAll()
+        activityViewModel.clearPolygonVertices()
         osmdroidPolygonEditor.clear()
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
     }
 
     private fun handleClearAllState() {
-        activityViewModel.area.value?.clearAll()
+        activityViewModel.clearPolygonVertices()
         osmdroidPolygonEditor.clear()
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
     }
 
     private fun handleClearKeepDrawingState() {
-        activityViewModel.area.value?.clearSurveyPath()
         osmdroidMapController.clearSurveyPath()
+        activityViewModel.surveyPath.postValue(emptyList())
         osmdroidPolygonEditor.clear()
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
     }
@@ -456,7 +455,6 @@ class HomeMapsFragment : Fragment() {
     }
 
     private fun drawSurveyMissionOnMap(distance: Double, angle: Int) {
-        activityViewModel.area.value?.clearSurveyPath()
         osmdroidMapController.clearSurveyPath()
 
         val area = activityViewModel.area.value ?: return
@@ -491,7 +489,7 @@ class HomeMapsFragment : Fragment() {
             activityViewModel.flightDistance.postValue(surveyDistance.toInt())
         }
 
-        area.surveyPath = gmsPath
+        activityViewModel.surveyPath.postValue(gmsPath)
         osmdroidMapController.setSurveyPath(gmsPath)
     }
 

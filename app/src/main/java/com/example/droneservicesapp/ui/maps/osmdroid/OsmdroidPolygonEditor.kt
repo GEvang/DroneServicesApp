@@ -147,16 +147,9 @@ class OsmdroidPolygonEditor(
             poly.setVisible(true)
         }
 
-        // Sync into pure model
-        val area = activityViewModel.area.value
-        if (area != null) {
-            area.vertices.clear()
-            for (gp in points) {
-                area.vertices.add(LatLng(gp.latitude, gp.longitude))
-            }
-            // polygon change invalidates survey
-            area.clearSurveyPath()
-        }
+        // Build new vertices and sync via ViewModel
+        val newVertices = points.map { LatLng(it.latitude, it.longitude) }
+        activityViewModel.setPolygonVertices(newVertices)
 
         mapView.invalidate()
     }

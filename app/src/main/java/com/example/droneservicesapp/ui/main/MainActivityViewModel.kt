@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.domain.model.MissionArea
 import com.example.droneservicesapp.domain.model.MissionParams
+import com.google.android.gms.maps.model.LatLng
 
 class MainActivityViewModel : ViewModel() {
 
@@ -75,5 +76,23 @@ class MainActivityViewModel : ViewModel() {
     // ✅ Scoped to the ViewModel
     val missionParams: MutableLiveData<MissionParams> by lazy {
         MutableLiveData(MissionParams())
+    }
+
+    // ✅ Survey path from mission planning (separate from pure area model)
+    val surveyPath: MutableLiveData<List<LatLng>> by lazy {
+        MutableLiveData(emptyList())
+    }
+
+    fun setPolygonVertices(vertices: List<LatLng>) {
+        val a = area.value ?: return
+        a.vertices.clear()
+        a.vertices.addAll(vertices)
+        area.postValue(a)
+    }
+
+    fun clearPolygonVertices() {
+        val a = area.value ?: return
+        a.vertices.clear()
+        area.postValue(a)
     }
 }

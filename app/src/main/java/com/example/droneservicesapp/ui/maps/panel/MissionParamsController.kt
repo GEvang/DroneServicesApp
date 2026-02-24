@@ -125,7 +125,7 @@ class MissionParamsController(
             val connected = droneViewModel.conStateLiveData.value == true
             val droneLoc = droneViewModel.droneLocationLiveData.value
             val area = activityViewModel.area.value
-            val path = area?.surveyPath
+            val path = activityViewModel.surveyPath.value
             val alt = activityViewModel.flightAltProgress.value
             val sprayer = activityViewModel.sprayerProgress.value
             val speed = activityViewModel.flightSpeed.value
@@ -143,7 +143,11 @@ class MissionParamsController(
             }
 
             if (path == null || path.isEmpty()) {
-                Toast.makeText(context, "No survey path. Draw area and generate path first.", Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                    context,
+                    "No survey path available. Please generate survey first.",
+                    Toast.LENGTH_LONG
+                ).show()
                 return@setOnClickListener
             }
 
