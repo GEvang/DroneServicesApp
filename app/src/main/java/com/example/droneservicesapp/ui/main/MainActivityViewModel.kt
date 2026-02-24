@@ -3,6 +3,8 @@ package com.example.droneservicesapp.ui.main
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.example.droneservicesapp.core.util.Event
+import com.example.droneservicesapp.core.util.emit
 import com.example.droneservicesapp.domain.model.MissionArea
 import com.example.droneservicesapp.domain.model.MissionParams
 import com.google.android.gms.maps.model.LatLng
@@ -11,18 +13,25 @@ class MainActivityViewModel : ViewModel() {
 
     enum class MapState {
         Idle,
-        Reset,
-        ClearAll,
-        ClearKeepDrawing,
         Draw,
         SetFlightParams,
-        UploadMissionSuccess,
         LoadMissionFromFile,
         SaveMissionToFile
     }
 
+    sealed class MapAction {
+        object ClearAll : MapAction()
+        object ClearKeepDrawing : MapAction()
+        object ResetToIdle : MapAction()
+        object UploadMissionSuccess : MapAction()
+    }
+
     val mapState: MutableLiveData<MapState> by lazy {
         MutableLiveData(MapState.Idle)
+    }
+
+    val mapAction: MutableLiveData<Event<MapAction>> by lazy {
+        MutableLiveData()
     }
 
     val drawEnableLiveData: MutableLiveData<Boolean> by lazy {
@@ -94,5 +103,9 @@ class MainActivityViewModel : ViewModel() {
         val a = missionArea.value ?: return
         a.vertices.clear()
         missionArea.postValue(a)
+    }
+
+    fun sendAction(action: MapAction) {
+        mapAction.emit(action)
     }
 }

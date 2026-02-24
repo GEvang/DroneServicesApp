@@ -19,21 +19,16 @@ class MissionMapViewModel : ViewModel() {
     fun setState(state: UiState) {
         uiState.postValue(state)
     }
-    
+
     fun updateFromMapState(mapState: MainActivityViewModel.MapState) {
         val newState = when (mapState) {
-            MainActivityViewModel.MapState.Idle,
-            MainActivityViewModel.MapState.Reset -> UiState.Idle
+            MainActivityViewModel.MapState.Idle -> UiState.Idle
 
-            MainActivityViewModel.MapState.Draw,
-            MainActivityViewModel.MapState.ClearKeepDrawing,
-            MainActivityViewModel.MapState.ClearAll -> UiState.Drawing
+            MainActivityViewModel.MapState.Draw -> UiState.Drawing
 
             MainActivityViewModel.MapState.SetFlightParams -> UiState.EditingParams
             MainActivityViewModel.MapState.SaveMissionToFile -> UiState.SavingMission
             MainActivityViewModel.MapState.LoadMissionFromFile -> UiState.LoadingMission
-
-            MainActivityViewModel.MapState.UploadMissionSuccess -> UiState.Idle
         }
         uiState.postValue(newState)
     }

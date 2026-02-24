@@ -45,16 +45,11 @@ class MissionParamsController(
 
         if (!isBound) {
             bindFlightTimeAndSpeed()
-            bindUploadSuccessHidesPanel()
             bindSeekbars()
             bindSpeedButtons()
             bindActionButtons()
             isBound = true
         }
-    }
-
-    fun hide() {
-        missionParamsSideView.isVisible = false
     }
 
     private fun bindFlightTimeAndSpeed() {
@@ -70,15 +65,6 @@ class MissionParamsController(
 
         activityViewModel.estimatedFlightMinutes.observe(lifecycleOwner) { minutes ->
             flightTimeText.text = minutes.toString()
-        }
-    }
-
-    private fun bindUploadSuccessHidesPanel() {
-        activityViewModel.mapState.observe(lifecycleOwner) { mapState ->
-            if (mapState == MainActivityViewModel.MapState.UploadMissionSuccess) {
-                activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Reset)
-                missionParamsSideView.isVisible = false
-            }
         }
     }
 
@@ -124,7 +110,6 @@ class MissionParamsController(
             // Read values into locals using safe access
             val connected = droneViewModel.conStateLiveData.value == true
             val droneLoc = droneViewModel.droneLocationLiveData.value
-            val area = activityViewModel.missionArea.value
             val path = activityViewModel.surveyPath.value
             val alt = activityViewModel.flightAltProgress.value
             val sprayer = activityViewModel.sprayerProgress.value
@@ -168,22 +153,18 @@ class MissionParamsController(
             )
 
             droneViewModel.uploadMissionNew(missionItems)
-            missionParamsSideView.isVisible = false
-
             setWindowPreferences()
         }
 
         val buttonExit = rootView.findViewById<Button>(R.id.exit)
         buttonExit.setOnClickListener {
             setWindowPreferences()
-            activityViewModel.mapState.postValue(MainActivityViewModel.MapState.ClearKeepDrawing)
-            missionParamsSideView.isVisible = false
+            activityViewModel.sendAction(MainActivityViewModel.MapAction.ClearKeepDrawing)
         }
 
         val buttonSaveMission = rootView.findViewById<Button>(R.id.save_mission)
         buttonSaveMission.setOnClickListener {
-            missionParamsSideView.isVisible = false
-            onSaveMissionRequested.invoke()
+            activityViewModel.mapState.postValue(MainActivityViewModel.MapState.SaveMissionToFile)
         }
     }
 

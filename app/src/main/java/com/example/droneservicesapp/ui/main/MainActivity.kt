@@ -127,10 +127,10 @@ class MainActivity : AppCompatActivity() {
                     }
                 }
                 R.id.action_cancel -> {
-                    activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Reset)
+                    activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
                 }
                 R.id.action_erase -> {
-                    activityViewModel.mapState.postValue(MainActivityViewModel.MapState.ClearAll)
+                    activityViewModel.sendAction(MainActivityViewModel.MapAction.ClearAll)
                 }
                 R.id.action_load -> {
                     activityViewModel.missionArea.value?.clearAll()
@@ -153,13 +153,10 @@ class MainActivity : AppCompatActivity() {
             }
 
             when (mapState) {
-                MainActivityViewModel.MapState.Idle,
-                MainActivityViewModel.MapState.Reset -> {
+                MainActivityViewModel.MapState.Idle -> {
                     setMenuVisibility(cancel = false, accept = false, erase = false, draw = true, load = true)
                 }
-                MainActivityViewModel.MapState.Draw,
-                MainActivityViewModel.MapState.ClearKeepDrawing,
-                MainActivityViewModel.MapState.ClearAll -> {
+                MainActivityViewModel.MapState.Draw -> {
                     setMenuVisibility(cancel = true, accept = true, erase = true, draw = false, load = false)
                 }
                 MainActivityViewModel.MapState.SetFlightParams -> {
@@ -168,7 +165,6 @@ class MainActivity : AppCompatActivity() {
                 MainActivityViewModel.MapState.LoadMissionFromFile -> {
                     setMenuVisibility(cancel = true, accept = true, erase = true, draw = false, load = false)
                 }
-                MainActivityViewModel.MapState.UploadMissionSuccess,
                 MainActivityViewModel.MapState.SaveMissionToFile -> {
                     // no-op
                 }

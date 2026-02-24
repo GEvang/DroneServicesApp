@@ -68,10 +68,8 @@ class MissionLoadController(
 
     private fun bindOnce() {
         cancelButton.setOnClickListener {
-            loadFileView.isVisible = false
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
         }
-
 
         listView.setOnItemClickListener { _, _, position, _ ->
             val files = currentFiles
@@ -84,8 +82,6 @@ class MissionLoadController(
             )
 
             Toast.makeText(activity, "Selected file: ${selectedFile.path}", Toast.LENGTH_SHORT).show()
-
-            loadFileView.isVisible = false
         }
     }
 

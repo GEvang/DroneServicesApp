@@ -97,6 +97,7 @@ class MissionSaveController(
             Log.i("MissionSave", "alt=${activityViewModel.flightAltProgress.value?.toInt()}")
             Log.i("MissionSave", "sprayer=${activityViewModel.sprayerProgress.value?.toInt()}")
 
+
             val isSaved = store.saveMissionXml(
                 polygon = vertices,
                 lineDist = activityViewModel.lineDistanceProgress.value!!.toInt(),
@@ -113,9 +114,11 @@ class MissionSaveController(
                     activity.baseContext.getString(R.string.file_successfully_saved),
                     Toast.LENGTH_LONG
                 ).show()
+
+                // Return to idle state and hide the UI
+                activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
                 hide()
             } else {
-                // Determine which error message to show
                 val errorStringId = if (overrideFile) {
                     R.string.failed_file_creation
                 } else {
@@ -130,7 +133,8 @@ class MissionSaveController(
         }
 
         buttonCancel.setOnClickListener {
-            hide()
+            activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
+            hide() // Also hide on cancel if desired
         }
     }
 }

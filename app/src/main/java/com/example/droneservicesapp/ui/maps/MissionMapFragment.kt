@@ -1,7 +1,5 @@
 package com.example.droneservicesapp.ui.maps
 
-import android.content.Context
-import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
@@ -14,7 +12,6 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.content.ContextCompat
-import androidx.core.graphics.createBitmap
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
@@ -33,8 +30,6 @@ import com.example.droneservicesapp.ui.maps.osmdroid.OsmdroidPolygonEditor
 import com.example.droneservicesapp.ui.maps.panel.MissionLoadController
 import com.example.droneservicesapp.ui.maps.panel.MissionParamsController
 import com.example.droneservicesapp.ui.maps.panel.MissionSaveController
-import com.google.android.gms.maps.model.BitmapDescriptor
-import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.maps.android.SphericalUtil
@@ -312,14 +307,39 @@ class MissionMapFragment : Fragment() {
 
             when (mapState) {
                 MainActivityViewModel.MapState.Idle -> handleIdleState()
-                MainActivityViewModel.MapState.Reset -> handleResetState()
-                MainActivityViewModel.MapState.ClearAll -> handleClearAllState()
-                MainActivityViewModel.MapState.ClearKeepDrawing -> handleClearKeepDrawingState()
                 MainActivityViewModel.MapState.Draw -> handleDrawState()
                 MainActivityViewModel.MapState.SetFlightParams -> handleSetFlightParamsState()
                 MainActivityViewModel.MapState.LoadMissionFromFile -> handleLoadMissionState()
-                MainActivityViewModel.MapState.UploadMissionSuccess -> handleUploadMissionSuccessState()
                 MainActivityViewModel.MapState.SaveMissionToFile -> handleSaveMissionToFileState()
+            }
+        }
+
+        activityViewModel.mapAction.observe(viewLifecycleOwner) { event ->
+            val action = event?.getContentIfNotHandled() ?: return@observe
+            when (action) {
+                is MainActivityViewModel.MapAction.ClearAll -> {
+                    activityViewModel.clearPolygonVertices()
+                    activityViewModel.surveyPath.postValue(emptyList())
+                    osmdroidPolygonEditor.clear()
+                    osmdroidMapController.clearSurveyPath()
+                    activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
+                }
+                is MainActivityViewModel.MapAction.ClearKeepDrawing -> {
+                    activityViewModel.surveyPath.postValue(emptyList())
+                    osmdroidMapController.clearSurveyPath()
+                    osmdroidPolygonEditor.clear()
+                    activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
+                }
+                is MainActivityViewModel.MapAction.ResetToIdle -> {
+                    activityViewModel.clearPolygonVertices()
+                    activityViewModel.surveyPath.postValue(emptyList())
+                    osmdroidPolygonEditor.clear()
+                    osmdroidMapController.clearSurveyPath()
+                    activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
+                }
+                is MainActivityViewModel.MapAction.UploadMissionSuccess -> {
+                    activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
+                }
             }
         }
     }
@@ -359,40 +379,10 @@ class MissionMapFragment : Fragment() {
         }
     }
 
-
-
-    private fun savePreference(key: String, value: String) {
-        val sharedPref =
-            PreferenceManager.getDefaultSharedPreferences(requireActivity().applicationContext)
-        with(sharedPref.edit()) {
-            putString(key, value)
-            apply()
-        }
-    }
-
     private fun handleIdleState() {
         activityViewModel.drawEnableLiveData.value = false
         osmdroidPolygonEditor.setEnabled(false)
         droneViewModel.downloadMissionNew()
-    }
-
-    private fun handleResetState() {
-        activityViewModel.clearPolygonVertices()
-        osmdroidPolygonEditor.clear()
-        activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
-    }
-
-    private fun handleClearAllState() {
-        activityViewModel.clearPolygonVertices()
-        osmdroidPolygonEditor.clear()
-        activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
-    }
-
-    private fun handleClearKeepDrawingState() {
-        osmdroidMapController.clearSurveyPath()
-        activityViewModel.surveyPath.postValue(emptyList())
-        osmdroidPolygonEditor.clear()
-        activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
     }
 
     private fun handleDrawState() {
@@ -409,13 +399,20 @@ class MissionMapFragment : Fragment() {
         missionLoadController.show()
     }
 
-    private fun handleUploadMissionSuccessState() {
-        activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Reset)
-    }
-
     private fun handleSaveMissionToFileState() {
         missionSaveController.show()
     }
+
+
+    private fun savePreference(key: String, value: String) {
+        val sharedPref =
+            PreferenceManager.getDefaultSharedPreferences(requireActivity().applicationContext)
+        with(sharedPref.edit()) {
+            putString(key, value)
+            apply()
+        }
+    }
+
 
     private fun downloadCurrentViewOffline(minZoom: Int, maxZoom: Int) {
         val bbox = mapView.boundingBox
@@ -487,18 +484,6 @@ class MissionMapFragment : Fragment() {
 
         activityViewModel.surveyPath.postValue(gmsPath)
         osmdroidMapController.setSurveyPath(gmsPath)
-    }
-
-    private fun bitmapDescriptorFromVector(
-        context: Context,
-        vectorResId: Int
-    ): BitmapDescriptor? {
-        return ContextCompat.getDrawable(context, vectorResId)?.run {
-            setBounds(0, 0, intrinsicWidth, intrinsicHeight)
-            val bitmap = createBitmap(intrinsicWidth, intrinsicHeight)
-            draw(Canvas(bitmap))
-            BitmapDescriptorFactory.fromBitmap(bitmap)
-        }
     }
 
     private fun getColor(inValue: Int): Int {
