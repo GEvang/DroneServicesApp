@@ -15,8 +15,6 @@ import com.example.droneservicesapp.activities.MainActivityViewModel
 
 /**
  * Owns the "Save mission" UI (save_file_layout) and calls MissionFileHandler.saveMissionXML(...).
- *
- * Extracted from HomeMapsFragment.initMissionSave().
  */
 class MissionSaveController(
     private val activity: FragmentActivity,
@@ -78,27 +76,34 @@ class MissionSaveController(
                 return@setOnClickListener
             }
 
+            val area = activityViewModel.area.value
+            if (area == null) {
+                Toast.makeText(activity.baseContext, "No area model available", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+
+            // ✅ New model: vertices instead of polygonEdges
+            val vertices = area.vertices
+            if (vertices.size < 3) {
+                Toast.makeText(activity.baseContext, "Polygon must have at least 3 points", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+
             Log.i("MissionSave", "initiated Mission Save Layout")
-            Log.i("MissionSave", "polygonEdges=${activityViewModel.area.value?.polygonEdges}")
+            Log.i("MissionSave", "vertices=$vertices")
             Log.i("MissionSave", "lineDistance=${activityViewModel.lineDistanceProgress.value?.toInt()}")
             Log.i("MissionSave", "angle=${activityViewModel.angleProgress.value?.toInt()}")
             Log.i("MissionSave", "alt=${activityViewModel.flightAltProgress.value?.toInt()}")
             Log.i("MissionSave", "sprayer=${activityViewModel.sprayerProgress.value?.toInt()}")
 
-            val area = activityViewModel.area.value
-            if (area == null) {
-                Toast.makeText(activity.baseContext, "No area defined", Toast.LENGTH_LONG).show()
-                return@setOnClickListener
-            }
-
             val isSaved = MissionFileHandler(activity, activityViewModel).saveMissionXML(
-                area.polygonEdges,
-                activityViewModel.lineDistanceProgress.value!!.toInt(),
-                activityViewModel.angleProgress.value!!.toInt(),
-                activityViewModel.flightAltProgress.value!!.toInt(),
-                activityViewModel.sprayerProgress.value!!.toInt(),
-                inputFilename.text.toString(),
-                overrideFile
+                polygon = vertices,
+                lineDist = activityViewModel.lineDistanceProgress.value!!.toInt(),
+                angleDeg = activityViewModel.angleProgress.value!!.toInt(),
+                alt = activityViewModel.flightAltProgress.value!!.toInt(),
+                sprayerIntensPerc = activityViewModel.sprayerProgress.value!!.toInt(),
+                fileName = inputFilename.text.toString(),
+                override = overrideFile
             )
 
             if (isSaved) hide()

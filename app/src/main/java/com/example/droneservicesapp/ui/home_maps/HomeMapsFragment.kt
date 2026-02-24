@@ -49,12 +49,10 @@ class HomeMapsFragment : Fragment() {
     private var droneMarker: Marker? = null
     private var survey: Survey? = null
 
-    // Fragment-owned views (safe)
     private lateinit var paramsSideView: LinearLayoutCompat
     private lateinit var saveFileView: LinearLayoutCompat
     private lateinit var loadFileView: LinearLayoutCompat
 
-    // Bottom nav lives in Activity
     private var bottomNavigationView: BottomNavigationView? = null
 
     companion object {
@@ -85,12 +83,10 @@ class HomeMapsFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // Bind fragment-owned views from fragment layout (safe)
         paramsSideView = view.findViewById(R.id.mission_params_side_view)
         saveFileView = view.findViewById(R.id.save_file_layout)
         loadFileView = view.findViewById(R.id.load_file_selector_layout)
 
-        // Bottom nav from Activity (exists regardless of fragment)
         bottomNavigationView = requireActivity().findViewById(R.id.bottom_nav_view)
 
         initializeMapView(view)
@@ -99,7 +95,6 @@ class HomeMapsFragment : Fragment() {
         observeDroneViewModel()
         observeMapState()
 
-        // Ensure initial UI matches state
         applyMapStateUi(activityViewModel.mapState.value ?: MainActivityViewModel.MapState.Idle)
     }
 
@@ -173,13 +168,11 @@ class HomeMapsFragment : Fragment() {
 
         configureBottomNavigationView(bottomNavigationView)
 
-        // Start in idle
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
     }
 
     private fun configureBottomNavigationView(navigationView: BottomNavigationView?) {
         navigationView?.isVisible = true
-        // Menu visibility itself is handled in MainActivity now.
     }
 
     private fun observeDroneViewModel() {
@@ -222,10 +215,12 @@ class HomeMapsFragment : Fragment() {
 
         droneViewModel.missionItems.observe(viewLifecycleOwner) { missionItems ->
             if (droneViewModel.conStateLiveData.value == true && missionItems.isNotEmpty()) {
-                activityViewModel.area.value!!.clearSurveyPath()
+                activityViewModel.area.value?.clearSurveyPath()
                 osmdroidMapController.clearSurveyPath()
                 survey?.clearMarkers()
-                survey = Survey(activityViewModel.area.value!!, requireActivity())
+
+                val area = activityViewModel.area.value ?: return@observe
+                survey = Survey(area, requireActivity())
 
                 val surveyPath = ArrayList<com.google.android.gms.maps.model.LatLng>()
                 for (item in missionItems) {
@@ -239,7 +234,7 @@ class HomeMapsFragment : Fragment() {
                     }
                 }
 
-                activityViewModel.area.value!!.surveyPath = surveyPath
+                area.surveyPath = surveyPath
             }
         }
     }
@@ -256,8 +251,6 @@ class HomeMapsFragment : Fragment() {
         val color = getColor(distance)
         Log.i(logTag, "distance: $distance    color: $color")
 
-        // These look like they might be in Activity toolbar or fragment;
-        // keep requireActivity lookup IF they are truly in Activity.
         requireActivity().findViewById<TextView>(textViewId)?.text = "$distance m"
 
         val compassImageView = requireActivity().findViewById<ImageView>(R.id.avoidance_compass)
@@ -320,9 +313,6 @@ class HomeMapsFragment : Fragment() {
         }
     }
 
-    /**
-     * Fragment-owned visibility policy (previously in MainActivity)
-     */
     private fun applyMapStateUi(mapState: MainActivityViewModel.MapState) {
         when (mapState) {
             MainActivityViewModel.MapState.Idle,
@@ -362,7 +352,7 @@ class HomeMapsFragment : Fragment() {
 
             MainActivityViewModel.MapState.UploadMissionSuccess,
             MainActivityViewModel.MapState.SaveMissionToFile -> {
-                // handled by controllers; keep as-is
+                // handled by controllers
             }
         }
     }
@@ -383,19 +373,19 @@ class HomeMapsFragment : Fragment() {
     }
 
     private fun handleResetState() {
-        activityViewModel.area.value!!.clearDrawings()
+        activityViewModel.area.value?.clearAll()
         osmdroidPolygonEditor.clear()
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
     }
 
     private fun handleClearAllState() {
-        activityViewModel.area.value!!.clearDrawings()
+        activityViewModel.area.value?.clearAll()
         osmdroidPolygonEditor.clear()
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
     }
 
     private fun handleClearKeepDrawingState() {
-        activityViewModel.area.value!!.clearSurveyPath()
+        activityViewModel.area.value?.clearSurveyPath()
         osmdroidMapController.clearSurveyPath()
         osmdroidPolygonEditor.clear()
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
@@ -457,14 +447,15 @@ class HomeMapsFragment : Fragment() {
     }
 
     private fun drawSurveyMissionOnMap(distance: Double, angle: Int) {
-        activityViewModel.area.value!!.clearSurveyPath()
+        activityViewModel.area.value?.clearSurveyPath()
         osmdroidMapController.clearSurveyPath()
 
         survey?.clearMarkers()
-        survey = Survey(activityViewModel.area.value!!, requireActivity())
+        val area = activityViewModel.area.value ?: return
+        survey = Survey(area, requireActivity())
 
         val path = survey!!.createSurveyPath(distance, angle, context)
-        activityViewModel.area.value!!.surveyPath = path
+        area.surveyPath = path
 
         if (path.isEmpty()) {
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)

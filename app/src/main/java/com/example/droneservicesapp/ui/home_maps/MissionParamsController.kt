@@ -19,16 +19,6 @@ import com.example.droneservicesapp.activities.MainActivityViewModel
 import com.example.droneservicesapp.mavlink.MissionBuilder
 import com.example.droneservicesapp.mavserver.DroneViewModel
 
-/**
- * Owns the "mission params" side panel UI:
- * - Seekbars + EditTexts binding
- * - Flight speed +/- logic
- * - Flight time calculation display
- * - Upload/Exit/Save button behavior
- * - Reads/writes SharedPreferences for these parameters
- *
- * IMPORTANT: This controller does NOT create the mission-save UI. It calls onSaveMissionRequested().
- */
 class MissionParamsController(
     private val context: Context,
     private val rootView: View,
@@ -36,10 +26,7 @@ class MissionParamsController(
     private val activityViewModel: MainActivityViewModel,
     private val droneViewModel: DroneViewModel,
     private val onSaveMissionRequested: () -> Unit,
-)
- {
-
-
+) {
     private var isBound = false
 
     private val minSpeed = 1
@@ -49,7 +36,6 @@ class MissionParamsController(
         rootView.findViewById<LinearLayoutCompat>(R.id.mission_params_side_view)
     }
 
-    /** Call when you want to show + wire the mission params panel. */
     fun show() {
         getWindowPreferences()
 
@@ -65,32 +51,27 @@ class MissionParamsController(
         }
     }
 
-    /** Optional helper if you want to hide it from fragment. */
     fun hide() {
         missionParamsSideView.isVisible = false
     }
 
-     private fun bindFlightTimeAndSpeed() {
-         val flightTimeText = rootView.findViewById<TextView>(R.id.flight_time)
-         val flightSpeedView = rootView.findViewById<TextView>(R.id.flight_speed)
+    private fun bindFlightTimeAndSpeed() {
+        val flightTimeText = rootView.findViewById<TextView>(R.id.flight_time)
+        val flightSpeedView = rootView.findViewById<TextView>(R.id.flight_speed)
 
-         // Initial render
-         flightSpeedView.text = activityViewModel.flightSpeed.value?.toInt()?.toString() ?: "1"
-         flightTimeText.text = activityViewModel.estimatedFlightMinutes.value?.toString() ?: "1"
+        flightSpeedView.text = activityViewModel.flightSpeed.value?.toInt()?.toString() ?: "1"
+        flightTimeText.text = activityViewModel.estimatedFlightMinutes.value?.toString() ?: "1"
 
-         // Speed display
-         activityViewModel.flightSpeed.observe(lifecycleOwner) { flightSpeed ->
-             flightSpeedView.text = flightSpeed.toInt().toString()
-         }
+        activityViewModel.flightSpeed.observe(lifecycleOwner) { flightSpeed ->
+            flightSpeedView.text = flightSpeed.toInt().toString()
+        }
 
-         // Time display (derived)
-         activityViewModel.estimatedFlightMinutes.observe(lifecycleOwner) { minutes ->
-             flightTimeText.text = minutes.toString()
-         }
-     }
+        activityViewModel.estimatedFlightMinutes.observe(lifecycleOwner) { minutes ->
+            flightTimeText.text = minutes.toString()
+        }
+    }
 
-
-     private fun bindUploadSuccessHidesPanel() {
+    private fun bindUploadSuccessHidesPanel() {
         activityViewModel.mapState.observe(lifecycleOwner) { mapState ->
             if (mapState == MainActivityViewModel.MapState.UploadMissionSuccess) {
                 activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Reset)
@@ -120,15 +101,17 @@ class MissionParamsController(
     private fun bindSpeedButtons() {
         val buttonMinus = rootView.findViewById<Button>(R.id.minus_button)
         buttonMinus.setOnClickListener {
-            if (activityViewModel.flightSpeed.value!!.toInt() > minSpeed) {
-                activityViewModel.flightSpeed.postValue(activityViewModel.flightSpeed.value!!.toDouble() - 1)
+            val cur = activityViewModel.flightSpeed.value?.toInt() ?: 1
+            if (cur > minSpeed) {
+                activityViewModel.flightSpeed.postValue((cur - 1).toDouble())
             }
         }
 
         val buttonPlus = rootView.findViewById<Button>(R.id.plus_button)
         buttonPlus.setOnClickListener {
-            if (activityViewModel.flightSpeed.value!!.toInt() < maxSpeed) {
-                activityViewModel.flightSpeed.postValue(activityViewModel.flightSpeed.value!!.toDouble() + 1)
+            val cur = activityViewModel.flightSpeed.value?.toInt() ?: 1
+            if (cur < maxSpeed) {
+                activityViewModel.flightSpeed.postValue((cur + 1).toDouble())
             }
         }
     }
@@ -136,25 +119,43 @@ class MissionParamsController(
     private fun bindActionButtons() {
         val buttonUploadMission = rootView.findViewById<Button>(R.id.uploadMission)
         buttonUploadMission.setOnClickListener {
-            if (droneViewModel.conStateLiveData.value == null || !droneViewModel.conStateLiveData.value!!) {
+            val connected = droneViewModel.conStateLiveData.value == true
+            if (!connected) {
                 Toast.makeText(context, context.getString(R.string.no_conn_msg), Toast.LENGTH_LONG).show()
-            } else if (activityViewModel.flightAltProgress.value == null) {
-                Toast.makeText(context, context.getString(R.string.select_alt_msg), Toast.LENGTH_LONG).show()
-            } else {
-                val missionItems = MissionBuilder.buildSurveyMission(
-                    waypoints = activityViewModel.area.value!!.surveyPath,
-                    currentPos = droneViewModel.droneLocationLiveData.value!!,
-                    alt = activityViewModel.flightAltProgress.value!!.toFloat(),
-                    sprayerIntensity = activityViewModel.sprayerProgress.value!!.toInt(),
-                    flightSpeed = activityViewModel.flightSpeed.value!!.toFloat(),
-                    angleProgress = activityViewModel.angleProgress.value!!.toFloat(),
-                    targetSystemId = droneViewModel.getTargetSystemId(),
-                    targetComponentId = droneViewModel.getTargetComponentId()
-                )
-
-                droneViewModel.uploadMissionNew(missionItems)
-                missionParamsSideView.isVisible = false
+                return@setOnClickListener
             }
+
+            val alt = activityViewModel.flightAltProgress.value
+            if (alt == null) {
+                Toast.makeText(context, context.getString(R.string.select_alt_msg), Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+
+            val currentPos = droneViewModel.droneLocationLiveData.value
+            if (currentPos == null) {
+                Toast.makeText(context, "Drone position not available", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+
+            val path = activityViewModel.area.value?.surveyPath ?: emptyList()
+            if (path.isEmpty()) {
+                Toast.makeText(context, "No survey path to upload", Toast.LENGTH_LONG).show()
+                return@setOnClickListener
+            }
+
+            val missionItems = MissionBuilder.buildSurveyMission(
+                waypoints = ArrayList(path),
+                currentPos = currentPos,
+                alt = alt.toFloat(),
+                sprayerIntensity = activityViewModel.sprayerProgress.value?.toInt() ?: 0,
+                flightSpeed = (activityViewModel.flightSpeed.value ?: 1.0).toFloat(),
+                angleProgress = (activityViewModel.angleProgress.value ?: 1.0).toFloat(),
+                targetSystemId = droneViewModel.getTargetSystemId(),
+                targetComponentId = droneViewModel.getTargetComponentId()
+            )
+
+            droneViewModel.uploadMissionNew(missionItems)
+            missionParamsSideView.isVisible = false
 
             setWindowPreferences()
         }
@@ -178,8 +179,9 @@ class MissionParamsController(
         seekbarValue: EditText,
         mutable: MutableLiveData<Double>
     ) {
-        seekbar.progress = mutable.value!!.toInt()
-        seekbarValue.setText("${mutable.value!!.toInt()}")
+        val initial = mutable.value?.toInt() ?: 0
+        seekbar.progress = initial
+        seekbarValue.setText("$initial")
 
         seekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
@@ -199,8 +201,8 @@ class MissionParamsController(
                 try {
                     val progress = s.toString().toInt()
                     seekbar.setProgress(progress, true)
-                } catch (e: NumberFormatException) {
-                    Log.d("SeekBar Mission Params", "Error casting String to Int on TextChange")
+                } catch (_: NumberFormatException) {
+                    Log.d("SeekBar Mission Params", "Invalid number")
                 }
             }
         })
@@ -215,11 +217,11 @@ class MissionParamsController(
     }
 
     private fun setWindowPreferences() {
-        setSharedPreferenceById(R.id.survey_angle_pref, activityViewModel.angleProgress.value!!.toInt())
-        setSharedPreferenceById(R.id.survey_line_dist_pos_pref, activityViewModel.lineDistanceProgress.value!!.toInt())
-        setSharedPreferenceById(R.id.mission_alt_pref, activityViewModel.flightAltProgress.value!!.toInt())
-        setSharedPreferenceById(R.id.sprayer_intensity_pref, activityViewModel.sprayerProgress.value!!.toInt())
-        setSharedPreferenceById(R.id.flight_speed_pref, activityViewModel.flightSpeed.value!!.toInt())
+        setSharedPreferenceById(R.id.survey_angle_pref, activityViewModel.angleProgress.value?.toInt() ?: 0)
+        setSharedPreferenceById(R.id.survey_line_dist_pos_pref, activityViewModel.lineDistanceProgress.value?.toInt() ?: 1)
+        setSharedPreferenceById(R.id.mission_alt_pref, activityViewModel.flightAltProgress.value?.toInt() ?: 2)
+        setSharedPreferenceById(R.id.sprayer_intensity_pref, activityViewModel.sprayerProgress.value?.toInt() ?: 0)
+        setSharedPreferenceById(R.id.flight_speed_pref, activityViewModel.flightSpeed.value?.toInt() ?: 1)
     }
 
     private fun getSharedPreferenceById(

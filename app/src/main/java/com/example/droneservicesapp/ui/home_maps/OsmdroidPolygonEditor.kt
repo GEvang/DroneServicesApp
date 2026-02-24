@@ -19,8 +19,7 @@ import org.osmdroid.views.overlay.Polygon
  * - tap marker to remove
  * - drag marker to move
  *
- * IMPORTANT: keeps activityViewModel.area.value!!.polygonEdges (LatLng list) updated,
- * so the rest of your mission pipeline continues to work unchanged.
+ * Writes polygon vertices into activityViewModel.area (MissionArea.vertices).
  */
 class OsmdroidPolygonEditor(
     private val activity: Activity,
@@ -36,7 +35,6 @@ class OsmdroidPolygonEditor(
     private var enabled: Boolean = false
 
     fun init() {
-        // Polygon overlay
         polygon = Polygon(mapView).apply {
             outlinePaint.color = Color.BLACK
             outlinePaint.strokeWidth = 5f
@@ -46,7 +44,6 @@ class OsmdroidPolygonEditor(
         }
         mapView.overlays.add(polygon)
 
-        // Tap receiver overlay (adds vertices)
         val receiver = object : MapEventsReceiver {
             override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
                 if (!enabled) return false
@@ -55,7 +52,6 @@ class OsmdroidPolygonEditor(
             }
 
             override fun longPressHelper(p: GeoPoint): Boolean {
-                // No-op (kept simple). We can add "remove last" later if you want.
                 return false
             }
         }
@@ -71,7 +67,6 @@ class OsmdroidPolygonEditor(
     }
 
     fun clear() {
-        // Remove markers from map
         for (m in vertexMarkers) {
             m.setVisible(false)
         }
@@ -79,6 +74,9 @@ class OsmdroidPolygonEditor(
 
         vertexMarkers.clear()
         points.clear()
+
+        // Clear pure model too
+        activityViewModel.area.value?.clearAll()
 
         redrawPolygonAndSyncModel()
     }
@@ -121,11 +119,8 @@ class OsmdroidPolygonEditor(
         val idx = vertexMarkers.indexOf(marker)
         if (idx < 0) return
 
-        // Remove marker overlay
         mapView.overlays.remove(marker)
         vertexMarkers.removeAt(idx)
-
-        // Remove corresponding point
         points.removeAt(idx)
 
         redrawPolygonAndSyncModel()
@@ -152,17 +147,15 @@ class OsmdroidPolygonEditor(
             poly.setVisible(true)
         }
 
-        // Sync into your existing mission model (Google LatLng list)
+        // Sync into pure model
         val area = activityViewModel.area.value
         if (area != null) {
-            area.polygonEdges.clear()
+            area.vertices.clear()
             for (gp in points) {
-                area.polygonEdges.add(LatLng(gp.latitude, gp.longitude))
+                area.vertices.add(LatLng(gp.latitude, gp.longitude))
             }
-
-            // If there was a Google polygon from older sessions, ensure it doesn't interfere
-            area.polygon?.remove()
-            area.polygon = null
+            // polygon change invalidates survey
+            area.clearSurveyPath()
         }
 
         mapView.invalidate()

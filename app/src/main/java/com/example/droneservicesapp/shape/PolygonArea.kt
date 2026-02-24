@@ -12,6 +12,7 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.core.graphics.createBitmap
 import com.example.droneservicesapp.R
 import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
@@ -420,20 +421,17 @@ class PolygonArea {
         customMarkerView.measure(displayMetrics.widthPixels, displayMetrics.heightPixels)
         customMarkerView.layout(0, 0, displayMetrics.widthPixels, displayMetrics.heightPixels)
 
-        val bitmap = Bitmap.createBitmap(
-            customMarkerView.measuredWidth,
-            customMarkerView.measuredHeight,
-            Bitmap.Config.ARGB_8888
-        )
+        val bitmap = createBitmap(customMarkerView.measuredWidth, customMarkerView.measuredHeight)
         val canvas = Canvas(bitmap)
         customMarkerView.draw(canvas)
         return bitmap
     }
 
 
-    fun calculatePolygonBounds(): LatLngBounds {
+    fun calculatePolygonBounds(): LatLngBounds? {
+        val poly = polygon ?: return null
         val builder = LatLngBounds.Builder()
-        for (point in polygon!!.points) {
+        for (point in poly.points) {
             builder.include(point)
         }
         return builder.build()

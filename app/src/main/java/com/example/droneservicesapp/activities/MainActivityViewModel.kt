@@ -3,7 +3,7 @@ package com.example.droneservicesapp.activities
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.example.droneservicesapp.shape.PolygonArea
+import com.example.droneservicesapp.domain.model.MissionArea
 
 class MainActivityViewModel : ViewModel() {
 
@@ -66,9 +66,22 @@ class MainActivityViewModel : ViewModel() {
         recompute()
     }
 
+    // ✅ Pure model
+    val area: MutableLiveData<MissionArea> by lazy {
+        MutableLiveData(MissionArea())
+    }
 
-    val area: MutableLiveData<PolygonArea> by lazy {
-        MutableLiveData(PolygonArea())
+    // ✅ Was global before; now scoped to the ViewModel
+    val missionParams: MutableLiveData<MissionParams> by lazy {
+        MutableLiveData(
+            MissionParams(
+                altitude = flightAltProgress.value ?: 2.0,
+                lineDistance = lineDistanceProgress.value ?: 1.0,
+                angle = angleProgress.value ?: 1.0,
+                sprayer = sprayerProgress.value ?: 0.0,
+                speed = flightSpeed.value ?: 1.0
+            )
+        )
     }
 }
 
@@ -79,5 +92,3 @@ data class MissionParams(
     val sprayer: Double = 0.0,
     val speed: Double = 1.0
 )
-
-val missionParams: MutableLiveData<MissionParams> = MutableLiveData()
