@@ -51,6 +51,7 @@ class MissionMapFragment : Fragment() {
 
     private lateinit var droneViewModel: DroneViewModel
     private lateinit var activityViewModel: MainActivityViewModel
+    private lateinit var mapViewModel: MissionMapViewModel
 
     private lateinit var missionParamsController: MissionParamsController
     private lateinit var missionSaveController: MissionSaveController
@@ -89,6 +90,7 @@ class MissionMapFragment : Fragment() {
 
         droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
         activityViewModel = ViewModelProvider(requireActivity())[MainActivityViewModel::class.java]
+        mapViewModel = ViewModelProvider(this)[MissionMapViewModel::class.java]
 
         return binding.root
     }
@@ -107,8 +109,9 @@ class MissionMapFragment : Fragment() {
         bindUiButtons()
         observeDroneViewModel()
         observeMapState()
+        observeMissionMapViewModel()
 
-        applyMapStateUi(activityViewModel.mapState.value ?: MainActivityViewModel.MapState.Idle)
+        mapViewModel.updateFromMapState(activityViewModel.mapState.value ?: MainActivityViewModel.MapState.Idle)
     }
 
     private fun initializeMapView(view: View) {
@@ -305,7 +308,7 @@ class MissionMapFragment : Fragment() {
         })
 
         activityViewModel.mapState.observe(viewLifecycleOwner) { mapState ->
-            applyMapStateUi(mapState)
+            mapViewModel.updateFromMapState(mapState)
 
             when (mapState) {
                 MainActivityViewModel.MapState.Idle -> handleIdleState()
@@ -321,49 +324,42 @@ class MissionMapFragment : Fragment() {
         }
     }
 
-    private fun applyMapStateUi(mapState: MainActivityViewModel.MapState) {
-        when (mapState) {
-            MainActivityViewModel.MapState.Idle,
-            MainActivityViewModel.MapState.Reset -> {
-                paramsSideView.isVisible = false
-                saveFileView.isVisible = false
-                loadFileView.isVisible = false
-                binding.myLocationButton.isVisible = true
-                binding.droneLocationButton.isVisible = true
-            }
-
-            MainActivityViewModel.MapState.Draw,
-            MainActivityViewModel.MapState.ClearKeepDrawing,
-            MainActivityViewModel.MapState.ClearAll -> {
-                paramsSideView.isVisible = false
-                saveFileView.isVisible = false
-                loadFileView.isVisible = false
-                binding.myLocationButton.isVisible = true
-                binding.droneLocationButton.isVisible = true
-            }
-
-            MainActivityViewModel.MapState.SetFlightParams -> {
-                paramsSideView.isVisible = true
-                saveFileView.isVisible = false
-                loadFileView.isVisible = false
-                binding.myLocationButton.isVisible = false
-                binding.droneLocationButton.isVisible = false
-            }
-
-            MainActivityViewModel.MapState.LoadMissionFromFile -> {
-                paramsSideView.isVisible = false
-                saveFileView.isVisible = false
-                loadFileView.isVisible = true
-                binding.myLocationButton.isVisible = false
-                binding.droneLocationButton.isVisible = false
-            }
-
-            MainActivityViewModel.MapState.UploadMissionSuccess,
-            MainActivityViewModel.MapState.SaveMissionToFile -> {
-                // handled by controllers
+    private fun observeMissionMapViewModel() {
+        mapViewModel.uiState.observe(viewLifecycleOwner) { state ->
+            when (state) {
+                MissionMapViewModel.UiState.Idle, MissionMapViewModel.UiState.Drawing -> {
+                    paramsSideView.isVisible = false
+                    saveFileView.isVisible = false
+                    loadFileView.isVisible = false
+                    binding.myLocationButton.isVisible = true
+                    binding.droneLocationButton.isVisible = true
+                }
+                MissionMapViewModel.UiState.EditingParams -> {
+                    paramsSideView.isVisible = true
+                    saveFileView.isVisible = false
+                    loadFileView.isVisible = false
+                    binding.myLocationButton.isVisible = false
+                    binding.droneLocationButton.isVisible = false
+                }
+                MissionMapViewModel.UiState.SavingMission -> {
+                    paramsSideView.isVisible = false
+                    saveFileView.isVisible = true
+                    loadFileView.isVisible = false
+                    binding.myLocationButton.isVisible = false
+                    binding.droneLocationButton.isVisible = false
+                }
+                MissionMapViewModel.UiState.LoadingMission -> {
+                    paramsSideView.isVisible = false
+                    saveFileView.isVisible = false
+                    loadFileView.isVisible = true
+                    binding.myLocationButton.isVisible = false
+                    binding.droneLocationButton.isVisible = false
+                }
             }
         }
     }
+
+
 
     private fun savePreference(key: String, value: String) {
         val sharedPref =
