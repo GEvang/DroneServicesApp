@@ -17,7 +17,7 @@ import java.io.File
 /**
  * Owns the "Load mission" UI (load_file_selector_layout) and calls MissionFileHandler.parseXml(...).
  *
- * Extracted from HomeMapsFragment.fileLoaderDialog().
+ * Extracted from MissionMapFragment.fileLoaderDialog().
  */
 class MissionLoadController(
     private val activity: FragmentActivity,

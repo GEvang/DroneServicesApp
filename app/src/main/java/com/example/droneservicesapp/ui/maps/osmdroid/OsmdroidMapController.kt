@@ -21,7 +21,7 @@ import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
  * - user location (blue dot)
  * - drone marker (icon + position + heading + centering)
  *
- * Keeps HomeMapsFragment from becoming a god-class.
+ * Keeps MissionMapFragment from becoming a god-class.
  */
 class OsmdroidMapController(
     private val context: Context,

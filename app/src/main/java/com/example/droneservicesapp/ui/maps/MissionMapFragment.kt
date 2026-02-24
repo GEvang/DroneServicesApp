@@ -44,7 +44,7 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 
-class HomeMapsFragment : Fragment() {
+class MissionMapFragment : Fragment() {
     private var _binding: FragmentHomeMapsBinding? = null
     private val binding get() = _binding!!
     private lateinit var mapView: MapView
