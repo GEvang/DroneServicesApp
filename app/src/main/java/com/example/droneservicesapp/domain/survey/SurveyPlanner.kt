@@ -3,7 +3,7 @@ package com.example.droneservicesapp.domain.survey
 import android.util.Log
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.MissionArea
-import com.example.droneservicesapp.shape.Line
+import com.example.droneservicesapp.domain.survey.math.Line2D
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.SphericalUtil
 
@@ -73,8 +73,8 @@ class SurveyPlanner {
             return ArrayList()
         }
 
-        val eastOrientationLines: ArrayList<Line> = ArrayList()
-        val westOrientationLines: ArrayList<Line> = ArrayList()
+        val eastOrientationLines: ArrayList<Line2D> = ArrayList()
+        val westOrientationLines: ArrayList<Line2D> = ArrayList()
 
         val angleD = angle.toDouble()
         val supplementaryAngleD = 90 - angleD
@@ -120,12 +120,12 @@ class SurveyPlanner {
         while (intersectionsLocated) {
             lineIntersections.clear()
 
-            val pointLine = Line(point, angleD)
+            val pointLine = Line2D(point, angleD)
 
             for (i in 0 until polygonClosed.size - 1) {
                 val p1: LatLng = polygonClosed[i]
                 val p2: LatLng = polygonClosed[i + 1]
-                val line = Line(p1, p2)
+                val line = Line2D(p1, p2)
 
                 val intersection = line.lineLinearSectionIntersection(pointLine, p1, p2)
                 if (DEBUG_LOGS) Log.d(TAG, "intersection=$intersection")
@@ -144,12 +144,12 @@ class SurveyPlanner {
         while (intersectionsLocated) {
             lineIntersections.clear()
 
-            val pointLine = Line(point, angleD)
+            val pointLine = Line2D(point, angleD)
 
             for (i in 0 until polygonClosed.size - 1) {
                 val p1: LatLng = polygonClosed[i]
                 val p2: LatLng = polygonClosed[i + 1]
-                val line = Line(p1, p2)
+                val line = Line2D(p1, p2)
 
                 val intersection = line.lineLinearSectionIntersection(pointLine, p1, p2)
                 if (DEBUG_LOGS) Log.d(TAG, "intersection=$intersection")
@@ -173,11 +173,11 @@ class SurveyPlanner {
      * Merges east and west orientation survey lines into a single optimized path.
      */
     private fun mergeEastWestWPlistsByMinDistanceSorting(
-        eastLines: ArrayList<Line>,
-        westLines: ArrayList<Line>
+        eastLines: ArrayList<Line2D>,
+        westLines: ArrayList<Line2D>
     ): ArrayList<LatLng> {
         val result = ArrayList<LatLng>()
-        lateinit var curLine: Line
+        lateinit var curLine: Line2D
         lateinit var curWP: LatLng
 
         if (westLines.size > 0) {
@@ -247,7 +247,7 @@ class SurveyPlanner {
      * Extracts the two outer intersection points from a list of intersections.
      * These represent the endpoints of a survey line segment.
      */
-    private fun getOuterIntersections(lineIntersections: ArrayList<LatLng>): Line {
+    private fun getOuterIntersections(lineIntersections: ArrayList<LatLng>): Line2D {
         var maxP: LatLng = lineIntersections.first()
         var minP: LatLng = lineIntersections.first()
         for (p in lineIntersections) {
@@ -263,6 +263,6 @@ class SurveyPlanner {
             }
         }
 
-        return Line(minP, maxP)
+        return Line2D(minP, maxP)
     }
 }

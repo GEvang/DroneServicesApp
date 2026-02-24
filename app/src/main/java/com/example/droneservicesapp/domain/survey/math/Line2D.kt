@@ -1,12 +1,10 @@
-package com.example.droneservicesapp.shape
+package com.example.droneservicesapp.domain.survey.math
 
 import com.google.android.gms.maps.model.LatLng
-import java.util.Collections.max
-import java.util.Collections.min
+import java.util.Collections
 import kotlin.math.pow
-import kotlin.math.round
 
-class Line(p1: LatLng, p2: LatLng) {
+class Line2D(p1: LatLng, p2: LatLng) {
 
     var m: Double? = null
     var b: Double? = null
@@ -114,7 +112,7 @@ class Line(p1: LatLng, p2: LatLng) {
         }
     }
 
-    fun lineLineIntersection(line2: Line): LatLng? {
+    fun lineLineIntersection(line2: Line2D): LatLng? {
         var x = 0.0
         var y = 0.0
 
@@ -134,7 +132,7 @@ class Line(p1: LatLng, p2: LatLng) {
         return LatLng(y, x)
     }
 
-    fun lineLinearSectionIntersection(line2: Line, p1: LatLng, p2: LatLng): LatLng? {
+    fun lineLinearSectionIntersection(line2: Line2D, p1: LatLng, p2: LatLng): LatLng? {
 
         this.lineLineIntersection(line2)?.let {
             val x = it.longitude
@@ -168,10 +166,10 @@ class Line(p1: LatLng, p2: LatLng) {
         longs.add(C.longitude)
         longs.add(D.longitude)
 
-        val maxLat = max(lats)
-        val maxLong = max(longs)
-        val minLat = min(lats)
-        val minLong = min(longs)
+        val maxLat = Collections.max(lats)
+        val maxLong = Collections.max(longs)
+        val minLat = Collections.min(lats)
+        val minLong = Collections.min(longs)
 
         this.lineLineIntersection(A, B, C, D)?.let {
             if (it.latitude in minLat..maxLat && it.longitude in minLong..maxLong)
@@ -182,7 +180,7 @@ class Line(p1: LatLng, p2: LatLng) {
     }
 
 
-    fun Double.round(decimals: Int = 2): Double = (round(this * 10.0.pow(decimals)) /
+    fun Double.round(decimals: Int = 2): Double = (kotlin.math.round(this * 10.0.pow(decimals)) /
             10.0.pow(decimals))
 
 }
