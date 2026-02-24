@@ -23,19 +23,21 @@ import androidx.lifecycle.distinctUntilChanged
 import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
-import com.example.droneservicesapp.ui.maps.osmdroid.EsriWorldImageryTileSource
+import com.example.droneservicesapp.domain.model.LatLon
+import com.example.droneservicesapp.domain.survey.SurveyPlanner
 import com.example.droneservicesapp.mavserver.DroneViewModel
-import com.example.droneservicesapp.shape.Survey
+import com.example.droneservicesapp.ui.main.MainActivityViewModel
+import com.example.droneservicesapp.ui.maps.osmdroid.EsriWorldImageryTileSource
+import com.example.droneservicesapp.ui.maps.osmdroid.OsmdroidMapController
+import com.example.droneservicesapp.ui.maps.osmdroid.OsmdroidPolygonEditor
 import com.example.droneservicesapp.ui.maps.panel.MissionLoadController
 import com.example.droneservicesapp.ui.maps.panel.MissionParamsController
 import com.example.droneservicesapp.ui.maps.panel.MissionSaveController
-import com.example.droneservicesapp.ui.maps.osmdroid.OsmdroidMapController
-import com.example.droneservicesapp.ui.maps.osmdroid.OsmdroidPolygonEditor
-import com.example.droneservicesapp.ui.main.MainActivityViewModel
 import com.google.android.gms.maps.model.BitmapDescriptor
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.maps.android.SphericalUtil
 import io.dronefleet.mavlink.common.MavCmd
 import org.osmdroid.tileprovider.cachemanager.CacheManager
 import org.osmdroid.util.GeoPoint
@@ -57,7 +59,6 @@ class HomeMapsFragment : Fragment() {
     private lateinit var osmdroidPolygonEditor: OsmdroidPolygonEditor
 
     private var droneMarker: Marker? = null
-    private var survey: Survey? = null
 
     private lateinit var paramsSideView: LinearLayoutCompat
     private lateinit var saveFileView: LinearLayoutCompat
@@ -227,10 +228,8 @@ class HomeMapsFragment : Fragment() {
             if (droneViewModel.conStateLiveData.value == true && missionItems.isNotEmpty()) {
                 activityViewModel.area.value?.clearSurveyPath()
                 osmdroidMapController.clearSurveyPath()
-                survey?.clearMarkers()
 
                 val area = activityViewModel.area.value ?: return@observe
-                survey = Survey(area, requireActivity())
 
                 val surveyPath = ArrayList<LatLng>()
                 for (item in missionItems) {
@@ -460,18 +459,40 @@ class HomeMapsFragment : Fragment() {
         activityViewModel.area.value?.clearSurveyPath()
         osmdroidMapController.clearSurveyPath()
 
-        survey?.clearMarkers()
         val area = activityViewModel.area.value ?: return
-        survey = Survey(area, requireActivity())
 
-        val path = survey!!.createSurveyPath(distance, angle, context)
-        area.surveyPath = path
+        // Convert current polygon vertices to domain-level LatLon
+        val polygonLatLon = area.vertices.map { LatLon(it.latitude, it.longitude) }
 
-        if (path.isEmpty()) {
+        // Build survey path using pure planner
+        val planner = SurveyPlanner()
+        val pathLatLon = planner.buildSurveyPath(
+            polygon = polygonLatLon,
+            distanceMeters = distance,
+            angleDeg = angle
+        )
+
+        if (pathLatLon.isEmpty()) {
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
-        } else {
-            osmdroidMapController.setSurveyPath(path)
+            return
         }
+
+        // Convert to Google LatLng only where required (map drawing + mission building)
+        val gmsPath = pathLatLon.map { LatLng(it.lat, it.lon) }
+
+        // Estimate flight distance: sum each consecutive pair length when even-sized path
+        if (gmsPath.size >= 2 && gmsPath.size % 2 == 0) {
+            var surveyDistance = 0.0
+            var i = 0
+            while (i < gmsPath.size) {
+                surveyDistance += SphericalUtil.computeDistanceBetween(gmsPath[i], gmsPath[i + 1])
+                i += 2
+            }
+            activityViewModel.flightDistance.postValue(surveyDistance.toInt())
+        }
+
+        area.surveyPath = gmsPath
+        osmdroidMapController.setSurveyPath(gmsPath)
     }
 
     private fun bitmapDescriptorFromVector(
