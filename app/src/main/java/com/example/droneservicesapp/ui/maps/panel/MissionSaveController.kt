@@ -9,12 +9,12 @@ import android.widget.Toast
 import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
-import com.example.droneservicesapp.data.storage.MissionFileHandler
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.ui.main.MainActivityViewModel
 
 /**
- * Owns the "Save mission" UI (save_file_layout) and calls MissionFileHandler.saveMissionXML(...).
+ * Owns the "Save mission" UI (save_file_layout) and calls MissionFileStore.saveMissionXml(...).
  */
 class MissionSaveController(
     private val activity: FragmentActivity,
@@ -24,6 +24,7 @@ class MissionSaveController(
 
     private var isBound = false
     private var overrideFile = false
+    private val store = MissionFileStore(activity)
 
     private val saveFileView: LinearLayoutCompat by lazy {
         rootView.findViewById<LinearLayoutCompat>(R.id.save_file_layout)
@@ -96,17 +97,36 @@ class MissionSaveController(
             Log.i("MissionSave", "alt=${activityViewModel.flightAltProgress.value?.toInt()}")
             Log.i("MissionSave", "sprayer=${activityViewModel.sprayerProgress.value?.toInt()}")
 
-            val isSaved = MissionFileHandler(activity, activityViewModel).saveMissionXML(
+            val isSaved = store.saveMissionXml(
                 polygon = vertices,
                 lineDist = activityViewModel.lineDistanceProgress.value!!.toInt(),
                 angleDeg = activityViewModel.angleProgress.value!!.toInt(),
                 alt = activityViewModel.flightAltProgress.value!!.toInt(),
-                sprayerIntensPerc = activityViewModel.sprayerProgress.value!!.toInt(),
+                sprayerPct = activityViewModel.sprayerProgress.value!!.toInt(),
                 fileName = inputFilename.text.toString(),
-                override = overrideFile
+                overwrite = overrideFile
             )
 
-            if (isSaved) hide()
+            if (isSaved) {
+                Toast.makeText(
+                    activity.baseContext,
+                    activity.baseContext.getString(R.string.file_successfully_saved),
+                    Toast.LENGTH_LONG
+                ).show()
+                hide()
+            } else {
+                // Determine which error message to show
+                val errorStringId = if (overrideFile) {
+                    R.string.failed_file_creation
+                } else {
+                    R.string.file_already_exists
+                }
+                Toast.makeText(
+                    activity.baseContext,
+                    activity.baseContext.getString(errorStringId),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
         }
 
         buttonCancel.setOnClickListener {

@@ -1,6 +1,5 @@
 package com.example.droneservicesapp.ui.maps.panel
 
-import android.os.Environment
 import android.view.View
 import android.widget.ArrayAdapter
 import android.widget.Button
@@ -10,11 +9,10 @@ import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.data.storage.MissionFileHandler
+import com.example.droneservicesapp.data.storage.MissionFileStore
+import com.example.droneservicesapp.data.storage.MissionXmlParser
 import com.example.droneservicesapp.ui.main.MainActivityViewModel
 import java.io.File
-import java.io.FileInputStream
-import java.util.Locale
 
 /**
  * Owns the "Load mission" UI (load_file_selector_layout) and calls MissionFileHandler.parseXml(...).
@@ -31,6 +29,8 @@ class MissionLoadController(
 
     private var currentFiles: List<File> = emptyList()
 
+    private val store = MissionFileStore(activity)
+
     private val loadFileView: LinearLayoutCompat by lazy {
         rootView.findViewById<LinearLayoutCompat>(R.id.load_file_selector_layout)
     }
@@ -46,10 +46,6 @@ class MissionLoadController(
     fun show() {
         val (files, names) = refreshList()
 
-        if (files == null) {
-            Toast.makeText(activity, "Error in loading missions from directory", Toast.LENGTH_LONG).show()
-            return
-        }
         if (files.isEmpty()) {
             Toast.makeText(activity, "No missions saved yet", Toast.LENGTH_LONG).show()
             return
@@ -83,8 +79,8 @@ class MissionLoadController(
 
             val selectedFile = files[position]
 
-            MissionFileHandler(activity, activityViewModel).parseXml(
-                FileInputStream(selectedFile.path)
+            MissionXmlParser(activity, activityViewModel).parseXml(
+                store.openMissionInputStream(selectedFile)
             )
 
             Toast.makeText(activity, "Selected file: ${selectedFile.path}", Toast.LENGTH_SHORT).show()
@@ -93,20 +89,18 @@ class MissionLoadController(
         }
     }
 
-    private fun refreshList(): Pair<List<File>?, List<String>> {
-        val directory = activity.getString(R.string.mission_directory).let {
-            File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS),
-                it
-            )
+    private fun refreshList(): Pair<List<File>, List<String>> {
+        val files = store.listMissionFiles()
+
+        val names = files.map { file ->
+            val lastDotIndex = file.name.lastIndexOf('.')
+            if (lastDotIndex > 0) {
+                file.name.substring(0, lastDotIndex)
+            } else {
+                file.name
+            }
         }
 
-        val files = directory.listFiles { _, name ->
-            name.lowercase(Locale.ROOT)
-                .endsWith(activity.getString(R.string.DroneServicesFilePageSuffix).lowercase(Locale.ROOT))
-        }?.toList()
-
-        val names = files?.map { it.name.substring(0, it.name.lastIndexOf('.')) } ?: emptyList()
         return Pair(files, names)
     }
 

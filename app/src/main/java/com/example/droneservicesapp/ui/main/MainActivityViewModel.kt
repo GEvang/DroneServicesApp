@@ -4,14 +4,7 @@ import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.domain.model.MissionArea
-
-data class MissionParams(
-    val altitude: Double = 2.0,
-    val lineDistance: Double = 1.0,
-    val angle: Double = 1.0,
-    val sprayer: Double = 0.0,
-    val speed: Double = 1.0
-)
+import com.example.droneservicesapp.domain.model.MissionParams
 
 class MainActivityViewModel : ViewModel() {
 
