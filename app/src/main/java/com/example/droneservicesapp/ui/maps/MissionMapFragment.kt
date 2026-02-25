@@ -141,8 +141,7 @@ class MissionMapFragment : Fragment() {
             rootView = requireView(),
             lifecycleOwner = viewLifecycleOwner,
             activityViewModel = activityViewModel,
-            droneViewModel = droneViewModel,
-            onSaveMissionRequested = { missionSaveController.show() }
+            droneViewModel = droneViewModel
         )
 
         missionSaveController = MissionSaveController(

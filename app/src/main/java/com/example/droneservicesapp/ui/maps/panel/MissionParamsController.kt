@@ -27,7 +27,6 @@ class MissionParamsController(
     private val lifecycleOwner: LifecycleOwner,
     private val activityViewModel: MainActivityViewModel,
     private val droneViewModel: DroneViewModel,
-    private val onSaveMissionRequested: () -> Unit,
 ) {
     private var isBound = false
 
