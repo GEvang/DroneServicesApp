@@ -59,7 +59,7 @@ class MissionService(
             .frame(frame)
             .command(src.command())
             .current(if (seq == 0) 1 else 0)
-            .autocontinue(1)
+            .autocontinue(src.autocontinue())  // ← Preserve from source
             .param1(src.param1())
             .param2(src.param2())
             .param3(src.param3())
@@ -67,7 +67,7 @@ class MissionService(
             .x(if (isNavCommand) src.x() else 0)
             .y(if (isNavCommand) src.y() else 0)
             .z(if (isNavCommand) src.z() else 0f)
-            .missionType(EnumValue.of(MavMissionType.MAV_MISSION_TYPE_MISSION))
+            .missionType(src.missionType())  // ← Preserve from source
             .build()
     }
 
@@ -92,7 +92,7 @@ class MissionService(
             .frame(frame)
             .command(src.command())
             .current(if (seq == 0) 1 else 0)
-            .autocontinue(1)
+            .autocontinue(src.autocontinue())  // ← Preserve from source
             .param1(src.param1())
             .param2(src.param2())
             .param3(src.param3())
@@ -100,7 +100,7 @@ class MissionService(
             .x(x)
             .y(y)
             .z(z)
-            .missionType(EnumValue.of(MavMissionType.MAV_MISSION_TYPE_MISSION))
+            .missionType(src.missionType())  // ← Preserve from source
             .build()
     }
 
@@ -192,10 +192,15 @@ class MissionService(
      *  - Immediately respond to MissionRequestInt/MissionRequest with the requested item.
      *  - Complete on MissionAck (from targetSystemId).
      *  - Call onProgress with (sentSeq, total, percent) after each item sent.
+     *
+     * De-duplication behavior:
+     *  - Tracks the last processed sequence number to prevent duplicate sends.
+     *  - If a request arrives for a sequence <= last processed, it's skipped.
+     *  - Legitimate out-of-order requests (seq > last processed) are always handled.
      */
     fun uploadMission(
         items: ArrayList<MissionItemInt>,
-        timeoutMs: Long = 2000L,
+        timeoutMs: Long = 4000L,
         cancel: AtomicBoolean? = null,
         onProgress: ((sentSeq: Int, total: Int, percent: Int) -> Unit)? = null
     ): Boolean {
@@ -204,6 +209,11 @@ class MissionService(
             Log.w("MissionUpload", "uploadMission called with 0 items; treating as success")
             return true
         }
+
+        // Capture target IDs ONCE at start to prevent mid-upload changes
+        val uploadTargetSystemId = targetSystemId
+        val uploadTargetComponentId = targetComponentId
+        Log.i("MissionUpload", "Using targetSystem=$uploadTargetSystemId targetComponent=$uploadTargetComponentId for this upload")
 
         val lastSeq = items.size - 1
 
@@ -214,6 +224,8 @@ class MissionService(
 
         val lastProgressMs = AtomicLong(System.currentTimeMillis())
         val lastSentSeq = AtomicInteger(-1)
+        // De-duplication: track the last processed sequence number
+        val lastProcessedSeq = AtomicInteger(-1)
 
         val resendCountAttempts = AtomicInteger(0)
         val resendLastItemAttempts = AtomicInteger(0)
@@ -222,8 +234,8 @@ class MissionService(
         var lastPercent = -1
 
         val countMsg = MissionCount.builder()
-            .targetSystem(targetSystemId)
-            .targetComponent(targetComponentId)
+            .targetSystem(uploadTargetSystemId)
+            .targetComponent(uploadTargetComponentId)
             .count(items.size)
             .missionType(MavMissionType.MAV_MISSION_TYPE_MISSION)
             .build()
@@ -247,7 +259,7 @@ class MissionService(
                     }
                     .filter { req ->
                         val p = req.payload
-                        isTargetedToThisGcs(p.targetSystem(), p.targetComponent()) &&
+                        p.targetSystem() == gcsSystemId && p.targetComponent() == gcsComponentId &&
                                 p.missionType().entry() == MavMissionType.MAV_MISSION_TYPE_MISSION
                     }
                     .subscribe({ req ->
@@ -255,21 +267,33 @@ class MissionService(
 
                         requestsStarted.set(true)
                         val seq = req.payload.seq()
-                        lastProgressMs.set(System.currentTimeMillis())
                         Log.i(
                             "MissionUpload",
                             "RX MISSION_REQUEST_INT seq=$seq from sys=${req.originSystemId} comp=${req.originComponentId}"
                         )
 
+                        // De-duplication check: skip if we've already processed this seq or earlier
+                        if (seq <= lastProcessedSeq.get()) {
+                            Log.d(
+                                "MissionUpload",
+                                "SKIP duplicate MISSION_REQUEST_INT seq=$seq (already processed seq=${lastProcessedSeq.get()})"
+                            )
+                            return@subscribe
+                        }
+
                         if (seq in items.indices) {
-                            val out = itemWithTargetsAndSeq(items[seq], seq)
+                            val out = itemWithTargetsAndSeq(items[seq], seq, uploadTargetSystemId, uploadTargetComponentId)
                             client.send2(gcsSystemId, gcsComponentId, out)
                             lastSentSeq.set(seq)
+                            // Mark this sequence as processed immediately after sending
+                            lastProcessedSeq.set(seq)
+                            // CRITICAL: Reset progress timer after successful send so watchdog doesn't timeout
+                            lastProgressMs.set(System.currentTimeMillis())
                             Log.i(
                                 "MissionUpload",
                                 "TX MISSION_ITEM_INT seq=$seq cmd=${out.command().entry().name} frame=${out.frame().entry().name}"
                             )
-                            
+
                             val percent = (((seq + 1).toDouble() / items.size.toDouble()) * 100.0).toInt().coerceIn(0, 100)
                             if (percent != lastPercent) {
                                 lastPercent = percent
@@ -294,7 +318,7 @@ class MissionService(
                     }
                     .filter { req ->
                         val p = req.payload
-                        isTargetedToThisGcs(p.targetSystem(), p.targetComponent()) &&
+                        p.targetSystem() == gcsSystemId && p.targetComponent() == gcsComponentId &&
                                 p.missionType().entry() == MavMissionType.MAV_MISSION_TYPE_MISSION
                     }
                     .subscribe({ req ->
@@ -302,21 +326,33 @@ class MissionService(
 
                         requestsStarted.set(true)
                         val seq = req.payload.seq()
-                        lastProgressMs.set(System.currentTimeMillis())
                         Log.w(
                             "MissionUpload",
                             "RX MISSION_REQUEST seq=$seq from sys=${req.originSystemId} comp=${req.originComponentId}"
                         )
 
+                        // De-duplication check: skip if we've already processed this seq or earlier
+                        if (seq <= lastProcessedSeq.get()) {
+                            Log.d(
+                                "MissionUpload",
+                                "SKIP duplicate MISSION_REQUEST seq=$seq (already processed seq=${lastProcessedSeq.get()})"
+                            )
+                            return@subscribe
+                        }
+
                         if (seq in items.indices) {
-                            val out = itemIntToItemWithTargetsAndSeq(items[seq], seq)
+                            val out = itemIntToItemWithTargetsAndSeq(items[seq], seq, uploadTargetSystemId, uploadTargetComponentId)
                             client.send2(gcsSystemId, gcsComponentId, out)
                             lastSentSeq.set(seq)
+                            // Mark this sequence as processed immediately after sending
+                            lastProcessedSeq.set(seq)
+                            // CRITICAL: Reset progress timer after successful send so watchdog doesn't timeout
+                            lastProgressMs.set(System.currentTimeMillis())
                             Log.i(
                                 "MissionUpload",
                                 "TX MISSION_ITEM seq=$seq cmd=${out.command().entry().name} frame=${out.frame().entry().name}"
                             )
-                            
+
                             val percent = (((seq + 1).toDouble() / items.size.toDouble()) * 100.0).toInt().coerceIn(0, 100)
                             if (percent != lastPercent) {
                                 lastPercent = percent
@@ -341,7 +377,7 @@ class MissionService(
                     }
                     .filter { ack ->
                         // Sender sysid is the most reliable discriminator on ArduPilot links.
-                        ack.originSystemId == targetSystemId
+                        ack.originSystemId == uploadTargetSystemId
                     }
                     .subscribe({ ack ->
                         if (done.getAndSet(true)) return@subscribe
@@ -364,7 +400,6 @@ class MissionService(
             )
 
             // ---- Watchdog ----
-            // If the autopilot isn't requesting (or ACK is delayed), we gently retry.
             disposables.add(
                 Observable.interval(timeoutMs, timeoutMs, TimeUnit.MILLISECONDS)
                     .subscribe({
@@ -376,14 +411,8 @@ class MissionService(
 
                         val sent = lastSentSeq.get()
 
-                        // If requestsStarted, do NOT resend MissionCount (no-op)
-                        if (requestsStarted.get()) {
-                            Log.d("MissionUpload", "Watchdog: requests already started, skipping MissionCount resend")
-                            return@subscribe
-                        }
-
-                        // Case 1: We haven't finished sending all items yet -> resend MissionCount (only if requests haven't started)
-                        if (sent < lastSeq) {
+                        // If we haven't started requests yet AND we haven't sent all items -> resend MissionCount
+                        if (!requestsStarted.get() && sent < lastSeq) {
                             val attempts = resendCountAttempts.incrementAndGet()
                             if (attempts <= 6) {
                                 Log.w(
@@ -403,22 +432,46 @@ class MissionService(
                             return@subscribe
                         }
 
-                        // Case 2: Last item sent, but ACK missing -> resend last item a few times
-                        val attempts = resendLastItemAttempts.incrementAndGet()
-                        if (attempts <= 10) {
-                            val seq = lastSeq
-                            val out = itemWithTargetsAndSeq(items[seq], seq)
-                            Log.w(
-                                "MissionUpload",
-                                "Watchdog: stalled waiting for ACK, resending last item seq=$seq (attempt=$attempts/10)"
-                            )
-                            client.send2(gcsSystemId, gcsComponentId, out)
-                            lastProgressMs.set(now)
-                        } else {
-                            Log.e("MissionUpload", "Watchdog: no ACK after resending last item; failing upload")
-                            if (!done.getAndSet(true)) {
-                                success.set(false)
-                                latch.countDown()
+                        // If requests have started but we haven't finished -> resend the last sent item
+                        if (requestsStarted.get() && sent >= 0 && sent < lastSeq) {
+                            val attempts = resendLastItemAttempts.incrementAndGet()
+                            if (attempts <= 10) {
+                                val seq = sent
+                                val out = itemWithTargetsAndSeq(items[seq], seq, uploadTargetSystemId, uploadTargetComponentId)
+                                Log.w(
+                                    "MissionUpload",
+                                    "Watchdog: stalled after item sent, resending seq=$seq (attempt=$attempts/10)"
+                                )
+                                client.send2(gcsSystemId, gcsComponentId, out)
+                                lastProgressMs.set(now)
+                            } else {
+                                Log.e("MissionUpload", "Watchdog: too many resends of seq=$sent, failing upload")
+                                if (!done.getAndSet(true)) {
+                                    success.set(false)
+                                    latch.countDown()
+                                }
+                            }
+                            return@subscribe
+                        }
+
+                        // If we've sent all items but ACK is missing -> resend last item
+                        if (sent == lastSeq) {
+                            val attempts = resendLastItemAttempts.incrementAndGet()
+                            if (attempts <= 10) {
+                                val seq = lastSeq
+                                val out = itemWithTargetsAndSeq(items[seq], seq, uploadTargetSystemId, uploadTargetComponentId)
+                                Log.w(
+                                    "MissionUpload",
+                                    "Watchdog: stalled waiting for ACK, resending last item seq=$seq (attempt=$attempts/10)"
+                                )
+                                client.send2(gcsSystemId, gcsComponentId, out)
+                                lastProgressMs.set(now)
+                            } else {
+                                Log.e("MissionUpload", "Watchdog: no ACK after resending last item; failing upload")
+                                if (!done.getAndSet(true)) {
+                                    success.set(false)
+                                    latch.countDown()
+                                }
                             }
                         }
                     }, { err ->
@@ -449,6 +502,77 @@ class MissionService(
         }
 
         return success.get()
+    }
+
+    private fun itemWithTargetsAndSeq(
+        src: MissionItemInt,
+        seq: Int,
+        targetSysId: Int,
+        targetCompId: Int
+    ): MissionItemInt {
+        val isNavCommand = src.command().entry().name.startsWith("MAV_CMD_NAV")
+
+        val frame = if (isNavCommand) {
+            src.frame()
+        } else {
+            EnumValue.of(MavFrame.MAV_FRAME_MISSION)
+        }
+
+        return MissionItemInt.builder()
+            .targetSystem(targetSysId)
+            .targetComponent(targetCompId)
+            .seq(seq)
+            .frame(frame)
+            .command(src.command())
+            .current(if (seq == 0) 1 else 0)
+            .autocontinue(src.autocontinue())
+            .param1(src.param1())
+            .param2(src.param2())
+            .param3(src.param3())
+            .param4(src.param4())
+            .x(if (isNavCommand) src.x() else 0)
+            .y(if (isNavCommand) src.y() else 0)
+            .z(if (isNavCommand) src.z() else 0f)
+            .missionType(src.missionType())
+            .build()
+    }
+
+    private fun itemIntToItemWithTargetsAndSeq(
+        src: MissionItemInt,
+        seq: Int,
+        targetSysId: Int,
+        targetCompId: Int
+    ): MissionItem {
+        val isNavCommand = src.command().entry().name.startsWith("MAV_CMD_NAV")
+
+        val frame = if (isNavCommand) {
+            src.frame()
+        } else {
+            EnumValue.of(MavFrame.MAV_FRAME_MISSION)
+        }
+
+        // MISSION_ITEM uses float lat/lon degrees. NAV items encode in INT as degrees*1e7.
+        val x = if (isNavCommand) src.x() / 1e7f else 0f
+        val y = if (isNavCommand) src.y() / 1e7f else 0f
+        val z = if (isNavCommand) src.z() else 0f
+
+        return MissionItem.builder()
+            .targetSystem(targetSysId)
+            .targetComponent(targetCompId)
+            .seq(seq)
+            .frame(frame)
+            .command(src.command())
+            .current(if (seq == 0) 1 else 0)
+            .autocontinue(src.autocontinue())
+            .param1(src.param1())
+            .param2(src.param2())
+            .param3(src.param3())
+            .param4(src.param4())
+            .x(x)
+            .y(y)
+            .z(z)
+            .missionType(src.missionType())
+            .build()
     }
 
     private fun waitForMissionAckFromAutopilot(

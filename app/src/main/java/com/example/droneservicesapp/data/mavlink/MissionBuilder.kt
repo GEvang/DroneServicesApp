@@ -62,18 +62,20 @@ object MissionBuilder {
                 targetComponent(targetComponentId)
             }.build()
 
-        // TAKEOFF (placeholder item)
+        // seq=0: HOME waypoint (required, marks home location)
         missionItems.add(
             buildItem(
                 frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-                command = MavCmd.MAV_CMD_NAV_TAKEOFF,
-                currentFlag = 1,
+                command = MavCmd.MAV_CMD_NAV_WAYPOINT,
+                currentFlag = 1,  // Only seq=0 should have current=1
                 p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = Float.NaN,
-                x = 0, y = 0, z = alt
+                x = currentPos.latitude.toE7(),
+                y = currentPos.longitude.toE7(),
+                z = 0.0f  // Home is at ground level
             )
         )
 
-        // TAKEOFF to current position
+        // seq=1: TAKEOFF from home to mission altitude
         missionItems.add(
             buildItem(
                 frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT,
@@ -184,11 +186,10 @@ object MissionBuilder {
             )
         )
 
-        // RTL
+        // RTL - NAV commands MUST use a positional frame, not MISSION
         missionItems.add(
             buildItem(
-                // Non-positional NAV_RETURN_TO_LAUNCH should use MAV_FRAME_MISSION
-                frame = MavFrame.MAV_FRAME_MISSION,
+                frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT,
                 command = MavCmd.MAV_CMD_NAV_RETURN_TO_LAUNCH,
                 currentFlag = 0,
                 p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
