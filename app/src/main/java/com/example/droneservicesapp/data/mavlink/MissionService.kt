@@ -24,7 +24,7 @@ import java.util.concurrent.atomic.AtomicBoolean
  *  - If token is set, upload exits quickly and returns false.
  */
 class MissionService(
-    private val repo: MavlinkRepository,
+    private val client: MavlinkClient,
     private val gcsSystemId: Int = 254,
     private val gcsComponentId: Int = 99
 ) {
@@ -105,7 +105,7 @@ class MissionService(
             .missionType(MavMissionType.MAV_MISSION_TYPE_MISSION)
             .build()
 
-        repo.send2(gcsSystemId, gcsComponentId, clear)
+        client.send2(gcsSystemId, gcsComponentId, clear)
         Log.i("MissionUpload", "TX MissionClearAll")
 
         val ack = waitForMissionAckFromAutopilot(timeoutMs, null) ?: return false
@@ -123,9 +123,9 @@ class MissionService(
 
         var countMsg: MavlinkMessage<MissionCount>? = null
         repeat(5) {
-            repo.send2(gcsSystemId, gcsComponentId, reqList)
+            client.send2(gcsSystemId, gcsComponentId, reqList)
 
-            countMsg = repo.waitFor(MissionCount::class.java, timeoutMs) { m ->
+            countMsg = client.waitFor(MissionCount::class.java, timeoutMs) { m ->
                 val p = m.payload as MissionCount
                 m.originSystemId == targetSystemId &&
                         m.originComponentId == targetComponentId &&
@@ -154,9 +154,9 @@ class MissionService(
 
             var itemMsg: MavlinkMessage<MissionItemInt>? = null
             repeat(5) {
-                repo.send2(gcsSystemId, gcsComponentId, reqItem)
+                client.send2(gcsSystemId, gcsComponentId, reqItem)
 
-                itemMsg = repo.waitFor(MissionItemInt::class.java, timeoutMs) { m ->
+                itemMsg = client.waitFor(MissionItemInt::class.java, timeoutMs) { m ->
                     val p = m.payload as MissionItemInt
                     m.originSystemId == targetSystemId &&
                             m.originComponentId == targetComponentId &&
@@ -203,7 +203,7 @@ class MissionService(
             .build()
 
         Log.i("MissionUpload", "TX MissionCount count=${items.size}")
-        repo.send2(gcsSystemId, gcsComponentId, countMsg)
+        client.send2(gcsSystemId, gcsComponentId, countMsg)
 
         var resendCountAttempts = 0
         var ackWaitAttempts = 0
@@ -250,7 +250,7 @@ class MissionService(
 
             // 1) MissionRequestInt
             if (cancelled(cancel)) return false
-            val reqInt = repo.waitFor(MissionRequestInt::class.java, timeoutMs) { m ->
+            val reqInt = client.waitFor(MissionRequestInt::class.java, timeoutMs) { m ->
                 val p = m.payload as MissionRequestInt
                 isTargetedToThisGcs(p.targetSystem(), p.targetComponent()) &&
                         p.missionType().entry() == MavMissionType.MAV_MISSION_TYPE_MISSION
@@ -271,7 +271,7 @@ class MissionService(
                         "MissionUpload",
                         "TX MISSION_ITEM_INT seq=$seq cmd=${out.command().entry().name} frame=${out.frame().entry().name}"
                     )
-                    repo.send2(gcsSystemId, gcsComponentId, out)
+                    client.send2(gcsSystemId, gcsComponentId, out)
                     lastSentSeq = seq
 
                     if (seq == lastSeq) {
@@ -291,7 +291,7 @@ class MissionService(
 
             // 2) Legacy MissionRequest
             if (cancelled(cancel)) return false
-            val reqLegacy = repo.waitFor(MissionRequest::class.java, timeoutMs) { m ->
+            val reqLegacy = client.waitFor(MissionRequest::class.java, timeoutMs) { m ->
                 val p = m.payload as MissionRequest
                 isTargetedToThisGcs(p.targetSystem(), p.targetComponent()) &&
                         p.missionType().entry() == MavMissionType.MAV_MISSION_TYPE_MISSION
@@ -312,7 +312,7 @@ class MissionService(
                         "MissionUpload",
                         "TX MISSION_ITEM seq=$seq cmd=${out.command().entry().name} frame=${out.frame().entry().name}"
                     )
-                    repo.send2(gcsSystemId, gcsComponentId, out)
+                    client.send2(gcsSystemId, gcsComponentId, out)
                     lastSentSeq = seq
 
                     if (seq == lastSeq) {
@@ -347,13 +347,13 @@ class MissionService(
             if (resendCountAttempts >= 6) return false
 
             Log.i("MissionUpload", "TX MissionCount retry -> sys=$targetSystemId comp=$targetComponentId count=${items.size}")
-            repo.send2(gcsSystemId, gcsComponentId, countMsg)
+            client.send2(gcsSystemId, gcsComponentId, countMsg)
         }
     }
 
     private fun waitForMissionAckFromAutopilot(timeoutMs: Long, cancel: AtomicBoolean?): MavlinkMessage<MissionAck>? {
         if (cancelled(cancel)) return null
-        val ack = repo.waitFor(MissionAck::class.java, timeoutMs) { m ->
+        val ack = client.waitFor(MissionAck::class.java, timeoutMs) { m ->
             // Sender sysid is the most reliable discriminator on ArduPilot links.
             m.originSystemId == targetSystemId
         }

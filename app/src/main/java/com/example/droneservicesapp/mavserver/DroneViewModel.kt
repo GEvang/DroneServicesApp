@@ -65,7 +65,7 @@ class DroneViewModel : ViewModel() {
     // Dependencies
     private val repo = MavlinkRepository()
     val mavlinkClient: MavlinkClient = repo
-    val missionService: MissionService by lazy { MissionService(repo) }
+    val missionService: MissionService by lazy { MissionService(mavlinkClient) }
 
     // LiveData
     val droneLocationLiveData: MutableLiveData<Location> by lazy {
