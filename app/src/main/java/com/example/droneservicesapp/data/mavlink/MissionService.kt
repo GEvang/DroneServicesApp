@@ -191,11 +191,13 @@ class MissionService(
      *  - Send MissionCount once at start (and possibly retries from watchdog).
      *  - Immediately respond to MissionRequestInt/MissionRequest with the requested item.
      *  - Complete on MissionAck (from targetSystemId).
+     *  - Call onProgress with (sentSeq, total, percent) after each item sent.
      */
     fun uploadMission(
         items: ArrayList<MissionItemInt>,
         timeoutMs: Long = 2000L,
-        cancel: AtomicBoolean? = null
+        cancel: AtomicBoolean? = null,
+        onProgress: ((sentSeq: Int, total: Int, percent: Int) -> Unit)? = null
     ): Boolean {
 
         if (items.isEmpty()) {
@@ -215,6 +217,8 @@ class MissionService(
 
         val resendCountAttempts = AtomicInteger(0)
         val resendLastItemAttempts = AtomicInteger(0)
+        
+        var lastPercent = -1
 
         val countMsg = MissionCount.builder()
             .targetSystem(targetSystemId)
@@ -263,6 +267,13 @@ class MissionService(
                                 "MissionUpload",
                                 "TX MISSION_ITEM_INT seq=$seq cmd=${out.command().entry().name} frame=${out.frame().entry().name}"
                             )
+                            
+                            val percent = (((seq + 1).toDouble() / items.size.toDouble()) * 100.0).toInt().coerceIn(0, 100)
+                            if (percent != lastPercent) {
+                                lastPercent = percent
+                                Log.i("MissionUpload", "Progress: seq=$seq/${items.size} ($percent%)")
+                                onProgress?.invoke(seq, items.size, percent)
+                            }
                         } else {
                             Log.e("MissionUpload", "Requested seq out of range: $seq size=${items.size}")
                         }
@@ -302,6 +313,13 @@ class MissionService(
                                 "MissionUpload",
                                 "TX MISSION_ITEM seq=$seq cmd=${out.command().entry().name} frame=${out.frame().entry().name}"
                             )
+                            
+                            val percent = (((seq + 1).toDouble() / items.size.toDouble()) * 100.0).toInt().coerceIn(0, 100)
+                            if (percent != lastPercent) {
+                                lastPercent = percent
+                                Log.i("MissionUpload", "Progress: seq=$seq/${items.size} ($percent%)")
+                                onProgress?.invoke(seq, items.size, percent)
+                            }
                         } else {
                             Log.e("MissionUpload", "Legacy requested seq out of range: $seq size=${items.size}")
                         }
@@ -333,6 +351,9 @@ class MissionService(
                         )
 
                         success.set(res == MavMissionResult.MAV_MISSION_ACCEPTED)
+                        if (success.get()) {
+                            onProgress?.invoke(items.size - 1, items.size, 100)
+                        }
                         latch.countDown()
                     }, { err ->
                         Log.e("MissionUpload", "MissionAck subscription error: ${err.message}", err)

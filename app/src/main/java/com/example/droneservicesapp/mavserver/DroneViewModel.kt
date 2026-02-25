@@ -107,6 +107,9 @@ class DroneViewModel : ViewModel() {
     val liquidLevel: MutableLiveData<Float> by lazy {
         MutableLiveData<Float>().default(0.0F)
     }
+    val uploadProgressPercent: MutableLiveData<Int> by lazy {
+        MutableLiveData<Int>().default(0)
+    }
 
     // Helpers
     private fun <T : Any?> MutableLiveData<T>.default(initialValue: T) =
@@ -164,6 +167,9 @@ class DroneViewModel : ViewModel() {
         currentUploadDisposable = null
         currentUploadCancelToken = null
 
+        // Reset progress
+        uploadProgressPercent.postValue(0)
+
         // Create a fresh cancel token for this run
         val token = AtomicBoolean(false)
         currentUploadCancelToken = token
@@ -171,13 +177,24 @@ class DroneViewModel : ViewModel() {
         // Start new upload
         val d =
             Single.fromCallable {
-                missionService.uploadMission(items, timeoutMs = UPLOAD_TIMEOUT_MS, cancel = token)
+                missionService.uploadMission(
+                    items,
+                    timeoutMs = UPLOAD_TIMEOUT_MS,
+                    cancel = token,
+                    onProgress = { sentSeq, total, percent ->
+                        uploadProgressPercent.postValue(percent)
+                    }
+                )
             }
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .doFinally {
                     // Only clear if this run is still the active one
                     if (currentUploadCancelToken === token) {
+                        // If cancelled, reset progress to 0
+                        if (token.get()) {
+                            uploadProgressPercent.postValue(0)
+                        }
                         currentUploadDisposable = null
                         currentUploadCancelToken = null
                     }
@@ -185,9 +202,15 @@ class DroneViewModel : ViewModel() {
                 .subscribe(
                     { ok ->
                         Log.i(TAG, "uploadMission result=$ok")
+                        if (ok) {
+                            uploadProgressPercent.postValue(100)
+                        } else {
+                            uploadProgressPercent.postValue(0)
+                        }
                     },
                     { err ->
                         Log.e(TAG, "uploadMission failed: ${err.message}", err)
+                        uploadProgressPercent.postValue(0)
                     }
                 )
 
