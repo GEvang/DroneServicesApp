@@ -28,6 +28,8 @@ class MavlinkRepository : MavlinkClient {
 
     private val running = AtomicBoolean(false)
 
+    private val lifecycleLock = Any()
+
     private val msgSubject: Subject<MavlinkMessage<*>> =
         PublishSubject.create<MavlinkMessage<*>>().toSerialized()
 
@@ -41,35 +43,66 @@ class MavlinkRepository : MavlinkClient {
         get() = _lastHeartbeatMs
 
     override fun start(config: MavlinkConfig) {
-        if (running.getAndSet(true)) return
+        synchronized(lifecycleLock) {
+            if (running.getAndSet(true)) return
 
-        transport = when (config.interfaceType) {
-            MavlinkConfig.InterfaceType.UDP -> UdpTransport(config.port)
-            else -> throw IllegalArgumentException("Not implemented yet: ${config.interfaceType}")
-        }.also { it.start() }
+            transport = when (config.interfaceType) {
+                MavlinkConfig.InterfaceType.UDP -> UdpTransport(config.port)
+                else -> throw IllegalArgumentException("Not implemented yet: ${config.interfaceType}")
+            }.also { it.start() }
 
-        val t = transport!!
-        mavCon = MavlinkConnection.create(t.input, t.output)
+            val t = transport!!
+            mavCon = MavlinkConnection.create(t.input, t.output)
 
-        startReader()
-        Log.i(TAG, "Started with $config")
+            startReader()
+            Log.i(TAG, "Started with $config")
+        }
     }
 
+
     override fun stop() {
-        running.set(false)
-        readerDisposable?.dispose()
-        readerDisposable = null
+        synchronized(lifecycleLock) {
+            if (!running.getAndSet(false)) return
 
-        transport?.stop()
-        transport = null
-        mavCon = null
+            readerDisposable?.dispose()
+            readerDisposable = null
 
-        Log.i(TAG, "Stopped")
+            transport?.stop()
+            transport = null
+            mavCon = null
+
+            Log.i(TAG, "Stopped")
+        }
     }
 
     override fun restart(config: MavlinkConfig) {
-        stop()
-        start(config)
+        synchronized(lifecycleLock) {
+            if (running.get()) {
+                if (running.getAndSet(false)) {
+                    readerDisposable?.dispose()
+                    readerDisposable = null
+
+                    transport?.stop()
+                    transport = null
+                    mavCon = null
+
+                    Log.i(TAG, "Stopped")
+                }
+            }
+
+            if (running.getAndSet(true)) return
+
+            transport = when (config.interfaceType) {
+                MavlinkConfig.InterfaceType.UDP -> UdpTransport(config.port)
+                else -> throw IllegalArgumentException("Not implemented yet: ${config.interfaceType}")
+            }.also { it.start() }
+
+            val t = transport!!
+            mavCon = MavlinkConnection.create(t.input, t.output)
+
+            startReader()
+            Log.i(TAG, "Started with $config")
+        }
     }
 
     @Synchronized
@@ -90,11 +123,11 @@ class MavlinkRepository : MavlinkClient {
                 }
                 if (!emitter.isDisposed) emitter.onComplete()
             } catch (e: Exception) {
-                // ✅ If we're stopping/disposed, ignore expected shutdown exceptions
-                if (emitter.isDisposed || !running.get()) return@create
-
-                // Otherwise it's a real error
-                emitter.onError(e)
+                // Only report error if we're still running and emitter is not disposed
+                if (running.get() && !emitter.isDisposed) {
+                    emitter.onError(e)
+                }
+                // Otherwise, silently complete (expected during shutdown)
             }
         }
             .subscribeOn(Schedulers.io())

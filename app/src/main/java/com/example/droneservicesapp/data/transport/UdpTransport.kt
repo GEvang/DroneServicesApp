@@ -95,8 +95,12 @@ class UdpTransport(
                 // 2) Pipe from MAVLink output -> send back to last sender
                 if (sndPIS.available() > 0 && remoteIP != null && remotePort > 0) {
                     val bytesRead = sndPIS.read(outBuffer)
-                    val outputPacket = DatagramPacket(outBuffer, bytesRead, remoteIP, remotePort)
-                    udpSocket.send(outputPacket)
+                    if (bytesRead <= 0) {
+                        // Stream closed or no data, skip sending
+                    } else {
+                        val outputPacket = DatagramPacket(outBuffer, bytesRead, remoteIP, remotePort)
+                        udpSocket.send(outputPacket)
+                    }
                 }
             } catch (e: SocketTimeoutException) {
                 // Timeout occurred - loop continues, allowing outgoing bytes to flush
