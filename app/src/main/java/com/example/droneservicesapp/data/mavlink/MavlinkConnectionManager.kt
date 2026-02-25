@@ -4,15 +4,8 @@ import android.util.Log
 import com.example.droneservicesapp.data.transport.DefaultMavTransportFactory
 import com.example.droneservicesapp.data.transport.MavTransport
 import com.example.droneservicesapp.data.transport.MavTransportFactory
-import io.dronefleet.mavlink.MavlinkConnection
 import io.dronefleet.mavlink.MavlinkMessage
-import io.dronefleet.mavlink.minimal.Heartbeat
 import io.reactivex.Observable
-import io.reactivex.disposables.Disposable
-import io.reactivex.schedulers.Schedulers
-import io.reactivex.subjects.PublishSubject
-import io.reactivex.subjects.Subject
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 
@@ -25,25 +18,14 @@ class MavlinkConnectionManager(
     }
 
     private var transport: MavTransport? = null
-    private var mavCon: MavlinkConnection? = null
-
-    private var readerDisposable: Disposable? = null
+    private var session: MavlinkSession? = null
 
     private val running = AtomicBoolean(false)
 
     private val lifecycleLock = Any()
 
-    private val msgSubject: Subject<MavlinkMessage<*>> =
-        PublishSubject.create<MavlinkMessage<*>>().toSerialized()
-
-    //private val msgSubject: Subject<MavlinkMessage<*>> =
-       // ReplaySubject.createWithSize<MavlinkMessage<*>>(256).toSerialized()
-
-    @Volatile
-    private var _lastHeartbeatMs: Long = 0L
-
     override val lastHeartbeatMs: Long
-        get() = _lastHeartbeatMs
+        get() = session?.lastHeartbeatMs ?: 0L
 
     override fun start(config: MavlinkConfig) {
         synchronized(lifecycleLock) {
@@ -52,9 +34,9 @@ class MavlinkConnectionManager(
             transport = transportFactory.create(config).also { it.start() }
 
             val t = transport!!
-            mavCon = MavlinkConnection.create(t.input, t.output)
+            session = MavlinkSession(t.input, t.output)
+            session?.start()
 
-            startReader()
             Log.i(TAG, "Started with $config")
         }
     }
@@ -64,12 +46,11 @@ class MavlinkConnectionManager(
         synchronized(lifecycleLock) {
             if (!running.getAndSet(false)) return
 
-            readerDisposable?.dispose()
-            readerDisposable = null
+            session?.stop()
+            session = null
 
             transport?.stop()
             transport = null
-            mavCon = null
 
             Log.i(TAG, "Stopped")
         }
@@ -79,12 +60,11 @@ class MavlinkConnectionManager(
         synchronized(lifecycleLock) {
             if (running.get()) {
                 if (running.getAndSet(false)) {
-                    readerDisposable?.dispose()
-                    readerDisposable = null
+                    session?.stop()
+                    session = null
 
                     transport?.stop()
                     transport = null
-                    mavCon = null
 
                     Log.i(TAG, "Stopped")
                 }
@@ -95,67 +75,25 @@ class MavlinkConnectionManager(
             transport = transportFactory.create(config).also { it.start() }
 
             val t = transport!!
-            mavCon = MavlinkConnection.create(t.input, t.output)
+            session = MavlinkSession(t.input, t.output)
+            session?.start()
 
-            startReader()
             Log.i(TAG, "Started with $config")
         }
     }
 
-    @Synchronized
     override fun send2(systemId: Int, componentId: Int, payload: Any) {
-        mavCon?.send2(systemId, componentId, payload)
+        session?.send2(systemId, componentId, payload)
     }
 
-    override fun messages(): Observable<MavlinkMessage<*>> = msgSubject.hide()
-
-    private fun startReader() {
-        val con = mavCon ?: return
-
-        readerDisposable = Observable.create<MavlinkMessage<*>> { emitter ->
-            try {
-                while (!emitter.isDisposed) {
-                    val msg = con.next() ?: break
-                    emitter.onNext(msg)
-                }
-                if (!emitter.isDisposed) emitter.onComplete()
-            } catch (e: Exception) {
-                // Only report error if we're still running and emitter is not disposed
-                if (running.get() && !emitter.isDisposed) {
-                    emitter.onError(e)
-                }
-                // Otherwise, silently complete (expected during shutdown)
-            }
-        }
-            .subscribeOn(Schedulers.io())
-            .subscribe(
-                { msg ->
-
-                    //Log.i("MavRx", "RX ${msg.payload.javaClass.simpleName}")
-
-                    msgSubject.onNext(msg)
-                    if (msg.payload is Heartbeat) {
-                        _lastHeartbeatMs = System.currentTimeMillis()
-                    }
-                },
-                { err ->
-                    Log.e(TAG, "Reader error: ${err.message}", err)
-                }
-            )
-    }
+    override fun messages(): Observable<MavlinkMessage<*>> =
+        session?.messages() ?: Observable.empty()
 
     override fun <T : Any> waitFor(
         clazz: Class<T>,
         timeoutMs: Long,
         filter: (MavlinkMessage<*>) -> Boolean
-    ): MavlinkMessage<T>? {
-        return runCatching {
-            @Suppress("UNCHECKED_CAST")
-            messages()
-                .filter { clazz.isInstance(it.payload) && filter(it) }
-                .timeout(timeoutMs, TimeUnit.MILLISECONDS)
-                .blockingFirst() as MavlinkMessage<T>
-        }.getOrNull()
-    }
+    ): MavlinkMessage<T>? =
+        session?.waitFor(clazz, timeoutMs, filter)
 
 }
