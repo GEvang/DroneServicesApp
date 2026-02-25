@@ -1,6 +1,8 @@
 package com.example.droneservicesapp.data.mavlink
 
 import android.util.Log
+import com.example.droneservicesapp.core.util.Clock
+import com.example.droneservicesapp.core.util.SystemClock
 import io.dronefleet.mavlink.MavlinkConnection
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.minimal.Heartbeat
@@ -20,7 +22,8 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class MavlinkSession(
     input: InputStream,
-    output: OutputStream
+    output: OutputStream,
+    private val clock: Clock = SystemClock
 ) {
     private companion object {
         private const val TAG = "MavlinkSession"
@@ -110,7 +113,7 @@ class MavlinkSession(
                 { msg ->
                     msgSubject.onNext(msg)
                     if (msg.payload is Heartbeat) {
-                        _lastHeartbeatMs = System.currentTimeMillis()
+                        _lastHeartbeatMs = clock.nowMs()
                     }
                 },
                 { err ->
