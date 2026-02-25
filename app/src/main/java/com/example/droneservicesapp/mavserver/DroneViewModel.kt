@@ -4,6 +4,7 @@ import android.location.Location
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.example.droneservicesapp.data.mavlink.MavlinkClient
 import com.example.droneservicesapp.data.mavlink.MavlinkConfig
 import com.example.droneservicesapp.data.mavlink.MavlinkRepository
 import com.example.droneservicesapp.data.mavlink.MissionService
@@ -62,8 +63,9 @@ class DroneViewModel : ViewModel() {
     fun getTargetComponentId(): Int = autopilotCompId
 
     // Dependencies
-    val mavlinkRepository: MavlinkRepository by lazy { MavlinkRepository() }
-    val missionService: MissionService by lazy { MissionService(mavlinkRepository) }
+    private val repo = MavlinkRepository()
+    val mavlinkClient: MavlinkClient = repo
+    val missionService: MissionService by lazy { MissionService(repo) }
 
     // LiveData
     val droneLocationLiveData: MutableLiveData<Location> by lazy {
@@ -112,7 +114,7 @@ class DroneViewModel : ViewModel() {
 
     // Public API
     fun startMavlink(config: MavlinkConfig) {
-        mavlinkRepository.restart(config)
+        mavlinkClient.restart(config)
         attachRepositoryBridgeOnce()
     }
 
@@ -195,7 +197,7 @@ class DroneViewModel : ViewModel() {
                 .subscribeOn(Schedulers.io())
                 .subscribe {
                     val connected =
-                        (System.currentTimeMillis() - mavlinkRepository.lastHeartbeatMs) < HEARTBEAT_STALE_MS
+                        (System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs) < HEARTBEAT_STALE_MS
                     conStateLiveData.postValue(connected)
 
                     val telemetryAlive =
@@ -210,7 +212,7 @@ class DroneViewModel : ViewModel() {
 
         // 2) Message stream -> update LiveData (temporary bridge)
         repoDisposables.add(
-            mavlinkRepository.messages()
+            mavlinkClient.messages()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(
@@ -316,6 +318,6 @@ class DroneViewModel : ViewModel() {
         currentUploadCancelToken = null
 
         repoDisposables.clear()
-        mavlinkRepository.stop()
+        mavlinkClient.stop()
     }
 }

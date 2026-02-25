@@ -251,7 +251,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        droneViewModel.mavlinkRepository.stop()
+        droneViewModel.mavlinkClient.stop()
     }
 
     override fun onDestroy() {

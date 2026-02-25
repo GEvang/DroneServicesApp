@@ -15,7 +15,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 
-class MavlinkRepository {
+class MavlinkRepository : MavlinkClient {
 
     private companion object {
         private const val TAG = "MavlinkRepository"
@@ -35,10 +35,12 @@ class MavlinkRepository {
        // ReplaySubject.createWithSize<MavlinkMessage<*>>(256).toSerialized()
 
     @Volatile
-    var lastHeartbeatMs: Long = 0L
-        private set
+    private var _lastHeartbeatMs: Long = 0L
 
-    fun start(config: MavlinkConfig) {
+    override val lastHeartbeatMs: Long
+        get() = _lastHeartbeatMs
+
+    override fun start(config: MavlinkConfig) {
         if (running.getAndSet(true)) return
 
         transport = when (config.interfaceType) {
@@ -53,7 +55,7 @@ class MavlinkRepository {
         Log.i(TAG, "Started with $config")
     }
 
-    fun stop() {
+    override fun stop() {
         running.set(false)
         readerDisposable?.dispose()
         readerDisposable = null
@@ -65,17 +67,17 @@ class MavlinkRepository {
         Log.i(TAG, "Stopped")
     }
 
-    fun restart(config: MavlinkConfig) {
+    override fun restart(config: MavlinkConfig) {
         stop()
         start(config)
     }
 
     @Synchronized
-    fun send2(systemId: Int, componentId: Int, payload: Any) {
+    override fun send2(systemId: Int, componentId: Int, payload: Any) {
         mavCon?.send2(systemId, componentId, payload)
     }
 
-    fun messages(): Observable<MavlinkMessage<*>> = msgSubject.hide()
+    override fun messages(): Observable<MavlinkMessage<*>> = msgSubject.hide()
 
     private fun startReader() {
         val con = mavCon ?: return
@@ -91,7 +93,7 @@ class MavlinkRepository {
                 // ✅ If we're stopping/disposed, ignore expected shutdown exceptions
                 if (emitter.isDisposed || !running.get()) return@create
 
-                // Otherwise it’s a real error
+                // Otherwise it's a real error
                 emitter.onError(e)
             }
         }
@@ -103,7 +105,7 @@ class MavlinkRepository {
 
                     msgSubject.onNext(msg)
                     if (msg.payload is Heartbeat) {
-                        lastHeartbeatMs = System.currentTimeMillis()
+                        _lastHeartbeatMs = System.currentTimeMillis()
                     }
                 },
                 { err ->
@@ -112,10 +114,10 @@ class MavlinkRepository {
             )
     }
 
-    fun <T : Any> waitFor(
+    override fun <T : Any> waitFor(
         clazz: Class<T>,
         timeoutMs: Long,
-        filter: (MavlinkMessage<*>) -> Boolean = { true }
+        filter: (MavlinkMessage<*>) -> Boolean
     ): MavlinkMessage<T>? {
         return runCatching {
             @Suppress("UNCHECKED_CAST")
