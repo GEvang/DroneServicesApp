@@ -217,7 +217,8 @@ class MissionService(
 
         val resendCountAttempts = AtomicInteger(0)
         val resendLastItemAttempts = AtomicInteger(0)
-        
+        var requestsStarted = AtomicBoolean(false)
+
         var lastPercent = -1
 
         val countMsg = MissionCount.builder()
@@ -252,6 +253,7 @@ class MissionService(
                     .subscribe({ req ->
                         if (cancelled(cancel) || done.get()) return@subscribe
 
+                        requestsStarted.set(true)
                         val seq = req.payload.seq()
                         lastProgressMs.set(System.currentTimeMillis())
                         Log.i(
@@ -298,6 +300,7 @@ class MissionService(
                     .subscribe({ req ->
                         if (cancelled(cancel) || done.get()) return@subscribe
 
+                        requestsStarted.set(true)
                         val seq = req.payload.seq()
                         lastProgressMs.set(System.currentTimeMillis())
                         Log.w(
@@ -373,7 +376,13 @@ class MissionService(
 
                         val sent = lastSentSeq.get()
 
-                        // Case 1: We haven't finished sending all items yet -> resend MissionCount
+                        // If requestsStarted, do NOT resend MissionCount (no-op)
+                        if (requestsStarted.get()) {
+                            Log.d("MissionUpload", "Watchdog: requests already started, skipping MissionCount resend")
+                            return@subscribe
+                        }
+
+                        // Case 1: We haven't finished sending all items yet -> resend MissionCount (only if requests haven't started)
                         if (sent < lastSeq) {
                             val attempts = resendCountAttempts.incrementAndGet()
                             if (attempts <= 6) {
