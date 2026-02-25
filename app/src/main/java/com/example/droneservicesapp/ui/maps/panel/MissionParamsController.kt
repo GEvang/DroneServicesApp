@@ -151,7 +151,7 @@ class MissionParamsController(
                 targetComponentId = droneViewModel.getTargetComponentId()
             )
 
-            droneViewModel.uploadMissionNew(missionItems)
+            droneViewModel.uploadMissionNew(missionItems, activityViewModel)
             setWindowPreferences()
         }
 

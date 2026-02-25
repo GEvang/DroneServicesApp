@@ -32,6 +32,7 @@ import com.example.droneservicesapp.ui.maps.panel.MissionParamsController
 import com.example.droneservicesapp.ui.maps.panel.MissionSaveController
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.bottomnavigation.BottomNavigationView
+import com.google.android.material.snackbar.Snackbar
 import com.google.maps.android.SphericalUtil
 import io.dronefleet.mavlink.common.MavCmd
 import org.osmdroid.tileprovider.cachemanager.CacheManager
@@ -104,6 +105,7 @@ class MissionMapFragment : Fragment() {
         bindUiButtons()
         observeDroneViewModel()
         observeMapState()
+        observeUploadFeedback()
         observeMissionMapViewModel()
 
         mapViewModel.updateFromMapState(activityViewModel.mapState.value ?: MainActivityViewModel.MapState.Idle)
@@ -339,9 +341,31 @@ class MissionMapFragment : Fragment() {
                 is MainActivityViewModel.MapAction.UploadMissionSuccess -> {
                     activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
                 }
+                is MainActivityViewModel.MapAction.UploadMissionFailed -> {
+                    Toast.makeText(context, action.reason, Toast.LENGTH_LONG).show()
+                    activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
+                }
             }
         }
     }
+
+    private fun observeUploadFeedback() {
+        activityViewModel.mapAction.observe(viewLifecycleOwner) { event ->
+            val action = event.getContentIfNotHandled() ?: return@observe
+
+            when (action) {
+                is MainActivityViewModel.MapAction.UploadMissionSuccess -> {
+                    Snackbar.make(requireView(), "Upload complete", Snackbar.LENGTH_LONG).show()
+                }
+                is MainActivityViewModel.MapAction.UploadMissionFailed -> {
+                    Snackbar.make(requireView(), "Upload failed: ${action.reason}", Snackbar.LENGTH_LONG).show()
+                }
+                else -> Unit
+            }
+        }
+    }
+
+
 
     private fun observeMissionMapViewModel() {
         mapViewModel.uiState.observe(viewLifecycleOwner) { state ->

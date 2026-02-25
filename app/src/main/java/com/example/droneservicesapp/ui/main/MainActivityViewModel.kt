@@ -24,6 +24,7 @@ class MainActivityViewModel : ViewModel() {
         object ClearKeepDrawing : MapAction()
         object ResetToIdle : MapAction()
         object UploadMissionSuccess : MapAction()
+        data class UploadMissionFailed(val reason: String) : MapAction()
     }
 
     val mapState: MutableLiveData<MapState> by lazy {

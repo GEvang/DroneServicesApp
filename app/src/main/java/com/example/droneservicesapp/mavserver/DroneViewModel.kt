@@ -4,10 +4,12 @@ import android.location.Location
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import com.example.droneservicesapp.core.util.Event
 import com.example.droneservicesapp.data.mavlink.MavlinkClient
 import com.example.droneservicesapp.data.mavlink.MavlinkConfig
 import com.example.droneservicesapp.data.mavlink.MavlinkConnectionManager
 import com.example.droneservicesapp.data.mavlink.MissionService
+import com.example.droneservicesapp.ui.main.MainActivityViewModel
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.BatteryStatus
 import io.dronefleet.mavlink.common.DistanceSensor
@@ -160,7 +162,7 @@ class DroneViewModel : ViewModel() {
      * - If an upload is running, cancel it immediately.
      * - Start a new upload with the new items.
      */
-    fun uploadMissionNew(items: ArrayList<MissionItemInt>) {
+    fun uploadMissionNew(items: ArrayList<MissionItemInt>, activityVm: MainActivityViewModel) {
         // Cancel any in-flight upload (if exists)
         currentUploadCancelToken?.set(true)
         currentUploadDisposable?.dispose()
@@ -204,13 +206,16 @@ class DroneViewModel : ViewModel() {
                         Log.i(TAG, "uploadMission result=$ok")
                         if (ok) {
                             uploadProgressPercent.postValue(100)
+                            activityVm.mapAction.postValue(Event(MainActivityViewModel.MapAction.UploadMissionSuccess))
                         } else {
                             uploadProgressPercent.postValue(0)
+                            activityVm.mapAction.postValue(Event(MainActivityViewModel.MapAction.UploadMissionFailed("Upload rejected or timed out")))
                         }
                     },
                     { err ->
                         Log.e(TAG, "uploadMission failed: ${err.message}", err)
                         uploadProgressPercent.postValue(0)
+                        activityVm.mapAction.postValue(Event(MainActivityViewModel.MapAction.UploadMissionFailed(err.message ?: "Upload error")))
                     }
                 )
 
