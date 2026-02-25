@@ -14,7 +14,13 @@ import io.dronefleet.mavlink.common.MissionRequest
 import io.dronefleet.mavlink.common.MissionRequestInt
 import io.dronefleet.mavlink.common.MissionRequestList
 import io.dronefleet.mavlink.util.EnumValue
+import io.reactivex.Observable
+import io.reactivex.disposables.CompositeDisposable
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * Robust mission protocol implementation.
@@ -178,8 +184,13 @@ class MissionService(
     }
 
     /**
-     * Upload mission.
+     * Upload mission (event-driven).
      * If [cancel] becomes true, upload will stop and return false.
+     *
+     * Key behavior:
+     *  - Send MissionCount once at start (and possibly retries from watchdog).
+     *  - Immediately respond to MissionRequestInt/MissionRequest with the requested item.
+     *  - Complete on MissionAck (from targetSystemId).
      */
     fun uploadMission(
         items: ArrayList<MissionItemInt>,
@@ -193,7 +204,17 @@ class MissionService(
         }
 
         val lastSeq = items.size - 1
-        var lastSentSeq: Int? = null
+
+        val done = AtomicBoolean(false)
+        val success = AtomicBoolean(false)
+        val latch = CountDownLatch(1)
+        val disposables = CompositeDisposable()
+
+        val lastProgressMs = AtomicLong(System.currentTimeMillis())
+        val lastSentSeq = AtomicInteger(-1)
+
+        val resendCountAttempts = AtomicInteger(0)
+        val resendLastItemAttempts = AtomicInteger(0)
 
         val countMsg = MissionCount.builder()
             .targetSystem(targetSystemId)
@@ -204,157 +225,208 @@ class MissionService(
 
         Log.i("MissionUpload", "TX MissionCount count=${items.size}")
         client.send2(gcsSystemId, gcsComponentId, countMsg)
+        lastProgressMs.set(System.currentTimeMillis())
 
-        var resendCountAttempts = 0
-        var ackWaitAttempts = 0
+        val startMs = System.currentTimeMillis()
+        // More forgiving than the previous 15s/500ms heuristic.
+        val totalTimeoutMs = maxOf(45_000L, items.size * 750L)
 
-        while (true) {
-            if (cancelled(cancel)) {
-                Log.w("MissionUpload", "Upload cancelled before wait loop")
-                return false
-            }
-
-            // Once last item is sent, only wait for ACK.
-            if (lastSentSeq == lastSeq) {
-                if (cancelled(cancel)) {
-                    Log.w("MissionUpload", "Upload cancelled after last item")
-                    return false
-                }
-
-                val ack = waitForMissionAckFromAutopilot(timeoutMs, cancel)
-                if (ack != null) {
-                    val res = ack.payload.type().entry()
-                    Log.i(
-                        "MissionUpload",
-                        "RX MISSION_ACK from sys=${ack.originSystemId} comp=${ack.originComponentId} type=${ack.payload.type()}"
-                    )
-                    return res == MavMissionResult.MAV_MISSION_ACCEPTED
-                }
-
-                if (cancelled(cancel)) {
-                    Log.w("MissionUpload", "Upload cancelled while waiting for ACK")
-                    return false
-                }
-
-                ackWaitAttempts++
-                Log.w(
-                    "MissionUpload",
-                    "TIMEOUT after last item sent; waiting for MissionAck (attempt=$ackWaitAttempts/12)"
-                )
-                if (ackWaitAttempts >= 12) {
-                    Log.e("MissionUpload", "Giving up waiting for MissionAck after sending last item")
-                    return false
-                }
-                continue
-            }
-
-            // 1) MissionRequestInt
-            if (cancelled(cancel)) return false
-            val reqInt = client.waitFor(MissionRequestInt::class.java, timeoutMs) { m ->
-                val p = m.payload as MissionRequestInt
-                isTargetedToThisGcs(p.targetSystem(), p.targetComponent()) &&
-                        p.missionType().entry() == MavMissionType.MAV_MISSION_TYPE_MISSION
-            }
-
-            if (cancelled(cancel)) {
-                Log.w("MissionUpload", "Upload cancelled after waiting for MissionRequestInt")
-                return false
-            }
-
-            if (reqInt != null) {
-                val seq = reqInt.payload.seq()
-                Log.i("MissionUpload", "RX MISSION_REQUEST_INT seq=$seq from sys=${reqInt.originSystemId} comp=${reqInt.originComponentId}")
-
-                if (seq in items.indices) {
-                    val out = itemWithTargetsAndSeq(items[seq], seq)
-                    Log.i(
-                        "MissionUpload",
-                        "TX MISSION_ITEM_INT seq=$seq cmd=${out.command().entry().name} frame=${out.frame().entry().name}"
-                    )
-                    client.send2(gcsSystemId, gcsComponentId, out)
-                    lastSentSeq = seq
-
-                    if (seq == lastSeq) {
-                        val ack = waitForMissionAckFromAutopilot(timeoutMs, cancel)
-                        if (ack != null) {
-                            val res = ack.payload.type().entry()
-                            Log.i("MissionUpload", "RX MISSION_ACK type=${ack.payload.type()}")
-                            return res == MavMissionResult.MAV_MISSION_ACCEPTED
-                        }
-                        Log.w("MissionUpload", "No immediate MISSION_ACK after last item; will continue waiting")
+        try {
+            // ---- MissionRequestInt ----
+            disposables.add(
+                client.messages()
+                    .filter { it.payload is MissionRequestInt }
+                    .map {
+                        @Suppress("UNCHECKED_CAST")
+                        it as MavlinkMessage<MissionRequestInt>
                     }
-                } else {
-                    Log.e("MissionUpload", "Requested seq out of range: $seq size=${items.size}")
-                }
-                continue
-            }
-
-            // 2) Legacy MissionRequest
-            if (cancelled(cancel)) return false
-            val reqLegacy = client.waitFor(MissionRequest::class.java, timeoutMs) { m ->
-                val p = m.payload as MissionRequest
-                isTargetedToThisGcs(p.targetSystem(), p.targetComponent()) &&
-                        p.missionType().entry() == MavMissionType.MAV_MISSION_TYPE_MISSION
-            }
-
-            if (cancelled(cancel)) {
-                Log.w("MissionUpload", "Upload cancelled after waiting for MissionRequest")
-                return false
-            }
-
-            if (reqLegacy != null) {
-                val seq = reqLegacy.payload.seq()
-                Log.w("MissionUpload", "RX MISSION_REQUEST seq=$seq from sys=${reqLegacy.originSystemId} comp=${reqLegacy.originComponentId}")
-
-                if (seq in items.indices) {
-                    val out = itemIntToItemWithTargetsAndSeq(items[seq], seq)
-                    Log.i(
-                        "MissionUpload",
-                        "TX MISSION_ITEM seq=$seq cmd=${out.command().entry().name} frame=${out.frame().entry().name}"
-                    )
-                    client.send2(gcsSystemId, gcsComponentId, out)
-                    lastSentSeq = seq
-
-                    if (seq == lastSeq) {
-                        val ack = waitForMissionAckFromAutopilot(timeoutMs, cancel)
-                        if (ack != null) {
-                            val res = ack.payload.type().entry()
-                            Log.i("MissionUpload", "RX MISSION_ACK type=${ack.payload.type()}")
-                            return res == MavMissionResult.MAV_MISSION_ACCEPTED
-                        }
-                        Log.w("MissionUpload", "No immediate MISSION_ACK after last item; will continue waiting")
+                    .filter { req ->
+                        val p = req.payload
+                        isTargetedToThisGcs(p.targetSystem(), p.targetComponent()) &&
+                                p.missionType().entry() == MavMissionType.MAV_MISSION_TYPE_MISSION
                     }
-                } else {
-                    Log.e("MissionUpload", "Legacy requested seq out of range: $seq size=${items.size}")
+                    .subscribe({ req ->
+                        if (cancelled(cancel) || done.get()) return@subscribe
+
+                        val seq = req.payload.seq()
+                        lastProgressMs.set(System.currentTimeMillis())
+                        Log.i(
+                            "MissionUpload",
+                            "RX MISSION_REQUEST_INT seq=$seq from sys=${req.originSystemId} comp=${req.originComponentId}"
+                        )
+
+                        if (seq in items.indices) {
+                            val out = itemWithTargetsAndSeq(items[seq], seq)
+                            client.send2(gcsSystemId, gcsComponentId, out)
+                            lastSentSeq.set(seq)
+                            Log.i(
+                                "MissionUpload",
+                                "TX MISSION_ITEM_INT seq=$seq cmd=${out.command().entry().name} frame=${out.frame().entry().name}"
+                            )
+                        } else {
+                            Log.e("MissionUpload", "Requested seq out of range: $seq size=${items.size}")
+                        }
+                    }, { err ->
+                        Log.e("MissionUpload", "MissionRequestInt subscription error: ${err.message}", err)
+                    })
+            )
+
+            // ---- Legacy MissionRequest ----
+            disposables.add(
+                client.messages()
+                    .filter { it.payload is MissionRequest }
+                    .map {
+                        @Suppress("UNCHECKED_CAST")
+                        it as MavlinkMessage<MissionRequest>
+                    }
+                    .filter { req ->
+                        val p = req.payload
+                        isTargetedToThisGcs(p.targetSystem(), p.targetComponent()) &&
+                                p.missionType().entry() == MavMissionType.MAV_MISSION_TYPE_MISSION
+                    }
+                    .subscribe({ req ->
+                        if (cancelled(cancel) || done.get()) return@subscribe
+
+                        val seq = req.payload.seq()
+                        lastProgressMs.set(System.currentTimeMillis())
+                        Log.w(
+                            "MissionUpload",
+                            "RX MISSION_REQUEST seq=$seq from sys=${req.originSystemId} comp=${req.originComponentId}"
+                        )
+
+                        if (seq in items.indices) {
+                            val out = itemIntToItemWithTargetsAndSeq(items[seq], seq)
+                            client.send2(gcsSystemId, gcsComponentId, out)
+                            lastSentSeq.set(seq)
+                            Log.i(
+                                "MissionUpload",
+                                "TX MISSION_ITEM seq=$seq cmd=${out.command().entry().name} frame=${out.frame().entry().name}"
+                            )
+                        } else {
+                            Log.e("MissionUpload", "Legacy requested seq out of range: $seq size=${items.size}")
+                        }
+                    }, { err ->
+                        Log.e("MissionUpload", "MissionRequest subscription error: ${err.message}", err)
+                    })
+            )
+
+            // ---- MissionAck completes upload ----
+            disposables.add(
+                client.messages()
+                    .filter { it.payload is MissionAck }
+                    .map {
+                        @Suppress("UNCHECKED_CAST")
+                        it as MavlinkMessage<MissionAck>
+                    }
+                    .filter { ack ->
+                        // Sender sysid is the most reliable discriminator on ArduPilot links.
+                        ack.originSystemId == targetSystemId
+                    }
+                    .subscribe({ ack ->
+                        if (done.getAndSet(true)) return@subscribe
+                        lastProgressMs.set(System.currentTimeMillis())
+
+                        val res = ack.payload.type().entry()
+                        Log.i(
+                            "MissionUpload",
+                            "RX MISSION_ACK type=${ack.payload.type()} from sys=${ack.originSystemId} comp=${ack.originComponentId}"
+                        )
+
+                        success.set(res == MavMissionResult.MAV_MISSION_ACCEPTED)
+                        latch.countDown()
+                    }, { err ->
+                        Log.e("MissionUpload", "MissionAck subscription error: ${err.message}", err)
+                    })
+            )
+
+            // ---- Watchdog ----
+            // If the autopilot isn't requesting (or ACK is delayed), we gently retry.
+            disposables.add(
+                Observable.interval(timeoutMs, timeoutMs, TimeUnit.MILLISECONDS)
+                    .subscribe({
+                        if (done.get() || cancelled(cancel)) return@subscribe
+
+                        val now = System.currentTimeMillis()
+                        val stalled = (now - lastProgressMs.get()) >= timeoutMs
+                        if (!stalled) return@subscribe
+
+                        val sent = lastSentSeq.get()
+
+                        // Case 1: We haven't finished sending all items yet -> resend MissionCount
+                        if (sent < lastSeq) {
+                            val attempts = resendCountAttempts.incrementAndGet()
+                            if (attempts <= 6) {
+                                Log.w(
+                                    "MissionUpload",
+                                    "Watchdog: stalled before completion, resending MissionCount (attempt=$attempts/6)"
+                                )
+                                client.send2(gcsSystemId, gcsComponentId, countMsg)
+                                Log.i("MissionUpload", "TX MissionCount count=${items.size} (watchdog resend)")
+                                lastProgressMs.set(now)
+                            } else {
+                                Log.e("MissionUpload", "Watchdog: too many MissionCount resends, failing upload")
+                                if (!done.getAndSet(true)) {
+                                    success.set(false)
+                                    latch.countDown()
+                                }
+                            }
+                            return@subscribe
+                        }
+
+                        // Case 2: Last item sent, but ACK missing -> resend last item a few times
+                        val attempts = resendLastItemAttempts.incrementAndGet()
+                        if (attempts <= 10) {
+                            val seq = lastSeq
+                            val out = itemWithTargetsAndSeq(items[seq], seq)
+                            Log.w(
+                                "MissionUpload",
+                                "Watchdog: stalled waiting for ACK, resending last item seq=$seq (attempt=$attempts/10)"
+                            )
+                            client.send2(gcsSystemId, gcsComponentId, out)
+                            lastProgressMs.set(now)
+                        } else {
+                            Log.e("MissionUpload", "Watchdog: no ACK after resending last item; failing upload")
+                            if (!done.getAndSet(true)) {
+                                success.set(false)
+                                latch.countDown()
+                            }
+                        }
+                    }, { err ->
+                        Log.e("MissionUpload", "Watchdog error: ${err.message}", err)
+                    })
+            )
+
+            // ---- Wait loop (cancel-friendly) ----
+            while (!done.get()) {
+                if (cancelled(cancel)) {
+                    Log.w("MissionUpload", "Upload cancelled by token")
+                    done.set(true)
+                    success.set(false)
+                    break
                 }
-                continue
+
+                latch.await(250, TimeUnit.MILLISECONDS)
+
+                if (System.currentTimeMillis() - startMs > totalTimeoutMs) {
+                    Log.e("MissionUpload", "Total timeout exceeded (${totalTimeoutMs}ms); failing upload")
+                    done.set(true)
+                    success.set(false)
+                    break
+                }
             }
-
-            // 3) Try ACK anyway
-            if (cancelled(cancel)) return false
-            val ack = waitForMissionAckFromAutopilot(timeoutMs, cancel)
-            if (ack != null) {
-                val res = ack.payload.type().entry()
-                Log.i("MissionUpload", "RX MISSION_ACK type=${ack.payload.type()}")
-                return res == MavMissionResult.MAV_MISSION_ACCEPTED
-            }
-
-            if (cancelled(cancel)) return false
-
-            // 4) Timeout before last item => resend count (limited)
-            resendCountAttempts++
-            Log.e("MissionUpload", "TIMEOUT waiting for request/ack before last item (attempt=$resendCountAttempts/6)")
-            if (resendCountAttempts >= 6) return false
-
-            Log.i("MissionUpload", "TX MissionCount retry -> sys=$targetSystemId comp=$targetComponentId count=${items.size}")
-            client.send2(gcsSystemId, gcsComponentId, countMsg)
+        } finally {
+            disposables.clear()
         }
+
+        return success.get()
     }
 
-    private fun waitForMissionAckFromAutopilot(timeoutMs: Long, cancel: AtomicBoolean?): MavlinkMessage<MissionAck>? {
+    private fun waitForMissionAckFromAutopilot(
+        timeoutMs: Long,
+        cancel: AtomicBoolean?
+    ): MavlinkMessage<MissionAck>? {
         if (cancelled(cancel)) return null
         val ack = client.waitFor(MissionAck::class.java, timeoutMs) { m ->
-            // Sender sysid is the most reliable discriminator on ArduPilot links.
             m.originSystemId == targetSystemId
         }
         if (cancelled(cancel)) return null
