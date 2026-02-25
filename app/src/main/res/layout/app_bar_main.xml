@@ -107,6 +107,17 @@
                     android:textSize="13sp"
                     android:fontFamily="@font/inter"
                     android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/mission_upload_progress_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:visibility="gone"
+                    android:text="Uploading 0%"
+                    android:textColor="@color/accent_gold"
+                    android:textSize="13sp"
+                    android:fontFamily="@font/inter" />
             </androidx.appcompat.widget.LinearLayoutCompat>
 
         </androidx.appcompat.widget.Toolbar>

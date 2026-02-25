@@ -222,6 +222,24 @@ class MainActivity : AppCompatActivity() {
             binding.appBarMain.droneArmText.findViewById<TextView>(R.id.drone_arm_text).text =
                 getString(resId)
         }
+
+        droneViewModel.uploadProgressPercent.observe(this) { percent ->
+            val toolbar = binding.appBarMain.customToolbar
+            val uploadTxt = toolbar.findViewById<TextView>(R.id.mission_upload_progress_text)
+            
+            when {
+                percent in 1..99 -> {
+                    uploadTxt.visibility = View.VISIBLE
+                    uploadTxt.text = "Uploading ${percent}%"
+                }
+                percent >= 100 -> {
+                    uploadTxt.visibility = View.GONE
+                }
+                else -> {
+                    uploadTxt.visibility = View.GONE
+                }
+            }
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu): Boolean {
