@@ -1,8 +1,9 @@
 package com.example.droneservicesapp.data.mavlink
 
 import android.util.Log
+import com.example.droneservicesapp.data.transport.DefaultMavTransportFactory
 import com.example.droneservicesapp.data.transport.MavTransport
-import com.example.droneservicesapp.data.transport.UdpTransport
+import com.example.droneservicesapp.data.transport.MavTransportFactory
 import io.dronefleet.mavlink.MavlinkConnection
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.minimal.Heartbeat
@@ -15,7 +16,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 
-class MavlinkConnectionManager : MavlinkClient {
+class MavlinkConnectionManager(
+    private val transportFactory: MavTransportFactory = DefaultMavTransportFactory()
+) : MavlinkClient {
 
     private companion object {
         private const val TAG = "MavlinkConnectionManager"
@@ -46,10 +49,7 @@ class MavlinkConnectionManager : MavlinkClient {
         synchronized(lifecycleLock) {
             if (running.getAndSet(true)) return
 
-            transport = when (config.interfaceType) {
-                MavlinkConfig.InterfaceType.UDP -> UdpTransport(config.port)
-                else -> throw IllegalArgumentException("Not implemented yet: ${config.interfaceType}")
-            }.also { it.start() }
+            transport = transportFactory.create(config).also { it.start() }
 
             val t = transport!!
             mavCon = MavlinkConnection.create(t.input, t.output)
@@ -92,10 +92,7 @@ class MavlinkConnectionManager : MavlinkClient {
 
             if (running.getAndSet(true)) return
 
-            transport = when (config.interfaceType) {
-                MavlinkConfig.InterfaceType.UDP -> UdpTransport(config.port)
-                else -> throw IllegalArgumentException("Not implemented yet: ${config.interfaceType}")
-            }.also { it.start() }
+            transport = transportFactory.create(config).also { it.start() }
 
             val t = transport!!
             mavCon = MavlinkConnection.create(t.input, t.output)
