@@ -43,6 +43,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var sharedPreferences: SharedPreferences
     private lateinit var bottomNavigationView: BottomNavigationView
+    
+    private var isForeground = false
 
     private fun restartMavlinkFromPrefs() {
         val ifaceStr = sharedPreferences.getString(
@@ -59,11 +61,13 @@ class MainActivity : AppCompatActivity() {
             .getOrDefault(MavlinkConfig.InterfaceType.UDP)
 
         val config = MavlinkConfig(interfaceType = iface, port = port)
-        droneViewModel.startMavlink(config)
+        droneViewModel.onAppForegrounded(config)
     }
 
     private val prefListener =
         SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (!isForeground) return@OnSharedPreferenceChangeListener
+            
             if (
                 key == getString(R.string.mavlink_lan_port_pref) ||
                 key == getString(R.string.mavlink_interface_pref)
@@ -251,11 +255,6 @@ class MainActivity : AppCompatActivity() {
 
     override fun onPause() {
         super.onPause()
-        droneViewModel.mavlinkClient.stop()
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-        sharedPreferences.unregisterOnSharedPreferenceChangeListener(prefListener)
+        droneViewModel.onAppBackgrounded()
     }
 }

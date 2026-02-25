@@ -118,6 +118,15 @@ class DroneViewModel : ViewModel() {
         attachRepositoryBridgeOnce()
     }
 
+    fun onAppForegrounded(config: MavlinkConfig) {
+        mavlinkClient.restart(config)
+        attachRepositoryBridgeOnce()
+    }
+
+    fun onAppBackgrounded() {
+        mavlinkClient.stop()
+    }
+
     fun downloadMissionNew() {
         val now = System.currentTimeMillis()
 
