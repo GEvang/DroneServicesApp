@@ -6,7 +6,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.data.mavlink.MavlinkClient
 import com.example.droneservicesapp.data.mavlink.MavlinkConfig
-import com.example.droneservicesapp.data.mavlink.MavlinkRepository
+import com.example.droneservicesapp.data.mavlink.MavlinkConnectionManager
 import com.example.droneservicesapp.data.mavlink.MissionService
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.BatteryStatus
@@ -63,7 +63,7 @@ class DroneViewModel : ViewModel() {
     fun getTargetComponentId(): Int = autopilotCompId
 
     // Dependencies
-    private val repo = MavlinkRepository()
+    private val repo = MavlinkConnectionManager()
     val mavlinkClient: MavlinkClient = repo
     val missionService: MissionService by lazy { MissionService(mavlinkClient) }
 

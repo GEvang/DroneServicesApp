@@ -2,13 +2,13 @@ package com.example.droneservicesapp.app.di
 
 import android.util.Log
 import com.example.droneservicesapp.data.mavlink.MavlinkConfig
-import com.example.droneservicesapp.data.mavlink.MavlinkRepository
+import com.example.droneservicesapp.data.mavlink.MavlinkConnectionManager
 
 object MavlinkManager {
 
     private const val TAG = "MavlinkManager"
 
-    val repository: MavlinkRepository = MavlinkRepository()
+    val repository: MavlinkConnectionManager = MavlinkConnectionManager()
 
     fun start(config: MavlinkConfig) {
         Log.i(TAG, "Starting MavlinkManager with config: $config")

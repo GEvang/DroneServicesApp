@@ -15,10 +15,10 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 
 
-class MavlinkRepository : MavlinkClient {
+class MavlinkConnectionManager : MavlinkClient {
 
     private companion object {
-        private const val TAG = "MavlinkRepository"
+        private const val TAG = "MavlinkConnectionManager"
     }
 
     private var transport: MavTransport? = null
