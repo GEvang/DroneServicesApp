@@ -7,6 +7,7 @@ import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.EditText
+import android.widget.ImageButton
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
@@ -83,7 +84,7 @@ class MissionParamsController(
     }
 
     private fun bindSpeedButtons() {
-        val buttonMinus = rootView.findViewById<Button>(R.id.minus_button)
+        val buttonMinus = rootView.findViewById<ImageButton>(R.id.minus_button)
         buttonMinus.setOnClickListener {
             val cur = activityViewModel.flightSpeed.value?.toInt() ?: 1
             if (cur > minSpeed) {
@@ -91,7 +92,7 @@ class MissionParamsController(
             }
         }
 
-        val buttonPlus = rootView.findViewById<Button>(R.id.plus_button)
+        val buttonPlus = rootView.findViewById<ImageButton>(R.id.plus_button)
         buttonPlus.setOnClickListener {
             val cur = activityViewModel.flightSpeed.value?.toInt() ?: 1
             if (cur < maxSpeed) {
@@ -99,6 +100,7 @@ class MissionParamsController(
             }
         }
     }
+
 
     private fun bindActionButtons() {
         val buttonUploadMission = rootView.findViewById<Button>(R.id.uploadMission)
