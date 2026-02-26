@@ -131,7 +131,7 @@ class MissionMapFragment : Fragment() {
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             isEnabled = false
             setVisible(false)
-            icon = ContextCompat.getDrawable(requireContext(), R.drawable.drone_marker_48_black)
+            icon = ContextCompat.getDrawable(requireContext(), R.drawable.drone_marker_36)
         }
         mapView.overlays.add(droneMarker)
         mapView.invalidate()

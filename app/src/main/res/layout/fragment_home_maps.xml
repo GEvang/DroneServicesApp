@@ -47,7 +47,7 @@
             android:clickable="true"
             android:contentDescription="@string/drone_location_button"
             android:focusable="true"
-            android:src="@drawable/drone_marker_48_black"
+            android:src="@drawable/drone_marker_36"
             app:fabSize="mini"
             app:maxImageSize="25dp"
             app:backgroundTint="@color/fab_bg"
