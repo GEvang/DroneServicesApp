@@ -11,7 +11,6 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.widget.LinearLayoutCompat
-import androidx.core.view.isVisible
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
 import androidx.preference.PreferenceManager
@@ -38,17 +37,15 @@ class MissionParamsController(
     }
 
     fun show() {
+        if (isBound) return
         getWindowPreferences()
-
-        missionParamsSideView.isVisible = true
-
-        if (!isBound) {
-            bindFlightTimeAndSpeed()
-            bindSeekbars()
-            bindSpeedButtons()
-            bindActionButtons()
-            isBound = true
-        }
+        missionParamsSideView.visibility = View.VISIBLE
+        bindSeekbars()
+        bindFlightTimeAndSpeed()
+        bindSpeedButtons()
+        bindActionButtons()
+        bindIconButtons()  // Add this line
+        isBound = true
     }
 
     private fun bindFlightTimeAndSpeed() {
@@ -231,5 +228,61 @@ class MissionParamsController(
         val editor = prefs.edit()
         editor.putString(Application.getInstance().applicationContext.getString(id), value.toString())
         editor.apply()
+    }
+
+    private fun bindIconButtons() {
+        val angleMinusBtn = missionParamsSideView.findViewById<View>(R.id.btn_angle_minus)
+        val anglePlusBtn = missionParamsSideView.findViewById<View>(R.id.btn_angle_plus)
+        val distanceMinusBtn = missionParamsSideView.findViewById<View>(R.id.btn_distance_minus)
+        val distancePlusBtn = missionParamsSideView.findViewById<View>(R.id.btn_distance_plus)
+        val altMinusBtn = missionParamsSideView.findViewById<View>(R.id.btn_alt_minus)
+        val altPlusBtn = missionParamsSideView.findViewById<View>(R.id.btn_alt_plus)
+        val sprayerMinusBtn = missionParamsSideView.findViewById<View>(R.id.btn_sprayer_minus)
+        val sprayerPlusBtn = missionParamsSideView.findViewById<View>(R.id.btn_sprayer_plus)
+
+        val angleSeekbar = missionParamsSideView.findViewById<SeekBar>(R.id.line_angle_seekbar)
+        val distanceSeekbar = missionParamsSideView.findViewById<SeekBar>(R.id.line_distance_seekbar)
+        val altSeekbar = missionParamsSideView.findViewById<SeekBar>(R.id.altitude_seekbar)
+        val sprayerSeekbar = missionParamsSideView.findViewById<SeekBar>(R.id.sprayer_seekbar)
+
+        // Mission Angle buttons
+        angleMinusBtn.setOnClickListener {
+            val newProgress = (angleSeekbar.progress - 1).coerceAtLeast(angleSeekbar.min)
+            angleSeekbar.progress = newProgress
+        }
+        anglePlusBtn.setOnClickListener {
+            val newProgress = (angleSeekbar.progress + 1).coerceAtMost(angleSeekbar.max)
+            angleSeekbar.progress = newProgress
+        }
+
+        // Line Distance buttons
+        distanceMinusBtn.setOnClickListener {
+            val newProgress = (distanceSeekbar.progress - 1).coerceAtLeast(distanceSeekbar.min)
+            distanceSeekbar.progress = newProgress
+        }
+        distancePlusBtn.setOnClickListener {
+            val newProgress = (distanceSeekbar.progress + 1).coerceAtMost(distanceSeekbar.max)
+            distanceSeekbar.progress = newProgress
+        }
+
+        // Altitude buttons
+        altMinusBtn.setOnClickListener {
+            val newProgress = (altSeekbar.progress - 1).coerceAtLeast(altSeekbar.min)
+            altSeekbar.progress = newProgress
+        }
+        altPlusBtn.setOnClickListener {
+            val newProgress = (altSeekbar.progress + 1).coerceAtMost(altSeekbar.max)
+            altSeekbar.progress = newProgress
+        }
+
+        // Sprayer Intensity buttons
+        sprayerMinusBtn.setOnClickListener {
+            val newProgress = (sprayerSeekbar.progress - 1).coerceAtLeast(sprayerSeekbar.min)
+            sprayerSeekbar.progress = newProgress
+        }
+        sprayerPlusBtn.setOnClickListener {
+            val newProgress = (sprayerSeekbar.progress + 1).coerceAtMost(sprayerSeekbar.max)
+            sprayerSeekbar.progress = newProgress
+        }
     }
 }

@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.appcompat.widget.LinearLayoutCompat
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/mission_params_side_view"
     android:layout_width="wrap_content"
     android:minWidth="320dp"
@@ -83,28 +83,28 @@
             android:clickable="false"
             android:focusable="false">
 
-            <Button
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:minWidth="24dp"
-                android:minHeight="24dp"
-                android:padding="0dp"
-                android:background="@drawable/bg_slider_end_button"
-                android:text="−"
-                android:textSize="14sp"
-                android:textAllCaps="false"
-                android:includeFontPadding="false"
-                android:gravity="center"
-                android:fontFamily="@font/inter"
-                android:textColor="@color/text_primary" />
+            <FrameLayout
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_angle_minus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_remove_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/decrease" />
+            </FrameLayout>
 
             <com.example.droneservicesapp.ui.widgets.TouchDelegateSeekBar
                 android:id="@+id/line_angle_seekbar"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginHorizontal="10dp"
-                android:max="359"
+                android:max="90"
                 android:progress="0"
                 android:splitTrack="false"
                 android:progressDrawable="@drawable/seekbar_progress_dji"
@@ -113,20 +113,21 @@
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp" />
 
-            <Button
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:minWidth="24dp"
-                android:minHeight="24dp"
-                android:padding="0dp"
-                android:background="@drawable/bg_slider_end_button"
-                android:text="+"
-                android:textSize="14sp"
-                android:textAllCaps="false"
-                android:includeFontPadding="false"
-                android:gravity="center"
-                android:fontFamily="@font/inter"
-                android:textColor="@color/text_primary" />
+            <FrameLayout
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_angle_plus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_add_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/increase" />
+            </FrameLayout>
         </LinearLayout>
     </LinearLayout>
 
@@ -195,30 +196,30 @@
             android:clickable="false"
             android:focusable="false">
 
-            <Button
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:minWidth="24dp"
-                android:minHeight="24dp"
-                android:padding="0dp"
-                android:background="@drawable/bg_slider_end_button"
-                android:text="−"
-                android:textSize="14sp"
-                android:textAllCaps="false"
-                android:includeFontPadding="false"
-                android:gravity="center"
-                android:fontFamily="@font/inter"
-                android:textColor="@color/text_primary" />
+            <FrameLayout
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_distance_minus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_remove_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/decrease" />
+            </FrameLayout>
 
             <com.example.droneservicesapp.ui.widgets.TouchDelegateSeekBar
                 android:id="@+id/line_distance_seekbar"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginHorizontal="10dp"
                 android:max="20"
                 android:min="2"
-                android:progress="2"
+                android:progress="10"
                 android:splitTrack="false"
                 android:progressDrawable="@drawable/seekbar_progress_dji"
                 android:thumb="@drawable/seekbar_thumb_dji"
@@ -226,20 +227,21 @@
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp" />
 
-            <Button
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:minWidth="24dp"
-                android:minHeight="24dp"
-                android:padding="0dp"
-                android:background="@drawable/bg_slider_end_button"
-                android:text="+"
-                android:textSize="14sp"
-                android:textAllCaps="false"
-                android:includeFontPadding="false"
-                android:gravity="center"
-                android:fontFamily="@font/inter"
-                android:textColor="@color/text_primary" />
+            <FrameLayout
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_distance_plus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_add_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/increase" />
+            </FrameLayout>
         </LinearLayout>
     </LinearLayout>
 
@@ -308,27 +310,27 @@
             android:clickable="false"
             android:focusable="false">
 
-            <Button
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:minWidth="24dp"
-                android:minHeight="24dp"
-                android:padding="0dp"
-                android:background="@drawable/bg_slider_end_button"
-                android:text="−"
-                android:textSize="14sp"
-                android:textAllCaps="false"
-                android:includeFontPadding="false"
-                android:gravity="center"
-                android:fontFamily="@font/inter"
-                android:textColor="@color/text_primary" />
+            <FrameLayout
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_alt_minus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_remove_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/decrease" />
+            </FrameLayout>
 
             <com.example.droneservicesapp.ui.widgets.TouchDelegateSeekBar
                 android:id="@+id/altitude_seekbar"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginHorizontal="10dp"
                 android:max="20"
                 android:min="2"
                 android:progress="5"
@@ -339,20 +341,21 @@
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp" />
 
-            <Button
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:minWidth="24dp"
-                android:minHeight="24dp"
-                android:padding="0dp"
-                android:background="@drawable/bg_slider_end_button"
-                android:text="+"
-                android:textSize="14sp"
-                android:textAllCaps="false"
-                android:includeFontPadding="false"
-                android:gravity="center"
-                android:fontFamily="@font/inter"
-                android:textColor="@color/text_primary" />
+            <FrameLayout
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_alt_plus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_add_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/increase" />
+            </FrameLayout>
         </LinearLayout>
     </LinearLayout>
 
@@ -419,27 +422,27 @@
             android:gravity="center_vertical"
             android:orientation="horizontal">
 
-            <Button
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:minWidth="24dp"
-                android:minHeight="24dp"
-                android:padding="0dp"
-                android:background="@drawable/bg_slider_end_button"
-                android:text="−"
-                android:textSize="12sp"
-                android:textAllCaps="false"
-                android:includeFontPadding="false"
-                android:gravity="center"
-                android:fontFamily="@font/inter"
-                android:textColor="@color/text_primary" />
+            <FrameLayout
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_sprayer_minus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_remove_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/decrease" />
+            </FrameLayout>
 
             <com.example.droneservicesapp.ui.widgets.TouchDelegateSeekBar
                 android:id="@+id/sprayer_seekbar"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginHorizontal="10dp"
                 android:max="100"
                 android:progress="0"
                 android:splitTrack="false"
@@ -449,20 +452,21 @@
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp" />
 
-            <Button
-                android:layout_width="24dp"
-                android:layout_height="24dp"
-                android:minWidth="24dp"
-                android:minHeight="24dp"
-                android:padding="0dp"
-                android:background="@drawable/bg_slider_end_button"
-                android:text="+"
-                android:textSize="14sp"
-                android:textAllCaps="false"
-                android:includeFontPadding="false"
-                android:gravity="center"
-                android:fontFamily="@font/inter"
-                android:textColor="@color/text_primary" />
+            <FrameLayout
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_sprayer_plus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_add_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/increase" />
+            </FrameLayout>
         </LinearLayout>
     </LinearLayout>
 

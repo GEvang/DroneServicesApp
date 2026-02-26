@@ -36,9 +36,9 @@ class OsmdroidPolygonEditor(
 
     fun init() {
         polygon = Polygon(mapView).apply {
-            outlinePaint.color = Color.BLACK
-            outlinePaint.strokeWidth = 5f
-            fillPaint.color = Color.argb(40, 0, 0, 0)
+            outlinePaint.color = Color.rgb(80, 200, 255)
+            outlinePaint.strokeWidth = 10f
+            fillPaint.color = Color.argb(60, 80, 200, 255)
             isEnabled = false
             setVisible(false)
         }

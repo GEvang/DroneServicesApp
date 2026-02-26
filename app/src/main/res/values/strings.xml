@@ -68,4 +68,6 @@
     <string name="ok" translatable="false">OK</string>
     <string name="mission_directory" translatable="false">DroneServices/Missions</string>
     <string name="DroneServicesFilePageSuffix" translatable="false">.dsfp</string>
+    <string name="decrease">Decrease values</string>
+    <string name="increase">Increase values</string>
 </resources>

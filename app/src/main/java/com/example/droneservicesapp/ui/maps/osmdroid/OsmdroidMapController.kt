@@ -132,8 +132,8 @@ class OsmdroidMapController(
     fun setSurveyPath(path: List<LatLng>) {
         if (surveyPolyline == null) {
             surveyPolyline = Polyline(mapView).apply {
-                outlinePaint.color = Color.RED
-                outlinePaint.strokeWidth = 4f
+                outlinePaint.color = Color.rgb(255, 213, 79)
+                outlinePaint.strokeWidth = 6f
             }
             mapView.overlays.add(surveyPolyline)
         }
