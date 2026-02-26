@@ -376,6 +376,7 @@ class MissionMapFragment : Fragment() {
                     loadFileView.isVisible = false
                     binding.myLocationButton.isVisible = true
                     binding.droneLocationButton.isVisible = true
+                    binding.downloadOfflineButton.isVisible = true
                 }
                 MissionMapViewModel.UiState.EditingParams -> {
                     paramsSideView.isVisible = true
@@ -383,6 +384,7 @@ class MissionMapFragment : Fragment() {
                     loadFileView.isVisible = false
                     binding.myLocationButton.isVisible = false
                     binding.droneLocationButton.isVisible = false
+                    binding.downloadOfflineButton.isVisible = false
                 }
                 MissionMapViewModel.UiState.SavingMission -> {
                     paramsSideView.isVisible = false
@@ -390,6 +392,7 @@ class MissionMapFragment : Fragment() {
                     loadFileView.isVisible = false
                     binding.myLocationButton.isVisible = false
                     binding.droneLocationButton.isVisible = false
+                    binding.downloadOfflineButton.isVisible = false
                 }
                 MissionMapViewModel.UiState.LoadingMission -> {
                     paramsSideView.isVisible = false
@@ -397,6 +400,7 @@ class MissionMapFragment : Fragment() {
                     loadFileView.isVisible = true
                     binding.myLocationButton.isVisible = false
                     binding.droneLocationButton.isVisible = false
+                    binding.downloadOfflineButton.isVisible = false
                 }
             }
         }
