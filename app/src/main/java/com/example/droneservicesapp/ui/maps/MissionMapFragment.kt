@@ -377,6 +377,11 @@ class MissionMapFragment : Fragment() {
                     binding.myLocationButton.isVisible = true
                     binding.droneLocationButton.isVisible = true
                     binding.downloadOfflineButton.isVisible = true
+                    
+                    // Remove touch listeners when panels are hidden
+                    paramsSideView.setOnTouchListener(null)
+                    saveFileView.setOnTouchListener(null)
+                    loadFileView.setOnTouchListener(null)
                 }
                 MissionMapViewModel.UiState.EditingParams -> {
                     paramsSideView.isVisible = true
@@ -385,6 +390,12 @@ class MissionMapFragment : Fragment() {
                     binding.myLocationButton.isVisible = false
                     binding.droneLocationButton.isVisible = false
                     binding.downloadOfflineButton.isVisible = false
+                    
+                    // Attach touch listener to consume touches on visible panel
+                    paramsSideView.setOnTouchListener { _, _ -> true }
+                    // Remove listeners from hidden panels
+                    saveFileView.setOnTouchListener(null)
+                    loadFileView.setOnTouchListener(null)
                 }
                 MissionMapViewModel.UiState.SavingMission -> {
                     paramsSideView.isVisible = false
@@ -393,6 +404,12 @@ class MissionMapFragment : Fragment() {
                     binding.myLocationButton.isVisible = false
                     binding.droneLocationButton.isVisible = false
                     binding.downloadOfflineButton.isVisible = false
+                    
+                    // Attach touch listener to consume touches on visible panel
+                    saveFileView.setOnTouchListener { _, _ -> true }
+                    // Remove listeners from hidden panels
+                    paramsSideView.setOnTouchListener(null)
+                    loadFileView.setOnTouchListener(null)
                 }
                 MissionMapViewModel.UiState.LoadingMission -> {
                     paramsSideView.isVisible = false
@@ -401,6 +418,12 @@ class MissionMapFragment : Fragment() {
                     binding.myLocationButton.isVisible = false
                     binding.droneLocationButton.isVisible = false
                     binding.downloadOfflineButton.isVisible = false
+                    
+                    // Attach touch listener to consume touches on visible panel
+                    loadFileView.setOnTouchListener { _, _ -> true }
+                    // Remove listeners from hidden panels
+                    paramsSideView.setOnTouchListener(null)
+                    saveFileView.setOnTouchListener(null)
                 }
             }
         }
