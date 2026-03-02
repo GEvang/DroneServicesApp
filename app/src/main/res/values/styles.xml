@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- Some layouts reference @style/Text; define it to stop AAPT errors -->
+
+    <!-- PANEL STYLES -->
+
+    <!-- Optional: use this for centered modal panels like Save/Load -->
+
+
+</resources>
+

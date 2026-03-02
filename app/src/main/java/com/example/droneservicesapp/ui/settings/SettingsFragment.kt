@@ -10,7 +10,7 @@ import androidx.core.view.isVisible
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.example.droneservicesapp.Application
-import com.example.droneservicesapp.LocaleUtils
+import com.example.droneservicesapp.core.util.LocaleUtils
 import com.example.droneservicesapp.R
 import com.jakewharton.processphoenix.ProcessPhoenix
 import org.osmdroid.config.Configuration

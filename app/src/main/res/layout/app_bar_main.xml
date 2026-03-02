@@ -5,135 +5,132 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".activities.MainActivity">
+    tools:context=".ui.main.MainActivity"
+    android:background="@color/bg">
 
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBarMain"
         android:layout_width="match_parent"
         android:layout_height="40dp"
-        android:theme="@style/Theme.DroneServicesApp.AppBarOverlay">
+        android:background="@color/surface_2"
+        android:elevation="0dp"
+        android:theme="@style/ThemeOverlay.AppCompat.Dark">
 
         <androidx.appcompat.widget.Toolbar
             android:id="@+id/customToolbar"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            app:popupTheme="@style/Theme.DroneServicesApp.PopupOverlay"
+            android:layout_height="match_parent"
+            android:background="@color/surface_2"
+            android:contentInsetStartWithNavigation="12dp"
+            android:contentInsetStart="12dp"
+            android:contentInsetEnd="12dp"
+            app:popupTheme="@style/ThemeOverlay.AppCompat.Dark"
             app:titleTextAppearance="@style/Toolbar.TitleText">
 
+            <!-- LEFT status cluster -->
             <androidx.appcompat.widget.LinearLayoutCompat
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content">
+                android:layout_height="match_parent"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
                 <androidx.appcompat.widget.AppCompatImageView
                     android:id="@+id/drone_battery_image"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:contentDescription="@string/nav_header_desc"
-                    android:src="@drawable/ic_baseline_battery_full_24" />
+                    android:src="@drawable/ic_baseline_battery_full_24"
+                    app:tint="@color/text_primary" />
 
-                <androidx.appcompat.widget.LinearLayoutCompat
+                <TextView
+                    android:id="@+id/drone_battery_percentage_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
-
-<!--                    <TextView-->
-<!--                        android:id="@+id/drone_battery_voltage_text"-->
-<!--                        android:layout_width="wrap_content"-->
-<!--                        android:layout_height="wrap_content"-->
-<!--                        android:layout_gravity="center"-->
-<!--                        android:text="@string/unknown_voltage" />-->
-
-                    <TextView
-                        android:id="@+id/drone_battery_percentage_text"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="center"
-                        android:text="@string/unknown_percentage" />
-                </androidx.appcompat.widget.LinearLayoutCompat>
-
+                    android:layout_marginStart="6dp"
+                    android:text="@string/unknown_percentage"
+                    android:textColor="@color/text_primary"
+                    android:textSize="13sp"
+                    android:fontFamily="@font/inter"
+                    android:textStyle="bold" />
 
                 <androidx.appcompat.widget.AppCompatImageView
-                    android:id="@+id/sprayer_img"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="12dp"
                     android:contentDescription="@string/drone_services_sprayer"
-                    android:paddingStart="10dp"
-                    android:src="@drawable/ic_sprayer_image" />
+                    android:src="@drawable/ic_sprayer_image"
+                    app:tint="@color/text_primary" />
 
                 <TextView
                     android:id="@+id/sprayer_flow_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:text="@string/unknown_percentage" />
+                    android:layout_marginStart="6dp"
+                    android:text="@string/unknown_percentage"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:fontFamily="@font/inter" />
 
                 <androidx.appcompat.widget.AppCompatImageView
-                    android:id="@+id/drone_alt_img"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_gravity="center"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_marginStart="12dp"
                     android:contentDescription="@string/drone_services_sprayer"
-                    android:paddingStart="10dp"
-                    android:src="@drawable/ic_drone_alt" />
+                    android:src="@drawable/ic_drone_alt"
+                    app:tint="@color/text_primary" />
 
                 <TextView
                     android:id="@+id/drone_alt_txt"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_gravity="center"
-                    android:text="@string/unknown_value" />
-
-<!--                <androidx.appcompat.widget.AppCompatImageView-->
-<!--                    android:id="@+id/rc_signal_strength_img"-->
-<!--                    android:layout_width="wrap_content"-->
-<!--                    android:layout_height="wrap_content"-->
-<!--                    android:layout_gravity="center"-->
-<!--                    android:contentDescription="@string/drone_services_sprayer"-->
-<!--                    android:paddingStart="10dp"-->
-<!--                    android:src="@drawable/ic_baseline_signal_24" />-->
-
-<!--                <TextView-->
-<!--                    android:id="@+id/rc_signal_strength_txt"-->
-<!--                    android:layout_width="wrap_content"-->
-<!--                    android:layout_height="wrap_content"-->
-<!--                    android:layout_gravity="center"-->
-<!--                    android:text="@string/unknown_percentage" />-->
+                    android:layout_marginStart="6dp"
+                    android:text="@string/unknown_value"
+                    android:textColor="@color/text_secondary"
+                    android:textSize="13sp"
+                    android:fontFamily="@font/inter" />
             </androidx.appcompat.widget.LinearLayoutCompat>
 
+            <!-- RIGHT status cluster -->
             <androidx.appcompat.widget.LinearLayoutCompat
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_gravity="end">
+                android:layout_height="match_parent"
+                android:layout_gravity="end"
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-                <androidx.appcompat.widget.LinearLayoutCompat
+                <TextView
+                    android:id="@+id/drone_arm_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical">
+                    android:text="@string/disarmed"
+                    android:textColor="@color/accent_gold"
+                    android:textSize="13sp"
+                    android:fontFamily="@font/inter"
+                    android:textStyle="bold" />
 
-<!--                    <TextView-->
-<!--                        android:id="@+id/drone_connected_text"-->
-<!--                        android:layout_width="wrap_content"-->
-<!--                        android:layout_height="wrap_content"-->
-<!--                        android:layout_gravity="end"-->
-<!--                        android:text="@string/disconnected"-->
-<!--                        android:textStyle="bold" />-->
-
-                    <TextView
-                        android:id="@+id/drone_arm_text"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:layout_gravity="end"
-                        android:text="@string/disarmed"
-                        android:textStyle="bold" />
-                </androidx.appcompat.widget.LinearLayoutCompat>
+                <TextView
+                    android:id="@+id/mission_upload_progress_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:visibility="gone"
+                    android:text="Uploading 0%"
+                    android:textColor="@color/accent_gold"
+                    android:textSize="13sp"
+                    android:fontFamily="@font/inter" />
             </androidx.appcompat.widget.LinearLayoutCompat>
 
         </androidx.appcompat.widget.Toolbar>
 
     </com.google.android.material.appbar.AppBarLayout>
 
-    <include layout="@layout/content_main" />
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@id/appBarMain"
+        android:fitsSystemWindows="true">
+
+        <include layout="@layout/content_main" />
+    </FrameLayout>
 
 </RelativeLayout>

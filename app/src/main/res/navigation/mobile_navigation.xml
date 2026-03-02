@@ -2,12 +2,11 @@
 <navigation xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:id="@+id/mobile_navigation"
     app:startDestination="@+id/nav_maps_home">
 
     <fragment
         android:id="@+id/nav_maps_home"
-        android:name="com.example.droneservicesapp.ui.home_maps.HomeMapsFragment"
+        android:name="com.example.droneservicesapp.ui.maps.MissionMapFragment"
         android:label="@string/app_name"
         tools:layout="@layout/fragment_home_maps" />
 
