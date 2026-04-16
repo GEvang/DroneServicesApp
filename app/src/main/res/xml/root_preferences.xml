@@ -22,52 +22,6 @@
 
     </PreferenceCategory>
 
-    <PreferenceCategory
-        app:key="@string/rtk_category_pref"
-        app:title="@string/rtk">
-
-        <androidx.preference.SwitchPreferenceCompat
-            app:defaultValue="false"
-            app:key="@string/rtk_enabled_pref"
-            app:title="@string/enable_rtk" />
-
-        <EditTextPreference
-            app:key="@string/rtk_host_pref"
-            app:title="@string/rtk_host" />
-
-        <EditTextPreference
-            app:defaultValue="2101"
-            app:key="@string/rtk_port_pref"
-            app:title="@string/rtk_port" />
-
-        <EditTextPreference
-            app:key="@string/rtk_mountpoint_pref"
-            app:title="@string/rtk_mountpoint" />
-
-        <EditTextPreference
-            app:key="@string/rtk_username_pref"
-            app:title="@string/rtk_username" />
-
-        <EditTextPreference
-            app:key="@string/rtk_password_pref"
-            app:title="@string/rtk_password" />
-
-        <androidx.preference.SwitchPreferenceCompat
-            app:defaultValue="false"
-            app:key="@string/rtk_tls_pref"
-            app:title="@string/rtk_use_tls" />
-
-        <Preference
-            app:key="@string/rtk_test_connection_pref"
-            app:title="@string/rtk_test_connection" />
-
-        <Preference
-            app:key="@string/rtk_status_pref"
-            app:summary="@string/rtk_not_tested"
-            app:title="@string/rtk_status" />
-
-    </PreferenceCategory>
-
     <PreferenceCategory app:title="@string/locales_categ_pref"
         app:key="languageCategory">
 

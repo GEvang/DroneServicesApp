@@ -21,27 +21,29 @@ class RtkPreferences(
             masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
+        ).also { prefs ->
+            migrateLegacyValuesIfNeeded(prefs)
+        }
     }
 
     fun getConfig(): RtkConfig {
         return RtkConfig(
-            enabled = preferences.getBoolean(KEY_ENABLED, false),
-            host = preferences.getString(KEY_HOST, "").orEmpty(),
-            port = preferences.getInt(KEY_PORT, 2101),
-            mountpoint = preferences.getString(KEY_MOUNTPOINT, "").orEmpty(),
+            ip = preferences.getString(KEY_IP, null)
+                ?: preferences.getString(KEY_HOST_LEGACY, "").orEmpty(),
+            port = preferences.getInt(KEY_PORT, DEFAULT_PORT),
             username = preferences.getString(KEY_USERNAME, "").orEmpty(),
             password = preferences.getString(KEY_PASSWORD, "").orEmpty(),
-            useTls = preferences.getBoolean(KEY_TLS, false)
+            mountpoint = preferences.getString(KEY_MOUNTPOINT, "").orEmpty(),
+            lastFetchSucceeded = preferences.getBoolean(KEY_LAST_FETCH_SUCCEEDED, false),
+            lastStatusMessage = preferences.getString(KEY_LAST_STATUS_MESSAGE, "").orEmpty()
         )
     }
 
-    fun saveEnabled(enabled: Boolean) {
-        preferences.edit().putBoolean(KEY_ENABLED, enabled).apply()
-    }
-
-    fun saveHost(host: String) {
-        preferences.edit().putString(KEY_HOST, host.trim()).apply()
+    fun saveIp(ip: String) {
+        preferences.edit()
+            .putString(KEY_IP, ip.trim())
+            .remove(KEY_HOST_LEGACY)
+            .apply()
     }
 
     fun savePort(port: Int) {
@@ -60,22 +62,39 @@ class RtkPreferences(
         preferences.edit().putString(KEY_PASSWORD, password).apply()
     }
 
-    fun saveUseTls(useTls: Boolean) {
-        preferences.edit().putBoolean(KEY_TLS, useTls).apply()
+    fun saveLastFetchSucceeded(succeeded: Boolean) {
+        preferences.edit().putBoolean(KEY_LAST_FETCH_SUCCEEDED, succeeded).apply()
     }
 
-    fun isConfigured(): Boolean {
-        return RtkValidator.isValidConfig(getConfig())
+    fun saveLastStatusMessage(message: String) {
+        preferences.edit().putString(KEY_LAST_STATUS_MESSAGE, message).apply()
+    }
+
+    private fun migrateLegacyValuesIfNeeded(prefs: SharedPreferences) {
+        val editor = prefs.edit()
+
+        if (!prefs.contains(KEY_IP) && prefs.contains(KEY_HOST_LEGACY)) {
+            editor.putString(KEY_IP, prefs.getString(KEY_HOST_LEGACY, "").orEmpty())
+        }
+        editor
+            .remove(KEY_HOST_LEGACY)
+            .remove(KEY_ENABLED_LEGACY)
+            .remove(KEY_TLS_LEGACY)
+            .apply()
     }
 
     companion object {
         private const val PREFS_FILE_NAME = "rtk_secure_preferences"
-        private const val KEY_ENABLED = "rtk_enabled"
-        private const val KEY_HOST = "rtk_host"
+        private const val DEFAULT_PORT = 2101
+        private const val KEY_IP = "rtk_ip"
+        private const val KEY_HOST_LEGACY = "rtk_host"
+        private const val KEY_ENABLED_LEGACY = "rtk_enabled"
         private const val KEY_PORT = "rtk_port"
         private const val KEY_MOUNTPOINT = "rtk_mountpoint"
         private const val KEY_USERNAME = "rtk_username"
         private const val KEY_PASSWORD = "rtk_password"
-        private const val KEY_TLS = "rtk_tls"
+        private const val KEY_TLS_LEGACY = "rtk_tls"
+        private const val KEY_LAST_FETCH_SUCCEEDED = "rtk_last_fetch_succeeded"
+        private const val KEY_LAST_STATUS_MESSAGE = "rtk_last_status_message"
     }
 }

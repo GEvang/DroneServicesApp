@@ -15,5 +15,10 @@
             android:icon="@drawable/ic_menu_settings"
             android:title="@string/menu_settings" />
 
+        <item
+            android:id="@+id/nav_rtk"
+            android:icon="@drawable/ic_baseline_check_circle_outline_24"
+            android:title="@string/menu_rtk" />
+
     </group>
 </menu>

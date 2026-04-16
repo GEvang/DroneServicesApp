@@ -2,7 +2,7 @@ package com.example.droneservicesapp.data.rtk
 
 object RtkValidator {
 
-    fun isValidHost(value: String): Boolean {
+    fun isValidIp(value: String): Boolean {
         return value.trim().isNotEmpty()
     }
 
@@ -22,11 +22,14 @@ object RtkValidator {
         return value.isNotEmpty()
     }
 
-    fun isValidConfig(config: RtkConfig): Boolean {
-        return isValidHost(config.host) &&
+    fun isValidBaseConfig(config: RtkConfig): Boolean {
+        return isValidIp(config.ip) &&
             isValidPort(config.port) &&
-            isValidMountpoint(config.mountpoint) &&
             isValidUsername(config.username) &&
             isValidPassword(config.password)
+    }
+
+    fun isValidConfig(config: RtkConfig): Boolean {
+        return isValidBaseConfig(config) && isValidMountpoint(config.mountpoint)
     }
 }

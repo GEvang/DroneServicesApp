@@ -13,6 +13,12 @@
     <fragment
         android:id="@+id/nav_settings"
         android:name="com.example.droneservicesapp.ui.settings.SettingsFragment"
-        android:label="@string/app_name" />
+        android:label="@string/menu_settings" />
+
+    <fragment
+        android:id="@+id/nav_rtk"
+        android:name="com.example.droneservicesapp.ui.rtk.RtkFragment"
+        android:label="@string/rtk_title"
+        tools:layout="@layout/fragment_rtk" />
 
 </navigation>
