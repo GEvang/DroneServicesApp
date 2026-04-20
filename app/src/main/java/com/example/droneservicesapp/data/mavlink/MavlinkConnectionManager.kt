@@ -86,6 +86,14 @@ class MavlinkConnectionManager(
         session?.send2(systemId, componentId, payload)
     }
 
+    override fun sendGpsRtcmData(
+        targetSystemId: Int,
+        targetComponentId: Int,
+        rtcmPayload: ByteArray
+    ) {
+        session?.sendGpsRtcmData(targetSystemId, targetComponentId, rtcmPayload)
+    }
+
     override fun messages(): Observable<MavlinkMessage<*>> =
         session?.messages() ?: Observable.empty()
 

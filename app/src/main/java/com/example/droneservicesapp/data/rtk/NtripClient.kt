@@ -1,8 +1,12 @@
 package com.example.droneservicesapp.data.rtk
 
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.SocketTimeoutException
@@ -31,6 +35,67 @@ class NtripClient {
             readToEnd = false
         )
         mapConnectionResponse(response)
+    }
+
+    suspend fun streamCorrections(
+        config: RtkConfig,
+        onStreamStarted: () -> Unit = {},
+        onBytesReceived: (ByteArray) -> Unit
+    ): NtripResult = withContext(Dispatchers.IO) {
+        if (!RtkValidator.isValidConfig(config)) {
+            return@withContext NtripResult.InvalidConfig("RTK settings are incomplete.")
+        }
+
+        val socket = Socket()
+        val coroutineContext = currentCoroutineContext()
+
+        try {
+            socket.connect(InetSocketAddress(config.ip.trim(), config.port), CONNECT_TIMEOUT_MS)
+            socket.soTimeout = STREAM_READ_TIMEOUT_MS
+
+            val requestPath = "/${config.mountpoint.trim().trimStart('/')}"
+            val request = buildRequest(requestPath, config)
+
+            val output = socket.getOutputStream()
+            output.write(request.toByteArray(StandardCharsets.ISO_8859_1))
+            output.flush()
+
+            val input = socket.getInputStream()
+            val handshake = readStreamingHandshake(input)
+            val handshakeResult = mapStreamingHandshake(handshake)
+            if (handshakeResult != null) {
+                return@withContext handshakeResult
+            }
+
+            onStreamStarted()
+
+            if (handshake.remainingBody.isNotEmpty()) {
+                onBytesReceived(handshake.remainingBody)
+            }
+
+            val buffer = ByteArray(STREAM_BUFFER_SIZE)
+            while (true) {
+                coroutineContext.ensureActive()
+                val count = input.read(buffer)
+                if (count == -1) {
+                    return@withContext NtripResult.NetworkFailure("Caster closed the correction stream.")
+                }
+                if (count > 0) {
+                    onBytesReceived(buffer.copyOf(count))
+                }
+            }
+        } catch (_: SocketTimeoutException) {
+            return@withContext NtripResult.NetworkFailure("Connection timed out.")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: IOException) {
+            coroutineContext.ensureActive()
+            return@withContext NtripResult.NetworkFailure(sanitizeMessage(e.message))
+        } finally {
+            runCatching { socket.close() }
+        }
+
+        return@withContext NtripResult.ProtocolFailure("Streaming ended unexpectedly.")
     }
 
     private fun executeRequest(path: String, config: RtkConfig, readToEnd: Boolean): RawResponse {
@@ -82,6 +147,83 @@ class NtripClient {
             append("Connection: close\r\n")
             append("Authorization: Basic $authToken\r\n")
             append("\r\n")
+        }
+    }
+
+    private fun readStreamingHandshake(input: java.io.InputStream): StreamingHandshake {
+        val handshakeBytes = ByteArrayOutputStream()
+        val buffer = ByteArray(STREAM_BUFFER_SIZE)
+
+        while (handshakeBytes.size() < MAX_HANDSHAKE_BYTES) {
+            val count = input.read(buffer)
+            if (count == -1) break
+            handshakeBytes.write(buffer, 0, count)
+
+            val bytes = handshakeBytes.toByteArray()
+            val delimiterIndex = findHeaderDelimiter(bytes)
+            if (delimiterIndex >= 0) {
+                val headerBytes = bytes.copyOfRange(0, delimiterIndex)
+                val remainingBody = bytes.copyOfRange(delimiterIndex, bytes.size)
+                return StreamingHandshake(
+                    headerText = headerBytes.toString(StandardCharsets.ISO_8859_1),
+                    remainingBody = remainingBody
+                )
+            }
+
+            val firstLineEnd = findFirstLineEnd(bytes)
+            if (firstLineEnd >= 0) {
+                val firstLine = bytes.copyOfRange(0, firstLineEnd)
+                    .toString(StandardCharsets.ISO_8859_1)
+                    .trim()
+                if (firstLine.uppercase().startsWith("ICY 200 OK") && bytes.size > firstLineEnd) {
+                    return StreamingHandshake(
+                        headerText = firstLine,
+                        remainingBody = bytes.copyOfRange(firstLineEnd, bytes.size)
+                    )
+                }
+            }
+        }
+
+        val text = handshakeBytes.toString(StandardCharsets.ISO_8859_1.name())
+        return StreamingHandshake(headerText = text, remainingBody = ByteArray(0))
+    }
+
+    private fun findHeaderDelimiter(bytes: ByteArray): Int {
+        for (index in 0 until bytes.size - 3) {
+            if (bytes[index] == '\r'.code.toByte() &&
+                bytes[index + 1] == '\n'.code.toByte() &&
+                bytes[index + 2] == '\r'.code.toByte() &&
+                bytes[index + 3] == '\n'.code.toByte()
+            ) {
+                return index + 4
+            }
+        }
+        for (index in 0 until bytes.size - 1) {
+            if (bytes[index] == '\n'.code.toByte() && bytes[index + 1] == '\n'.code.toByte()) {
+                return index + 2
+            }
+        }
+        return -1
+    }
+
+    private fun findFirstLineEnd(bytes: ByteArray): Int {
+        for (index in bytes.indices) {
+            if (bytes[index] == '\n'.code.toByte()) {
+                return if (index > 0 && bytes[index - 1] == '\r'.code.toByte()) index + 1 else index + 1
+            }
+        }
+        return -1
+    }
+
+    private fun mapStreamingHandshake(handshake: StreamingHandshake): NtripResult? {
+        val response = parseResponse(handshake.headerText)
+        val failure = mapCommonFailures(response)
+        if (failure != null) return failure
+
+        return if (response.isSuccess()) {
+            null
+        } else {
+            NtripResult.ProtocolFailure(response.errorMessage ?: "Unexpected streaming response.")
         }
     }
 
@@ -194,8 +336,16 @@ class NtripClient {
         }
     }
 
+    private data class StreamingHandshake(
+        val headerText: String,
+        val remainingBody: ByteArray
+    )
+
     companion object {
         private const val CONNECT_TIMEOUT_MS = 5000
         private const val READ_TIMEOUT_MS = 7000
+        private const val STREAM_READ_TIMEOUT_MS = 15000
+        private const val STREAM_BUFFER_SIZE = 1024
+        private const val MAX_HANDSHAKE_BYTES = 8192
     }
 }

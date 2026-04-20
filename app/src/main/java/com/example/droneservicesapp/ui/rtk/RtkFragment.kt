@@ -9,14 +9,17 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.rtk.NtripClient
+import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.rtk.NtripResult
 import com.example.droneservicesapp.data.rtk.RtkConfig
 import com.example.droneservicesapp.data.rtk.RtkPreferences
 import com.example.droneservicesapp.data.rtk.RtkValidator
 import com.example.droneservicesapp.databinding.FragmentRtkBinding
+import com.example.droneservicesapp.mavserver.DroneViewModel
 import kotlinx.coroutines.launch
 
 class RtkFragment : Fragment() {
@@ -25,6 +28,7 @@ class RtkFragment : Fragment() {
     private val binding get() = _binding!!
 
     private lateinit var rtkPreferences: RtkPreferences
+    private lateinit var droneViewModel: DroneViewModel
     private val ntripClient = NtripClient()
     private var isPopulatingForm = false
 
@@ -40,15 +44,19 @@ class RtkFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         rtkPreferences = RtkPreferences(requireContext())
+        droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
 
         requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
         binding.rtkMountpointInput.keyListener = null
 
         loadSavedValues()
         bindForm()
+        observeForwardingState()
 
         binding.fetchMountpointsButton.setOnClickListener { fetchMountpoints() }
         binding.testConnectionButton.setOnClickListener { testConnection() }
+        binding.startRtkButton.setOnClickListener { startRtk() }
+        binding.stopRtkButton.setOnClickListener { stopRtk() }
     }
 
     private fun bindForm() {
@@ -113,6 +121,20 @@ class RtkFragment : Fragment() {
             setBusyState(false)
             handleResult(result, showToast = true)
         }
+    }
+
+    private fun startRtk() {
+        val config = buildConfig(requireMountpoint = true) ?: return
+        rtkPreferences.saveIp(config.ip)
+        rtkPreferences.savePort(config.port)
+        rtkPreferences.saveUsername(config.username)
+        rtkPreferences.savePassword(config.password)
+        rtkPreferences.saveMountpoint(config.mountpoint)
+        droneViewModel.startRtkForwarding()
+    }
+
+    private fun stopRtk() {
+        droneViewModel.stopRtkForwarding()
     }
 
     private fun handleMountpoints(mountpoints: List<String>) {
@@ -228,6 +250,42 @@ class RtkFragment : Fragment() {
         binding.rtkStatusValue.text = message
         rtkPreferences.saveLastStatusMessage(message)
         rtkPreferences.saveLastFetchSucceeded(success)
+    }
+
+    private fun observeForwardingState() {
+        droneViewModel.rtkForwardingState.observe(viewLifecycleOwner) { state ->
+            binding.rtkForwardingStatusValue.text = state.toDisplayString()
+            binding.startRtkButton.isEnabled =
+                state !is RtkForwardingState.ConnectingToCaster &&
+                state !is RtkForwardingState.Streaming
+            binding.stopRtkButton.isEnabled =
+                state is RtkForwardingState.ConnectingToCaster ||
+                state is RtkForwardingState.Streaming ||
+                state is RtkForwardingState.WaitingForDrone
+        }
+    }
+
+    private fun RtkForwardingState.toDisplayString(): String {
+        return when (this) {
+            is RtkForwardingState.Idle -> getString(R.string.rtk_forwarding_idle)
+            is RtkForwardingState.WaitingForDrone -> getString(R.string.rtk_forwarding_waiting_for_drone)
+            is RtkForwardingState.ConnectingToCaster -> getString(R.string.rtk_forwarding_connecting)
+            is RtkForwardingState.Streaming -> getString(R.string.rtk_forwarding_streaming)
+            is RtkForwardingState.InvalidConfig -> getString(
+                R.string.rtk_forwarding_invalid_config,
+                message
+            )
+            is RtkForwardingState.AuthFailed -> getString(R.string.rtk_forwarding_auth_failed)
+            is RtkForwardingState.NetworkError -> getString(
+                R.string.rtk_forwarding_network_error,
+                message
+            )
+            is RtkForwardingState.ProtocolError -> getString(
+                R.string.rtk_forwarding_protocol_error,
+                message
+            )
+            is RtkForwardingState.Stopped -> getString(R.string.rtk_forwarding_stopped)
+        }
     }
 
     private fun markConnectionNotTested() {

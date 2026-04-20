@@ -5,6 +5,7 @@ import com.example.droneservicesapp.core.util.Clock
 import com.example.droneservicesapp.core.util.SystemClock
 import io.dronefleet.mavlink.MavlinkConnection
 import io.dronefleet.mavlink.MavlinkMessage
+import io.dronefleet.mavlink.common.GpsRtcmData
 import io.dronefleet.mavlink.minimal.Heartbeat
 import io.reactivex.Observable
 import io.reactivex.disposables.Disposable
@@ -15,6 +16,7 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Manages a MAVLink session over provided InputStream/OutputStream.
@@ -27,6 +29,11 @@ class MavlinkSession(
 ) {
     private companion object {
         private const val TAG = "MavlinkSession"
+        private const val GCS_SYSTEM_ID = 254
+        private const val GCS_COMPONENT_ID = 99
+        private const val RTCM_FRAGMENT_SIZE = 180
+        private const val MAX_RTCM_MESSAGE_SIZE = RTCM_FRAGMENT_SIZE * 4
+        private const val RTCM_SEQUENCE_MASK = 0x1F
     }
 
     private val mavCon: MavlinkConnection = MavlinkConnection.create(input, output)
@@ -37,6 +44,8 @@ class MavlinkSession(
 
     private val msgSubject: Subject<MavlinkMessage<*>> =
         PublishSubject.create<MavlinkMessage<*>>().toSerialized()
+    private val sendLock = Any()
+    private val rtcmSequence = AtomicInteger(0)
 
     @Volatile
     private var _lastHeartbeatMs: Long = 0L
@@ -68,7 +77,32 @@ class MavlinkSession(
      * Send a MAVLink message with the specified system and component IDs.
      */
     fun send2(systemId: Int, componentId: Int, payload: Any) {
-        mavCon.send2(systemId, componentId, payload)
+        synchronized(sendLock) {
+            mavCon.send2(systemId, componentId, payload)
+        }
+    }
+
+    /**
+     * GPS_RTCM_DATA has no target fields. The target IDs are accepted here so callers only send
+     * corrections once the autopilot is known, while the actual MAVLink sender identity remains the GCS.
+     */
+    fun sendGpsRtcmData(targetSystemId: Int, targetComponentId: Int, rtcmPayload: ByteArray) {
+        require(targetSystemId >= 0 && targetComponentId >= 0) {
+            "Autopilot target IDs are not known."
+        }
+        require(rtcmPayload.isNotEmpty()) {
+            "RTCM payload must not be empty."
+        }
+        require(rtcmPayload.size <= MAX_RTCM_MESSAGE_SIZE) {
+            "RTCM payload exceeds GPS_RTCM_DATA fragmentation capacity."
+        }
+
+        val fragments = buildGpsRtcmMessages(rtcmPayload)
+        synchronized(sendLock) {
+            for (fragment in fragments) {
+                mavCon.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, fragment)
+            }
+        }
     }
 
     /**
@@ -120,5 +154,39 @@ class MavlinkSession(
                     Log.e(TAG, "Reader error: ${err.message}", err)
                 }
             )
+    }
+
+    private fun buildGpsRtcmMessages(rtcmPayload: ByteArray): List<GpsRtcmData> {
+        if (rtcmPayload.size <= RTCM_FRAGMENT_SIZE) {
+            return listOf(
+                GpsRtcmData.builder()
+                    .flags(0)
+                    .len(rtcmPayload.size)
+                    .data(rtcmPayload.toFixedLengthByteArray(RTCM_FRAGMENT_SIZE))
+                    .build()
+            )
+        }
+
+        val sequenceId = rtcmSequence.getAndUpdate { (it + 1) and RTCM_SEQUENCE_MASK }
+        val fragmentCount = (rtcmPayload.size + RTCM_FRAGMENT_SIZE - 1) / RTCM_FRAGMENT_SIZE
+
+        return (0 until fragmentCount).map { fragmentId ->
+            val start = fragmentId * RTCM_FRAGMENT_SIZE
+            val end = minOf(start + RTCM_FRAGMENT_SIZE, rtcmPayload.size)
+            val fragment = rtcmPayload.copyOfRange(start, end)
+            val flags = 1 or (fragmentId shl 1) or (sequenceId shl 3)
+
+            GpsRtcmData.builder()
+                .flags(flags)
+                .len(fragment.size)
+                .data(fragment.toFixedLengthByteArray(RTCM_FRAGMENT_SIZE))
+                .build()
+        }
+    }
+
+    private fun ByteArray.toFixedLengthByteArray(size: Int): ByteArray {
+        val out = ByteArray(size)
+        copyInto(out, endIndex = minOf(size, this.size))
+        return out
     }
 }

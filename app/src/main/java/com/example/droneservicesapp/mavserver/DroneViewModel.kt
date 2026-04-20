@@ -4,11 +4,15 @@ import android.location.Location
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.core.util.Event
 import com.example.droneservicesapp.data.mavlink.MavlinkClient
 import com.example.droneservicesapp.data.mavlink.MavlinkConfig
 import com.example.droneservicesapp.data.mavlink.MavlinkConnectionManager
 import com.example.droneservicesapp.data.mavlink.MissionService
+import com.example.droneservicesapp.data.rtk.RtkForwardingService
+import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.ui.main.MainActivityViewModel
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.BatteryStatus
@@ -24,6 +28,8 @@ import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.disposables.Disposable
 import io.reactivex.schedulers.Schedulers
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.launch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.math.pow
@@ -59,6 +65,7 @@ class DroneViewModel : ViewModel() {
     // Mission control (upload) — NEW
     @Volatile private var currentUploadDisposable: Disposable? = null
     @Volatile private var currentUploadCancelToken: AtomicBoolean? = null
+    @Volatile private var rtkRequested = false
 
     // Expose target IDs
     fun getTargetSystemId(): Int = autopilotSysId
@@ -68,6 +75,9 @@ class DroneViewModel : ViewModel() {
     private val repo = MavlinkConnectionManager()
     val mavlinkClient: MavlinkClient = repo
     val missionService: MissionService by lazy { MissionService(mavlinkClient) }
+    private val rtkForwardingService: RtkForwardingService by lazy {
+        RtkForwardingService(Application.getInstance().applicationContext, mavlinkClient)
+    }
 
     // LiveData
     val droneLocationLiveData: MutableLiveData<Location> by lazy {
@@ -112,10 +122,21 @@ class DroneViewModel : ViewModel() {
     val uploadProgressPercent: MutableLiveData<Int> by lazy {
         MutableLiveData<Int>().default(0)
     }
+    val rtkForwardingState: MutableLiveData<RtkForwardingState> by lazy {
+        MutableLiveData<RtkForwardingState>().default(RtkForwardingState.Idle)
+    }
 
     // Helpers
     private fun <T : Any?> MutableLiveData<T>.default(initialValue: T) =
         apply { postValue(initialValue) }
+
+    init {
+        viewModelScope.launch {
+            rtkForwardingService.state.collect { state ->
+                rtkForwardingState.postValue(state)
+            }
+        }
+    }
 
     // Public API
     fun startMavlink(config: MavlinkConfig) {
@@ -129,7 +150,23 @@ class DroneViewModel : ViewModel() {
     }
 
     fun onAppBackgrounded() {
+        stopRtkForwarding(clearRequest = true)
         mavlinkClient.stop()
+    }
+
+    fun startRtkForwarding() {
+        rtkRequested = true
+        ensureRtkForwardingState(forceStart = true)
+    }
+
+    fun stopRtkForwarding(clearRequest: Boolean = true) {
+        if (clearRequest) {
+            rtkRequested = false
+        }
+        rtkForwardingService.stop()
+        if (clearRequest) {
+            rtkForwardingState.postValue(RtkForwardingState.Stopped)
+        }
     }
 
     fun downloadMissionNew() {
@@ -243,6 +280,16 @@ class DroneViewModel : ViewModel() {
 
                     if (!connected) {
                         telemetryAliveLiveData.postValue(false)
+                        if (autopilotSysId != -1) {
+                            autopilotSysId = -1
+                            autopilotCompId = -1
+                        }
+                        if (rtkRequested) {
+                            rtkForwardingService.stop(updateState = false)
+                            rtkForwardingState.postValue(RtkForwardingState.WaitingForDrone)
+                        }
+                    } else if (rtkRequested) {
+                        ensureRtkForwardingState()
                     }
                 }
         )
@@ -285,6 +332,7 @@ class DroneViewModel : ViewModel() {
                     Log.i("HB_LOCK", "Locked autopilot sys=$autopilotSysId comp=$autopilotCompId")
                     missionService.targetSystemId = autopilotSysId
                     missionService.targetComponentId = autopilotCompId
+                    ensureRtkForwardingState()
                 }
 
                 // If we’ve locked on already, ignore heartbeats from other components/systems
@@ -344,6 +392,26 @@ class DroneViewModel : ViewModel() {
         }
     }
 
+    private fun ensureRtkForwardingState(forceStart: Boolean = false) {
+        val connected = conStateLiveData.value == true
+        val targetReady = autopilotSysId >= 0 && autopilotCompId >= 0
+        val currentState = rtkForwardingState.value
+
+        when {
+            !rtkRequested -> rtkForwardingState.postValue(RtkForwardingState.Stopped)
+            !connected || !targetReady -> rtkForwardingState.postValue(RtkForwardingState.WaitingForDrone)
+            !rtkForwardingService.isRunning() && (
+                forceStart ||
+                    currentState == null ||
+                    currentState is RtkForwardingState.Idle ||
+                    currentState is RtkForwardingState.WaitingForDrone ||
+                    currentState is RtkForwardingState.Stopped
+                ) -> {
+                rtkForwardingService.start(autopilotSysId, autopilotCompId)
+            }
+        }
+    }
+
     // Lifecycle
     override fun onCleared() {
         super.onCleared()
@@ -355,6 +423,7 @@ class DroneViewModel : ViewModel() {
         currentUploadCancelToken = null
 
         repoDisposables.clear()
+        rtkForwardingService.shutdown()
         mavlinkClient.stop()
     }
 }

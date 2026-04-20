@@ -40,6 +40,25 @@
             android:text="@string/rtk_status_idle"
             android:textColor="@color/text_primary" />
 
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:fontFamily="@font/inter"
+            android:text="@string/rtk_forwarding_status"
+            android:textColor="@color/text_secondary" />
+
+        <TextView
+            android:id="@+id/rtk_forwarding_status_value"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:background="@drawable/bg_card_gold_stroke"
+            android:fontFamily="@font/inter"
+            android:padding="12dp"
+            android:text="@string/rtk_forwarding_idle"
+            android:textColor="@color/text_primary" />
+
         <com.google.android.material.textfield.TextInputLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -126,6 +145,21 @@
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:text="@string/rtk_test_connection" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/start_rtk_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:text="@string/rtk_start" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/stop_rtk_button"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:enabled="false"
+            android:text="@string/rtk_stop" />
 
     </LinearLayout>
 </ScrollView>
