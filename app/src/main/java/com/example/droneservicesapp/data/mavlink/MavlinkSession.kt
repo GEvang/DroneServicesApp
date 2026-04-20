@@ -29,8 +29,9 @@ class MavlinkSession(
 ) {
     private companion object {
         private const val TAG = "MavlinkSession"
-        private const val GCS_SYSTEM_ID = 254
-        private const val GCS_COMPONENT_ID = 99
+        private const val RTCM_TAG = "MavlinkRtcm"
+        private const val GCS_SYSTEM_ID = 255
+        private const val GCS_COMPONENT_ID = 190
         private const val RTCM_FRAGMENT_SIZE = 180
         private const val MAX_RTCM_MESSAGE_SIZE = RTCM_FRAGMENT_SIZE * 4
         private const val RTCM_SEQUENCE_MASK = 0x1F
@@ -46,6 +47,8 @@ class MavlinkSession(
         PublishSubject.create<MavlinkMessage<*>>().toSerialized()
     private val sendLock = Any()
     private val rtcmSequence = AtomicInteger(0)
+    private val totalRtcmMessagesSent = AtomicInteger(0)
+    private val totalRtcmChunksSent = AtomicInteger(0)
 
     @Volatile
     private var _lastHeartbeatMs: Long = 0L
@@ -98,9 +101,40 @@ class MavlinkSession(
         }
 
         val fragments = buildGpsRtcmMessages(rtcmPayload)
+        val chunkCount = totalRtcmChunksSent.incrementAndGet()
+        val totalPackagedBytes = fragments.sumOf { it.len() }
+        Log.i(
+            RTCM_TAG,
+            "mavlink: incoming chunkSize=${rtcmPayload.size} generatedPackets=${fragments.size} targetSys=$targetSystemId targetComp=$targetComponentId totalBytesIn=${rtcmPayload.size} totalBytesPackaged=$totalPackagedBytes chunk=$chunkCount"
+        )
+        Log.i(
+            RTCM_TAG,
+            "mavlink: sender sys=$GCS_SYSTEM_ID comp=$GCS_COMPONENT_ID for GPS_RTCM_DATA"
+        )
         synchronized(sendLock) {
-            for (fragment in fragments) {
-                mavCon.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, fragment)
+            try {
+                fragments.forEachIndexed { index, fragment ->
+                    val flags = fragment.flags()
+                    val seq = (flags.toInt() shr 3) and RTCM_SEQUENCE_MASK
+                    val fragmentIndex = (flags.toInt() shr 1) and 0x03
+                    Log.i(
+                        RTCM_TAG,
+                        "mavlink: packet chunk=$chunkCount packet=${index + 1}/${fragments.size} seq=$seq flags=$flags len=${fragment.len()} fragmentIndex=$fragmentIndex"
+                    )
+                    mavCon.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, fragment)
+                }
+                val totalPackets = totalRtcmMessagesSent.addAndGet(fragments.size)
+                Log.i(
+                    RTCM_TAG,
+                    "mavlink: send success generatedPackets=${fragments.size} totalPackets=$totalPackets"
+                )
+            } catch (e: Exception) {
+                Log.e(
+                    RTCM_TAG,
+                    "mavlink: send failure type=${e.javaClass.simpleName} message=${e.message}",
+                    e
+                )
+                throw e
             }
         }
     }
@@ -168,12 +202,27 @@ class MavlinkSession(
         }
 
         val sequenceId = rtcmSequence.getAndUpdate { (it + 1) and RTCM_SEQUENCE_MASK }
-        val fragmentCount = (rtcmPayload.size + RTCM_FRAGMENT_SIZE - 1) / RTCM_FRAGMENT_SIZE
+        val requiresTerminalEmptyFragment =
+            rtcmPayload.size < MAX_RTCM_MESSAGE_SIZE && rtcmPayload.size % RTCM_FRAGMENT_SIZE == 0
+        val dataFragmentCount = (rtcmPayload.size + RTCM_FRAGMENT_SIZE - 1) / RTCM_FRAGMENT_SIZE
+        val totalFragmentCount = if (requiresTerminalEmptyFragment) {
+            dataFragmentCount + 1
+        } else {
+            dataFragmentCount
+        }
 
-        return (0 until fragmentCount).map { fragmentId ->
+        require(totalFragmentCount <= 4) {
+            "RTCM payload requires more than 4 GPS_RTCM_DATA fragments."
+        }
+
+        return (0 until totalFragmentCount).map { fragmentId ->
             val start = fragmentId * RTCM_FRAGMENT_SIZE
             val end = minOf(start + RTCM_FRAGMENT_SIZE, rtcmPayload.size)
-            val fragment = rtcmPayload.copyOfRange(start, end)
+            val fragment = if (start < rtcmPayload.size) {
+                rtcmPayload.copyOfRange(start, end)
+            } else {
+                ByteArray(0)
+            }
             val flags = 1 or (fragmentId shl 1) or (sequenceId shl 3)
 
             GpsRtcmData.builder()

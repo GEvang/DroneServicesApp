@@ -54,10 +54,15 @@
     <string name="rtk_stop">Stop RTK</string>
     <string name="rtk_status">RTK Status</string>
     <string name="rtk_forwarding_status">Forwarding Status</string>
+    <string name="rtk_gps_debug_status">ArduPilot GPS Debug</string>
+    <string name="rtk_gps_debug_default">Fix: -- | Sats: -- | Last GPS: --</string>
     <string name="rtk_forwarding_idle">Idle</string>
     <string name="rtk_forwarding_waiting_for_drone">Waiting for drone connection...</string>
+    <string name="rtk_forwarding_waiting_for_drone_gps">Waiting for drone GPS for NEAR mountpoint</string>
+    <string name="rtk_forwarding_missing_autopilot_target">Missing autopilot target: %1$s</string>
     <string name="rtk_forwarding_connecting">Connecting to caster...</string>
     <string name="rtk_forwarding_streaming">Streaming RTCM to ArduPilot</string>
+    <string name="rtk_forwarding_reconnecting">Network interrupted, retrying: %1$s</string>
     <string name="rtk_forwarding_invalid_config">Cannot start RTK: %1$s</string>
     <string name="rtk_forwarding_auth_failed">RTK caster authentication failed</string>
     <string name="rtk_forwarding_network_error">RTK network error: %1$s</string>

@@ -1,12 +1,19 @@
 package com.example.droneservicesapp.data.rtk
 
+import android.location.Location
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
+import kotlinx.coroutines.isActive
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.ByteArrayOutputStream
 import java.io.IOException
+import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.Socket
 import java.net.SocketTimeoutException
@@ -14,6 +21,17 @@ import java.nio.charset.StandardCharsets
 import java.util.Base64
 
 class NtripClient {
+
+    companion object {
+        private const val TAG = "NtripClient"
+        private const val CONNECT_TIMEOUT_MS = 8000
+        private const val READ_TIMEOUT_MS = 10000
+        private const val STREAM_READ_TIMEOUT_MS = 30000
+        private const val STREAM_BUFFER_SIZE = 1024
+        private const val MAX_HANDSHAKE_BYTES = 8192
+        private const val PROGRESS_LOG_BYTES = 16 * 1024L
+        private const val PROGRESS_LOG_INTERVAL_MS = 5000L
+    }
 
     suspend fun fetchSourceTable(config: RtkConfig): NtripResult = withContext(Dispatchers.IO) {
         if (!RtkValidator.isValidBaseConfig(config)) {
@@ -39,68 +57,163 @@ class NtripClient {
 
     suspend fun streamCorrections(
         config: RtkConfig,
+        attemptNumber: Int = 1,
+        ggaLocationProvider: () -> Location? = { null },
         onStreamStarted: () -> Unit = {},
         onBytesReceived: (ByteArray) -> Unit
     ): NtripResult = withContext(Dispatchers.IO) {
-        if (!RtkValidator.isValidConfig(config)) {
-            return@withContext NtripResult.InvalidConfig("RTK settings are incomplete.")
-        }
-
-        val socket = Socket()
-        val coroutineContext = currentCoroutineContext()
-
-        try {
-            socket.connect(InetSocketAddress(config.ip.trim(), config.port), CONNECT_TIMEOUT_MS)
-            socket.soTimeout = STREAM_READ_TIMEOUT_MS
-
-            val requestPath = "/${config.mountpoint.trim().trimStart('/')}"
-            val request = buildRequest(requestPath, config)
-
-            val output = socket.getOutputStream()
-            output.write(request.toByteArray(StandardCharsets.ISO_8859_1))
-            output.flush()
-
-            val input = socket.getInputStream()
-            val handshake = readStreamingHandshake(input)
-            val handshakeResult = mapStreamingHandshake(handshake)
-            if (handshakeResult != null) {
-                return@withContext handshakeResult
+        coroutineScope {
+            Log.i(
+                TAG,
+                "stream open requested attempt=$attemptNumber host=${config.ip.trim()} port=${config.port} mountpoint=${config.mountpoint.trim()} usernamePresent=${config.username.isNotBlank()} passwordPresent=${config.password.isNotBlank()}"
+            )
+            if (!RtkValidator.isValidConfig(config)) {
+                Log.w(TAG, "streamCorrections blocked: invalid config")
+                return@coroutineScope NtripResult.InvalidConfig("RTK settings are incomplete.")
             }
 
-            onStreamStarted()
+            val socket = Socket()
+            val coroutineContext = currentCoroutineContext()
+            var totalBytesReceived = 0L
+            var lastProgressBytes = 0L
+            var lastProgressLogMs = 0L
+            val startedAtMs = System.currentTimeMillis()
+            var firstBytesLogged = false
+            var ggaJob: kotlinx.coroutines.Job? = null
 
-            if (handshake.remainingBody.isNotEmpty()) {
-                onBytesReceived(handshake.remainingBody)
-            }
+            try {
+                val host = config.ip.trim()
+                Log.i(TAG, "ntrip: dns resolve start host=$host attempt=$attemptNumber")
+                val addresses = InetAddress.getAllByName(host)
+                Log.i(TAG, "ntrip: dns resolved host=$host addresses=${addresses.joinToString(prefix = "[", postfix = "]") { it.hostAddress.orEmpty() }}")
+                Log.i(TAG, "ntrip: socket create attempt=$attemptNumber")
+                Log.i(TAG, "ntrip: socket connect start host=$host port=${config.port} timeoutConnectMs=$CONNECT_TIMEOUT_MS")
+                socket.connect(InetSocketAddress(addresses.first(), config.port), CONNECT_TIMEOUT_MS)
+                socket.soTimeout = STREAM_READ_TIMEOUT_MS
+                Log.i(TAG, "ntrip: socket connected timeoutReadMs=$STREAM_READ_TIMEOUT_MS")
 
-            val buffer = ByteArray(STREAM_BUFFER_SIZE)
-            while (true) {
+                val requestPath = "/${config.mountpoint.trim().trimStart('/')}"
+                val request = buildRequest(requestPath, config)
+
+                val output = socket.getOutputStream()
+                Log.i(TAG, "ntrip: request write start path=$requestPath")
+                output.write(request.toByteArray(StandardCharsets.ISO_8859_1))
+                output.flush()
+                Log.i(TAG, "ntrip: request write success path=$requestPath")
+
+                val input = socket.getInputStream()
+                val handshake = readStreamingHandshake(input)
+                val firstLine = handshake.headerText
+                    .replace("\r\n", "\n")
+                    .lineSequence()
+                    .firstOrNull()
+                    .orEmpty()
+                    .trim()
+                Log.i(TAG, "ntrip: first response line=$firstLine")
+                if (handshake.headerText.isNotBlank()) {
+                    Log.i(
+                        TAG,
+                        "ntrip: response headers=${handshake.headerText.replace("\r\n", " | ").take(512)}"
+                    )
+                }
+                val handshakeResult = mapStreamingHandshake(handshake)
+                if (handshakeResult != null) {
+                    Log.w(TAG, "stream handshake failed: ${handshakeResult.javaClass.simpleName}")
+                    return@coroutineScope handshakeResult
+                }
+
+                Log.i(TAG, "ntrip: stream accepted mountpoint=${config.mountpoint.trim()} attempt=$attemptNumber")
+                onStreamStarted()
+
+                val initialGgaLocation = ggaLocationProvider()
+                if (initialGgaLocation != null) {
+                    Log.i(TAG, "ntrip: sending initial GGA")
+                    output.write(NmeaGgaBuilder.build(initialGgaLocation).toByteArray(StandardCharsets.US_ASCII))
+                    output.flush()
+                    ggaJob = launch(Dispatchers.IO) {
+                        while (isActive) {
+                            delay(10000L)
+                            val periodicLocation = ggaLocationProvider()
+                            if (periodicLocation != null) {
+                                output.write(NmeaGgaBuilder.build(periodicLocation).toByteArray(StandardCharsets.US_ASCII))
+                                output.flush()
+                                Log.i(TAG, "ntrip: periodic GGA sent")
+                            } else {
+                                Log.w(TAG, "ntrip: periodic GGA skipped locationAvailable=false")
+                            }
+                        }
+                    }
+                } else {
+                    Log.i(TAG, "ntrip: GGA not sent locationAvailable=false")
+                }
+
+                if (handshake.remainingBody.isNotEmpty()) {
+                    totalBytesReceived += handshake.remainingBody.size
+                    if (!firstBytesLogged) {
+                        firstBytesLogged = true
+                        Log.i(TAG, "rtcm: first bytes received size=${handshake.remainingBody.size} uptimeMs=${System.currentTimeMillis() - startedAtMs}")
+                    }
+                    onBytesReceived(handshake.remainingBody)
+                }
+
+                val buffer = ByteArray(STREAM_BUFFER_SIZE)
+                while (coroutineContext.isActive) {
+                    coroutineContext.ensureActive()
+                    val count = input.read(buffer)
+                    if (count == -1) {
+                        Log.w(TAG, "stream ended: caster closed stream")
+                        return@coroutineScope NtripResult.NetworkFailure("Caster closed the correction stream.")
+                    }
+                    if (count > 0) {
+                        totalBytesReceived += count
+                        if (!firstBytesLogged) {
+                            firstBytesLogged = true
+                            Log.i(TAG, "rtcm: first bytes received size=$count uptimeMs=${System.currentTimeMillis() - startedAtMs}")
+                        }
+                        val now = System.currentTimeMillis()
+                        if (totalBytesReceived - lastProgressBytes >= PROGRESS_LOG_BYTES ||
+                            now - lastProgressLogMs >= PROGRESS_LOG_INTERVAL_MS
+                        ) {
+                            lastProgressBytes = totalBytesReceived
+                            lastProgressLogMs = now
+                            Log.i(
+                                TAG,
+                                "rtcm: totalBytesReceived=$totalBytesReceived lastChunkSize=$count uptimeMs=${now - startedAtMs}"
+                            )
+                        }
+                        onBytesReceived(buffer.copyOf(count))
+                    }
+                }
+
+                Log.w(TAG, "ntrip: stop requested attempt=$attemptNumber")
+                return@coroutineScope NtripResult.ProtocolFailure("Streaming ended unexpectedly.")
+            } catch (e: SocketTimeoutException) {
+                Log.w(TAG, "ntrip: timeout exception type=${e.javaClass.simpleName} message=${sanitizeMessage(e.message)}")
+                return@coroutineScope NtripResult.NetworkFailure("Connection timed out.")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: IOException) {
                 coroutineContext.ensureActive()
-                val count = input.read(buffer)
-                if (count == -1) {
-                    return@withContext NtripResult.NetworkFailure("Caster closed the correction stream.")
-                }
-                if (count > 0) {
-                    onBytesReceived(buffer.copyOf(count))
-                }
+                Log.w(
+                    TAG,
+                    "ntrip: network exception type=${e.javaClass.simpleName} message=${sanitizeMessage(e.message)}"
+                )
+                return@coroutineScope NtripResult.NetworkFailure(sanitizeMessage(e.message))
+            } finally {
+                ggaJob?.cancel()
+                runCatching { socket.close() }
+                Log.i(TAG, "ntrip: stream closed attempt=$attemptNumber totalBytesReceived=$totalBytesReceived")
             }
-        } catch (_: SocketTimeoutException) {
-            return@withContext NtripResult.NetworkFailure("Connection timed out.")
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: IOException) {
-            coroutineContext.ensureActive()
-            return@withContext NtripResult.NetworkFailure(sanitizeMessage(e.message))
-        } finally {
-            runCatching { socket.close() }
         }
-
-        return@withContext NtripResult.ProtocolFailure("Streaming ended unexpectedly.")
     }
 
     private fun executeRequest(path: String, config: RtkConfig, readToEnd: Boolean): RawResponse {
         val socket = Socket()
         return try {
+            Log.i(
+                TAG,
+                "request open host=${config.ip.trim()} port=${config.port} path=/${path.trimStart('/')} usernamePresent=${config.username.isNotBlank()} passwordPresent=${config.password.isNotBlank()}"
+            )
             socket.connect(InetSocketAddress(config.ip.trim(), config.port), CONNECT_TIMEOUT_MS)
             socket.soTimeout = READ_TIMEOUT_MS
 
@@ -307,11 +420,17 @@ class NtripClient {
                 combined.contains("403") ||
                 combined.contains("BAD PASSWORD") ||
                 combined.contains("UNAUTHORIZED") ||
-                combined.contains("FORBIDDEN") -> NtripResult.AuthFailure
+                combined.contains("FORBIDDEN") -> {
+                Log.w(TAG, "ntrip: auth failure detected")
+                NtripResult.AuthFailure
+            }
 
             combined.contains("404") ||
                 combined.contains("NOT FOUND") ||
-                combined.contains("BAD MOUNTPOINT") -> NtripResult.MountpointNotFound
+                combined.contains("BAD MOUNTPOINT") -> {
+                Log.w(TAG, "ntrip: mountpoint not found detected")
+                NtripResult.MountpointNotFound
+            }
 
             else -> null
         }
@@ -341,11 +460,4 @@ class NtripClient {
         val remainingBody: ByteArray
     )
 
-    companion object {
-        private const val CONNECT_TIMEOUT_MS = 5000
-        private const val READ_TIMEOUT_MS = 7000
-        private const val STREAM_READ_TIMEOUT_MS = 15000
-        private const val STREAM_BUFFER_SIZE = 1024
-        private const val MAX_HANDSHAKE_BYTES = 8192
-    }
 }

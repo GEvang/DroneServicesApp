@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.ui.rtk
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -23,6 +24,9 @@ import com.example.droneservicesapp.mavserver.DroneViewModel
 import kotlinx.coroutines.launch
 
 class RtkFragment : Fragment() {
+    companion object {
+        private const val TAG = "RtkFragment"
+    }
 
     private var _binding: FragmentRtkBinding? = null
     private val binding get() = _binding!!
@@ -124,7 +128,14 @@ class RtkFragment : Fragment() {
     }
 
     private fun startRtk() {
-        val config = buildConfig(requireMountpoint = true) ?: return
+        Log.i(TAG, "Start button clicked")
+        Log.i(TAG, "UI mountpoint=${binding.rtkMountpointInput.text?.toString().orEmpty().trim()}")
+        val config = buildConfig(requireMountpoint = true) ?: run {
+            val message = validationMessage(requireMountpoint = true) ?: "RTK settings are incomplete."
+            droneViewModel.reportRtkStartBlocked(message)
+            return
+        }
+        Log.i(TAG, "Start RTK mountpoint=${config.mountpoint}")
         rtkPreferences.saveIp(config.ip)
         rtkPreferences.savePort(config.port)
         rtkPreferences.saveUsername(config.username)
@@ -134,6 +145,8 @@ class RtkFragment : Fragment() {
     }
 
     private fun stopRtk() {
+        Log.i(TAG, "Stop button clicked")
+        Log.i(TAG, "UI mountpoint=${binding.rtkMountpointInput.text?.toString().orEmpty().trim()}")
         droneViewModel.stopRtkForwarding()
     }
 
@@ -201,13 +214,37 @@ class RtkFragment : Fragment() {
     }
 
     private fun buildConfig(requireMountpoint: Boolean): RtkConfig? {
+        val validationMessage = validationMessage(requireMountpoint)
+        if (validationMessage != null) {
+            Log.w(TAG, "buildConfig blocked: $validationMessage")
+            updateStatus(validationMessage, false)
+            Toast.makeText(requireContext(), validationMessage, Toast.LENGTH_SHORT).show()
+            return null
+        }
+
         val ip = binding.rtkIpInput.text?.toString().orEmpty().trim()
         val port = binding.rtkPortInput.text?.toString()?.trim()?.toIntOrNull()
         val username = binding.rtkUsernameInput.text?.toString().orEmpty().trim()
         val password = binding.rtkPasswordInput.text?.toString().orEmpty()
         val mountpoint = binding.rtkMountpointInput.text?.toString().orEmpty().trim()
 
-        val validationMessage = when {
+        return RtkConfig(
+            ip = ip,
+            port = port ?: 0,
+            username = username,
+            password = password,
+            mountpoint = mountpoint
+        )
+    }
+
+    private fun validationMessage(requireMountpoint: Boolean): String? {
+        val ip = binding.rtkIpInput.text?.toString().orEmpty().trim()
+        val port = binding.rtkPortInput.text?.toString()?.trim()?.toIntOrNull()
+        val username = binding.rtkUsernameInput.text?.toString().orEmpty().trim()
+        val password = binding.rtkPasswordInput.text?.toString().orEmpty()
+        val mountpoint = binding.rtkMountpointInput.text?.toString().orEmpty().trim()
+
+        return when {
             !RtkValidator.isValidIp(ip) -> getString(
                 R.string.rtk_status_invalid_config,
                 getString(R.string.rtk_ip_required)
@@ -230,20 +267,6 @@ class RtkFragment : Fragment() {
             )
             else -> null
         }
-
-        if (validationMessage != null) {
-            updateStatus(validationMessage, false)
-            Toast.makeText(requireContext(), validationMessage, Toast.LENGTH_SHORT).show()
-            return null
-        }
-
-        return RtkConfig(
-            ip = ip,
-            port = port ?: 0,
-            username = username,
-            password = password,
-            mountpoint = mountpoint
-        )
     }
 
     private fun updateStatus(message: String, success: Boolean) {
@@ -254,14 +277,21 @@ class RtkFragment : Fragment() {
 
     private fun observeForwardingState() {
         droneViewModel.rtkForwardingState.observe(viewLifecycleOwner) { state ->
+            Log.i(TAG, "state observed=${state.javaClass.simpleName}")
             binding.rtkForwardingStatusValue.text = state.toDisplayString()
             binding.startRtkButton.isEnabled =
                 state !is RtkForwardingState.ConnectingToCaster &&
-                state !is RtkForwardingState.Streaming
+                state !is RtkForwardingState.Streaming &&
+                state !is RtkForwardingState.Reconnecting
             binding.stopRtkButton.isEnabled =
                 state is RtkForwardingState.ConnectingToCaster ||
                 state is RtkForwardingState.Streaming ||
-                state is RtkForwardingState.WaitingForDrone
+                state is RtkForwardingState.WaitingForDrone ||
+                state is RtkForwardingState.WaitingForDroneGps ||
+                state is RtkForwardingState.Reconnecting
+        }
+        droneViewModel.rtkGpsDebugStatus.observe(viewLifecycleOwner) { status ->
+            binding.rtkGpsDebugValue.text = status
         }
     }
 
@@ -269,8 +299,17 @@ class RtkFragment : Fragment() {
         return when (this) {
             is RtkForwardingState.Idle -> getString(R.string.rtk_forwarding_idle)
             is RtkForwardingState.WaitingForDrone -> getString(R.string.rtk_forwarding_waiting_for_drone)
+            is RtkForwardingState.WaitingForDroneGps -> getString(R.string.rtk_forwarding_waiting_for_drone_gps)
+            is RtkForwardingState.MissingAutopilotTarget -> getString(
+                R.string.rtk_forwarding_missing_autopilot_target,
+                message
+            )
             is RtkForwardingState.ConnectingToCaster -> getString(R.string.rtk_forwarding_connecting)
             is RtkForwardingState.Streaming -> getString(R.string.rtk_forwarding_streaming)
+            is RtkForwardingState.Reconnecting -> getString(
+                R.string.rtk_forwarding_reconnecting,
+                message
+            )
             is RtkForwardingState.InvalidConfig -> getString(
                 R.string.rtk_forwarding_invalid_config,
                 message

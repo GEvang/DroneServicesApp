@@ -18,9 +18,12 @@ import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.BatteryStatus
 import io.dronefleet.mavlink.common.DistanceSensor
 import io.dronefleet.mavlink.common.GlobalPositionInt
+import io.dronefleet.mavlink.common.Gps2Raw
+import io.dronefleet.mavlink.common.GpsRawInt
 import io.dronefleet.mavlink.common.MavSensorOrientation
 import io.dronefleet.mavlink.common.MissionItemInt
 import io.dronefleet.mavlink.common.RcChannels
+import io.dronefleet.mavlink.common.Statustext
 import io.dronefleet.mavlink.minimal.Heartbeat
 import io.reactivex.Observable
 import io.reactivex.Single
@@ -38,10 +41,12 @@ class DroneViewModel : ViewModel() {
 
     companion object {
         private const val TAG = "DroneViewModel"
+        private const val GPS_TAG = "ArduPilotGps"
         private const val CONNECTION_TICK_MS = 500L
         private const val HEARTBEAT_STALE_MS = 5500L
         private const val TELEMETRY_STALE_MS = 2500L
         private const val MISSION_DEBOUNCE_MS = 1500L
+        private const val GPS_LOG_INTERVAL_MS = 5000L
 
         // How long each wait cycle in MissionService uses (your default is fine; keep consistent)
         private const val UPLOAD_TIMEOUT_MS = 2000L
@@ -53,6 +58,15 @@ class DroneViewModel : ViewModel() {
     // State for connection/filters
     @Volatile private var bridgeAttached = false
     @Volatile private var lastNonHeartbeatMs: Long = 0L
+    @Volatile private var lastDroneLocation: Location? = null
+    @Volatile private var lastGpsLogSummary: String? = null
+    @Volatile private var lastGpsLogMs: Long = 0L
+    @Volatile private var lastGpsMessageTimeMs: Long = 0L
+    @Volatile private var lastFixType: Int = -1
+    @Volatile private var lastSatellitesVisible: Int = -1
+    @Volatile private var lastGpsSource: String = "--"
+    @Volatile private var lastGpsEph: Int = -1
+    @Volatile private var lastGpsEpv: Int = -1
 
     // Autopilot addressing
     @Volatile private var autopilotSysId: Int = -1
@@ -66,6 +80,7 @@ class DroneViewModel : ViewModel() {
     @Volatile private var currentUploadDisposable: Disposable? = null
     @Volatile private var currentUploadCancelToken: AtomicBoolean? = null
     @Volatile private var rtkRequested = false
+    @Volatile private var mavlinkMessagesDisposable: Disposable? = null
 
     // Expose target IDs
     fun getTargetSystemId(): Int = autopilotSysId
@@ -125,6 +140,9 @@ class DroneViewModel : ViewModel() {
     val rtkForwardingState: MutableLiveData<RtkForwardingState> by lazy {
         MutableLiveData<RtkForwardingState>().default(RtkForwardingState.Idle)
     }
+    val rtkGpsDebugStatus: MutableLiveData<String> by lazy {
+        MutableLiveData<String>().default("Src: -- | Fix: -- | Sats: -- | HDOP: -- | Last GPS: --")
+    }
 
     // Helpers
     private fun <T : Any?> MutableLiveData<T>.default(initialValue: T) =
@@ -141,12 +159,12 @@ class DroneViewModel : ViewModel() {
     // Public API
     fun startMavlink(config: MavlinkConfig) {
         mavlinkClient.restart(config)
-        attachRepositoryBridgeOnce()
+        attachRepositoryBridge()
     }
 
     fun onAppForegrounded(config: MavlinkConfig) {
         mavlinkClient.restart(config)
-        attachRepositoryBridgeOnce()
+        attachRepositoryBridge()
     }
 
     fun onAppBackgrounded() {
@@ -155,11 +173,39 @@ class DroneViewModel : ViewModel() {
     }
 
     fun startRtkForwarding() {
+        val config = Application.getInstance().let {
+            com.example.droneservicesapp.data.rtk.RtkPreferences(it.applicationContext).getConfig()
+        }
+        val currentState = rtkForwardingState.value
+        if (rtkForwardingService.isRunning()) {
+            when (currentState) {
+                is RtkForwardingState.Streaming -> Log.i(TAG, "start ignored: already streaming")
+                is RtkForwardingState.Reconnecting,
+                is RtkForwardingState.ConnectingToCaster,
+                is RtkForwardingState.WaitingForDroneGps -> Log.i(TAG, "start ignored: reconnect already scheduled")
+                else -> Log.i(TAG, "start ignored: service already active")
+            }
+            return
+        }
+        Log.i(
+            TAG,
+            "startRtkForwarding called sys=$autopilotSysId comp=$autopilotCompId connected=${conStateLiveData.value == true} mountpoint=${config.mountpoint.trim()} configValid=${com.example.droneservicesapp.data.rtk.RtkValidator.isValidConfig(config)}"
+        )
         rtkRequested = true
         ensureRtkForwardingState(forceStart = true)
     }
 
+    fun reportRtkStartBlocked(message: String) {
+        Log.w(TAG, "startRtkForwarding blocked: $message")
+        rtkRequested = false
+        rtkForwardingState.postValue(RtkForwardingState.InvalidConfig(message))
+    }
+
     fun stopRtkForwarding(clearRequest: Boolean = true) {
+        Log.i(
+            TAG,
+            "stopRtkForwarding called clearRequest=$clearRequest connected=${conStateLiveData.value == true} sys=$autopilotSysId comp=$autopilotCompId"
+        )
         if (clearRequest) {
             rtkRequested = false
         }
@@ -261,41 +307,51 @@ class DroneViewModel : ViewModel() {
     }
 
     // Internal
-    private fun attachRepositoryBridgeOnce() {
-        if (bridgeAttached) return
-        bridgeAttached = true
+    private fun attachRepositoryBridge() {
+        if (!bridgeAttached) {
+            bridgeAttached = true
 
-        // 1) Connection state ticker (heartbeat freshness)
-        repoDisposables.add(
-            Observable.interval(0, CONNECTION_TICK_MS, TimeUnit.MILLISECONDS)
-                .subscribeOn(Schedulers.io())
-                .subscribe {
-                    val connected =
-                        (System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs) < HEARTBEAT_STALE_MS
-                    conStateLiveData.postValue(connected)
+            // 1) Connection state ticker (heartbeat freshness)
+            repoDisposables.add(
+                Observable.interval(0, CONNECTION_TICK_MS, TimeUnit.MILLISECONDS)
+                    .subscribeOn(Schedulers.io())
+                    .subscribe {
+                        val connected =
+                            (System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs) < HEARTBEAT_STALE_MS
+                        conStateLiveData.postValue(connected)
 
-                    val telemetryAlive =
-                        (System.currentTimeMillis() - lastNonHeartbeatMs) < TELEMETRY_STALE_MS
-                    telemetryAliveLiveData.postValue(telemetryAlive)
+                        val telemetryAlive =
+                            (System.currentTimeMillis() - lastNonHeartbeatMs) < TELEMETRY_STALE_MS
+                        telemetryAliveLiveData.postValue(telemetryAlive)
 
-                    if (!connected) {
-                        telemetryAliveLiveData.postValue(false)
-                        if (autopilotSysId != -1) {
-                            autopilotSysId = -1
-                            autopilotCompId = -1
+                        if (!connected) {
+                            telemetryAliveLiveData.postValue(false)
+                            if (autopilotSysId != -1) {
+                                autopilotSysId = -1
+                                autopilotCompId = -1
+                            }
+                            if (rtkRequested) {
+                                Log.w(TAG, "RTK waiting: drone disconnected during forwarding")
+                                rtkForwardingService.stop(updateState = false)
+                                rtkForwardingState.postValue(RtkForwardingState.WaitingForDrone)
+                            }
+                        } else if (rtkRequested) {
+                            ensureRtkForwardingState()
                         }
-                        if (rtkRequested) {
-                            rtkForwardingService.stop(updateState = false)
-                            rtkForwardingState.postValue(RtkForwardingState.WaitingForDrone)
-                        }
-                    } else if (rtkRequested) {
-                        ensureRtkForwardingState()
+
+                        updateGpsDebugStatus()
                     }
-                }
-        )
+            )
+        } else {
+            Log.i(TAG, "duplicate collector prevented")
+        }
 
-        // 2) Message stream -> update LiveData (temporary bridge)
-        repoDisposables.add(
+        mavlinkMessagesDisposable?.let { disposable ->
+            repoDisposables.remove(disposable)
+            disposable.dispose()
+        }
+
+        mavlinkMessagesDisposable =
             mavlinkClient.messages()
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
@@ -303,7 +359,8 @@ class DroneViewModel : ViewModel() {
                     { msg -> handleMavlinkMessage(msg) },
                     { err -> Log.e(TAG, "MAVLink stream error: ${err.message}", err) }
                 )
-        )
+        repoDisposables.add(mavlinkMessagesDisposable!!)
+        Log.i(TAG, "Attached MAVLink message bridge to current session")
     }
 
     private fun handleMavlinkMessage(message: MavlinkMessage<*>) {
@@ -329,7 +386,7 @@ class DroneViewModel : ViewModel() {
                 if (!isGcs && hasAutopilot && autopilotSysId == -1) {
                     autopilotSysId = message.originSystemId
                     autopilotCompId = message.originComponentId
-                    Log.i("HB_LOCK", "Locked autopilot sys=$autopilotSysId comp=$autopilotCompId")
+                    Log.i(TAG, "Locked autopilot sys=$autopilotSysId comp=$autopilotCompId")
                     missionService.targetSystemId = autopilotSysId
                     missionService.targetComponentId = autopilotCompId
                     ensureRtkForwardingState()
@@ -354,8 +411,39 @@ class DroneViewModel : ViewModel() {
                     longitude = p.lon().toDouble() * 10.0.pow(-7.0)
                     altitude = p.relativeAlt().toDouble() * 10.0.pow(-3.0)
                 }
+                lastDroneLocation = Location(loc)
                 droneHeading.postValue(p.hdg().toDouble() / 100.0)
                 droneLocationLiveData.postValue(loc)
+            }
+
+            is GpsRawInt -> {
+                handleGpsDebugMessage(
+                    source = "GPS_RAW_INT",
+                    fixType = p.fixType().value().toInt(),
+                    satellitesVisible = p.satellitesVisible().toInt(),
+                    eph = p.eph().toInt(),
+                    epv = p.epv().toInt()
+                )
+            }
+
+            is Gps2Raw -> {
+                handleGpsDebugMessage(
+                    source = "GPS2_RAW",
+                    fixType = p.fixType().value().toInt(),
+                    satellitesVisible = p.satellitesVisible().toInt(),
+                    eph = p.eph().toInt(),
+                    epv = p.epv().toInt()
+                )
+            }
+
+            is Statustext -> {
+                val text = p.text()
+                if (text.contains("GPS", ignoreCase = true) ||
+                    text.contains("RTK", ignoreCase = true) ||
+                    text.contains("EKF", ignoreCase = true)
+                ) {
+                    Log.i(GPS_TAG, "STATUSTEXT severity=${p.severity().entry()} text=$text")
+                }
             }
 
             is BatteryStatus -> {
@@ -396,20 +484,104 @@ class DroneViewModel : ViewModel() {
         val connected = conStateLiveData.value == true
         val targetReady = autopilotSysId >= 0 && autopilotCompId >= 0
         val currentState = rtkForwardingState.value
+        Log.i(
+            TAG,
+            "ensureRtkForwardingState forceStart=$forceStart connected=$connected targetReady=$targetReady sys=$autopilotSysId comp=$autopilotCompId"
+        )
 
         when {
             !rtkRequested -> rtkForwardingState.postValue(RtkForwardingState.Stopped)
-            !connected || !targetReady -> rtkForwardingState.postValue(RtkForwardingState.WaitingForDrone)
+            !connected -> {
+                Log.w(TAG, "RTK start waiting: drone not connected")
+                rtkForwardingState.postValue(RtkForwardingState.WaitingForDrone)
+            }
+            !targetReady -> {
+                Log.w(TAG, "RTK start blocked: missing autopilot target")
+                rtkForwardingState.postValue(
+                    RtkForwardingState.MissingAutopilotTarget(
+                        "Missing autopilot target."
+                    )
+                )
+            }
             !rtkForwardingService.isRunning() && (
                 forceStart ||
                     currentState == null ||
                     currentState is RtkForwardingState.Idle ||
                     currentState is RtkForwardingState.WaitingForDrone ||
+                    currentState is RtkForwardingState.MissingAutopilotTarget ||
+                    currentState is RtkForwardingState.Reconnecting ||
                     currentState is RtkForwardingState.Stopped
                 ) -> {
-                rtkForwardingService.start(autopilotSysId, autopilotCompId)
+                val config = com.example.droneservicesapp.data.rtk.RtkPreferences(
+                    Application.getInstance().applicationContext
+                ).getConfig()
+                Log.i(
+                    TAG,
+                    "start forwarding mountpoint=${config.mountpoint.trim()} configValid=${com.example.droneservicesapp.data.rtk.RtkValidator.isValidConfig(config)}"
+                )
+                rtkForwardingService.start(
+                    targetSystemId = autopilotSysId,
+                    targetComponentId = autopilotCompId,
+                    shouldKeepRunning = {
+                        rtkRequested &&
+                            conStateLiveData.value == true &&
+                            autopilotSysId >= 0 &&
+                            autopilotCompId >= 0
+                    },
+                    locationProvider = {
+                        lastDroneLocation?.let { location -> Location(location) }
+                    }
+                )
             }
         }
+    }
+
+    private fun handleGpsDebugMessage(
+        source: String,
+        fixType: Int,
+        satellitesVisible: Int,
+        eph: Int,
+        epv: Int
+    ) {
+        val now = System.currentTimeMillis()
+        lastGpsMessageTimeMs = now
+        lastFixType = fixType
+        lastSatellitesVisible = satellitesVisible
+        lastGpsSource = source
+        lastGpsEph = eph
+        lastGpsEpv = epv
+        val summary = "source=$source fixType=$fixType sats=$satellitesVisible eph=$eph epv=$epv"
+        if (summary != lastGpsLogSummary || now - lastGpsLogMs >= GPS_LOG_INTERVAL_MS) {
+            lastGpsLogSummary = summary
+            lastGpsLogMs = now
+            Log.i(GPS_TAG, summary)
+        }
+        updateGpsDebugStatus()
+    }
+
+    private fun updateGpsDebugStatus() {
+        val lastGpsAge = if (lastGpsMessageTimeMs > 0L) {
+            "${((System.currentTimeMillis() - lastGpsMessageTimeMs) / 1000L)}s ago"
+        } else {
+            "--"
+        }
+        val hdop = formatDop(lastGpsEph)
+        val ephText = if (lastGpsEph >= 0 && lastGpsEph != 65535) lastGpsEph.toString() else "--"
+        val source = lastGpsSource.ifBlank { "--" }
+        val fix = formatGpsMetric(lastFixType)
+        val sats = formatGpsMetric(lastSatellitesVisible)
+        rtkGpsDebugStatus.postValue(
+            "Src: $source | Fix: $fix | Sats: $sats | HDOP: $hdop | EPH: $ephText | Last GPS: $lastGpsAge"
+        )
+    }
+
+    private fun formatGpsMetric(value: Int): String {
+        return if (value >= 0 && value != 255 && value != 65535) value.toString() else "--"
+    }
+
+    private fun formatDop(value: Int): String {
+        if (value < 0 || value == 65535) return "--"
+        return String.format(java.util.Locale.US, "%.2f", value / 100.0)
     }
 
     // Lifecycle
