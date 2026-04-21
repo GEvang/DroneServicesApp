@@ -13,6 +13,7 @@ import com.example.droneservicesapp.data.mavlink.MavlinkConnectionManager
 import com.example.droneservicesapp.data.mavlink.MissionService
 import com.example.droneservicesapp.data.rtk.RtkForwardingService
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
+import com.example.droneservicesapp.data.rtk.RtkKeepAliveForegroundService
 import com.example.droneservicesapp.ui.main.MainActivityViewModel
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.BatteryStatus
@@ -152,6 +153,14 @@ class DroneViewModel : ViewModel() {
         viewModelScope.launch {
             rtkForwardingService.state.collect { state ->
                 rtkForwardingState.postValue(state)
+                if (state is RtkForwardingState.Stopped ||
+                    state is RtkForwardingState.InvalidConfig ||
+                    state is RtkForwardingState.AuthFailed ||
+                    state is RtkForwardingState.NetworkError ||
+                    state is RtkForwardingState.ProtocolError
+                ) {
+                    RtkKeepAliveForegroundService.stopSession(Application.getInstance().applicationContext)
+                }
             }
         }
     }
@@ -163,11 +172,20 @@ class DroneViewModel : ViewModel() {
     }
 
     fun onAppForegrounded(config: MavlinkConfig) {
+        if (shouldKeepRtkAliveInBackground()) {
+            Log.i(TAG, "onAppForegrounded keeping existing MAVLink/RTK session")
+            attachRepositoryBridge()
+            return
+        }
         mavlinkClient.restart(config)
         attachRepositoryBridge()
     }
 
     fun onAppBackgrounded() {
+        if (shouldKeepRtkAliveInBackground()) {
+            Log.i(TAG, "onAppBackgrounded preserving MAVLink/RTK keep-alive")
+            return
+        }
         stopRtkForwarding(clearRequest = true)
         mavlinkClient.stop()
     }
@@ -192,12 +210,14 @@ class DroneViewModel : ViewModel() {
             "startRtkForwarding called sys=$autopilotSysId comp=$autopilotCompId connected=${conStateLiveData.value == true} mountpoint=${config.mountpoint.trim()} configValid=${com.example.droneservicesapp.data.rtk.RtkValidator.isValidConfig(config)}"
         )
         rtkRequested = true
+        RtkKeepAliveForegroundService.startSession(Application.getInstance().applicationContext)
         ensureRtkForwardingState(forceStart = true)
     }
 
     fun reportRtkStartBlocked(message: String) {
         Log.w(TAG, "startRtkForwarding blocked: $message")
         rtkRequested = false
+        RtkKeepAliveForegroundService.stopSession(Application.getInstance().applicationContext)
         rtkForwardingState.postValue(RtkForwardingState.InvalidConfig(message))
     }
 
@@ -210,9 +230,14 @@ class DroneViewModel : ViewModel() {
             rtkRequested = false
         }
         rtkForwardingService.stop()
+        RtkKeepAliveForegroundService.stopSession(Application.getInstance().applicationContext)
         if (clearRequest) {
             rtkForwardingState.postValue(RtkForwardingState.Stopped)
         }
+    }
+
+    fun shouldKeepRtkAliveInBackground(): Boolean {
+        return rtkRequested || rtkForwardingService.isRunning()
     }
 
     fun downloadMissionNew() {
@@ -596,6 +621,7 @@ class DroneViewModel : ViewModel() {
 
         repoDisposables.clear()
         rtkForwardingService.shutdown()
+        RtkKeepAliveForegroundService.stopSession(Application.getInstance().applicationContext)
         mavlinkClient.stop()
     }
 }

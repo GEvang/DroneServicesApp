@@ -63,6 +63,18 @@ class RtkFragment : Fragment() {
         binding.stopRtkButton.setOnClickListener { stopRtk() }
     }
 
+    override fun onResume() {
+        super.onResume()
+        _binding?.root?.keepScreenOn = true
+        Log.i(TAG, "keepScreenOn enabled")
+    }
+
+    override fun onPause() {
+        _binding?.root?.keepScreenOn = false
+        Log.i(TAG, "keepScreenOn cleared")
+        super.onPause()
+    }
+
     private fun bindForm() {
         binding.rtkIpInput.doAfterTextChanged { text ->
             if (isPopulatingForm) return@doAfterTextChanged
@@ -353,6 +365,8 @@ class RtkFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        _binding?.root?.keepScreenOn = false
+        Log.i(TAG, "keepScreenOn cleared")
         super.onDestroyView()
         _binding = null
     }

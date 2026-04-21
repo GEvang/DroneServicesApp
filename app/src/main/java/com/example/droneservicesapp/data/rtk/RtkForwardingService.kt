@@ -2,6 +2,7 @@ package com.example.droneservicesapp.data.rtk
 
 import android.location.Location
 import android.content.Context
+import android.os.PowerManager
 import android.util.Log
 import com.example.droneservicesapp.data.mavlink.MavlinkClient
 import kotlinx.coroutines.CancellationException
@@ -27,6 +28,7 @@ class RtkForwardingService(
     }
 
     private val rtkPreferences = RtkPreferences(context.applicationContext)
+    private val appContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _state = MutableStateFlow<RtkForwardingState>(RtkForwardingState.Idle)
 
@@ -138,6 +140,10 @@ class RtkForwardingService(
                                 TAG,
                                 "streaming started attempt=$attempt targetSys=$targetSystemId targetComp=$targetComponentId"
                             )
+                            val powerManager = appContext.getSystemService(PowerManager::class.java)
+                            if (powerManager?.isInteractive == false) {
+                                Log.i(TAG, "service entering streaming while screen off or device locked")
+                            }
                             updateState(RtkForwardingState.Streaming)
                         },
                         onBytesReceived = { bytes ->
@@ -226,6 +232,7 @@ class RtkForwardingService(
 
     fun stop(updateState: Boolean = true) {
         Log.i(TAG, "stop updateState=$updateState")
+        RtkKeepAliveForegroundService.setWakeActive(appContext, false)
         forwardingJob?.cancel()
         forwardingJob = null
         rtcmParser.reset()
@@ -236,6 +243,7 @@ class RtkForwardingService(
 
     fun shutdown() {
         stop()
+        RtkKeepAliveForegroundService.stopSession(appContext)
         scope.cancel()
     }
 
@@ -244,7 +252,16 @@ class RtkForwardingService(
     private fun updateState(newState: RtkForwardingState) {
         if (_state.value == newState) return
         Log.i(TAG, "state transition: ${_state.value.javaClass.simpleName} -> ${newState.javaClass.simpleName}")
+        syncWakeState(newState)
         _state.value = newState
+    }
+
+    private fun syncWakeState(state: RtkForwardingState) {
+        val wakeActive =
+            state is RtkForwardingState.ConnectingToCaster ||
+                state is RtkForwardingState.Reconnecting ||
+                state is RtkForwardingState.Streaming
+        RtkKeepAliveForegroundService.setWakeActive(appContext, wakeActive)
     }
 
     private fun isUsableLocation(location: Location): Boolean {

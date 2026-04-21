@@ -56,6 +56,10 @@
     <string name="rtk_forwarding_status">Forwarding Status</string>
     <string name="rtk_gps_debug_status">ArduPilot GPS Debug</string>
     <string name="rtk_gps_debug_default">Fix: -- | Sats: -- | Last GPS: --</string>
+    <string name="rtk_keep_awake_hint">RTK continues while locked. This screen stays awake while open.</string>
+    <string name="rtk_keep_alive_notification_title">RTK forwarding active</string>
+    <string name="rtk_keep_alive_notification_active">Keeping RTK streaming alive while the device is locked.</string>
+    <string name="rtk_keep_alive_notification_idle">RTK keep-alive is waiting for connection or target.</string>
     <string name="rtk_forwarding_idle">Idle</string>
     <string name="rtk_forwarding_waiting_for_drone">Waiting for drone connection...</string>
     <string name="rtk_forwarding_waiting_for_drone_gps">Waiting for drone GPS for NEAR mountpoint</string>
