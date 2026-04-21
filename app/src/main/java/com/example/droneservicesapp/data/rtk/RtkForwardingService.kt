@@ -17,14 +17,17 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import javax.net.SocketFactory
 
 class RtkForwardingService(
     context: Context,
     private val mavlinkClient: MavlinkClient,
-    private val ntripClient: NtripClient = NtripClient()
+    private val ntripClientFactory: () -> NtripClient = { NtripClient() },
+    private val socketFactoryProvider: () -> SocketFactory? = { null }
 ) {
     companion object {
         private const val TAG = "RtkForwarding"
+        private const val RECONNECT_DELAY_MS = 3000L
     }
 
     private val rtkPreferences = RtkPreferences(context.applicationContext)
@@ -40,6 +43,8 @@ class RtkForwardingService(
     private var lastRtcmProgressLogMs = 0L
     private var totalRtcmBytesForwarded = 0L
     private var lastRawChunkLogMs = 0L
+    private var lastRtcmByteAtMs = 0L
+    private var lastReconnectReason = ""
 
     val state: StateFlow<RtkForwardingState> = _state.asStateFlow()
 
@@ -54,7 +59,7 @@ class RtkForwardingService(
                 is RtkForwardingState.Streaming -> Log.i(TAG, "start ignored: already streaming")
                 is RtkForwardingState.Reconnecting,
                 is RtkForwardingState.ConnectingToCaster,
-                is RtkForwardingState.WaitingForDroneGps -> Log.i(TAG, "start ignored: reconnect already scheduled")
+                is RtkForwardingState.WaitingForGps -> Log.i(TAG, "start ignored: reconnect already scheduled")
                 else -> Log.i(TAG, "start ignored: forwarding already active")
             }
             return
@@ -80,12 +85,14 @@ class RtkForwardingService(
             return
         }
 
-        rtcmParser.reset()
+        resetParser("starting new forwarding session")
         totalRawChunksReceived = 0L
         totalRawBytesReceived = 0L
         totalRtcmFramesForwarded = 0L
         totalRtcmBytesForwarded = 0L
         lastRtcmProgressLogMs = 0L
+        lastRtcmByteAtMs = 0L
+        lastReconnectReason = ""
         forwardingJob = scope.launch {
             try {
                 var attempt = 1
@@ -111,7 +118,7 @@ class RtkForwardingService(
                     val ggaLocation = locationProvider()?.takeIf { isUsableLocation(it) }
                     if (requiresGga && ggaLocation == null) {
                         Log.w(TAG, "waiting for drone gps for NEAR mountpoint")
-                        updateState(RtkForwardingState.WaitingForDroneGps)
+                        updateState(RtkForwardingState.WaitingForGps)
                         delay(2000L)
                         continue
                     }
@@ -119,7 +126,9 @@ class RtkForwardingService(
                         TAG,
                         "gga location available=${ggaLocation != null} mountpoint=${latestConfig.mountpoint.trim()}"
                     )
-                    rtcmParser.reset()
+                    resetParser("before attempt $attempt")
+                    val ntripClient = ntripClientFactory()
+                    Log.i(TAG, "new NtripClient instance created attempt=$attempt")
 
                     if (attempt == 1) {
                         updateState(RtkForwardingState.ConnectingToCaster)
@@ -146,7 +155,9 @@ class RtkForwardingService(
                             }
                             updateState(RtkForwardingState.Streaming)
                         },
+                        socketFactory = socketFactoryProvider(),
                         onBytesReceived = { bytes ->
+                            lastRtcmByteAtMs = System.currentTimeMillis()
                             totalRawChunksReceived++
                             totalRawBytesReceived += bytes.size
                             maybeLogRawChunk(bytes.size)
@@ -179,6 +190,7 @@ class RtkForwardingService(
                             }
                         }
                     )
+                    Log.i(TAG, "old stream fully torn down attempt=$attempt result=${result.javaClass.simpleName}")
 
                     when (result) {
                         is NtripResult.NetworkFailure -> {
@@ -187,13 +199,13 @@ class RtkForwardingService(
                                 updateState(RtkForwardingState.WaitingForDrone)
                                 break
                             }
-                            val retryDelayMs = 3000L
+                            lastReconnectReason = result.message
                             Log.w(
                                 TAG,
-                                "reconnect scheduled in ${retryDelayMs}ms attempt=${attempt + 1} reason=${result.message}"
+                                "reconnect scheduled in ${RECONNECT_DELAY_MS}ms attempt=${attempt + 1} reason=${result.message} lastRtcmAgeMs=${lastRtcmByteAgeMs()}"
                             )
                             updateState(RtkForwardingState.Reconnecting(result.message))
-                            delay(retryDelayMs)
+                            delay(RECONNECT_DELAY_MS)
                             attempt++
                         }
 
@@ -205,7 +217,7 @@ class RtkForwardingService(
 
                         is NtripResult.MountpointNotFound -> {
                             Log.w(TAG, "reconnect abandoned: mountpoint not found")
-                            updateState(RtkForwardingState.ProtocolError("Mountpoint not found."))
+                            updateState(RtkForwardingState.MountpointInvalid("Mountpoint not found."))
                             break
                         }
 
@@ -225,6 +237,7 @@ class RtkForwardingService(
                 )
                 )
             } finally {
+                Log.i(TAG, "forwarding loop finished lastReconnectReason=${lastReconnectReason.ifBlank { "--" }}")
                 forwardingJob = null
             }
         }
@@ -235,7 +248,7 @@ class RtkForwardingService(
         RtkKeepAliveForegroundService.setWakeActive(appContext, false)
         forwardingJob?.cancel()
         forwardingJob = null
-        rtcmParser.reset()
+        resetParser("stop")
         if (updateState) {
             updateState(RtkForwardingState.Stopped)
         }
@@ -262,6 +275,16 @@ class RtkForwardingService(
                 state is RtkForwardingState.Reconnecting ||
                 state is RtkForwardingState.Streaming
         RtkKeepAliveForegroundService.setWakeActive(appContext, wakeActive)
+    }
+
+    private fun resetParser(reason: String) {
+        rtcmParser.reset()
+        Log.i(TAG, "parser reset reason=$reason")
+    }
+
+    private fun lastRtcmByteAgeMs(): Long {
+        if (lastRtcmByteAtMs <= 0L) return -1L
+        return System.currentTimeMillis() - lastRtcmByteAtMs
     }
 
     private fun isUsableLocation(location: Location): Boolean {
@@ -303,7 +326,7 @@ class RtkForwardingService(
             is NtripResult.AuthFailure -> RtkForwardingState.AuthFailed("Authentication failed.")
             is NtripResult.InvalidConfig -> RtkForwardingState.InvalidConfig(result.message)
             is NtripResult.MountpointNotFound -> {
-                RtkForwardingState.ProtocolError("Mountpoint not found.")
+                RtkForwardingState.MountpointInvalid("Mountpoint not found.")
             }
             is NtripResult.NetworkFailure -> RtkForwardingState.NetworkError(result.message)
             is NtripResult.ProtocolFailure -> RtkForwardingState.ProtocolError(result.message)

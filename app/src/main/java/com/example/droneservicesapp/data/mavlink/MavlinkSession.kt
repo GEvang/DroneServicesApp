@@ -49,6 +49,7 @@ class MavlinkSession(
     private val rtcmSequence = AtomicInteger(0)
     private val totalRtcmMessagesSent = AtomicInteger(0)
     private val totalRtcmChunksSent = AtomicInteger(0)
+    private val firstHeartbeatLogged = AtomicBoolean(false)
 
     @Volatile
     private var _lastHeartbeatMs: Long = 0L
@@ -60,7 +61,11 @@ class MavlinkSession(
      * Start the session reader (idempotent; if already started, does nothing).
      */
     fun start() {
-        if (running.getAndSet(true)) return
+        if (running.getAndSet(true)) {
+            Log.i(TAG, "start skipped: session reader already running")
+            return
+        }
+        Log.i(TAG, "session start: reader creating")
         startReader()
         Log.i(TAG, "Started")
     }
@@ -70,7 +75,11 @@ class MavlinkSession(
      * Note: Closing streams is handled by the transport layer.
      */
     fun stop() {
-        if (!running.getAndSet(false)) return
+        if (!running.getAndSet(false)) {
+            Log.i(TAG, "stop skipped: session reader already stopped")
+            return
+        }
+        Log.i(TAG, "session stop: disposing reader")
         readerDisposable?.dispose()
         readerDisposable = null
         Log.i(TAG, "Stopped")
@@ -163,6 +172,7 @@ class MavlinkSession(
     }
 
     private fun startReader() {
+        Log.i(TAG, "reader start requested")
         readerDisposable = Observable.create<MavlinkMessage<*>> { emitter ->
             try {
                 while (!emitter.isDisposed) {
@@ -182,6 +192,9 @@ class MavlinkSession(
                     msgSubject.onNext(msg)
                     if (msg.payload is Heartbeat) {
                         _lastHeartbeatMs = clock.nowMs()
+                        if (firstHeartbeatLogged.compareAndSet(false, true)) {
+                            Log.i(TAG, "heartbeat first seen system=${msg.originSystemId} component=${msg.originComponentId}")
+                        }
                     }
                 },
                 { err ->

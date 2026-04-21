@@ -14,6 +14,9 @@ import com.example.droneservicesapp.data.mavlink.MissionService
 import com.example.droneservicesapp.data.rtk.RtkForwardingService
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.rtk.RtkKeepAliveForegroundService
+import com.example.droneservicesapp.data.rtk.RtkInternetMonitor
+import com.example.droneservicesapp.data.rtk.RtkPreferences
+import com.example.droneservicesapp.data.rtk.RtkValidator
 import com.example.droneservicesapp.ui.main.MainActivityViewModel
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.BatteryStatus
@@ -80,8 +83,9 @@ class DroneViewModel : ViewModel() {
     // Mission control (upload) — NEW
     @Volatile private var currentUploadDisposable: Disposable? = null
     @Volatile private var currentUploadCancelToken: AtomicBoolean? = null
-    @Volatile private var rtkRequested = false
     @Volatile private var mavlinkMessagesDisposable: Disposable? = null
+    @Volatile private var internetAvailable = false
+    @Volatile private var lastLoggedConnectionState: Boolean? = null
 
     // Expose target IDs
     fun getTargetSystemId(): Int = autopilotSysId
@@ -91,8 +95,18 @@ class DroneViewModel : ViewModel() {
     private val repo = MavlinkConnectionManager()
     val mavlinkClient: MavlinkClient = repo
     val missionService: MissionService by lazy { MissionService(mavlinkClient) }
+    private val rtkPreferences: RtkPreferences by lazy {
+        RtkPreferences(Application.getInstance().applicationContext)
+    }
+    private val rtkInternetMonitor: RtkInternetMonitor by lazy {
+        RtkInternetMonitor(Application.getInstance().applicationContext)
+    }
     private val rtkForwardingService: RtkForwardingService by lazy {
-        RtkForwardingService(Application.getInstance().applicationContext, mavlinkClient)
+        RtkForwardingService(
+            Application.getInstance().applicationContext,
+            mavlinkClient,
+            socketFactoryProvider = { rtkInternetMonitor.currentInternetSocketFactory() }
+        )
     }
 
     // LiveData
@@ -150,38 +164,65 @@ class DroneViewModel : ViewModel() {
         apply { postValue(initialValue) }
 
     init {
+        internetAvailable = rtkInternetMonitor.isInternetAvailable.value
         viewModelScope.launch {
             rtkForwardingService.state.collect { state ->
                 rtkForwardingState.postValue(state)
                 if (state is RtkForwardingState.Stopped ||
+                    state is RtkForwardingState.WaitingForMountpoint ||
                     state is RtkForwardingState.InvalidConfig ||
                     state is RtkForwardingState.AuthFailed ||
-                    state is RtkForwardingState.NetworkError ||
+                    state is RtkForwardingState.MountpointInvalid ||
                     state is RtkForwardingState.ProtocolError
                 ) {
                     RtkKeepAliveForegroundService.stopSession(Application.getInstance().applicationContext)
                 }
             }
         }
+        viewModelScope.launch {
+            rtkInternetMonitor.isInternetAvailable.collect { available ->
+                if (internetAvailable == available) return@collect
+                internetAvailable = available
+                Log.i(TAG, "internet availability changed available=$available")
+                ensureRtkForwardingState()
+            }
+        }
     }
 
     // Public API
     fun startMavlink(config: MavlinkConfig) {
+        Log.i(TAG, "connect requested via startMavlink config=$config")
         mavlinkClient.restart(config)
         attachRepositoryBridge()
     }
 
     fun onAppForegrounded(config: MavlinkConfig) {
-        if (shouldKeepRtkAliveInBackground()) {
-            Log.i(TAG, "onAppForegrounded keeping existing MAVLink/RTK session")
+        Log.i(
+            TAG,
+            "foreground transition keepAlive=${shouldKeepRtkAliveInBackground()} healthy=${isMavlinkSessionHealthy()} lastHeartbeatMs=${mavlinkClient.lastHeartbeatMs}"
+        )
+        if (shouldKeepRtkAliveInBackground() && isMavlinkSessionHealthy()) {
+            Log.i(TAG, "restart skipped: reusing healthy MAVLink session while RTK keep-alive is active")
             attachRepositoryBridge()
+            ensureRtkForwardingState()
             return
+        }
+        if (shouldKeepRtkAliveInBackground()) {
+            Log.w(TAG, "onAppForegrounded restarting stale MAVLink session before resuming RTK")
+            if (rtkForwardingService.isRunning()) {
+                rtkForwardingService.stop(updateState = false)
+            }
         }
         mavlinkClient.restart(config)
         attachRepositoryBridge()
+        ensureRtkForwardingState()
     }
 
     fun onAppBackgrounded() {
+        Log.i(
+            TAG,
+            "background transition keepAlive=${shouldKeepRtkAliveInBackground()} rtkRunning=${rtkForwardingService.isRunning()} lastHeartbeatMs=${mavlinkClient.lastHeartbeatMs}"
+        )
         if (shouldKeepRtkAliveInBackground()) {
             Log.i(TAG, "onAppBackgrounded preserving MAVLink/RTK keep-alive")
             return
@@ -190,33 +231,19 @@ class DroneViewModel : ViewModel() {
         mavlinkClient.stop()
     }
 
-    fun startRtkForwarding() {
-        val config = Application.getInstance().let {
-            com.example.droneservicesapp.data.rtk.RtkPreferences(it.applicationContext).getConfig()
-        }
-        val currentState = rtkForwardingState.value
-        if (rtkForwardingService.isRunning()) {
-            when (currentState) {
-                is RtkForwardingState.Streaming -> Log.i(TAG, "start ignored: already streaming")
-                is RtkForwardingState.Reconnecting,
-                is RtkForwardingState.ConnectingToCaster,
-                is RtkForwardingState.WaitingForDroneGps -> Log.i(TAG, "start ignored: reconnect already scheduled")
-                else -> Log.i(TAG, "start ignored: service already active")
-            }
-            return
-        }
+    fun onRtkConfigurationChanged(forceStart: Boolean = false) {
+        val config = currentRtkConfig()
         Log.i(
             TAG,
-            "startRtkForwarding called sys=$autopilotSysId comp=$autopilotCompId connected=${conStateLiveData.value == true} mountpoint=${config.mountpoint.trim()} configValid=${com.example.droneservicesapp.data.rtk.RtkValidator.isValidConfig(config)}"
+            "onRtkConfigurationChanged mountpoint=${config.mountpoint.trim()} desired=${isRtkDesired(config)} baseValid=${RtkValidator.isValidBaseConfig(config)}"
         )
-        rtkRequested = true
-        RtkKeepAliveForegroundService.startSession(Application.getInstance().applicationContext)
-        ensureRtkForwardingState(forceStart = true)
+        ensureRtkForwardingState(forceStart = forceStart)
     }
+
+    fun currentRtkSocketFactory() = rtkInternetMonitor.currentInternetSocketFactory()
 
     fun reportRtkStartBlocked(message: String) {
         Log.w(TAG, "startRtkForwarding blocked: $message")
-        rtkRequested = false
         RtkKeepAliveForegroundService.stopSession(Application.getInstance().applicationContext)
         rtkForwardingState.postValue(RtkForwardingState.InvalidConfig(message))
     }
@@ -226,18 +253,17 @@ class DroneViewModel : ViewModel() {
             TAG,
             "stopRtkForwarding called clearRequest=$clearRequest connected=${conStateLiveData.value == true} sys=$autopilotSysId comp=$autopilotCompId"
         )
-        if (clearRequest) {
-            rtkRequested = false
-        }
         rtkForwardingService.stop()
         RtkKeepAliveForegroundService.stopSession(Application.getInstance().applicationContext)
-        if (clearRequest) {
-            rtkForwardingState.postValue(RtkForwardingState.Stopped)
-        }
+        rtkForwardingState.postValue(RtkForwardingState.Stopped)
     }
 
     fun shouldKeepRtkAliveInBackground(): Boolean {
-        return rtkRequested || rtkForwardingService.isRunning()
+        return isRtkDesired(currentRtkConfig()) || rtkForwardingService.isRunning()
+    }
+
+    private fun isMavlinkSessionHealthy(): Boolean {
+        return (System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs) < HEARTBEAT_STALE_MS
     }
 
     fun downloadMissionNew() {
@@ -335,6 +361,7 @@ class DroneViewModel : ViewModel() {
     private fun attachRepositoryBridge() {
         if (!bridgeAttached) {
             bridgeAttached = true
+            Log.i(TAG, "bridge attached: starting connection ticker")
 
             // 1) Connection state ticker (heartbeat freshness)
             repoDisposables.add(
@@ -344,6 +371,20 @@ class DroneViewModel : ViewModel() {
                         val connected =
                             (System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs) < HEARTBEAT_STALE_MS
                         conStateLiveData.postValue(connected)
+                        if (lastLoggedConnectionState != connected) {
+                            lastLoggedConnectionState = connected
+                            if (connected) {
+                                Log.i(
+                                    TAG,
+                                    "heartbeat healthy lastHeartbeatAgeMs=${System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs}"
+                                )
+                            } else {
+                                Log.w(
+                                    TAG,
+                                    "heartbeat lost lastHeartbeatAgeMs=${System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs}"
+                                )
+                            }
+                        }
 
                         val telemetryAlive =
                             (System.currentTimeMillis() - lastNonHeartbeatMs) < TELEMETRY_STALE_MS
@@ -355,12 +396,13 @@ class DroneViewModel : ViewModel() {
                                 autopilotSysId = -1
                                 autopilotCompId = -1
                             }
-                            if (rtkRequested) {
+                            if (rtkForwardingService.isRunning()) {
                                 Log.w(TAG, "RTK waiting: drone disconnected during forwarding")
                                 rtkForwardingService.stop(updateState = false)
                                 rtkForwardingState.postValue(RtkForwardingState.WaitingForDrone)
                             }
-                        } else if (rtkRequested) {
+                        } else if (isRtkDesired(currentRtkConfig())) {
+                            Log.i(TAG, "RTK auto-start check triggered by healthy MAVLink ticker")
                             ensureRtkForwardingState()
                         }
 
@@ -368,10 +410,11 @@ class DroneViewModel : ViewModel() {
                     }
             )
         } else {
-            Log.i(TAG, "duplicate collector prevented")
+            Log.i(TAG, "bridge attach skipped: connection ticker already active")
         }
 
         mavlinkMessagesDisposable?.let { disposable ->
+            Log.i(TAG, "bridge detached: disposing previous MAVLink message subscription")
             repoDisposables.remove(disposable)
             disposable.dispose()
         }
@@ -385,7 +428,7 @@ class DroneViewModel : ViewModel() {
                     { err -> Log.e(TAG, "MAVLink stream error: ${err.message}", err) }
                 )
         repoDisposables.add(mavlinkMessagesDisposable!!)
-        Log.i(TAG, "Attached MAVLink message bridge to current session")
+        Log.i(TAG, "bridge attached: subscribed to current MAVLink session stream")
     }
 
     private fun handleMavlinkMessage(message: MavlinkMessage<*>) {
@@ -414,6 +457,7 @@ class DroneViewModel : ViewModel() {
                     Log.i(TAG, "Locked autopilot sys=$autopilotSysId comp=$autopilotCompId")
                     missionService.targetSystemId = autopilotSysId
                     missionService.targetComponentId = autopilotCompId
+                    Log.i(TAG, "RTK auto-start check triggered by first autopilot heartbeat")
                     ensureRtkForwardingState()
                 }
 
@@ -439,6 +483,10 @@ class DroneViewModel : ViewModel() {
                 lastDroneLocation = Location(loc)
                 droneHeading.postValue(p.hdg().toDouble() / 100.0)
                 droneLocationLiveData.postValue(loc)
+                if (isRtkDesired(currentRtkConfig())) {
+                    Log.i(TAG, "RTK auto-start check triggered by drone GPS update")
+                    ensureRtkForwardingState()
+                }
             }
 
             is GpsRawInt -> {
@@ -506,52 +554,100 @@ class DroneViewModel : ViewModel() {
     }
 
     private fun ensureRtkForwardingState(forceStart: Boolean = false) {
+        val config = currentRtkConfig()
+        val desired = isRtkDesired(config)
         val connected = conStateLiveData.value == true
         val targetReady = autopilotSysId >= 0 && autopilotCompId >= 0
         val currentState = rtkForwardingState.value
         Log.i(
             TAG,
-            "ensureRtkForwardingState forceStart=$forceStart connected=$connected targetReady=$targetReady sys=$autopilotSysId comp=$autopilotCompId"
+            "ensureRtkForwardingState forceStart=$forceStart desired=$desired internet=$internetAvailable connected=$connected targetReady=$targetReady sys=$autopilotSysId comp=$autopilotCompId"
         )
 
         when {
-            !rtkRequested -> rtkForwardingState.postValue(RtkForwardingState.Stopped)
+            !RtkValidator.isValidMountpoint(config.mountpoint) -> {
+                if (rtkForwardingService.isRunning()) {
+                    rtkForwardingService.stop(updateState = false)
+                }
+                RtkKeepAliveForegroundService.stopSession(Application.getInstance().applicationContext)
+                rtkForwardingState.postValue(RtkForwardingState.WaitingForMountpoint)
+            }
+            !RtkValidator.isValidBaseConfig(config) -> {
+                if (rtkForwardingService.isRunning()) {
+                    rtkForwardingService.stop(updateState = false)
+                }
+                RtkKeepAliveForegroundService.stopSession(Application.getInstance().applicationContext)
+                rtkForwardingState.postValue(
+                    RtkForwardingState.InvalidConfig("RTK settings are incomplete.")
+                )
+            }
+            !desired -> {
+                if (rtkForwardingService.isRunning()) {
+                    rtkForwardingService.stop(updateState = false)
+                }
+                RtkKeepAliveForegroundService.stopSession(Application.getInstance().applicationContext)
+                rtkForwardingState.postValue(RtkForwardingState.Idle)
+            }
+            !internetAvailable -> {
+                if (rtkForwardingService.isRunning()) {
+                    rtkForwardingService.stop(updateState = false)
+                }
+                RtkKeepAliveForegroundService.startSession(Application.getInstance().applicationContext)
+                Log.i(TAG, "waiting-state reason=no internet")
+                rtkForwardingState.postValue(RtkForwardingState.WaitingForInternet)
+            }
             !connected -> {
+                if (rtkForwardingService.isRunning()) {
+                    rtkForwardingService.stop(updateState = false)
+                }
+                RtkKeepAliveForegroundService.startSession(Application.getInstance().applicationContext)
                 Log.w(TAG, "RTK start waiting: drone not connected")
                 rtkForwardingState.postValue(RtkForwardingState.WaitingForDrone)
             }
             !targetReady -> {
-                Log.w(TAG, "RTK start blocked: missing autopilot target")
-                rtkForwardingState.postValue(
-                    RtkForwardingState.MissingAutopilotTarget(
-                        "Missing autopilot target."
-                    )
-                )
+                if (rtkForwardingService.isRunning()) {
+                    rtkForwardingService.stop(updateState = false)
+                }
+                RtkKeepAliveForegroundService.startSession(Application.getInstance().applicationContext)
+                Log.w(TAG, "RTK waiting: missing autopilot target")
+                rtkForwardingState.postValue(RtkForwardingState.WaitingForDrone)
+            }
+            requiresDroneGps(config) && lastDroneLocation?.let { isUsableLocation(it) } != true -> {
+                if (rtkForwardingService.isRunning()) {
+                    rtkForwardingService.stop(updateState = false)
+                }
+                RtkKeepAliveForegroundService.startSession(Application.getInstance().applicationContext)
+                Log.w(TAG, "RTK waiting: NEAR mountpoint requires GPS")
+                rtkForwardingState.postValue(RtkForwardingState.WaitingForGps)
             }
             !rtkForwardingService.isRunning() && (
                 forceStart ||
                     currentState == null ||
                     currentState is RtkForwardingState.Idle ||
+                    currentState is RtkForwardingState.WaitingForMountpoint ||
+                    currentState is RtkForwardingState.WaitingForInternet ||
                     currentState is RtkForwardingState.WaitingForDrone ||
-                    currentState is RtkForwardingState.MissingAutopilotTarget ||
+                    currentState is RtkForwardingState.WaitingForGps ||
                     currentState is RtkForwardingState.Reconnecting ||
+                    currentState is RtkForwardingState.NetworkError ||
                     currentState is RtkForwardingState.Stopped
                 ) -> {
-                val config = com.example.droneservicesapp.data.rtk.RtkPreferences(
-                    Application.getInstance().applicationContext
-                ).getConfig()
                 Log.i(
                     TAG,
-                    "start forwarding mountpoint=${config.mountpoint.trim()} configValid=${com.example.droneservicesapp.data.rtk.RtkValidator.isValidConfig(config)}"
+                    "automatic RTK start due to mountpoint + internet + drone readiness mountpoint=${config.mountpoint.trim()} mavHeartbeatAgeMs=${System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs}"
                 )
+                RtkKeepAliveForegroundService.startSession(Application.getInstance().applicationContext)
                 rtkForwardingService.start(
                     targetSystemId = autopilotSysId,
                     targetComponentId = autopilotCompId,
                     shouldKeepRunning = {
-                        rtkRequested &&
+                        isRtkDesired(currentRtkConfig()) &&
+                            internetAvailable &&
                             conStateLiveData.value == true &&
                             autopilotSysId >= 0 &&
-                            autopilotCompId >= 0
+                            autopilotCompId >= 0 &&
+                            (!requiresDroneGps(currentRtkConfig()) ||
+                                lastDroneLocation?.let { isUsableLocation(it) } == true)
                     },
                     locationProvider = {
                         lastDroneLocation?.let { location -> Location(location) }
@@ -559,6 +655,22 @@ class DroneViewModel : ViewModel() {
                 )
             }
         }
+    }
+
+    private fun currentRtkConfig() = rtkPreferences.getConfig()
+
+    private fun isRtkDesired(config: com.example.droneservicesapp.data.rtk.RtkConfig): Boolean {
+        return RtkValidator.isValidConfig(config)
+    }
+
+    private fun requiresDroneGps(config: com.example.droneservicesapp.data.rtk.RtkConfig): Boolean {
+        return config.mountpoint.trim().equals("NEAR", ignoreCase = true)
+    }
+
+    private fun isUsableLocation(location: Location): Boolean {
+        return !location.latitude.isNaN() &&
+            !location.longitude.isNaN() &&
+            !(location.latitude == 0.0 && location.longitude == 0.0)
     }
 
     private fun handleGpsDebugMessage(
@@ -620,7 +732,9 @@ class DroneViewModel : ViewModel() {
         currentUploadCancelToken = null
 
         repoDisposables.clear()
+        Log.i(TAG, "bridge detached: clearing all subscriptions in onCleared")
         rtkForwardingService.shutdown()
+        rtkInternetMonitor.shutdown()
         RtkKeepAliveForegroundService.stopSession(Application.getInstance().applicationContext)
         mavlinkClient.stop()
     }

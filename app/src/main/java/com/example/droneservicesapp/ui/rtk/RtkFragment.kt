@@ -59,8 +59,7 @@ class RtkFragment : Fragment() {
 
         binding.fetchMountpointsButton.setOnClickListener { fetchMountpoints() }
         binding.testConnectionButton.setOnClickListener { testConnection() }
-        binding.startRtkButton.setOnClickListener { startRtk() }
-        binding.stopRtkButton.setOnClickListener { stopRtk() }
+        droneViewModel.onRtkConfigurationChanged()
     }
 
     override fun onResume() {
@@ -80,21 +79,25 @@ class RtkFragment : Fragment() {
             if (isPopulatingForm) return@doAfterTextChanged
             rtkPreferences.saveIp(text?.toString().orEmpty())
             onBaseConfigChanged()
+            droneViewModel.onRtkConfigurationChanged(forceStart = true)
         }
         binding.rtkPortInput.doAfterTextChanged { text ->
             if (isPopulatingForm) return@doAfterTextChanged
             text?.toString()?.trim()?.toIntOrNull()?.let(rtkPreferences::savePort)
             onBaseConfigChanged()
+            droneViewModel.onRtkConfigurationChanged(forceStart = true)
         }
         binding.rtkUsernameInput.doAfterTextChanged { text ->
             if (isPopulatingForm) return@doAfterTextChanged
             rtkPreferences.saveUsername(text?.toString().orEmpty())
             onBaseConfigChanged()
+            droneViewModel.onRtkConfigurationChanged(forceStart = true)
         }
         binding.rtkPasswordInput.doAfterTextChanged { text ->
             if (isPopulatingForm) return@doAfterTextChanged
             rtkPreferences.savePassword(text?.toString().orEmpty())
             onBaseConfigChanged()
+            droneViewModel.onRtkConfigurationChanged(forceStart = true)
         }
     }
 
@@ -118,7 +121,10 @@ class RtkFragment : Fragment() {
         updateStatus(getString(R.string.rtk_status_fetching), false)
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = ntripClient.fetchSourceTable(config)
+            val result = ntripClient.fetchSourceTable(
+                config,
+                socketFactory = droneViewModel.currentRtkSocketFactory()
+            )
             setBusyState(false)
             when (result) {
                 is NtripResult.SourceTableSuccess -> handleMountpoints(result.mountpoints)
@@ -133,33 +139,13 @@ class RtkFragment : Fragment() {
         updateStatus(getString(R.string.rtk_status_testing), false)
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = ntripClient.testConnection(config)
+            val result = ntripClient.testConnection(
+                config,
+                socketFactory = droneViewModel.currentRtkSocketFactory()
+            )
             setBusyState(false)
             handleResult(result, showToast = true)
         }
-    }
-
-    private fun startRtk() {
-        Log.i(TAG, "Start button clicked")
-        Log.i(TAG, "UI mountpoint=${binding.rtkMountpointInput.text?.toString().orEmpty().trim()}")
-        val config = buildConfig(requireMountpoint = true) ?: run {
-            val message = validationMessage(requireMountpoint = true) ?: "RTK settings are incomplete."
-            droneViewModel.reportRtkStartBlocked(message)
-            return
-        }
-        Log.i(TAG, "Start RTK mountpoint=${config.mountpoint}")
-        rtkPreferences.saveIp(config.ip)
-        rtkPreferences.savePort(config.port)
-        rtkPreferences.saveUsername(config.username)
-        rtkPreferences.savePassword(config.password)
-        rtkPreferences.saveMountpoint(config.mountpoint)
-        droneViewModel.startRtkForwarding()
-    }
-
-    private fun stopRtk() {
-        Log.i(TAG, "Stop button clicked")
-        Log.i(TAG, "UI mountpoint=${binding.rtkMountpointInput.text?.toString().orEmpty().trim()}")
-        droneViewModel.stopRtkForwarding()
     }
 
     private fun handleMountpoints(mountpoints: List<String>) {
@@ -195,6 +181,8 @@ class RtkFragment : Fragment() {
         rtkPreferences.saveMountpoint(mountpoint)
         val message = getString(R.string.rtk_mountpoint_selected, mountpoint)
         updateStatus(message, false)
+        Log.i(TAG, "mountpoint selected auto-managing RTK mountpoint=$mountpoint")
+        droneViewModel.onRtkConfigurationChanged(forceStart = true)
         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
     }
 
@@ -291,16 +279,6 @@ class RtkFragment : Fragment() {
         droneViewModel.rtkForwardingState.observe(viewLifecycleOwner) { state ->
             Log.i(TAG, "state observed=${state.javaClass.simpleName}")
             binding.rtkForwardingStatusValue.text = state.toDisplayString()
-            binding.startRtkButton.isEnabled =
-                state !is RtkForwardingState.ConnectingToCaster &&
-                state !is RtkForwardingState.Streaming &&
-                state !is RtkForwardingState.Reconnecting
-            binding.stopRtkButton.isEnabled =
-                state is RtkForwardingState.ConnectingToCaster ||
-                state is RtkForwardingState.Streaming ||
-                state is RtkForwardingState.WaitingForDrone ||
-                state is RtkForwardingState.WaitingForDroneGps ||
-                state is RtkForwardingState.Reconnecting
         }
         droneViewModel.rtkGpsDebugStatus.observe(viewLifecycleOwner) { status ->
             binding.rtkGpsDebugValue.text = status
@@ -310,12 +288,10 @@ class RtkFragment : Fragment() {
     private fun RtkForwardingState.toDisplayString(): String {
         return when (this) {
             is RtkForwardingState.Idle -> getString(R.string.rtk_forwarding_idle)
+            is RtkForwardingState.WaitingForMountpoint -> getString(R.string.rtk_forwarding_waiting_for_mountpoint)
+            is RtkForwardingState.WaitingForInternet -> getString(R.string.rtk_forwarding_waiting_for_internet)
             is RtkForwardingState.WaitingForDrone -> getString(R.string.rtk_forwarding_waiting_for_drone)
-            is RtkForwardingState.WaitingForDroneGps -> getString(R.string.rtk_forwarding_waiting_for_drone_gps)
-            is RtkForwardingState.MissingAutopilotTarget -> getString(
-                R.string.rtk_forwarding_missing_autopilot_target,
-                message
-            )
+            is RtkForwardingState.WaitingForGps -> getString(R.string.rtk_forwarding_waiting_for_drone_gps)
             is RtkForwardingState.ConnectingToCaster -> getString(R.string.rtk_forwarding_connecting)
             is RtkForwardingState.Streaming -> getString(R.string.rtk_forwarding_streaming)
             is RtkForwardingState.Reconnecting -> getString(
@@ -327,6 +303,10 @@ class RtkFragment : Fragment() {
                 message
             )
             is RtkForwardingState.AuthFailed -> getString(R.string.rtk_forwarding_auth_failed)
+            is RtkForwardingState.MountpointInvalid -> getString(
+                R.string.rtk_forwarding_mountpoint_invalid,
+                message
+            )
             is RtkForwardingState.NetworkError -> getString(
                 R.string.rtk_forwarding_network_error,
                 message
@@ -357,6 +337,7 @@ class RtkFragment : Fragment() {
         binding.rtkMountpointInput.setText("")
         isPopulatingForm = false
         rtkPreferences.saveMountpoint("")
+        droneViewModel.onRtkConfigurationChanged()
     }
 
     private fun setBusyState(isBusy: Boolean) {

@@ -19,6 +19,7 @@ import java.net.Socket
 import java.net.SocketTimeoutException
 import java.nio.charset.StandardCharsets
 import java.util.Base64
+import javax.net.SocketFactory
 
 class NtripClient {
 
@@ -26,23 +27,31 @@ class NtripClient {
         private const val TAG = "NtripClient"
         private const val CONNECT_TIMEOUT_MS = 8000
         private const val READ_TIMEOUT_MS = 10000
-        private const val STREAM_READ_TIMEOUT_MS = 30000
+        private const val STREAM_READ_TIMEOUT_MS = 5000
+        private const val STREAM_STALL_TIMEOUT_MS = 25000L
         private const val STREAM_BUFFER_SIZE = 1024
         private const val MAX_HANDSHAKE_BYTES = 8192
         private const val PROGRESS_LOG_BYTES = 16 * 1024L
         private const val PROGRESS_LOG_INTERVAL_MS = 5000L
+        private const val GGA_INTERVAL_MS = 10000L
     }
 
-    suspend fun fetchSourceTable(config: RtkConfig): NtripResult = withContext(Dispatchers.IO) {
+    suspend fun fetchSourceTable(
+        config: RtkConfig,
+        socketFactory: SocketFactory? = null
+    ): NtripResult = withContext(Dispatchers.IO) {
         if (!RtkValidator.isValidBaseConfig(config)) {
             return@withContext NtripResult.InvalidConfig("Base RTK settings are incomplete.")
         }
 
-        val response = executeRequest(path = "", config = config, readToEnd = true)
+        val response = executeRequest(path = "", config = config, readToEnd = true, socketFactory = socketFactory)
         mapSourceTableResponse(response)
     }
 
-    suspend fun testConnection(config: RtkConfig): NtripResult = withContext(Dispatchers.IO) {
+    suspend fun testConnection(
+        config: RtkConfig,
+        socketFactory: SocketFactory? = null
+    ): NtripResult = withContext(Dispatchers.IO) {
         if (!RtkValidator.isValidConfig(config)) {
             return@withContext NtripResult.InvalidConfig("RTK settings are incomplete.")
         }
@@ -50,7 +59,8 @@ class NtripClient {
         val response = executeRequest(
             path = config.mountpoint.trim().trimStart('/'),
             config = config,
-            readToEnd = false
+            readToEnd = false,
+            socketFactory = socketFactory
         )
         mapConnectionResponse(response)
     }
@@ -60,6 +70,7 @@ class NtripClient {
         attemptNumber: Int = 1,
         ggaLocationProvider: () -> Location? = { null },
         onStreamStarted: () -> Unit = {},
+        socketFactory: SocketFactory? = null,
         onBytesReceived: (ByteArray) -> Unit
     ): NtripResult = withContext(Dispatchers.IO) {
         coroutineScope {
@@ -72,7 +83,7 @@ class NtripClient {
                 return@coroutineScope NtripResult.InvalidConfig("RTK settings are incomplete.")
             }
 
-            val socket = Socket()
+            val socket = (socketFactory?.createSocket() as? Socket) ?: Socket()
             val coroutineContext = currentCoroutineContext()
             var totalBytesReceived = 0L
             var lastProgressBytes = 0L
@@ -80,6 +91,9 @@ class NtripClient {
             val startedAtMs = System.currentTimeMillis()
             var firstBytesLogged = false
             var ggaJob: kotlinx.coroutines.Job? = null
+            var input: java.io.InputStream? = null
+            var output: java.io.OutputStream? = null
+            var lastRtcmByteAtMs = startedAtMs
 
             try {
                 val host = config.ip.trim()
@@ -95,14 +109,16 @@ class NtripClient {
                 val requestPath = "/${config.mountpoint.trim().trimStart('/')}"
                 val request = buildRequest(requestPath, config)
 
-                val output = socket.getOutputStream()
+                val outputStream = socket.getOutputStream()
+                output = outputStream
                 Log.i(TAG, "ntrip: request write start path=$requestPath")
-                output.write(request.toByteArray(StandardCharsets.ISO_8859_1))
-                output.flush()
+                outputStream.write(request.toByteArray(StandardCharsets.ISO_8859_1))
+                outputStream.flush()
                 Log.i(TAG, "ntrip: request write success path=$requestPath")
 
-                val input = socket.getInputStream()
-                val handshake = readStreamingHandshake(input)
+                val inputStream = socket.getInputStream()
+                input = inputStream
+                val handshake = readStreamingHandshake(inputStream)
                 val firstLine = handshake.headerText
                     .replace("\r\n", "\n")
                     .lineSequence()
@@ -128,15 +144,15 @@ class NtripClient {
                 val initialGgaLocation = ggaLocationProvider()
                 if (initialGgaLocation != null) {
                     Log.i(TAG, "ntrip: sending initial GGA")
-                    output.write(NmeaGgaBuilder.build(initialGgaLocation).toByteArray(StandardCharsets.US_ASCII))
-                    output.flush()
+                    outputStream.write(NmeaGgaBuilder.build(initialGgaLocation).toByteArray(StandardCharsets.US_ASCII))
+                    outputStream.flush()
                     ggaJob = launch(Dispatchers.IO) {
                         while (isActive) {
-                            delay(10000L)
+                            delay(GGA_INTERVAL_MS)
                             val periodicLocation = ggaLocationProvider()
                             if (periodicLocation != null) {
-                                output.write(NmeaGgaBuilder.build(periodicLocation).toByteArray(StandardCharsets.US_ASCII))
-                                output.flush()
+                                outputStream.write(NmeaGgaBuilder.build(periodicLocation).toByteArray(StandardCharsets.US_ASCII))
+                                outputStream.flush()
                                 Log.i(TAG, "ntrip: periodic GGA sent")
                             } else {
                                 Log.w(TAG, "ntrip: periodic GGA skipped locationAvailable=false")
@@ -149,6 +165,7 @@ class NtripClient {
 
                 if (handshake.remainingBody.isNotEmpty()) {
                     totalBytesReceived += handshake.remainingBody.size
+                    lastRtcmByteAtMs = System.currentTimeMillis()
                     if (!firstBytesLogged) {
                         firstBytesLogged = true
                         Log.i(TAG, "rtcm: first bytes received size=${handshake.remainingBody.size} uptimeMs=${System.currentTimeMillis() - startedAtMs}")
@@ -159,12 +176,25 @@ class NtripClient {
                 val buffer = ByteArray(STREAM_BUFFER_SIZE)
                 while (coroutineContext.isActive) {
                     coroutineContext.ensureActive()
-                    val count = input.read(buffer)
+                    val count = try {
+                        inputStream.read(buffer)
+                    } catch (e: SocketTimeoutException) {
+                        val lastRtcmAgeMs = System.currentTimeMillis() - lastRtcmByteAtMs
+                        Log.w(TAG, "ntrip: read timeout lastRtcmAgeMs=$lastRtcmAgeMs")
+                        if (lastRtcmAgeMs >= STREAM_STALL_TIMEOUT_MS) {
+                            Log.w(TAG, "ntrip: stream stalled lastRtcmAgeMs=$lastRtcmAgeMs")
+                            return@coroutineScope NtripResult.NetworkFailure(
+                                "Stream stalled: no RTCM bytes for ${lastRtcmAgeMs / 1000L}s."
+                            )
+                        }
+                        continue
+                    }
                     if (count == -1) {
                         Log.w(TAG, "stream ended: caster closed stream")
                         return@coroutineScope NtripResult.NetworkFailure("Caster closed the correction stream.")
                     }
                     if (count > 0) {
+                        lastRtcmByteAtMs = System.currentTimeMillis()
                         totalBytesReceived += count
                         if (!firstBytesLogged) {
                             firstBytesLogged = true
@@ -201,14 +231,22 @@ class NtripClient {
                 return@coroutineScope NtripResult.NetworkFailure(sanitizeMessage(e.message))
             } finally {
                 ggaJob?.cancel()
+                runCatching { ggaJob?.join() }
+                runCatching { input?.close() }
+                runCatching { output?.close() }
                 runCatching { socket.close() }
                 Log.i(TAG, "ntrip: stream closed attempt=$attemptNumber totalBytesReceived=$totalBytesReceived")
             }
         }
     }
 
-    private fun executeRequest(path: String, config: RtkConfig, readToEnd: Boolean): RawResponse {
-        val socket = Socket()
+    private fun executeRequest(
+        path: String,
+        config: RtkConfig,
+        readToEnd: Boolean,
+        socketFactory: SocketFactory? = null
+    ): RawResponse {
+        val socket = (socketFactory?.createSocket() as? Socket) ?: Socket()
         return try {
             Log.i(
                 TAG,

@@ -29,11 +29,16 @@ class MavlinkConnectionManager(
 
     override fun start(config: MavlinkConfig) {
         synchronized(lifecycleLock) {
-            if (running.getAndSet(true)) return
+            Log.i(TAG, "connect requested via start config=$config running=${running.get()}")
+            if (running.getAndSet(true)) {
+                Log.i(TAG, "start skipped: existing MAVLink session reused")
+                return
+            }
 
             transport = transportFactory.create(config).also { it.start() }
 
             val t = transport!!
+            Log.i(TAG, "session recreated via start transport=${t.javaClass.simpleName}")
             session = MavlinkSession(t.input, t.output)
             session?.start()
 
@@ -44,7 +49,11 @@ class MavlinkConnectionManager(
 
     override fun stop() {
         synchronized(lifecycleLock) {
-            if (!running.getAndSet(false)) return
+            Log.i(TAG, "stop requested running=${running.get()}")
+            if (!running.getAndSet(false)) {
+                Log.i(TAG, "stop skipped: no active MAVLink session")
+                return
+            }
 
             session?.stop()
             session = null
@@ -58,8 +67,10 @@ class MavlinkConnectionManager(
 
     override fun restart(config: MavlinkConfig) {
         synchronized(lifecycleLock) {
+            Log.i(TAG, "connect requested via restart config=$config running=${running.get()}")
             if (running.get()) {
                 if (running.getAndSet(false)) {
+                    Log.i(TAG, "restart recreating existing MAVLink session")
                     session?.stop()
                     session = null
 
@@ -70,11 +81,15 @@ class MavlinkConnectionManager(
                 }
             }
 
-            if (running.getAndSet(true)) return
+            if (running.getAndSet(true)) {
+                Log.i(TAG, "restart skipped: running flag already set unexpectedly, reusing current session")
+                return
+            }
 
             transport = transportFactory.create(config).also { it.start() }
 
             val t = transport!!
+            Log.i(TAG, "session recreated via restart transport=${t.javaClass.simpleName}")
             session = MavlinkSession(t.input, t.output)
             session?.start()
 
