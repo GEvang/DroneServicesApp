@@ -35,7 +35,7 @@ class MavlinkSession(
         private const val RTCM_FRAGMENT_SIZE = 180
         private const val MAX_RTCM_MESSAGE_SIZE = RTCM_FRAGMENT_SIZE * 4
         private const val RTCM_SEQUENCE_MASK = 0x1F
-        private const val RTCM_FRAGMENT_PACING_DELAY_MS = 3L
+        private const val RTCM_FRAGMENT_PACING_DELAY_MS = 5L
         private const val RTCM_STATS_LOG_INTERVAL_MS = 5000L
     }
 

@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.data.rtk
 
 import android.location.Location
+import android.util.Log
 import java.time.LocalTime
 import java.time.ZoneOffset
 import java.time.format.DateTimeFormatter
@@ -8,12 +9,15 @@ import kotlin.math.absoluteValue
 
 object NmeaGgaBuilder {
 
+    private const val TAG = "NmeaGgaBuilder"
+    private const val QUALITY_GPS_FIX = 1
     private val utcFormatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HHmmss.00")
 
     fun build(location: Location, satellites: Int = 12): String {
         val latitude = location.latitude
         val longitude = location.longitude
         val altitude = location.altitude.takeUnless { it.isNaN() } ?: 0.0
+        val quality = QUALITY_GPS_FIX
 
         val latHemisphere = if (latitude >= 0.0) "N" else "S"
         val lonHemisphere = if (longitude >= 0.0) "E" else "W"
@@ -29,7 +33,7 @@ object NmeaGgaBuilder {
             append(toNmeaCoordinate(longitude, isLatitude = false))
             append(',')
             append(lonHemisphere)
-            append(",1,")
+            append(",$quality,")
             append(satellites.coerceAtLeast(1))
             append(",1.0,")
             append(String.format(java.util.Locale.US, "%.1f", altitude))
@@ -37,6 +41,10 @@ object NmeaGgaBuilder {
         }
 
         val checksum = body.fold(0) { acc, char -> acc xor char.code }
+        Log.i(
+            TAG,
+            "gga built lat=${String.format(java.util.Locale.US, "%.6f", latitude)} lon=${String.format(java.util.Locale.US, "%.6f", longitude)} quality=$quality satellites=${satellites.coerceAtLeast(1)} altitudeM=${String.format(java.util.Locale.US, "%.1f", altitude)}"
+        )
         return "\$$body*${checksum.toString(16).uppercase().padStart(2, '0')}\r\n"
     }
 

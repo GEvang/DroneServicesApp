@@ -51,6 +51,7 @@ class DroneViewModel : ViewModel() {
         private const val TELEMETRY_STALE_MS = 2500L
         private const val MISSION_DEBOUNCE_MS = 1500L
         private const val GPS_LOG_INTERVAL_MS = 5000L
+        private const val RTK_AUTO_START_SUPPRESS_LOG_INTERVAL_MS = 5000L
 
         // How long each wait cycle in MissionService uses (your default is fine; keep consistent)
         private const val UPLOAD_TIMEOUT_MS = 2000L
@@ -71,6 +72,7 @@ class DroneViewModel : ViewModel() {
     @Volatile private var lastGpsSource: String = "--"
     @Volatile private var lastGpsEph: Int = -1
     @Volatile private var lastGpsEpv: Int = -1
+    @Volatile private var lastRtkAutoStartSuppressLogMs: Long = 0L
 
     // Autopilot addressing
     @Volatile private var autopilotSysId: Int = -1
@@ -402,8 +404,12 @@ class DroneViewModel : ViewModel() {
                                 rtkForwardingState.postValue(RtkForwardingState.WaitingForDrone)
                             }
                         } else if (isRtkDesired(currentRtkConfig())) {
-                            Log.i(TAG, "RTK auto-start check triggered by healthy MAVLink ticker")
-                            ensureRtkForwardingState()
+                            if (shouldSkipRedundantRtkAutoStartCheck("healthy MAVLink ticker")) {
+                                maybeLogRtkAutoStartSuppressed("healthy MAVLink ticker")
+                            } else {
+                                Log.i(TAG, "RTK auto-start check triggered by healthy MAVLink ticker")
+                                ensureRtkForwardingState()
+                            }
                         }
 
                         updateGpsDebugStatus()
@@ -484,8 +490,12 @@ class DroneViewModel : ViewModel() {
                 droneHeading.postValue(p.hdg().toDouble() / 100.0)
                 droneLocationLiveData.postValue(loc)
                 if (isRtkDesired(currentRtkConfig())) {
-                    Log.i(TAG, "RTK auto-start check triggered by drone GPS update")
-                    ensureRtkForwardingState()
+                    if (shouldSkipRedundantRtkAutoStartCheck("drone GPS update")) {
+                        maybeLogRtkAutoStartSuppressed("drone GPS update")
+                    } else {
+                        Log.i(TAG, "RTK auto-start check triggered by drone GPS update")
+                        ensureRtkForwardingState()
+                    }
                 }
             }
 
@@ -620,7 +630,7 @@ class DroneViewModel : ViewModel() {
                 Log.w(TAG, "RTK waiting: NEAR mountpoint requires GPS")
                 rtkForwardingState.postValue(RtkForwardingState.WaitingForGps)
             }
-            !rtkForwardingService.isRunning() && (
+            !rtkForwardingService.isStartingOrRunning() && (
                 forceStart ||
                     currentState == null ||
                     currentState is RtkForwardingState.Idle ||
@@ -673,6 +683,40 @@ class DroneViewModel : ViewModel() {
             !(location.latitude == 0.0 && location.longitude == 0.0)
     }
 
+    private fun shouldSkipRedundantRtkAutoStartCheck(trigger: String): Boolean {
+        val config = currentRtkConfig()
+        val connected = conStateLiveData.value == true
+        val targetReady = autopilotSysId >= 0 && autopilotCompId >= 0
+        val hasRequiredGps = !requiresDroneGps(config) || lastDroneLocation?.let { isUsableLocation(it) } == true
+        val streaming = rtkForwardingService.isRunning() &&
+            rtkForwardingState.value is RtkForwardingState.Streaming
+
+        val skip = streaming &&
+            isRtkDesired(config) &&
+            internetAvailable &&
+            connected &&
+            targetReady &&
+            hasRequiredGps
+
+        if (!skip) return false
+        Log.v(TAG, "suppressing redundant RTK auto-start check trigger=$trigger")
+        return true
+    }
+
+    private fun maybeLogRtkAutoStartSuppressed(trigger: String) {
+        val now = System.currentTimeMillis()
+        if (now - lastRtkAutoStartSuppressLogMs < RTK_AUTO_START_SUPPRESS_LOG_INTERVAL_MS) return
+        lastRtkAutoStartSuppressLogMs = now
+        Log.i(TAG, "RTK auto-start check suppressed while streaming healthy trigger=$trigger")
+    }
+
+    private fun isHealthyRtkStreamActive(): Boolean {
+        return rtkForwardingService.isRunning() &&
+            rtkForwardingState.value is RtkForwardingState.Streaming &&
+            internetAvailable &&
+            conStateLiveData.value == true
+    }
+
     private fun handleGpsDebugMessage(
         source: String,
         fixType: Int,
@@ -681,12 +725,19 @@ class DroneViewModel : ViewModel() {
         epv: Int
     ) {
         val now = System.currentTimeMillis()
+        val previousFixType = lastFixType
         lastGpsMessageTimeMs = now
         lastFixType = fixType
         lastSatellitesVisible = satellitesVisible
         lastGpsSource = source
         lastGpsEph = eph
         lastGpsEpv = epv
+        if (previousFixType == 5 && fixType == 4 && isHealthyRtkStreamActive()) {
+            Log.w(
+                GPS_TAG,
+                "GPS fix degraded 5->4 while RTK stream healthy source=$source sats=$satellitesVisible eph=$eph epv=$epv"
+            )
+        }
         val summary = "source=$source fixType=$fixType sats=$satellitesVisible eph=$eph epv=$epv"
         if (summary != lastGpsLogSummary || now - lastGpsLogMs >= GPS_LOG_INTERVAL_MS) {
             lastGpsLogSummary = summary
