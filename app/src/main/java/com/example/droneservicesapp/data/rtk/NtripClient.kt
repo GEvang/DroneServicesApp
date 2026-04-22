@@ -68,7 +68,7 @@ class NtripClient {
     suspend fun streamCorrections(
         config: RtkConfig,
         attemptNumber: Int = 1,
-        ggaLocationProvider: () -> Location? = { null },
+        ggaDataProvider: () -> NmeaGgaBuilder.GgaData? = { null },
         onStreamStarted: () -> Unit = {},
         socketFactory: SocketFactory? = null,
         onBytesReceived: (ByteArray) -> Unit
@@ -142,17 +142,17 @@ class NtripClient {
                 Log.i(TAG, "ntrip: stream accepted mountpoint=${config.mountpoint.trim()} attempt=$attemptNumber")
                 onStreamStarted()
 
-                val initialGgaLocation = ggaLocationProvider()
-                if (initialGgaLocation != null) {
+                val initialGgaData = ggaDataProvider()
+                if (initialGgaData != null) {
                     Log.i(TAG, "ntrip: sending initial GGA")
-                    outputStream.write(NmeaGgaBuilder.build(initialGgaLocation).toByteArray(StandardCharsets.US_ASCII))
+                    outputStream.write(NmeaGgaBuilder.build(initialGgaData).toByteArray(StandardCharsets.US_ASCII))
                     outputStream.flush()
                     ggaJob = launch(Dispatchers.IO) {
                         while (isActive) {
                             delay(GGA_INTERVAL_MS)
-                            val periodicLocation = ggaLocationProvider()
-                            if (periodicLocation != null) {
-                                outputStream.write(NmeaGgaBuilder.build(periodicLocation).toByteArray(StandardCharsets.US_ASCII))
+                            val periodicGgaData = ggaDataProvider()
+                            if (periodicGgaData != null) {
+                                outputStream.write(NmeaGgaBuilder.build(periodicGgaData).toByteArray(StandardCharsets.US_ASCII))
                                 outputStream.flush()
                                 Log.i(TAG, "ntrip: periodic GGA sent")
                             } else {

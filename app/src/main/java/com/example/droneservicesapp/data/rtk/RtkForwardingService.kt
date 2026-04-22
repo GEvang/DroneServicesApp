@@ -157,8 +157,10 @@ class RtkForwardingService(
                         val result = ntripClient.streamCorrections(
                             config = latestConfig,
                             attemptNumber = attempt,
-                            ggaLocationProvider = {
-                                locationProvider()?.takeIf { isUsableLocation(it) }
+                            ggaDataProvider = {
+                                locationProvider()?.takeIf { isUsableLocation(it) }?.let { location ->
+                                    currentGgaData(location)
+                                }
                             },
                             onStreamStarted = {
                                 Log.i(
@@ -341,6 +343,16 @@ class RtkForwardingService(
     private fun lastRtcmByteAgeMs(): Long {
         if (lastRtcmByteAtMs <= 0L) return -1L
         return System.currentTimeMillis() - lastRtcmByteAtMs
+    }
+
+    private fun currentGgaData(location: Location): NmeaGgaBuilder.GgaData {
+        val gpsStatus = rtkPreferences.getGpsStatus()
+        return NmeaGgaBuilder.GgaData(
+            location = location,
+            fixType = gpsStatus.fixType,
+            satellites = gpsStatus.satellitesVisible,
+            hdop = gpsStatus.hdop
+        )
     }
 
     private fun isUsableLocation(location: Location): Boolean {

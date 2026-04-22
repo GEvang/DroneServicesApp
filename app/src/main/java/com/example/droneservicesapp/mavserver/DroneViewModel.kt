@@ -732,11 +732,22 @@ class DroneViewModel : ViewModel() {
         lastGpsSource = source
         lastGpsEph = eph
         lastGpsEpv = epv
+        rtkPreferences.saveGpsStatus(
+            fixType = fixType,
+            satellitesVisible = satellitesVisible,
+            hdop = eph.takeIf { it >= 0 && it != 65535 }?.div(100.0)
+        )
         if (previousFixType == 5 && fixType == 4 && isHealthyRtkStreamActive()) {
             Log.w(
                 GPS_TAG,
                 "GPS fix degraded 5->4 while RTK stream healthy source=$source sats=$satellitesVisible eph=$eph epv=$epv"
             )
+        }
+        if (previousFixType == 6 && fixType == 4) {
+            Log.w(GPS_TAG, "GPS fix changed 6->4 source=$source")
+        }
+        if (previousFixType == 4 && fixType == 6) {
+            Log.i(GPS_TAG, "GPS fix changed 4->6 source=$source")
         }
         val summary = "source=$source fixType=$fixType sats=$satellitesVisible eph=$eph epv=$epv"
         if (summary != lastGpsLogSummary || now - lastGpsLogMs >= GPS_LOG_INTERVAL_MS) {

@@ -70,6 +70,23 @@ class RtkPreferences(
         preferences.edit().putString(KEY_LAST_STATUS_MESSAGE, message).apply()
     }
 
+    fun saveGpsStatus(fixType: Int, satellitesVisible: Int, hdop: Double?) {
+        preferences.edit()
+            .putInt(KEY_GPS_FIX_TYPE, fixType)
+            .putInt(KEY_GPS_SATELLITES_VISIBLE, satellitesVisible)
+            .putFloat(KEY_GPS_HDOP, hdop?.toFloat() ?: -1f)
+            .apply()
+    }
+
+    fun getGpsStatus(): GpsStatus {
+        val hdop = preferences.getFloat(KEY_GPS_HDOP, -1f).takeIf { it >= 0f }?.toDouble()
+        return GpsStatus(
+            fixType = preferences.getInt(KEY_GPS_FIX_TYPE, -1),
+            satellitesVisible = preferences.getInt(KEY_GPS_SATELLITES_VISIBLE, 12),
+            hdop = hdop
+        )
+    }
+
     private fun migrateLegacyValuesIfNeeded(prefs: SharedPreferences) {
         val editor = prefs.edit()
 
@@ -96,5 +113,14 @@ class RtkPreferences(
         private const val KEY_TLS_LEGACY = "rtk_tls"
         private const val KEY_LAST_FETCH_SUCCEEDED = "rtk_last_fetch_succeeded"
         private const val KEY_LAST_STATUS_MESSAGE = "rtk_last_status_message"
+        private const val KEY_GPS_FIX_TYPE = "rtk_gps_fix_type"
+        private const val KEY_GPS_SATELLITES_VISIBLE = "rtk_gps_satellites_visible"
+        private const val KEY_GPS_HDOP = "rtk_gps_hdop"
     }
+
+    data class GpsStatus(
+        val fixType: Int,
+        val satellitesVisible: Int,
+        val hdop: Double?
+    )
 }
