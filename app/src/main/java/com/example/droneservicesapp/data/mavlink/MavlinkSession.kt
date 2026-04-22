@@ -35,6 +35,8 @@ class MavlinkSession(
         private const val RTCM_FRAGMENT_SIZE = 180
         private const val MAX_RTCM_MESSAGE_SIZE = RTCM_FRAGMENT_SIZE * 4
         private const val RTCM_SEQUENCE_MASK = 0x1F
+        private const val RTCM_FRAGMENT_PACING_DELAY_MS = 3L
+        private const val RTCM_STATS_LOG_INTERVAL_MS = 5000L
     }
 
     private val mavCon: MavlinkConnection = MavlinkConnection.create(input, output)
@@ -50,9 +52,12 @@ class MavlinkSession(
     private val totalRtcmMessagesSent = AtomicInteger(0)
     private val totalRtcmChunksSent = AtomicInteger(0)
     private val firstHeartbeatLogged = AtomicBoolean(false)
+    private val totalRtcmFramesSent = AtomicInteger(0)
 
     @Volatile
     private var _lastHeartbeatMs: Long = 0L
+    @Volatile
+    private var lastRtcmStatsLogMs: Long = 0L
 
     val lastHeartbeatMs: Long
         get() = _lastHeartbeatMs
@@ -110,11 +115,12 @@ class MavlinkSession(
         }
 
         val fragments = buildGpsRtcmMessages(rtcmPayload)
+        val frameCount = totalRtcmFramesSent.incrementAndGet()
         val chunkCount = totalRtcmChunksSent.incrementAndGet()
         val totalPackagedBytes = fragments.sumOf { it.len() }
         Log.i(
             RTCM_TAG,
-            "mavlink: incoming chunkSize=${rtcmPayload.size} generatedPackets=${fragments.size} targetSys=$targetSystemId targetComp=$targetComponentId totalBytesIn=${rtcmPayload.size} totalBytesPackaged=$totalPackagedBytes chunk=$chunkCount"
+            "mavlink: incoming chunkSize=${rtcmPayload.size} generatedPackets=${fragments.size} targetSys=$targetSystemId targetComp=$targetComponentId totalBytesIn=${rtcmPayload.size} totalBytesPackaged=$totalPackagedBytes chunk=$chunkCount frame=$frameCount"
         )
         Log.i(
             RTCM_TAG,
@@ -131,11 +137,19 @@ class MavlinkSession(
                         "mavlink: packet chunk=$chunkCount packet=${index + 1}/${fragments.size} seq=$seq flags=$flags len=${fragment.len()} fragmentIndex=$fragmentIndex"
                     )
                     mavCon.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, fragment)
+                    if (index < fragments.lastIndex) {
+                        Log.i(
+                            RTCM_TAG,
+                            "pacing applied between fragments delayMs=$RTCM_FRAGMENT_PACING_DELAY_MS frame=$frameCount packet=${index + 1}/${fragments.size}"
+                        )
+                        Thread.sleep(RTCM_FRAGMENT_PACING_DELAY_MS)
+                    }
                 }
                 val totalPackets = totalRtcmMessagesSent.addAndGet(fragments.size)
+                maybeLogRtcmStats(totalPackets, frameCount)
                 Log.i(
                     RTCM_TAG,
-                    "mavlink: send success generatedPackets=${fragments.size} totalPackets=$totalPackets"
+                    "mavlink: send success generatedPackets=${fragments.size} totalPackets=$totalPackets totalFrames=$frameCount"
                 )
             } catch (e: Exception) {
                 Log.e(
@@ -145,6 +159,17 @@ class MavlinkSession(
                 )
                 throw e
             }
+        }
+    }
+
+    private fun maybeLogRtcmStats(totalPackets: Int, totalFrames: Int) {
+        val now = clock.nowMs()
+        if (totalFrames == 1 || totalFrames % 25 == 0 || now - lastRtcmStatsLogMs >= RTCM_STATS_LOG_INTERVAL_MS) {
+            lastRtcmStatsLogMs = now
+            Log.i(
+                RTCM_TAG,
+                "stats totalFrames=$totalFrames totalPackets=$totalPackets totalChunks=${totalRtcmChunksSent.get()}"
+            )
         }
     }
 

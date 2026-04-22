@@ -121,10 +121,15 @@ class RtkFragment : Fragment() {
         updateStatus(getString(R.string.rtk_status_fetching), false)
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = ntripClient.fetchSourceTable(
-                config,
-                socketFactory = droneViewModel.currentRtkSocketFactory()
-            )
+            val result = try {
+                ntripClient.fetchSourceTable(
+                    config,
+                    socketFactory = droneViewModel.currentRtkSocketFactory()
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "fetchMountpoints failed unexpectedly", e)
+                NtripResult.NetworkFailure(e.message ?: getString(R.string.rtk_status_fetching))
+            }
             setBusyState(false)
             when (result) {
                 is NtripResult.SourceTableSuccess -> handleMountpoints(result.mountpoints)
@@ -139,10 +144,15 @@ class RtkFragment : Fragment() {
         updateStatus(getString(R.string.rtk_status_testing), false)
 
         viewLifecycleOwner.lifecycleScope.launch {
-            val result = ntripClient.testConnection(
-                config,
-                socketFactory = droneViewModel.currentRtkSocketFactory()
-            )
+            val result = try {
+                ntripClient.testConnection(
+                    config,
+                    socketFactory = droneViewModel.currentRtkSocketFactory()
+                )
+            } catch (e: Exception) {
+                Log.e(TAG, "testConnection failed unexpectedly", e)
+                NtripResult.NetworkFailure(e.message ?: getString(R.string.rtk_status_testing))
+            }
             setBusyState(false)
             handleResult(result, showToast = true)
         }

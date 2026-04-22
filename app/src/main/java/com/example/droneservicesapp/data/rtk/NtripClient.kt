@@ -83,7 +83,6 @@ class NtripClient {
                 return@coroutineScope NtripResult.InvalidConfig("RTK settings are incomplete.")
             }
 
-            val socket = (socketFactory?.createSocket() as? Socket) ?: Socket()
             val coroutineContext = currentCoroutineContext()
             var totalBytesReceived = 0L
             var lastProgressBytes = 0L
@@ -94,8 +93,10 @@ class NtripClient {
             var input: java.io.InputStream? = null
             var output: java.io.OutputStream? = null
             var lastRtcmByteAtMs = startedAtMs
+            var socket: Socket? = null
 
             try {
+                socket = createSocketWithFallback(socketFactory, "streamCorrections")
                 val host = config.ip.trim()
                 Log.i(TAG, "ntrip: dns resolve start host=$host attempt=$attemptNumber")
                 val addresses = InetAddress.getAllByName(host)
@@ -234,7 +235,7 @@ class NtripClient {
                 runCatching { ggaJob?.join() }
                 runCatching { input?.close() }
                 runCatching { output?.close() }
-                runCatching { socket.close() }
+                runCatching { socket?.close() }
                 Log.i(TAG, "ntrip: stream closed attempt=$attemptNumber totalBytesReceived=$totalBytesReceived")
             }
         }
@@ -246,8 +247,9 @@ class NtripClient {
         readToEnd: Boolean,
         socketFactory: SocketFactory? = null
     ): RawResponse {
-        val socket = (socketFactory?.createSocket() as? Socket) ?: Socket()
+        var socket: Socket? = null
         return try {
+            socket = createSocketWithFallback(socketFactory, "executeRequest")
             Log.i(
                 TAG,
                 "request open host=${config.ip.trim()} port=${config.port} path=/${path.trimStart('/')} usernamePresent=${config.username.isNotBlank()} passwordPresent=${config.password.isNotBlank()}"
@@ -281,7 +283,24 @@ class NtripClient {
         } catch (e: Exception) {
             RawResponse(statusLine = "", body = "", errorMessage = sanitizeMessage(e.message))
         } finally {
-            runCatching { socket.close() }
+            runCatching { socket?.close() }
+        }
+    }
+
+    private fun createSocketWithFallback(
+        socketFactory: SocketFactory?,
+        operation: String
+    ): Socket {
+        if (socketFactory == null) return Socket()
+
+        return try {
+            (socketFactory.createSocket() as? Socket) ?: Socket()
+        } catch (e: Exception) {
+            Log.w(
+                TAG,
+                "ntrip: socketFactory create failed operation=$operation type=${e.javaClass.simpleName} message=${sanitizeMessage(e.message)}; falling back to default socket"
+            )
+            Socket()
         }
     }
 

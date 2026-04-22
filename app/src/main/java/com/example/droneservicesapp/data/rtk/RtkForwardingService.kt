@@ -27,7 +27,9 @@ class RtkForwardingService(
 ) {
     companion object {
         private const val TAG = "RtkForwarding"
+        private const val RTCM_TAG = "MavlinkRtcm"
         private const val RECONNECT_DELAY_MS = 3000L
+        private const val RTCM_FRAME_PACING_DELAY_MS = 7L
     }
 
     private val rtkPreferences = RtkPreferences(context.applicationContext)
@@ -161,11 +163,21 @@ class RtkForwardingService(
                             totalRawChunksReceived++
                             totalRawBytesReceived += bytes.size
                             maybeLogRawChunk(bytes.size)
-                            val frames = rtcmParser.append(bytes)
+                            val frames = try {
+                                rtcmParser.append(bytes)
+                            } catch (e: Exception) {
+                                Log.e(
+                                    TAG,
+                                    "RTCM parser failure, resetting parser state type=${e.javaClass.simpleName} message=${e.message}",
+                                    e
+                                )
+                                resetParser("unexpected parser failure")
+                                emptyList()
+                            }
                             if (frames.isNotEmpty()) {
                                 Log.i(TAG, "complete RTCM frames extracted count=${frames.size}")
                             }
-                            for (frame in frames) {
+                            for ((frameIndexInBurst, frame) in frames.withIndex()) {
                                 try {
                                     if (totalRtcmFramesForwarded == 0L || (totalRtcmFramesForwarded + 1) % 25L == 0L) {
                                         Log.i(
@@ -177,6 +189,13 @@ class RtkForwardingService(
                                     mavlinkClient.sendGpsRtcmData(targetSystemId, targetComponentId, frame)
                                     totalRtcmFramesForwarded++
                                     maybeLogRtcmProgress(frame.size)
+                                    if (frameIndexInBurst < frames.lastIndex) {
+                                        Log.i(
+                                            RTCM_TAG,
+                                            "pacing applied between frames delayMs=$RTCM_FRAME_PACING_DELAY_MS burstIndex=${frameIndexInBurst + 1}/${frames.size}"
+                                        )
+                                        Thread.sleep(RTCM_FRAME_PACING_DELAY_MS)
+                                    }
                                 } catch (e: Exception) {
                                     Log.e(
                                         TAG,
