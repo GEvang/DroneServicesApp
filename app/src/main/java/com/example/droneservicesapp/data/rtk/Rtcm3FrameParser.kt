@@ -196,14 +196,6 @@ class Rtcm3FrameParser {
         return -1
     }
 
-    private fun extractMessageType(frame: ByteArray): Int? {
-        if (frame.size < RTCM_HEADER_SIZE + 2 + RTCM_CRC_SIZE) return null
-        val payloadStart = RTCM_HEADER_SIZE
-        val b0 = frame[payloadStart].toInt() and 0xFF
-        val b1 = frame[payloadStart + 1].toInt() and 0xFF
-        return (b0 shl 4) or (b1 shr 4)
-    }
-
     private fun isValidRtcmFrame(frame: ByteArray): Boolean {
         if (frame.size < RTCM_HEADER_SIZE + RTCM_CRC_SIZE) return false
 
@@ -240,5 +232,13 @@ class Rtcm3FrameParser {
         private const val MAX_FRAME_BYTES = RTCM_HEADER_SIZE + MAX_RTCM_PAYLOAD_BYTES + RTCM_CRC_SIZE
         private const val LOG_INTERVAL_MS = 5000L
         private const val RESYNC_LOG_THRESHOLD_BYTES = 16
+
+        fun extractMessageType(frame: ByteArray): Int? {
+            if (frame.size < RTCM_HEADER_SIZE + 2 + RTCM_CRC_SIZE) return null
+            val payloadStart = RTCM_HEADER_SIZE
+            val b0 = frame[payloadStart].toInt() and 0xFF
+            val b1 = frame[payloadStart + 1].toInt() and 0xFF
+            return (b0 shl 4) or (b1 shr 4)
+        }
     }
 }

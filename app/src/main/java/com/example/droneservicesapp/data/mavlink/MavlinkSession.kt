@@ -15,9 +15,8 @@ import io.reactivex.subjects.PublishSubject
 import io.reactivex.subjects.Subject
 import java.io.InputStream
 import java.io.OutputStream
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.LinkedBlockingDeque
-import java.util.concurrent.locks.LockSupport
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -38,10 +37,14 @@ class MavlinkSession(
         private const val RTCM_FRAGMENT_SIZE = 180
         private const val MAX_RTCM_MESSAGE_SIZE = RTCM_FRAGMENT_SIZE * 4
         private const val RTCM_SEQUENCE_MASK = 0x1F
-        private const val RTCM_FRAGMENT_PACING_DELAY_MS = 5L
+        private const val RTCM_FRAGMENT_PACING_DELAY_MS = 4L
         private const val RTCM_STATS_LOG_INTERVAL_MS = 5000L
-        private const val RTCM_QUEUE_MAX_FRAMES = 30
+        private const val RTCM_QUEUE_MAX_FRAMES = 12
         private const val RTCM_QUEUE_POLL_TIMEOUT_MS = 250L
+        private const val RTCM_STALE_FRAME_TOLERANCE_MS = 900L
+        private const val RTCM_BACKLOG_MODE_DEPTH = 1
+        private const val MAX_ACCEPTABLE_FRAGMENT_GAP_MS = 20L
+        private const val RTCM_LOW_PRIORITY_DROP_DEPTH = 4
     }
 
     private val mavCon: MavlinkConnection = MavlinkConnection.create(input, output)
@@ -112,7 +115,12 @@ class MavlinkSession(
      * GPS_RTCM_DATA has no target fields. The target IDs are accepted here so callers only send
      * corrections once the autopilot is known, while the actual MAVLink sender identity remains the GCS.
      */
-    fun sendGpsRtcmData(targetSystemId: Int, targetComponentId: Int, rtcmPayload: ByteArray) {
+    fun sendGpsRtcmData(
+        targetSystemId: Int,
+        targetComponentId: Int,
+        rtcmPayload: ByteArray,
+        rtcmMessageType: Int?
+    ) {
         require(targetSystemId >= 0 && targetComponentId >= 0) {
             "Autopilot target IDs are not known."
         }
@@ -127,13 +135,22 @@ class MavlinkSession(
         val chunkCount = totalRtcmChunksSent.incrementAndGet()
         val totalPackagedBytes = estimateRtcmPacketizedBytes(rtcmPayload.size)
         val enqueueMonoNs = AndroidSystemClock.elapsedRealtimeNanos()
+        val queueDepthBeforeEnqueue = rtcmQueue.size
+        if (shouldDropLowPriorityForBacklog(rtcmMessageType, queueDepthBeforeEnqueue)) {
+            Log.w(
+                RTCM_TAG,
+                "mavlink: dropping low-priority RTCM frame before enqueue frame=$frameCount type=$rtcmMessageType queueDepth=$queueDepthBeforeEnqueue"
+            )
+            return
+        }
         val queued = QueuedRtcmFrame(
             frameId = frameCount,
             chunkId = chunkCount,
             targetSystemId = targetSystemId,
             targetComponentId = targetComponentId,
             payload = rtcmPayload.copyOf(),
-            enqueueMonoNs = enqueueMonoNs
+            enqueueMonoNs = enqueueMonoNs,
+            messageType = rtcmMessageType
         )
         val discarded = discardOldestFramesForCapacity()
         if (discarded > 0) {
@@ -146,9 +163,11 @@ class MavlinkSession(
         val queueDepth = rtcmQueue.size
         Log.i(
             RTCM_TAG,
-            "mavlink: frame enqueued frame=$frameCount enqueueMonoNs=$enqueueMonoNs chunkSize=${rtcmPayload.size} targetSys=$targetSystemId targetComp=$targetComponentId totalBytesIn=${rtcmPayload.size} totalBytesPackaged=$totalPackagedBytes queueDepth=$queueDepth"
+            "mavlink: frame enqueued frame=$frameCount type=$rtcmMessageType enqueueMonoNs=$enqueueMonoNs chunkSize=${rtcmPayload.size} targetSys=$targetSystemId targetComp=$targetComponentId totalBytesIn=${rtcmPayload.size} totalBytesPackaged=$totalPackagedBytes queueDepth=$queueDepth"
         )
     }
+
+    fun currentRtcmQueueDepth(): Int = rtcmQueue.size
 
     private fun maybeLogRtcmStats(totalPackets: Int, totalFrames: Int) {
         val now = clock.nowMs()
@@ -197,10 +216,18 @@ class MavlinkSession(
         val sendStartMonoNs = AndroidSystemClock.elapsedRealtimeNanos()
         val queueLatencyMs = nanosToMillis(sendStartMonoNs - queuedFrame.enqueueMonoNs)
         val queueDepth = rtcmQueue.size
+        val backlogMode = queueDepth >= RTCM_BACKLOG_MODE_DEPTH
+        if (queueLatencyMs > RTCM_STALE_FRAME_TOLERANCE_MS) {
+            Log.w(
+                RTCM_TAG,
+                "mavlink: dropping stale frame before send frame=${queuedFrame.frameId} queueLatencyMs=$queueLatencyMs queueDepth=$queueDepth backlogMode=$backlogMode"
+            )
+            return
+        }
         val fragments = buildGpsRtcmMessages(queuedFrame.payload)
         Log.i(
             RTCM_TAG,
-            "mavlink: send start frame=${queuedFrame.frameId} chunk=${queuedFrame.chunkId} enqueueMonoNs=${queuedFrame.enqueueMonoNs} sendStartMonoNs=$sendStartMonoNs queueLatencyMs=$queueLatencyMs queueDepth=$queueDepth generatedPackets=${fragments.size}"
+            "mavlink: send start frame=${queuedFrame.frameId} type=${queuedFrame.messageType} chunk=${queuedFrame.chunkId} enqueueMonoNs=${queuedFrame.enqueueMonoNs} sendStartMonoNs=$sendStartMonoNs queueLatencyMs=$queueLatencyMs queueDepth=$queueDepth backlogMode=$backlogMode generatedPackets=${fragments.size}"
         )
         Log.i(
             RTCM_TAG,
@@ -209,12 +236,12 @@ class MavlinkSession(
 
         synchronized(sendLock) {
             try {
-                var nextFragmentDeadlineNs = sendStartMonoNs
-                var previousFragmentSentNs = sendStartMonoNs
+                var previousFragmentSentNs = 0L
                 fragments.forEachIndexed { index, fragment ->
                     if (index > 0) {
-                        nextFragmentDeadlineNs += TimeUnit.MILLISECONDS.toNanos(RTCM_FRAGMENT_PACING_DELAY_MS)
-                        waitUntilMonoNs(nextFragmentDeadlineNs)
+                        spinWaitUntilMonoNs(
+                            previousFragmentSentNs + TimeUnit.MILLISECONDS.toNanos(RTCM_FRAGMENT_PACING_DELAY_MS)
+                        )
                     }
 
                     val fragmentSendMonoNs = AndroidSystemClock.elapsedRealtimeNanos()
@@ -223,27 +250,33 @@ class MavlinkSession(
                     } else {
                         nanosToMillis(fragmentSendMonoNs - previousFragmentSentNs)
                     }
-                    previousFragmentSentNs = fragmentSendMonoNs
 
                     val flags = fragment.flags()
                     val seq = (flags.toInt() shr 3) and RTCM_SEQUENCE_MASK
                     val fragmentIndex = (flags.toInt() shr 1) and 0x03
+                    if (index > 0 && actualDelayMs > MAX_ACCEPTABLE_FRAGMENT_GAP_MS) {
+                        Log.e(
+                            RTCM_TAG,
+                            "mavlink: fragment gap violation frame=${queuedFrame.frameId} type=${queuedFrame.messageType} chunk=${queuedFrame.chunkId} packet=${index + 1}/${fragments.size} actualInterFragmentDelayMs=$actualDelayMs queueDepth=$queueDepth backlogMode=$backlogMode"
+                        )
+                    }
                     Log.i(
                         RTCM_TAG,
-                        "mavlink: packet frame=${queuedFrame.frameId} chunk=${queuedFrame.chunkId} packet=${index + 1}/${fragments.size} seq=$seq flags=$flags len=${fragment.len()} fragmentIndex=$fragmentIndex actualInterFragmentDelayMs=$actualDelayMs"
+                        "mavlink: packet frame=${queuedFrame.frameId} type=${queuedFrame.messageType} chunk=${queuedFrame.chunkId} packet=${index + 1}/${fragments.size} seq=$seq flags=$flags len=${fragment.len()} fragmentIndex=$fragmentIndex actualInterFragmentDelayMs=$actualDelayMs queueDepth=$queueDepth backlogMode=$backlogMode"
                     )
                     mavCon.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, fragment)
+                    previousFragmentSentNs = AndroidSystemClock.elapsedRealtimeNanos()
                 }
                 val totalPackets = totalRtcmMessagesSent.addAndGet(fragments.size)
                 maybeLogRtcmStats(totalPackets, queuedFrame.frameId.toInt())
                 Log.i(
                     RTCM_TAG,
-                    "mavlink: send success frame=${queuedFrame.frameId} generatedPackets=${fragments.size} totalPackets=$totalPackets endToEndQueueLatencyMs=$queueLatencyMs queueDepthAfterSend=${rtcmQueue.size}"
+                    "mavlink: send success frame=${queuedFrame.frameId} type=${queuedFrame.messageType} generatedPackets=${fragments.size} totalPackets=$totalPackets endToEndQueueLatencyMs=$queueLatencyMs queueDepthAfterSend=${rtcmQueue.size} backlogMode=$backlogMode"
                 )
             } catch (e: Exception) {
                 Log.e(
                     RTCM_TAG,
-                    "mavlink: send failure frame=${queuedFrame.frameId} type=${e.javaClass.simpleName} message=${e.message}",
+                    "mavlink: send failure frame=${queuedFrame.frameId} rtcmType=${queuedFrame.messageType} type=${e.javaClass.simpleName} message=${e.message}",
                     e
                 )
             }
@@ -257,10 +290,23 @@ class MavlinkSession(
             discarded++
             Log.w(
                 RTCM_TAG,
-                "mavlink: dropping stale queued frame frame=${staleFrame.frameId} queueLatencyMs=${nanosToMillis(AndroidSystemClock.elapsedRealtimeNanos() - staleFrame.enqueueMonoNs)} queueDepth=${rtcmQueue.size}"
+                "mavlink: dropping stale queued frame frame=${staleFrame.frameId} type=${staleFrame.messageType} queueLatencyMs=${nanosToMillis(AndroidSystemClock.elapsedRealtimeNanos() - staleFrame.enqueueMonoNs)} queueDepth=${rtcmQueue.size}"
             )
         }
         return discarded
+    }
+
+    private fun shouldDropLowPriorityForBacklog(messageType: Int?, queueDepth: Int): Boolean {
+        if (messageType == null) return false
+        if (queueDepth < RTCM_LOW_PRIORITY_DROP_DEPTH) return false
+        return isLowPriorityRtcmType(messageType)
+    }
+
+    private fun isLowPriorityRtcmType(messageType: Int): Boolean {
+        return when (messageType) {
+            1005, 1006, 1007, 1008, 1013, 1019, 1020, 1033, 1042, 1045, 1046 -> true
+            else -> false
+        }
     }
 
     private fun estimateRtcmPacketizedBytes(payloadSize: Int): Int {
@@ -271,11 +317,9 @@ class MavlinkSession(
         return totalFragmentCount * RTCM_FRAGMENT_SIZE
     }
 
-    private fun waitUntilMonoNs(targetMonoNs: Long) {
-        while (true) {
-            val remainingNs = targetMonoNs - AndroidSystemClock.elapsedRealtimeNanos()
-            if (remainingNs <= 0L) return
-            LockSupport.parkNanos(remainingNs.coerceAtMost(TimeUnit.MILLISECONDS.toNanos(1)))
+    private fun spinWaitUntilMonoNs(targetMonoNs: Long) {
+        while (AndroidSystemClock.elapsedRealtimeNanos() < targetMonoNs) {
+            // Busy-wait intentionally for short intra-frame pacing so fragments stay inline.
         }
     }
 
@@ -393,6 +437,7 @@ class MavlinkSession(
         val targetSystemId: Int,
         val targetComponentId: Int,
         val payload: ByteArray,
-        val enqueueMonoNs: Long
+        val enqueueMonoNs: Long,
+        val messageType: Int?
     )
 }

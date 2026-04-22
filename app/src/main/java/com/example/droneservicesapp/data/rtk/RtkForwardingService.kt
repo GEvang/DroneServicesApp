@@ -28,9 +28,8 @@ class RtkForwardingService(
 ) {
     companion object {
         private const val TAG = "RtkForwarding"
-        private const val RTCM_TAG = "MavlinkRtcm"
         private const val RECONNECT_DELAY_MS = 3000L
-        private const val RTCM_FRAME_PACING_DELAY_MS = 10L
+        private const val RTCM_TYPE_LOG_INTERVAL_MS = 5000L
     }
 
     private val rtkPreferences = RtkPreferences(context.applicationContext)
@@ -50,6 +49,8 @@ class RtkForwardingService(
     private var lastRawChunkLogMs = 0L
     private var lastRtcmByteAtMs = 0L
     private var lastReconnectReason = ""
+    private var lastRtcmTypeLogMs = 0L
+    private val rtcmTypeCounts = mutableMapOf<Int, Long>()
 
     val state: StateFlow<RtkForwardingState> = _state.asStateFlow()
 
@@ -193,25 +194,28 @@ class RtkForwardingService(
                                 if (frames.isNotEmpty()) {
                                     Log.i(TAG, "complete RTCM frames extracted count=${frames.size}")
                                 }
-                                for ((frameIndexInBurst, frame) in frames.withIndex()) {
+                                for (frame in frames) {
                                     try {
+                                        val messageType = Rtcm3FrameParser.extractMessageType(frame)
+                                        if (messageType != null) {
+                                            rtcmTypeCounts[messageType] = (rtcmTypeCounts[messageType] ?: 0L) + 1L
+                                        }
                                         if (totalRtcmFramesForwarded == 0L || (totalRtcmFramesForwarded + 1) % 25L == 0L) {
                                             Log.i(
                                                 TAG,
-                                                "forwarding complete RTCM frame index=${totalRtcmFramesForwarded + 1} frameLength=${frame.size}"
+                                                "forwarding complete RTCM frame index=${totalRtcmFramesForwarded + 1} frameLength=${frame.size} type=${messageType ?: -1}"
                                             )
                                         }
                                         totalRtcmBytesForwarded += frame.size
-                                        mavlinkClient.sendGpsRtcmData(targetSystemId, targetComponentId, frame)
+                                        mavlinkClient.sendGpsRtcmData(
+                                            targetSystemId,
+                                            targetComponentId,
+                                            frame,
+                                            messageType
+                                        )
                                         totalRtcmFramesForwarded++
                                         maybeLogRtcmProgress(frame.size)
-                                        if (frameIndexInBurst < frames.lastIndex) {
-                                            Log.i(
-                                                RTCM_TAG,
-                                                "pacing applied between frames delayMs=$RTCM_FRAME_PACING_DELAY_MS burstIndex=${frameIndexInBurst + 1}/${frames.size}"
-                                            )
-                                            Thread.sleep(RTCM_FRAME_PACING_DELAY_MS)
-                                        }
+                                        maybeLogRtcmTypeMix()
                                     } catch (e: Exception) {
                                         Log.e(
                                             TAG,
@@ -373,6 +377,21 @@ class RtkForwardingService(
                 "rtcm progress totalRawBytes=$totalRawBytesReceived totalFrames=$totalRtcmFramesForwarded totalFrameBytes=$totalRtcmBytesForwarded lastFrameSize=$lastFrameSize"
             )
         }
+    }
+
+    private fun maybeLogRtcmTypeMix() {
+        val now = System.currentTimeMillis()
+        if (now - lastRtcmTypeLogMs < RTCM_TYPE_LOG_INTERVAL_MS) return
+        lastRtcmTypeLogMs = now
+        val topTypes = rtcmTypeCounts.entries
+            .sortedByDescending { it.value }
+            .take(6)
+            .joinToString(separator = ",") { "${it.key}=${it.value}" }
+            .ifBlank { "none" }
+        Log.i(
+            TAG,
+            "rtcm type mix queueDepth=${mavlinkClient.currentRtcmQueueDepth()} topTypes=$topTypes"
+        )
     }
 
     private fun maybeLogRawChunk(chunkSize: Int) {
