@@ -3,7 +3,6 @@ package com.example.droneservicesapp.ui.home.components
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
-import android.graphics.Color
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.example.droneservicesapp.R
@@ -27,6 +26,11 @@ class OsmdroidMapController(
     private val context: Context,
     private val mapView: MapView
 ) {
+    companion object {
+        private const val POSITION_EPSILON = 1e-7
+        private const val HEADING_EPSILON_DEGREES = 0.5f
+    }
+
     private var myLocationOverlay: MyLocationNewOverlay? = null
     private var droneMarker: Marker? = null
     private var surveyPolyline: Polyline? = null
@@ -50,7 +54,7 @@ class OsmdroidMapController(
         }
         mapView.overlays.add(droneMarker)
 
-        mapView.invalidate()
+        requestMapRedraw()
     }
 
     // --- Lifecycle ---
@@ -97,25 +101,50 @@ class OsmdroidMapController(
 
     // --- Drone marker ---
     fun setDroneVisible(visible: Boolean) {
-        droneMarker?.apply {
-            isEnabled = visible
-            setVisible(visible)
+        val changed = droneMarker?.let { marker ->
+            val wasVisible = marker.isEnabled
+            marker.isEnabled = visible
+            marker.setVisible(visible)
+            wasVisible != visible
+        } ?: false
+        if (changed) {
+            requestMapRedraw()
         }
-        mapView.invalidate()
     }
 
     fun updateDronePosition(latitude: Double, longitude: Double) {
-        droneMarker?.apply {
-            position = GeoPoint(latitude, longitude)
-            isEnabled = true
-            setVisible(true)
+        val changed = droneMarker?.let { marker ->
+            val current = marker.position
+            val positionChanged =
+                current == null ||
+                    kotlin.math.abs(current.latitude - latitude) > POSITION_EPSILON ||
+                    kotlin.math.abs(current.longitude - longitude) > POSITION_EPSILON
+            if (!positionChanged && marker.isEnabled) {
+                return@let false
+            }
+            marker.position = GeoPoint(latitude, longitude)
+            val visibilityChanged = !marker.isEnabled
+            marker.isEnabled = true
+            marker.setVisible(true)
+            positionChanged || visibilityChanged
+        } ?: false
+        if (changed) {
+            requestMapRedraw()
         }
-        mapView.invalidate()
     }
 
     fun updateDroneHeadingDegrees(headingDeg: Float) {
-        droneMarker?.rotation = headingDeg
-        mapView.invalidate()
+        val changed = droneMarker?.let { marker ->
+            if (kotlin.math.abs(marker.rotation - headingDeg) < HEADING_EPSILON_DEGREES) {
+                false
+            } else {
+                marker.rotation = headingDeg
+                true
+            }
+        } ?: false
+        if (changed) {
+            requestMapRedraw()
+        }
     }
 
     fun centerOnDrone(): Boolean {
@@ -132,7 +161,7 @@ class OsmdroidMapController(
     fun setSurveyPath(path: List<LatLng>) {
         if (surveyPolyline == null) {
             surveyPolyline = Polyline(mapView).apply {
-                outlinePaint.color = Color.rgb(255, 213, 79)
+                outlinePaint.color = ContextCompat.getColor(context, R.color.ds_color_shell_active)
                 outlinePaint.strokeWidth = 6f
             }
             mapView.overlays.add(surveyPolyline)
@@ -140,12 +169,16 @@ class OsmdroidMapController(
 
         val geoPoints = path.map { GeoPoint(it.latitude, it.longitude) }
         surveyPolyline?.setPoints(geoPoints)
-        mapView.invalidate()
+        requestMapRedraw()
     }
 
     fun clearSurveyPath() {
         surveyPolyline?.setPoints(emptyList())
-        mapView.invalidate()
+        requestMapRedraw()
+    }
+
+    private fun requestMapRedraw() {
+        mapView.postInvalidateOnAnimation()
     }
 
 }

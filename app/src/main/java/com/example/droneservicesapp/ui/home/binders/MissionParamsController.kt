@@ -11,7 +11,6 @@ import android.widget.ImageButton
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
 import androidx.preference.PreferenceManager
@@ -42,8 +41,8 @@ class MissionParamsController(
     private val minSpeed = 1
     private val maxSpeed = 5
 
-    private val missionParamsSideView: LinearLayoutCompat by lazy {
-        rootView.findViewById<LinearLayoutCompat>(R.id.mission_params_side_view)
+    private val missionParamsSideView: View by lazy {
+        rootView.findViewById<View>(R.id.mission_params_side_view)
     }
 
     fun show() {

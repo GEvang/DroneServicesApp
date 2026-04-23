@@ -8,6 +8,16 @@
     <string name="shell_operator_console">Operator Console</string>
     <string name="shell_status_connected">LINK OK</string>
     <string name="shell_status_disconnected">NO LINK</string>
+    <string name="home_panel_flight_settings">Flight Settings</string>
+    <string name="home_panel_flight_settings_subtitle">Survey geometry and spray profile</string>
+    <string name="home_panel_actions">Mission Actions</string>
+    <string name="home_panel_actions_subtitle">Save, exit, and upload the generated route</string>
+    <string name="home_panel_top_actions">Workflow</string>
+    <string name="home_panel_top_actions_hint">Draw or load a mission from the bottom controls, then refine and upload here.</string>
+    <string name="home_avoidance_front">Front avoidance</string>
+    <string name="home_avoidance_back">Rear avoidance</string>
+    <string name="home_avoidance_unknown">-- m</string>
+    <string name="home_offline_download">Download current map area for offline use</string>
 
 
     <string name="my_location_button_desc">My Location Button</string>

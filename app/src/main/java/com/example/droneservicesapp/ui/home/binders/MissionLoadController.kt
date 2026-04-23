@@ -54,7 +54,7 @@ class MissionLoadController(
         loadFileView.isVisible = true
 
         val adapter =
-            ArrayAdapter(activity, android.R.layout.simple_list_item_1, names.toMutableList())
+            ArrayAdapter(activity, R.layout.item_mission_file, names.toMutableList())
         listView.adapter = adapter
 
         if (!isBound) {

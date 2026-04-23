@@ -5,7 +5,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
@@ -36,7 +35,6 @@ import io.dronefleet.mavlink.common.MavCmd
 import org.osmdroid.tileprovider.cachemanager.CacheManager
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.Marker
 
 class MissionMapFragment : Fragment() {
     private var _binding: FragmentHomeMapsBinding? = null
@@ -56,8 +54,6 @@ class MissionMapFragment : Fragment() {
     private lateinit var homeMapTelemetryBinder: HomeMapTelemetryBinder
     private lateinit var osmdroidMapController: OsmdroidMapController
     private lateinit var osmdroidPolygonEditor: OsmdroidPolygonEditor
-
-    private var droneMarker: Marker? = null
 
     companion object {
         private const val DEFAULT_MAP_ZOOM = 18.0
@@ -110,16 +106,6 @@ class MissionMapFragment : Fragment() {
 
         osmdroidPolygonEditor = OsmdroidPolygonEditor(requireActivity(), activityViewModel, mapView)
         osmdroidPolygonEditor.init()
-
-        droneMarker = Marker(mapView).apply {
-            position = GeoPoint(0.0, 0.0)
-            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-            isEnabled = false
-            setVisible(false)
-            icon = ContextCompat.getDrawable(requireContext(), R.drawable.drone_marker_36)
-        }
-        mapView.overlays.add(droneMarker)
-        mapView.invalidate()
     }
 
     private fun initControllers() {
