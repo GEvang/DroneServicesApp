@@ -4,6 +4,7 @@
 
     <string name="menu_maps_home">Map</string>
     <string name="menu_settings">Settings</string>
+    <string name="menu_rtk">RTK</string>
 
 
     <string name="my_location_button_desc">My Location Button</string>
@@ -35,7 +36,61 @@
     <string name="area_too_big_msg">Area too big for survey missions!!!</string>
     <string name="select_alt_msg">Select altitude first!</string>
     <string name="con_interface_cat_pref" translatable="false">connInterfaceCategory</string>
+    <string name="rtk_port_pref" translatable="false">rtkPort</string>
+    <string name="rtk_mountpoint_pref" translatable="false">rtkMountpoint</string>
+    <string name="rtk_username_pref" translatable="false">rtkUsername</string>
+    <string name="rtk_password_pref" translatable="false">rtkPassword</string>
     <string name="drone_con_props_title_pref">Drone Connection Properties</string>
+    <string name="rtk">RTK</string>
+    <string name="rtk_title">RTK</string>
+    <string name="rtk_ip">IP</string>
+    <string name="rtk_port">Port</string>
+    <string name="rtk_mountpoint">Mountpoint</string>
+    <string name="rtk_username">Username</string>
+    <string name="rtk_password">Password</string>
+    <string name="rtk_fetch_mountpoints">Fetch Mountpoints</string>
+    <string name="rtk_test_connection">Test RTK Connection</string>
+    <string name="rtk_start">Start RTK</string>
+    <string name="rtk_stop">Stop RTK</string>
+    <string name="rtk_status">RTK Status</string>
+    <string name="rtk_forwarding_status">Forwarding Status</string>
+    <string name="rtk_gps_debug_status">ArduPilot GPS Debug</string>
+    <string name="rtk_gps_debug_default">Fix: -- | Sats: -- | Last GPS: --</string>
+    <string name="rtk_keep_awake_hint">RTK auto-runs when mountpoint, internet, drone, and GPS prerequisites are ready. This screen stays awake while open.</string>
+    <string name="rtk_keep_alive_notification_title">RTK forwarding active</string>
+    <string name="rtk_keep_alive_notification_active">Keeping RTK streaming alive while the device is locked.</string>
+    <string name="rtk_keep_alive_notification_idle">RTK keep-alive is waiting for connection or target.</string>
+    <string name="rtk_forwarding_idle">Idle</string>
+    <string name="rtk_forwarding_waiting_for_mountpoint">Waiting for mountpoint selection...</string>
+    <string name="rtk_forwarding_waiting_for_internet">Waiting for internet connectivity...</string>
+    <string name="rtk_forwarding_waiting_for_drone">Waiting for drone connection...</string>
+    <string name="rtk_forwarding_waiting_for_drone_gps">Waiting for drone GPS for NEAR mountpoint</string>
+    <string name="rtk_forwarding_connecting">Connecting to caster...</string>
+    <string name="rtk_forwarding_streaming">Streaming RTCM to ArduPilot</string>
+    <string name="rtk_forwarding_reconnecting">Network interrupted, retrying: %1$s</string>
+    <string name="rtk_forwarding_invalid_config">Cannot start RTK: %1$s</string>
+    <string name="rtk_forwarding_auth_failed">RTK caster authentication failed</string>
+    <string name="rtk_forwarding_mountpoint_invalid">RTK mountpoint invalid: %1$s</string>
+    <string name="rtk_forwarding_network_error">RTK network error: %1$s</string>
+    <string name="rtk_forwarding_protocol_error">RTK protocol error: %1$s</string>
+    <string name="rtk_forwarding_stopped">Stopped</string>
+    <string name="rtk_status_idle">Idle</string>
+    <string name="rtk_status_fetching">Fetching mountpoints...</string>
+    <string name="rtk_status_testing">Testing connection...</string>
+    <string name="rtk_status_connected">Connected</string>
+    <string name="rtk_status_invalid_config">Invalid RTK configuration: %1$s</string>
+    <string name="rtk_status_auth_failed">Authentication failed</string>
+    <string name="rtk_status_mountpoint_not_found">Mountpoint not found</string>
+    <string name="rtk_status_network_failed">Network error: %1$s</string>
+    <string name="rtk_status_no_mountpoints">No mountpoints were returned by the caster</string>
+    <string name="rtk_select_mountpoint">Select mountpoint</string>
+    <string name="rtk_connection_not_tested">Connection not tested</string>
+    <string name="rtk_mountpoint_selected">Selected mountpoint: %1$s</string>
+    <string name="rtk_ip_required">IP is required</string>
+    <string name="rtk_username_required">Username is required</string>
+    <string name="rtk_password_required">Password is required</string>
+    <string name="rtk_mountpoint_required">Mountpoint is required</string>
+    <string name="rtk_port_invalid">Port must be a number between 1 and 65535</string>
     <string name="language">Language</string>
     <string name="drone_conn_interface_pref">Drone Connection Interface</string>
     <string name="drone_tcpudp_port_pref">Port</string>

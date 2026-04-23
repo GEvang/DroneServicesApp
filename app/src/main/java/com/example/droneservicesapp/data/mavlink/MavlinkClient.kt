@@ -18,6 +18,13 @@ interface MavlinkClient {
     ): MavlinkMessage<T>?
 
     fun send2(systemId: Int, componentId: Int, payload: Any)
+    fun sendGpsRtcmData(
+        targetSystemId: Int,
+        targetComponentId: Int,
+        rtcmPayload: ByteArray,
+        rtcmMessageType: Int? = null
+    )
+    fun currentRtcmQueueDepth(): Int
     fun messages(): Observable<MavlinkMessage<*>>
     val lastHeartbeatMs: Long
 }

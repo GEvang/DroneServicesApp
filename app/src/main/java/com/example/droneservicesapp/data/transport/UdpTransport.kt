@@ -32,11 +32,20 @@ class UdpTransport(
     private var remotePort: Int = -1
 
     override fun start() {
-        if (running.getAndSet(true)) return
+        Log.i("UdpTransport", "connect requested on UDP transport listenPort=$listenPort running=${running.get()}")
+        if (running.getAndSet(true)) {
+            Log.i("UdpTransport", "start skipped: UDP transport already running")
+            return
+        }
 
         try {
+            Log.i("UdpTransport", "creating/binding UDP socket listenPort=$listenPort")
             socket = DatagramSocket(listenPort)
             socket?.soTimeout = 200  // 200ms timeout to periodically wake up and flush
+            Log.i(
+                "UdpTransport",
+                "UDP socket created/bound local=${socket?.localAddress?.hostAddress}:${socket?.localPort}"
+            )
             Thread({ runLoop() }, "UdpTransport-$listenPort").apply { isDaemon = true }.start()
             Log.i("UdpTransport", "Started UDP listen on $listenPort")
         } catch (e: Exception) {
@@ -47,6 +56,7 @@ class UdpTransport(
     }
 
     override fun stop() {
+        Log.i("UdpTransport", "stop requested running=${running.get()} remote=${remoteIP?.hostAddress}:${remotePort}")
         running.set(false)
         try {
             socket?.close() // this will break receive() with SocketException
