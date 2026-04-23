@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
@@ -109,9 +110,10 @@ class RtkFragment : Fragment() {
         binding.rtkUsernameInput.setText(config.username)
         binding.rtkPasswordInput.setText(config.password)
         binding.rtkMountpointInput.setText(config.mountpoint)
-        binding.rtkStatusValue.text = config.lastStatusMessage.ifBlank {
-            getString(R.string.rtk_connection_not_tested)
-        }
+        updateStatus(
+            config.lastStatusMessage.ifBlank { getString(R.string.rtk_connection_not_tested) },
+            config.lastFetchSucceeded
+        )
         isPopulatingForm = false
     }
 
@@ -281,6 +283,12 @@ class RtkFragment : Fragment() {
 
     private fun updateStatus(message: String, success: Boolean) {
         binding.rtkStatusValue.text = message
+        binding.rtkStatusValue.setTextColor(
+            ContextCompat.getColor(
+                requireContext(),
+                if (success) R.color.ds_color_shell_active else R.color.ds_color_text_primary
+            )
+        )
         rtkPreferences.saveLastStatusMessage(message)
         rtkPreferences.saveLastFetchSucceeded(success)
     }
@@ -289,9 +297,25 @@ class RtkFragment : Fragment() {
         droneViewModel.rtkForwardingState.observe(viewLifecycleOwner) { state ->
             Log.i(TAG, "state observed=${state.javaClass.simpleName}")
             binding.rtkForwardingStatusValue.text = state.toDisplayString()
+            binding.rtkForwardingStatusValue.setTextColor(
+                ContextCompat.getColor(requireContext(), forwardingStateColor(state))
+            )
         }
         droneViewModel.rtkGpsDebugStatus.observe(viewLifecycleOwner) { status ->
             binding.rtkGpsDebugValue.text = status
+        }
+    }
+
+    private fun forwardingStateColor(state: RtkForwardingState): Int {
+        return when (state) {
+            is RtkForwardingState.Streaming -> R.color.ds_color_shell_active
+            is RtkForwardingState.ConnectingToCaster,
+            is RtkForwardingState.Reconnecting,
+            is RtkForwardingState.WaitingForInternet,
+            is RtkForwardingState.WaitingForDrone,
+            is RtkForwardingState.WaitingForGps,
+            is RtkForwardingState.WaitingForMountpoint -> R.color.ds_color_shell_warning
+            else -> R.color.ds_color_text_primary
         }
     }
 

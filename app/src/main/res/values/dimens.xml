@@ -36,6 +36,7 @@
     <dimen name="ds_shell_toolbar_pill_height">40dp</dimen>
     <dimen name="ds_shell_status_segment_height">30dp</dimen>
     <dimen name="ds_shell_floating_nav_margin">24dp</dimen>
+    <dimen name="ds_overlay_horizontal_margin">24dp</dimen>
 
     <!-- Overriding sizes of the FAB -->
 

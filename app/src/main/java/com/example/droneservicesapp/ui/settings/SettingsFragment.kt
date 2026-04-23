@@ -6,7 +6,9 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
+import androidx.recyclerview.widget.RecyclerView
 import androidx.preference.Preference
 import androidx.preference.PreferenceFragmentCompat
 import com.example.droneservicesapp.Application
@@ -63,7 +65,20 @@ class SettingsFragment : PreferenceFragmentCompat(),
         )
 
         activity?.findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
-        return super.onCreateView(inflater, container, savedInstanceState)
+        val root = super.onCreateView(inflater, container, savedInstanceState)
+        val listView = root.findViewById<RecyclerView>(androidx.preference.R.id.recycler_view)
+        val panelPadding = resources.getDimensionPixelSize(R.dimen.ds_space_lg)
+
+        root.setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.ds_color_background))
+        root.setPadding(panelPadding, panelPadding, panelPadding, panelPadding)
+        listView?.apply {
+            clipToPadding = false
+            overScrollMode = View.OVER_SCROLL_NEVER
+            background = ContextCompat.getDrawable(requireContext(), R.drawable.bg_ds_overlay_card)
+            setPadding(panelPadding, panelPadding, panelPadding, panelPadding)
+        }
+
+        return root
     }
 
     override fun onSharedPreferenceChanged(sharedPreferences: SharedPreferences?, key: String?) {

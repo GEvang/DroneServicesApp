@@ -150,9 +150,11 @@
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/save_file_layout"
         style="@style/Widget.DroneServices.Panel.MapCard"
-        android:layout_width="420dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
+        android:layout_marginStart="@dimen/ds_overlay_horizontal_margin"
+        android:layout_marginEnd="@dimen/ds_overlay_horizontal_margin"
         android:orientation="vertical"
         android:visibility="gone">
 
@@ -257,9 +259,11 @@
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/load_file_selector_layout"
         style="@style/Widget.DroneServices.Panel.MapCard"
-        android:layout_width="420dp"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
+        android:layout_marginStart="@dimen/ds_overlay_horizontal_margin"
+        android:layout_marginEnd="@dimen/ds_overlay_horizontal_margin"
         android:orientation="vertical"
         android:visibility="gone">
 

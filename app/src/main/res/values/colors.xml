@@ -9,7 +9,7 @@
     <color name="text_primary">#F2F2F3</color>
     <color name="text_secondary">#A7A7AD</color>
 
-    <!-- Accent (gold) -->
+    <!-- Legacy accent values retained for compatibility -->
     <color name="accent_gold">#D1B15C</color>
     <color name="accent_gold_dim">#9C8343</color>
 
@@ -34,10 +34,10 @@
     <color name="ds_color_surface_tertiary">@color/slider_pill_bg</color>
     <color name="ds_color_text_primary">@color/text_primary</color>
     <color name="ds_color_text_secondary">@color/text_secondary</color>
-    <color name="ds_color_accent">@color/accent_gold</color>
-    <color name="ds_color_accent_dim">@color/accent_gold_dim</color>
+    <color name="ds_color_accent">@color/ds_color_shell_active</color>
+    <color name="ds_color_accent_dim">@color/ds_color_shell_active_dim</color>
     <color name="ds_color_stroke">@color/stroke_subtle</color>
-    <color name="ds_color_button_on_accent">@color/icon_on_gold</color>
+    <color name="ds_color_button_on_accent">@color/ds_color_shell_selected_content</color>
     <color name="ds_color_button_on_surface">@color/text_primary</color>
     <color name="ds_color_control_pill">@color/slider_pill_bg</color>
     <color name="ds_color_control_neutral">@color/slider_end_btn_bg</color>
