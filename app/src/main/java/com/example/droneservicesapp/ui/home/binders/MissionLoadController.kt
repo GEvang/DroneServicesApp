@@ -5,8 +5,6 @@ import android.widget.ArrayAdapter
 import android.widget.Button
 import android.widget.ListView
 import android.widget.Toast
-import androidx.appcompat.widget.LinearLayoutCompat
-import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.storage.MissionFileStore
@@ -15,9 +13,8 @@ import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import java.io.File
 
 /**
- * Owns the "Load mission" UI (load_file_selector_layout) and calls MissionFileHandler.parseXml(...).
- *
- * Extracted from MissionMapFragment.fileLoaderDialog().
+ * Owns the "Load mission" list content and delegates mission parsing to MissionXmlParser.
+ * Visibility is rendered by HomeMapPanelsBinder.
  */
 class MissionLoadController(
     private val activity: FragmentActivity,
@@ -30,10 +27,6 @@ class MissionLoadController(
     private var currentFiles: List<File> = emptyList()
 
     private val store = MissionFileStore(activity)
-
-    private val loadFileView: LinearLayoutCompat by lazy {
-        rootView.findViewById<LinearLayoutCompat>(R.id.load_file_selector_layout)
-    }
 
     private val listView: ListView by lazy {
         rootView.findViewById<ListView>(R.id.file_list)
@@ -48,10 +41,9 @@ class MissionLoadController(
 
         if (files.isEmpty()) {
             Toast.makeText(activity, "No missions saved yet", Toast.LENGTH_LONG).show()
+            activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
             return
         }
-
-        loadFileView.isVisible = true
 
         val adapter =
             ArrayAdapter(activity, R.layout.item_mission_file, names.toMutableList())
@@ -62,7 +54,6 @@ class MissionLoadController(
             isBound = true
         }
 
-        // Keep current files list for click handler
         currentFiles = files
     }
 

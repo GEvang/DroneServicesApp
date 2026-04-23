@@ -144,19 +144,6 @@
         <item name="android:padding">@dimen/ds_space_lg</item>
     </style>
 
-    <style name="Widget.DroneServices.Panel.Modal" parent="Widget.DroneServices.Panel.Card">
-        <item name="android:background">@drawable/bg_ds_panel_modal</item>
-    </style>
-
-    <style name="Widget.DroneServices.Panel.Overlay">
-        <item name="android:background">@drawable/bg_ds_panel_modal</item>
-        <item name="android:padding">@dimen/ds_space_lg</item>
-    </style>
-
-    <style name="Widget.DroneServices.Panel.Side" parent="Widget.DroneServices.Panel.Overlay">
-        <item name="android:background">@drawable/bg_ds_panel_side</item>
-    </style>
-
     <style name="Widget.DroneServices.Button.Primary" parent="Widget.AppCompat.Button">
         <item name="android:fontFamily">@font/inter</item>
         <item name="fontFamily">@font/inter</item>

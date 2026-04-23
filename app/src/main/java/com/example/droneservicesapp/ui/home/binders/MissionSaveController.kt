@@ -1,20 +1,18 @@
 package com.example.droneservicesapp.ui.home.binders
 
-import android.util.Log
 import android.view.View
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
 import android.widget.Toast
-import androidx.appcompat.widget.LinearLayoutCompat
-import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 
 /**
- * Owns the "Save mission" UI (save_file_layout) and calls MissionFileStore.saveMissionXml(...).
+ * Owns the "Save mission" form state and delegates persistence to MissionFileStore.
+ * Visibility is rendered by HomeMapPanelsBinder.
  */
 class MissionSaveController(
     private val activity: FragmentActivity,
@@ -25,10 +23,6 @@ class MissionSaveController(
     private var isBound = false
     private var overrideFile = false
     private val store = MissionFileStore(activity)
-
-    private val saveFileView: LinearLayoutCompat by lazy {
-        rootView.findViewById<LinearLayoutCompat>(R.id.save_file_layout)
-    }
 
     private val inputFilename: EditText by lazy {
         rootView.findViewById<EditText>(R.id.input_filename)
@@ -47,7 +41,6 @@ class MissionSaveController(
     }
 
     fun show() {
-        saveFileView.isVisible = true
         inputFilename.text.clear()
         overrideFile = false
         overrideCheckBox.isChecked = false
@@ -56,10 +49,6 @@ class MissionSaveController(
             bindOnce()
             isBound = true
         }
-    }
-
-    fun hide() {
-        saveFileView.isVisible = false
     }
 
     private fun bindOnce() {
@@ -90,14 +79,6 @@ class MissionSaveController(
                 return@setOnClickListener
             }
 
-            Log.i("MissionSave", "initiated Mission Save Layout")
-            Log.i("MissionSave", "vertices=$vertices")
-            Log.i("MissionSave", "lineDistance=${activityViewModel.lineDistanceProgress.value?.toInt()}")
-            Log.i("MissionSave", "angle=${activityViewModel.angleProgress.value?.toInt()}")
-            Log.i("MissionSave", "alt=${activityViewModel.flightAltProgress.value?.toInt()}")
-            Log.i("MissionSave", "sprayer=${activityViewModel.sprayerProgress.value?.toInt()}")
-
-
             val isSaved = store.saveMissionXml(
                 polygon = vertices,
                 lineDist = activityViewModel.lineDistanceProgress.value!!.toInt(),
@@ -115,9 +96,7 @@ class MissionSaveController(
                     Toast.LENGTH_LONG
                 ).show()
 
-                // Return to idle state and hide the UI
                 activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
-                hide()
             } else {
                 val errorStringId = if (overrideFile) {
                     R.string.failed_file_creation
@@ -134,7 +113,6 @@ class MissionSaveController(
 
         buttonCancel.setOnClickListener {
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
-            hide() // Also hide on cancel if desired
         }
     }
 }

@@ -86,7 +86,6 @@ class MissionMapFragment : Fragment() {
         bindUiButtons()
         observeDroneViewModel()
         observeMapState()
-        observeUploadFeedback()
         observeMissionMapViewModel()
 
         mapViewModel.updateFromMapState(activityViewModel.mapState.value ?: MainActivityViewModel.MapState.Idle)
@@ -118,7 +117,7 @@ class MissionMapFragment : Fragment() {
             saveMissionView = requireView().findViewById(R.id.save_file_layout),
             loadMissionView = requireView().findViewById(R.id.load_file_selector_layout)
         )
-        homeMapTelemetryBinder = HomeMapTelemetryBinder(requireActivity())
+        homeMapTelemetryBinder = HomeMapTelemetryBinder(binding.root)
 
         missionParamsController = MissionParamsController(
             context = requireContext(),
@@ -280,28 +279,14 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
                 }
                 is MainActivityViewModel.MapAction.UploadMissionSuccess -> {
+                    Snackbar.make(requireView(), "Upload complete", Snackbar.LENGTH_LONG).show()
                     activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
                 }
                 is MainActivityViewModel.MapAction.UploadMissionFailed -> {
                     Toast.makeText(context, action.reason, Toast.LENGTH_LONG).show()
+                    Snackbar.make(requireView(), "Upload failed: ${action.reason}", Snackbar.LENGTH_LONG).show()
                     activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
                 }
-            }
-        }
-    }
-
-    private fun observeUploadFeedback() {
-        activityViewModel.mapAction.observe(viewLifecycleOwner) { event ->
-            val action = event.getContentIfNotHandled() ?: return@observe
-
-            when (action) {
-                is MainActivityViewModel.MapAction.UploadMissionSuccess -> {
-                    Snackbar.make(requireView(), "Upload complete", Snackbar.LENGTH_LONG).show()
-                }
-                is MainActivityViewModel.MapAction.UploadMissionFailed -> {
-                    Snackbar.make(requireView(), "Upload failed: ${action.reason}", Snackbar.LENGTH_LONG).show()
-                }
-                else -> Unit
             }
         }
     }
@@ -315,7 +300,6 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun renderHomeMapUiState(state: HomeMapUiState) {
-        activityViewModel.drawEnableLiveData.value = state.interactionState.isDrawingEnabled
         osmdroidPolygonEditor.setEnabled(state.interactionState.isDrawingEnabled)
         homeMapChromeBinder.renderInteraction(state.interactionState)
         homeMapChromeBinder.renderOverlayControls(state.overlayControlsState)

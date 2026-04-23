@@ -48,7 +48,6 @@ class MissionParamsController(
     fun show() {
         if (isBound) return
         getWindowPreferences()
-        missionParamsSideView.visibility = View.VISIBLE
         bindSeekbars()
         bindFlightTimeAndSpeed()
         bindSpeedButtons()

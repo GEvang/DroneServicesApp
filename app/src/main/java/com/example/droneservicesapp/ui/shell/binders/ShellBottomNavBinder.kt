@@ -1,6 +1,5 @@
 package com.example.droneservicesapp.ui.shell.binders
 
-import android.util.Log
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.LifecycleOwner
@@ -53,7 +52,6 @@ class ShellBottomNavBinder(
     }
 
     private fun render(state: BottomActionBarUiState) {
-        Log.i("Map State", "Bottom action bar state changed: $state")
         if (state.preserveExistingMenu) return
 
         val menu = bottomNavigationView.menu

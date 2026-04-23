@@ -34,10 +34,6 @@ class MainActivityViewModel : ViewModel() {
         MutableLiveData()
     }
 
-    val drawEnableLiveData: MutableLiveData<Boolean> by lazy {
-        MutableLiveData(false)
-    }
-
     val flightAltProgress: MutableLiveData<Double> by lazy {
         MutableLiveData(2.0)
     }
