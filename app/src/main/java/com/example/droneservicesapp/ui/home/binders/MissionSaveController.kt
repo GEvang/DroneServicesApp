@@ -11,7 +11,7 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.storage.MissionFileStore
-import com.example.droneservicesapp.ui.home.model.MainActivityViewModel
+import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 
 /**
  * Owns the "Save mission" UI (save_file_layout) and calls MissionFileStore.saveMissionXml(...).

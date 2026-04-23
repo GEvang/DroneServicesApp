@@ -4,7 +4,7 @@ import android.app.Activity
 import android.graphics.Color
 import androidx.core.content.ContextCompat
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.ui.home.model.MainActivityViewModel
+import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.util.GeoPoint

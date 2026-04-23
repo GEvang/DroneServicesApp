@@ -17,7 +17,7 @@ import com.example.droneservicesapp.data.rtk.RtkKeepAliveForegroundService
 import com.example.droneservicesapp.data.rtk.RtkInternetMonitor
 import com.example.droneservicesapp.data.rtk.RtkPreferences
 import com.example.droneservicesapp.data.rtk.RtkValidator
-import com.example.droneservicesapp.ui.home.model.MainActivityViewModel
+import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.BatteryStatus
 import io.dronefleet.mavlink.common.DistanceSensor

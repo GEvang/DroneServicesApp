@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.ui.home.model
+package com.example.droneservicesapp.ui.shell.model
 
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData

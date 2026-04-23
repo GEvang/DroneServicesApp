@@ -29,8 +29,8 @@ import com.example.droneservicesapp.ui.home.binders.MissionSaveController
 import com.example.droneservicesapp.ui.home.components.EsriWorldImageryTileSource
 import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
 import com.example.droneservicesapp.ui.home.components.OsmdroidPolygonEditor
-import com.example.droneservicesapp.ui.home.model.MainActivityViewModel
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
+import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.snackbar.Snackbar

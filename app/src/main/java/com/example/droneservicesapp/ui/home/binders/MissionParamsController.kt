@@ -19,7 +19,7 @@ import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.mavlink.MissionBuilder
 import com.example.droneservicesapp.mavserver.DroneViewModel
-import com.example.droneservicesapp.ui.home.model.MainActivityViewModel
+import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 
 class MissionParamsController(
     private val context: Context,
