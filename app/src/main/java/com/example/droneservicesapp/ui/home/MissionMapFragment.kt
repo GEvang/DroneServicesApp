@@ -1,18 +1,11 @@
 package com.example.droneservicesapp.ui.home
 
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
-import android.widget.TextView
 import android.widget.Toast
-import androidx.appcompat.widget.LinearLayoutCompat
 import androidx.core.content.ContextCompat
-import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
@@ -23,15 +16,17 @@ import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
 import com.example.droneservicesapp.mavserver.DroneViewModel
+import com.example.droneservicesapp.ui.home.binders.HomeMapChromeBinder
+import com.example.droneservicesapp.ui.home.binders.HomeMapModeEffectsBinder
+import com.example.droneservicesapp.ui.home.binders.HomeMapPanelsBinder
+import com.example.droneservicesapp.ui.home.binders.HomeMapTelemetryBinder
 import com.example.droneservicesapp.ui.home.binders.MissionLoadController
 import com.example.droneservicesapp.ui.home.binders.MissionParamsController
 import com.example.droneservicesapp.ui.home.binders.MissionSaveController
 import com.example.droneservicesapp.ui.home.components.EsriWorldImageryTileSource
 import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
 import com.example.droneservicesapp.ui.home.components.OsmdroidPolygonEditor
-import com.example.droneservicesapp.ui.home.model.HomeMapScreenMode
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
-import com.example.droneservicesapp.ui.home.model.MissionPanelUiState
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
@@ -55,21 +50,16 @@ class MissionMapFragment : Fragment() {
     private lateinit var missionParamsController: MissionParamsController
     private lateinit var missionSaveController: MissionSaveController
     private lateinit var missionLoadController: MissionLoadController
+    private lateinit var homeMapChromeBinder: HomeMapChromeBinder
+    private lateinit var homeMapPanelsBinder: HomeMapPanelsBinder
+    private lateinit var homeMapModeEffectsBinder: HomeMapModeEffectsBinder
+    private lateinit var homeMapTelemetryBinder: HomeMapTelemetryBinder
     private lateinit var osmdroidMapController: OsmdroidMapController
     private lateinit var osmdroidPolygonEditor: OsmdroidPolygonEditor
 
     private var droneMarker: Marker? = null
 
-    private lateinit var paramsSideView: LinearLayoutCompat
-    private lateinit var saveFileView: LinearLayoutCompat
-    private lateinit var loadFileView: LinearLayoutCompat
-    
-
     companion object {
-        private const val LOG_TAG_FRONT_DISTANCE = "frontDistance"
-        private const val LOG_TAG_BACK_DISTANCE = "backDistance"
-        private const val MIN_DISTANCE_VALUE = 5
-        private const val MAX_DISTANCE_VALUE = 15
         private const val DEFAULT_MAP_ZOOM = 18.0
         private const val DEFAULT_MAP_LAT = 35.36449
         private const val DEFAULT_MAP_LON = 24.48730
@@ -94,10 +84,6 @@ class MissionMapFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-
-        paramsSideView = view.findViewById(R.id.mission_params_side_view)
-        saveFileView = view.findViewById(R.id.save_file_layout)
-        loadFileView = view.findViewById(R.id.load_file_selector_layout)
 
         initializeMapView(view)
         initControllers()
@@ -137,6 +123,17 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun initControllers() {
+        homeMapChromeBinder = HomeMapChromeBinder(
+            binding = binding,
+            bottomActionBarViewProvider = { activity?.findViewById(R.id.bottom_nav_view) }
+        )
+        homeMapPanelsBinder = HomeMapPanelsBinder(
+            missionParamsView = requireView().findViewById(R.id.mission_params_side_view),
+            saveMissionView = requireView().findViewById(R.id.save_file_layout),
+            loadMissionView = requireView().findViewById(R.id.load_file_selector_layout)
+        )
+        homeMapTelemetryBinder = HomeMapTelemetryBinder(requireActivity())
+
         missionParamsController = MissionParamsController(
             context = requireContext(),
             rootView = requireView(),
@@ -156,26 +153,33 @@ class MissionMapFragment : Fragment() {
             rootView = requireView(),
             activityViewModel = activityViewModel
         )
+
+        homeMapModeEffectsBinder = HomeMapModeEffectsBinder(
+            missionParamsController = missionParamsController,
+            missionSaveController = missionSaveController,
+            missionLoadController = missionLoadController,
+            onEnterIdle = { droneViewModel.downloadMissionNew() }
+        )
     }
 
     private fun bindUiButtons() {
-        binding.downloadOfflineButton.setOnClickListener {
-            downloadCurrentViewOffline(minZoom = OFFLINE_MIN_ZOOM, maxZoom = OFFLINE_MAX_ZOOM)
-        }
-
-        binding.myLocationButton.setOnClickListener {
-            if (mapViewModel.homeMapUiState.value?.interactionState?.isDrawingEnabled != true) {
-                osmdroidMapController.centerOnUserIfPermitted()
+        homeMapChromeBinder.bindActions(
+            onDownloadOffline = {
+                downloadCurrentViewOffline(minZoom = OFFLINE_MIN_ZOOM, maxZoom = OFFLINE_MAX_ZOOM)
+            },
+            onCenterOnUser = {
+                if (mapViewModel.homeMapUiState.value?.interactionState?.isDrawingEnabled != true) {
+                    osmdroidMapController.centerOnUserIfPermitted()
+                }
+            },
+            onCenterOnDrone = {
+                if (droneViewModel.conStateLiveData.value == true) {
+                    osmdroidMapController.centerOnDrone()
+                } else {
+                    Toast.makeText(context, getString(R.string.no_conn_msg), Toast.LENGTH_LONG).show()
+                }
             }
-        }
-
-        binding.droneLocationButton.setOnClickListener {
-            if (droneViewModel.conStateLiveData.value == true) {
-                osmdroidMapController.centerOnDrone()
-            } else {
-                Toast.makeText(context, getString(R.string.no_conn_msg), Toast.LENGTH_LONG).show()
-            }
-        }
+        )
 
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
     }
@@ -200,22 +204,12 @@ class MissionMapFragment : Fragment() {
 
         droneViewModel.droneFrontDistance.distinctUntilChanged()
             .observe(viewLifecycleOwner) { frontDistance ->
-                updateDistanceDisplay(
-                    LOG_TAG_FRONT_DISTANCE,
-                    frontDistance,
-                    R.id.front_dist,
-                    colorIndex = 0
-                )
+                homeMapTelemetryBinder.renderFrontDistance(frontDistance)
             }
 
         droneViewModel.droneBackDistance.distinctUntilChanged()
             .observe(viewLifecycleOwner) { backDistance ->
-                updateDistanceDisplay(
-                    LOG_TAG_BACK_DISTANCE,
-                    backDistance,
-                    R.id.back_dist,
-                    colorIndex = 2
-                )
+                homeMapTelemetryBinder.renderBackDistance(backDistance)
             }
 
         droneViewModel.missionItems.observe(viewLifecycleOwner) { missionItems ->
@@ -236,30 +230,6 @@ class MissionMapFragment : Fragment() {
 
                 activityViewModel.surveyPath.postValue(surveyPath)
             }
-        }
-    }
-
-    private fun updateDistanceDisplay(
-        logTag: String,
-        distance: Int,
-        textViewId: Int,
-        colorIndex: Int
-    ) {
-        Log.i(logTag, "------")
-        Log.i(logTag, "$logTag: $distance")
-
-        val color = getColor(distance)
-        Log.i(logTag, "distance: $distance    color: $color")
-
-        requireActivity().findViewById<TextView>(textViewId)?.text = "$distance m"
-
-        val compassImageView = requireActivity().findViewById<ImageView>(R.id.avoidance_compass)
-        val drawable = compassImageView?.drawable as? GradientDrawable
-
-        drawable?.colors?.let { colors ->
-            val newColors = colors.copyOf()
-            newColors[colorIndex] = color
-            drawable.colors = newColors
         }
     }
 
@@ -361,54 +331,11 @@ class MissionMapFragment : Fragment() {
     private fun renderHomeMapUiState(state: HomeMapUiState) {
         activityViewModel.drawEnableLiveData.value = state.interactionState.isDrawingEnabled
         osmdroidPolygonEditor.setEnabled(state.interactionState.isDrawingEnabled)
-        requireActivity().findViewById<View>(R.id.bottom_nav_view).isVisible =
-            state.interactionState.isBottomActionBarVisible
-
-        renderPanelState(state.panelState)
-
-        binding.myLocationButton.isVisible = state.overlayControlsState.showMyLocationButton
-        binding.droneLocationButton.isVisible = state.overlayControlsState.showDroneLocationButton
-        binding.downloadOfflineButton.isVisible = state.overlayControlsState.showDownloadOfflineButton
-
-        when (state.screenMode) {
-            HomeMapScreenMode.Idle -> {
-                droneViewModel.downloadMissionNew()
-            }
-            HomeMapScreenMode.Drawing -> Unit
-            HomeMapScreenMode.EditingParams -> missionParamsController.show()
-            HomeMapScreenMode.SavingMission -> missionSaveController.show()
-            HomeMapScreenMode.LoadingMission -> missionLoadController.show()
-        }
+        homeMapChromeBinder.renderInteraction(state.interactionState)
+        homeMapChromeBinder.renderOverlayControls(state.overlayControlsState)
+        homeMapPanelsBinder.render(state.panelState)
+        homeMapModeEffectsBinder.render(state.screenMode)
     }
-
-    private fun renderPanelState(state: MissionPanelUiState) {
-        paramsSideView.isVisible = state.activePanel == MissionPanelUiState.ActivePanel.MissionParams
-        saveFileView.isVisible = state.activePanel == MissionPanelUiState.ActivePanel.SaveMission
-        loadFileView.isVisible = state.activePanel == MissionPanelUiState.ActivePanel.LoadMission
-
-        paramsSideView.setOnTouchListener(
-            if (state.activePanel == MissionPanelUiState.ActivePanel.MissionParams && state.consumesTouch) {
-                View.OnTouchListener { _, _ -> true }
-            } else {
-                null
-            }
-        )
-        saveFileView.setOnTouchListener(
-            if (state.activePanel == MissionPanelUiState.ActivePanel.SaveMission && state.consumesTouch) {
-                View.OnTouchListener { _, _ -> true }
-            } else {
-                null
-            }
-        )
-        loadFileView.setOnTouchListener(
-            if (state.activePanel == MissionPanelUiState.ActivePanel.LoadMission && state.consumesTouch) {
-                View.OnTouchListener { _, _ -> true }
-            } else {
-                null
-            }
-        )
-    }
-
 
     private fun savePreference(key: String, value: String) {
         val sharedPref =
@@ -490,19 +417,6 @@ class MissionMapFragment : Fragment() {
 
         activityViewModel.surveyPath.postValue(gmsPath)
         osmdroidMapController.setSurveyPath(gmsPath)
-    }
-
-    private fun getColor(inValue: Int): Int {
-        var value = when {
-            inValue < MIN_DISTANCE_VALUE -> MIN_DISTANCE_VALUE
-            inValue > MAX_DISTANCE_VALUE -> MAX_DISTANCE_VALUE
-            else -> inValue
-        }
-        value = MAX_DISTANCE_VALUE + MIN_DISTANCE_VALUE - value
-
-        val hue =
-            ((120 * (MAX_DISTANCE_VALUE - value)) / (MAX_DISTANCE_VALUE - MIN_DISTANCE_VALUE)).toFloat()
-        return Color.HSVToColor(floatArrayOf(hue, 1f, 1f))
     }
 
     override fun onDestroyView() {
