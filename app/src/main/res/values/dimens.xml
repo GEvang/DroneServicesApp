@@ -27,6 +27,12 @@
     <dimen name="ds_compact_icon_button_size">24dp</dimen>
     <dimen name="ds_panel_label_text_size">13sp</dimen>
     <dimen name="ds_panel_value_text_size">13sp</dimen>
+    <dimen name="ds_shell_drawer_width">304dp</dimen>
+    <dimen name="ds_shell_nav_height">60dp</dimen>
+    <dimen name="ds_shell_nav_icon_size">22dp</dimen>
+    <dimen name="ds_shell_toolbar_icon_size">18dp</dimen>
+    <dimen name="ds_shell_header_title_size">15sp</dimen>
+    <dimen name="ds_shell_header_subtitle_size">12sp</dimen>
 
     <!-- Overriding sizes of the FAB -->
 

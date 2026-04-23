@@ -5,6 +5,9 @@
     <string name="menu_maps_home">Map</string>
     <string name="menu_settings">Settings</string>
     <string name="menu_rtk">RTK</string>
+    <string name="shell_operator_console">Operator Console</string>
+    <string name="shell_status_connected">LINK OK</string>
+    <string name="shell_status_disconnected">NO LINK</string>
 
 
     <string name="my_location_button_desc">My Location Button</string>

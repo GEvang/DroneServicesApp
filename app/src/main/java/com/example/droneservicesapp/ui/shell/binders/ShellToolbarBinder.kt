@@ -20,16 +20,21 @@ class ShellToolbarBinder(
 ) {
     private val toolbar by lazy { binding.appBarMain.customToolbar }
     private var toolbarUiState = ToolbarUiState(
-        armedText = activity.getString(R.string.disarmed)
+        armedText = activity.getString(R.string.disarmed),
+        connectionText = activity.getString(R.string.shell_status_disconnected)
     )
 
     fun bind(lifecycleOwner: LifecycleOwner) {
         activity.setSupportActionBar(toolbar)
-        toolbar.background = ContextCompat.getDrawable(activity, R.drawable.action_bar_bg_red)
         render(toolbarUiState)
 
         droneViewModel.conStateLiveData.observe(lifecycleOwner) { connState ->
-            toolbarUiState = toolbarUiState.copy(isConnected = connState)
+            toolbarUiState = toolbarUiState.copy(
+                isConnected = connState,
+                connectionText = activity.getString(
+                    if (connState) R.string.shell_status_connected else R.string.shell_status_disconnected
+                )
+            )
             render(toolbarUiState)
         }
 
@@ -89,14 +94,20 @@ class ShellToolbarBinder(
     }
 
     private fun render(state: ToolbarUiState) {
-        toolbar.setBackgroundResource(
-            if (state.isConnected) R.drawable.action_bar_bg_green else R.drawable.action_bar_bg_red
-        )
         toolbar.findViewById<TextView>(R.id.drone_battery_percentage_text).text = state.batteryText
         toolbar.findViewById<ImageView>(R.id.drone_battery_image).setImageResource(state.batteryIconRes)
         toolbar.findViewById<TextView>(R.id.drone_alt_txt).text = state.altitudeText
         toolbar.findViewById<TextView>(R.id.sprayer_flow_text).text = state.sprayerText
         toolbar.findViewById<TextView>(R.id.drone_arm_text).text = state.armedText
+        toolbar.findViewById<TextView>(R.id.drone_connection_text).apply {
+            text = state.connectionText
+            setTextColor(
+                ContextCompat.getColor(
+                    activity,
+                    if (state.isConnected) R.color.ds_color_accent else R.color.ds_color_text_secondary
+                )
+            )
+        }
 
         val uploadTxt = toolbar.findViewById<TextView>(R.id.mission_upload_progress_text)
         uploadTxt.text = state.uploadProgressText

@@ -5,6 +5,7 @@ import com.example.droneservicesapp.R
 
 data class ToolbarUiState(
     val isConnected: Boolean = false,
+    val connectionText: String = "",
     val batteryText: String = "--%",
     @DrawableRes val batteryIconRes: Int = R.drawable.ic_baseline_battery_full_24,
     val altitudeText: String = "--",

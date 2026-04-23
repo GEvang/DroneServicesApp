@@ -8,7 +8,7 @@
     android:layout_height="match_parent"
     android:fitsSystemWindows="true"
     tools:openDrawer="start"
-    android:background="@color/bg">
+    android:background="@color/ds_color_background">
 
     <include
         android:id="@+id/app_bar_main"
@@ -17,21 +17,14 @@
         android:layout_height="match_parent" />
 
     <com.google.android.material.navigation.NavigationView
+        style="@style/Widget.DroneServices.NavigationView"
         android:id="@+id/nav_view"
-        android:layout_width="wrap_content"
+        android:layout_width="@dimen/ds_shell_drawer_width"
         android:layout_height="match_parent"
         android:layout_gravity="start"
         android:fitsSystemWindows="true"
-
-        android:background="@color/surface"
         app:headerLayout="@layout/nav_header_main"
         app:menu="@menu/activity_main_drawer"
-
-        app:itemIconTint="@color/nav_item_icon"
-        app:itemTextColor="@color/nav_item_text"
-        app:itemBackground="@drawable/nav_item_background"
-        app:itemHorizontalPadding="16dp"
-        app:itemIconPadding="12dp"
-        app:itemShapeAppearanceOverlay="@style/ShapeAppearance.MaterialComponents.MediumComponent"
-        />
+        android:paddingTop="@dimen/ds_space_sm"
+        android:paddingBottom="@dimen/ds_space_sm" />
 </androidx.drawerlayout.widget.DrawerLayout>
