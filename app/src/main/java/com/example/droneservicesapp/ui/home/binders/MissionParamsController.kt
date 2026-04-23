@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.ui.maps.panel
+package com.example.droneservicesapp.ui.home.binders
 
 import android.content.Context
 import android.text.Editable
@@ -19,7 +19,7 @@ import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.mavlink.MissionBuilder
 import com.example.droneservicesapp.mavserver.DroneViewModel
-import com.example.droneservicesapp.ui.main.MainActivityViewModel
+import com.example.droneservicesapp.ui.home.model.MainActivityViewModel
 
 class MissionParamsController(
     private val context: Context,

@@ -99,7 +99,7 @@
                     android:contentDescription="@string/decrease" />
             </FrameLayout>
 
-            <com.example.droneservicesapp.ui.widgets.TouchDelegateSeekBar
+            <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
                 android:id="@+id/line_angle_seekbar"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -212,7 +212,7 @@
                     android:contentDescription="@string/decrease" />
             </FrameLayout>
 
-            <com.example.droneservicesapp.ui.widgets.TouchDelegateSeekBar
+            <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
                 android:id="@+id/line_distance_seekbar"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -326,7 +326,7 @@
                     android:contentDescription="@string/decrease" />
             </FrameLayout>
 
-            <com.example.droneservicesapp.ui.widgets.TouchDelegateSeekBar
+            <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
                 android:id="@+id/altitude_seekbar"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
@@ -438,7 +438,7 @@
                     android:contentDescription="@string/decrease" />
             </FrameLayout>
 
-            <com.example.droneservicesapp.ui.widgets.TouchDelegateSeekBar
+            <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
                 android:id="@+id/sprayer_seekbar"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"

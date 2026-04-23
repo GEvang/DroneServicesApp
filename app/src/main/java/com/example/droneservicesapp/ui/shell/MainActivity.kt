@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.ui.main
+package com.example.droneservicesapp.ui.shell
 
 import android.Manifest
 import android.content.SharedPreferences
@@ -28,6 +28,7 @@ import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.mavlink.MavlinkConfig
 import com.example.droneservicesapp.databinding.ActivityMainBinding
 import com.example.droneservicesapp.mavserver.DroneViewModel
+import com.example.droneservicesapp.ui.home.model.MainActivityViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigation.NavigationView
 import java.math.RoundingMode

@@ -1,10 +1,9 @@
-package com.example.droneservicesapp.ui.main
+package com.example.droneservicesapp.ui.home.model
 
 import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.core.util.Event
-import com.example.droneservicesapp.core.util.emit
 import com.example.droneservicesapp.domain.model.MissionArea
 import com.example.droneservicesapp.domain.model.MissionParams
 import com.google.android.gms.maps.model.LatLng
@@ -107,6 +106,6 @@ class MainActivityViewModel : ViewModel() {
     }
 
     fun sendAction(action: MapAction) {
-        mapAction.emit(action)
+        mapAction.postValue(Event(action))
     }
 }

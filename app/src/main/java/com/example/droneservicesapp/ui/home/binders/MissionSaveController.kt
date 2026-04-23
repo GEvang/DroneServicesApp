@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.ui.maps.panel
+package com.example.droneservicesapp.ui.home.binders
 
 import android.util.Log
 import android.view.View
@@ -11,7 +11,7 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.storage.MissionFileStore
-import com.example.droneservicesapp.ui.main.MainActivityViewModel
+import com.example.droneservicesapp.ui.home.model.MainActivityViewModel
 
 /**
  * Owns the "Save mission" UI (save_file_layout) and calls MissionFileStore.saveMissionXml(...).

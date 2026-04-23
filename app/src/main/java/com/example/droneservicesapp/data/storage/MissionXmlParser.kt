@@ -1,7 +1,7 @@
 package com.example.droneservicesapp.data.storage
 
 import androidx.fragment.app.FragmentActivity
-import com.example.droneservicesapp.ui.main.MainActivityViewModel
+import com.example.droneservicesapp.ui.home.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory

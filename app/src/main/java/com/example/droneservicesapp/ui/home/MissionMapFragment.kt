@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.ui.maps
+package com.example.droneservicesapp.ui.home
 
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -23,13 +23,14 @@ import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
 import com.example.droneservicesapp.mavserver.DroneViewModel
-import com.example.droneservicesapp.ui.main.MainActivityViewModel
-import com.example.droneservicesapp.ui.maps.osmdroid.EsriWorldImageryTileSource
-import com.example.droneservicesapp.ui.maps.osmdroid.OsmdroidMapController
-import com.example.droneservicesapp.ui.maps.osmdroid.OsmdroidPolygonEditor
-import com.example.droneservicesapp.ui.maps.panel.MissionLoadController
-import com.example.droneservicesapp.ui.maps.panel.MissionParamsController
-import com.example.droneservicesapp.ui.maps.panel.MissionSaveController
+import com.example.droneservicesapp.ui.home.binders.MissionLoadController
+import com.example.droneservicesapp.ui.home.binders.MissionParamsController
+import com.example.droneservicesapp.ui.home.binders.MissionSaveController
+import com.example.droneservicesapp.ui.home.components.EsriWorldImageryTileSource
+import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
+import com.example.droneservicesapp.ui.home.components.OsmdroidPolygonEditor
+import com.example.droneservicesapp.ui.home.model.MainActivityViewModel
+import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.snackbar.Snackbar

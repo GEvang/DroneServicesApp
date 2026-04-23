@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.ui.maps.panel
+package com.example.droneservicesapp.ui.home.binders
 
 import android.view.View
 import android.widget.ArrayAdapter
@@ -11,7 +11,7 @@ import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.data.storage.MissionXmlParser
-import com.example.droneservicesapp.ui.main.MainActivityViewModel
+import com.example.droneservicesapp.ui.home.model.MainActivityViewModel
 import java.io.File
 
 /**

@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.ui.widgets
+package com.example.droneservicesapp.ui.common
 
 import android.content.Context
 import android.graphics.Rect
