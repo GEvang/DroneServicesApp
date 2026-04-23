@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.LifecycleOwner
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.ui.shell.model.BottomActionBarUiState
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
 
@@ -47,40 +48,19 @@ class ShellBottomNavBinder(
         }
 
         activityViewModel.mapState.observe(lifecycleOwner) { mapState ->
-            render(mapState)
+            render(BottomActionBarUiState.fromMapState(mapState))
         }
     }
 
-    private fun render(mapState: MainActivityViewModel.MapState) {
-        Log.i("Map State", "Map State Changed to: $mapState")
+    private fun render(state: BottomActionBarUiState) {
+        Log.i("Map State", "Bottom action bar state changed: $state")
+        if (state.preserveExistingMenu) return
 
         val menu = bottomNavigationView.menu
-        fun setMenuVisibility(
-            cancel: Boolean,
-            accept: Boolean,
-            erase: Boolean,
-            draw: Boolean,
-            load: Boolean,
-        ) {
-            menu.findItem(R.id.action_cancel).isVisible = cancel
-            menu.findItem(R.id.action_accept).isVisible = accept
-            menu.findItem(R.id.action_erase).isVisible = erase
-            menu.findItem(R.id.action_draw).isVisible = draw
-            menu.findItem(R.id.action_load).isVisible = load
-        }
-
-        when (mapState) {
-            MainActivityViewModel.MapState.Idle -> {
-                setMenuVisibility(cancel = false, accept = false, erase = false, draw = true, load = true)
-            }
-            MainActivityViewModel.MapState.Draw,
-            MainActivityViewModel.MapState.SetFlightParams,
-            MainActivityViewModel.MapState.LoadMissionFromFile -> {
-                setMenuVisibility(cancel = true, accept = true, erase = true, draw = false, load = false)
-            }
-            MainActivityViewModel.MapState.SaveMissionToFile -> {
-                // no-op
-            }
-        }
+        menu.findItem(R.id.action_cancel).isVisible = state.showCancel
+        menu.findItem(R.id.action_accept).isVisible = state.showAccept
+        menu.findItem(R.id.action_erase).isVisible = state.showErase
+        menu.findItem(R.id.action_draw).isVisible = state.showDraw
+        menu.findItem(R.id.action_load).isVisible = state.showLoad
     }
 }

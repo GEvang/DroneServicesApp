@@ -5,31 +5,18 @@ import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 
 class MissionMapViewModel : ViewModel() {
-    
-    enum class UiState {
-        Idle,
-        Drawing,
-        EditingParams,
-        SavingMission,
-        LoadingMission
-    }
-    
-    val uiState: MutableLiveData<UiState> = MutableLiveData(UiState.Idle)
-    
-    fun setState(state: UiState) {
-        uiState.postValue(state)
-    }
+
+    val homeMapUiState: MutableLiveData<HomeMapUiState> =
+        MutableLiveData(HomeMapUiState.forScreenMode(HomeMapScreenMode.Idle))
 
     fun updateFromMapState(mapState: MainActivityViewModel.MapState) {
-        val newState = when (mapState) {
-            MainActivityViewModel.MapState.Idle -> UiState.Idle
-
-            MainActivityViewModel.MapState.Draw -> UiState.Drawing
-
-            MainActivityViewModel.MapState.SetFlightParams -> UiState.EditingParams
-            MainActivityViewModel.MapState.SaveMissionToFile -> UiState.SavingMission
-            MainActivityViewModel.MapState.LoadMissionFromFile -> UiState.LoadingMission
+        val screenMode = when (mapState) {
+            MainActivityViewModel.MapState.Idle -> HomeMapScreenMode.Idle
+            MainActivityViewModel.MapState.Draw -> HomeMapScreenMode.Drawing
+            MainActivityViewModel.MapState.SetFlightParams -> HomeMapScreenMode.EditingParams
+            MainActivityViewModel.MapState.SaveMissionToFile -> HomeMapScreenMode.SavingMission
+            MainActivityViewModel.MapState.LoadMissionFromFile -> HomeMapScreenMode.LoadingMission
         }
-        uiState.postValue(newState)
+        homeMapUiState.postValue(HomeMapUiState.forScreenMode(screenMode))
     }
 }

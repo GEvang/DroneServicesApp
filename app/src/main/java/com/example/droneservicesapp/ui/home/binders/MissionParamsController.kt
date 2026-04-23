@@ -19,6 +19,7 @@ import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.mavlink.MissionBuilder
 import com.example.droneservicesapp.mavserver.DroneViewModel
+import com.example.droneservicesapp.ui.home.model.MissionParamsUiState
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 
 class MissionParamsController(
@@ -29,6 +30,14 @@ class MissionParamsController(
     private val droneViewModel: DroneViewModel,
 ) {
     private var isBound = false
+    private var missionParamsUiState = MissionParamsUiState(
+        angle = 1,
+        lineDistance = 1,
+        altitude = 2,
+        sprayerIntensity = 0,
+        flightSpeed = 1,
+        estimatedFlightMinutes = 1
+    )
 
     private val minSpeed = 1
     private val maxSpeed = 5
@@ -53,16 +62,38 @@ class MissionParamsController(
         val flightTimeText = rootView.findViewById<TextView>(R.id.flight_time)
         val flightSpeedView = rootView.findViewById<TextView>(R.id.flight_speed)
 
-        flightSpeedView.text = activityViewModel.flightSpeed.value?.toInt()?.toString() ?: "1"
-        flightTimeText.text = activityViewModel.estimatedFlightMinutes.value?.toString() ?: "1"
+        missionParamsUiState = currentMissionParamsUiState()
+        renderFlightSummary(flightSpeedView, flightTimeText, missionParamsUiState)
 
         activityViewModel.flightSpeed.observe(lifecycleOwner) { flightSpeed ->
-            flightSpeedView.text = flightSpeed.toInt().toString()
+            missionParamsUiState = missionParamsUiState.copy(flightSpeed = flightSpeed.toInt())
+            renderFlightSummary(flightSpeedView, flightTimeText, missionParamsUiState)
         }
 
         activityViewModel.estimatedFlightMinutes.observe(lifecycleOwner) { minutes ->
-            flightTimeText.text = minutes.toString()
+            missionParamsUiState = missionParamsUiState.copy(estimatedFlightMinutes = minutes)
+            renderFlightSummary(flightSpeedView, flightTimeText, missionParamsUiState)
         }
+    }
+
+    private fun renderFlightSummary(
+        flightSpeedView: TextView,
+        flightTimeText: TextView,
+        state: MissionParamsUiState
+    ) {
+        flightSpeedView.text = state.flightSpeed.toString()
+        flightTimeText.text = state.estimatedFlightMinutes.toString()
+    }
+
+    private fun currentMissionParamsUiState(): MissionParamsUiState {
+        return MissionParamsUiState(
+            angle = activityViewModel.angleProgress.value?.toInt() ?: 1,
+            lineDistance = activityViewModel.lineDistanceProgress.value?.toInt() ?: 1,
+            altitude = activityViewModel.flightAltProgress.value?.toInt() ?: 2,
+            sprayerIntensity = activityViewModel.sprayerProgress.value?.toInt() ?: 0,
+            flightSpeed = activityViewModel.flightSpeed.value?.toInt() ?: 1,
+            estimatedFlightMinutes = activityViewModel.estimatedFlightMinutes.value ?: 1
+        )
     }
 
     private fun bindSeekbars() {

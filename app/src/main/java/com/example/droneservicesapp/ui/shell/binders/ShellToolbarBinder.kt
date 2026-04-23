@@ -9,6 +9,7 @@ import androidx.lifecycle.LifecycleOwner
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.databinding.ActivityMainBinding
 import com.example.droneservicesapp.mavserver.DroneViewModel
+import com.example.droneservicesapp.ui.shell.model.ToolbarUiState
 import java.math.RoundingMode
 import java.text.DecimalFormat
 
@@ -18,24 +19,24 @@ class ShellToolbarBinder(
     private val droneViewModel: DroneViewModel,
 ) {
     private val toolbar by lazy { binding.appBarMain.customToolbar }
+    private var toolbarUiState = ToolbarUiState(
+        armedText = activity.getString(R.string.disarmed)
+    )
 
     fun bind(lifecycleOwner: LifecycleOwner) {
         activity.setSupportActionBar(toolbar)
         toolbar.background = ContextCompat.getDrawable(activity, R.drawable.action_bar_bg_red)
+        render(toolbarUiState)
 
         droneViewModel.conStateLiveData.observe(lifecycleOwner) { connState ->
-            toolbar.setBackgroundResource(
-                if (connState) R.drawable.action_bar_bg_green else R.drawable.action_bar_bg_red
-            )
+            toolbarUiState = toolbarUiState.copy(isConnected = connState)
+            render(toolbarUiState)
         }
 
         droneViewModel.droneBatteryPercentage.observe(lifecycleOwner) { batteryPercentage ->
             if (droneViewModel.conStateLiveData.value != true) return@observe
 
             val df = DecimalFormat("#.##").apply { roundingMode = RoundingMode.DOWN }
-            toolbar.findViewById<TextView>(R.id.drone_battery_percentage_text).text =
-                "${df.format(batteryPercentage * 100.0F)}%"
-
             val iconRes = when {
                 batteryPercentage == -1.0F -> R.drawable.ic_baseline_battery_alert_24
                 batteryPercentage >= 1.0F -> R.drawable.ic_baseline_battery_full_24
@@ -44,37 +45,61 @@ class ShellToolbarBinder(
                 batteryPercentage >= 0.25F -> R.drawable.ic_baseline_battery_3_bar_24
                 else -> R.drawable.ic_baseline_battery_2_bar_24
             }
-            toolbar.findViewById<ImageView>(R.id.drone_battery_image).setImageResource(iconRes)
+            toolbarUiState = toolbarUiState.copy(
+                batteryText = "${df.format(batteryPercentage * 100.0F)}%",
+                batteryIconRes = iconRes
+            )
+            render(toolbarUiState)
         }
 
         droneViewModel.droneLocationLiveData.observe(lifecycleOwner) { location ->
             if (droneViewModel.conStateLiveData.value != true) return@observe
-            toolbar.findViewById<TextView>(R.id.drone_alt_txt).text = "${location.altitude.toInt()}m"
+            toolbarUiState = toolbarUiState.copy(altitudeText = "${location.altitude.toInt()}m")
+            render(toolbarUiState)
         }
 
         droneViewModel.liquidLevel.observe(lifecycleOwner) { liquidLevel ->
-            toolbar.findViewById<TextView>(R.id.sprayer_flow_text).text = "$liquidLevel%"
+            toolbarUiState = toolbarUiState.copy(sprayerText = "$liquidLevel%")
+            render(toolbarUiState)
         }
 
         droneViewModel.armedState.observe(lifecycleOwner) { armedState ->
             val resId = if (armedState) R.string.armed else R.string.disarmed
-            toolbar.findViewById<TextView>(R.id.drone_arm_text).text = activity.getString(resId)
+            toolbarUiState = toolbarUiState.copy(armedText = activity.getString(resId))
+            render(toolbarUiState)
         }
 
         droneViewModel.uploadProgressPercent.observe(lifecycleOwner) { percent ->
-            val uploadTxt = toolbar.findViewById<TextView>(R.id.mission_upload_progress_text)
-            when {
+            toolbarUiState = when {
                 percent in 1..99 -> {
-                    uploadTxt.visibility = View.VISIBLE
-                    uploadTxt.text = "Uploading ${percent}%"
+                    toolbarUiState.copy(
+                        showUploadProgress = true,
+                        uploadProgressText = "Uploading ${percent}%"
+                    )
                 }
                 percent >= 100 -> {
-                    uploadTxt.visibility = View.GONE
+                    toolbarUiState.copy(showUploadProgress = false)
                 }
                 else -> {
-                    uploadTxt.visibility = View.GONE
+                    toolbarUiState.copy(showUploadProgress = false)
                 }
             }
+            render(toolbarUiState)
         }
+    }
+
+    private fun render(state: ToolbarUiState) {
+        toolbar.setBackgroundResource(
+            if (state.isConnected) R.drawable.action_bar_bg_green else R.drawable.action_bar_bg_red
+        )
+        toolbar.findViewById<TextView>(R.id.drone_battery_percentage_text).text = state.batteryText
+        toolbar.findViewById<ImageView>(R.id.drone_battery_image).setImageResource(state.batteryIconRes)
+        toolbar.findViewById<TextView>(R.id.drone_alt_txt).text = state.altitudeText
+        toolbar.findViewById<TextView>(R.id.sprayer_flow_text).text = state.sprayerText
+        toolbar.findViewById<TextView>(R.id.drone_arm_text).text = state.armedText
+
+        val uploadTxt = toolbar.findViewById<TextView>(R.id.mission_upload_progress_text)
+        uploadTxt.text = state.uploadProgressText
+        uploadTxt.visibility = if (state.showUploadProgress) View.VISIBLE else View.GONE
     }
 }

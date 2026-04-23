@@ -29,10 +29,12 @@ import com.example.droneservicesapp.ui.home.binders.MissionSaveController
 import com.example.droneservicesapp.ui.home.components.EsriWorldImageryTileSource
 import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
 import com.example.droneservicesapp.ui.home.components.OsmdroidPolygonEditor
+import com.example.droneservicesapp.ui.home.model.HomeMapScreenMode
+import com.example.droneservicesapp.ui.home.model.HomeMapUiState
+import com.example.droneservicesapp.ui.home.model.MissionPanelUiState
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
-import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.snackbar.Snackbar
 import com.google.maps.android.SphericalUtil
 import io.dronefleet.mavlink.common.MavCmd
@@ -61,8 +63,6 @@ class MissionMapFragment : Fragment() {
     private lateinit var paramsSideView: LinearLayoutCompat
     private lateinit var saveFileView: LinearLayoutCompat
     private lateinit var loadFileView: LinearLayoutCompat
-
-    private var bottomNavigationView: BottomNavigationView? = null
     
 
     companion object {
@@ -98,8 +98,6 @@ class MissionMapFragment : Fragment() {
         paramsSideView = view.findViewById(R.id.mission_params_side_view)
         saveFileView = view.findViewById(R.id.save_file_layout)
         loadFileView = view.findViewById(R.id.load_file_selector_layout)
-
-        bottomNavigationView = requireActivity().findViewById(R.id.bottom_nav_view)
 
         initializeMapView(view)
         initControllers()
@@ -166,7 +164,7 @@ class MissionMapFragment : Fragment() {
         }
 
         binding.myLocationButton.setOnClickListener {
-            if (activityViewModel.drawEnableLiveData.value == false) {
+            if (mapViewModel.homeMapUiState.value?.interactionState?.isDrawingEnabled != true) {
                 osmdroidMapController.centerOnUserIfPermitted()
             }
         }
@@ -179,13 +177,7 @@ class MissionMapFragment : Fragment() {
             }
         }
 
-        configureBottomNavigationView(bottomNavigationView)
-
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
-    }
-
-    private fun configureBottomNavigationView(navigationView: BottomNavigationView?) {
-        navigationView?.isVisible = true
     }
 
     private fun observeDroneViewModel() {
@@ -306,14 +298,6 @@ class MissionMapFragment : Fragment() {
 
         activityViewModel.mapState.observe(viewLifecycleOwner) { mapState ->
             mapViewModel.updateFromMapState(mapState)
-
-            when (mapState) {
-                MainActivityViewModel.MapState.Idle -> handleIdleState()
-                MainActivityViewModel.MapState.Draw -> handleDrawState()
-                MainActivityViewModel.MapState.SetFlightParams -> handleSetFlightParamsState()
-                MainActivityViewModel.MapState.LoadMissionFromFile -> handleLoadMissionState()
-                MainActivityViewModel.MapState.SaveMissionToFile -> handleSaveMissionToFileState()
-            }
         }
 
         activityViewModel.mapAction.observe(viewLifecycleOwner) { event ->
@@ -369,89 +353,60 @@ class MissionMapFragment : Fragment() {
 
 
     private fun observeMissionMapViewModel() {
-        mapViewModel.uiState.observe(viewLifecycleOwner) { state ->
-            when (state) {
-                MissionMapViewModel.UiState.Idle, MissionMapViewModel.UiState.Drawing -> {
-                    paramsSideView.isVisible = false
-                    saveFileView.isVisible = false
-                    loadFileView.isVisible = false
-                    binding.myLocationButton.isVisible = true
-                    binding.droneLocationButton.isVisible = true
-                    binding.downloadOfflineButton.isVisible = true
-                    
-                    // Remove touch listeners when panels are hidden
-                    paramsSideView.setOnTouchListener(null)
-                    saveFileView.setOnTouchListener(null)
-                    loadFileView.setOnTouchListener(null)
-                }
-                MissionMapViewModel.UiState.EditingParams -> {
-                    paramsSideView.isVisible = true
-                    saveFileView.isVisible = false
-                    loadFileView.isVisible = false
-                    binding.myLocationButton.isVisible = false
-                    binding.droneLocationButton.isVisible = false
-                    binding.downloadOfflineButton.isVisible = false
-                    
-                    // Attach touch listener to consume touches on visible panel
-                    paramsSideView.setOnTouchListener { _, _ -> true }
-                    // Remove listeners from hidden panels
-                    saveFileView.setOnTouchListener(null)
-                    loadFileView.setOnTouchListener(null)
-                }
-                MissionMapViewModel.UiState.SavingMission -> {
-                    paramsSideView.isVisible = false
-                    saveFileView.isVisible = true
-                    loadFileView.isVisible = false
-                    binding.myLocationButton.isVisible = false
-                    binding.droneLocationButton.isVisible = false
-                    binding.downloadOfflineButton.isVisible = false
-                    
-                    // Attach touch listener to consume touches on visible panel
-                    saveFileView.setOnTouchListener { _, _ -> true }
-                    // Remove listeners from hidden panels
-                    paramsSideView.setOnTouchListener(null)
-                    loadFileView.setOnTouchListener(null)
-                }
-                MissionMapViewModel.UiState.LoadingMission -> {
-                    paramsSideView.isVisible = false
-                    saveFileView.isVisible = false
-                    loadFileView.isVisible = true
-                    binding.myLocationButton.isVisible = false
-                    binding.droneLocationButton.isVisible = false
-                    binding.downloadOfflineButton.isVisible = false
-                    
-                    // Attach touch listener to consume touches on visible panel
-                    loadFileView.setOnTouchListener { _, _ -> true }
-                    // Remove listeners from hidden panels
-                    paramsSideView.setOnTouchListener(null)
-                    saveFileView.setOnTouchListener(null)
-                }
-            }
+        mapViewModel.homeMapUiState.observe(viewLifecycleOwner) { state ->
+            renderHomeMapUiState(state)
         }
     }
 
-    private fun handleIdleState() {
-        activityViewModel.drawEnableLiveData.value = false
-        osmdroidPolygonEditor.setEnabled(false)
-        droneViewModel.downloadMissionNew()
+    private fun renderHomeMapUiState(state: HomeMapUiState) {
+        activityViewModel.drawEnableLiveData.value = state.interactionState.isDrawingEnabled
+        osmdroidPolygonEditor.setEnabled(state.interactionState.isDrawingEnabled)
+        requireActivity().findViewById<View>(R.id.bottom_nav_view).isVisible =
+            state.interactionState.isBottomActionBarVisible
+
+        renderPanelState(state.panelState)
+
+        binding.myLocationButton.isVisible = state.overlayControlsState.showMyLocationButton
+        binding.droneLocationButton.isVisible = state.overlayControlsState.showDroneLocationButton
+        binding.downloadOfflineButton.isVisible = state.overlayControlsState.showDownloadOfflineButton
+
+        when (state.screenMode) {
+            HomeMapScreenMode.Idle -> {
+                droneViewModel.downloadMissionNew()
+            }
+            HomeMapScreenMode.Drawing -> Unit
+            HomeMapScreenMode.EditingParams -> missionParamsController.show()
+            HomeMapScreenMode.SavingMission -> missionSaveController.show()
+            HomeMapScreenMode.LoadingMission -> missionLoadController.show()
+        }
     }
 
-    private fun handleDrawState() {
-        activityViewModel.drawEnableLiveData.value = true
-        osmdroidPolygonEditor.setEnabled(true)
-    }
+    private fun renderPanelState(state: MissionPanelUiState) {
+        paramsSideView.isVisible = state.activePanel == MissionPanelUiState.ActivePanel.MissionParams
+        saveFileView.isVisible = state.activePanel == MissionPanelUiState.ActivePanel.SaveMission
+        loadFileView.isVisible = state.activePanel == MissionPanelUiState.ActivePanel.LoadMission
 
-    private fun handleSetFlightParamsState() {
-        activityViewModel.drawEnableLiveData.value = false
-        missionParamsController.show()
-    }
-
-    private fun handleLoadMissionState() {
-        missionLoadController.show()
-    }
-
-    private fun handleSaveMissionToFileState() {
-        missionSaveController.show()
+        paramsSideView.setOnTouchListener(
+            if (state.activePanel == MissionPanelUiState.ActivePanel.MissionParams && state.consumesTouch) {
+                View.OnTouchListener { _, _ -> true }
+            } else {
+                null
+            }
+        )
+        saveFileView.setOnTouchListener(
+            if (state.activePanel == MissionPanelUiState.ActivePanel.SaveMission && state.consumesTouch) {
+                View.OnTouchListener { _, _ -> true }
+            } else {
+                null
+            }
+        )
+        loadFileView.setOnTouchListener(
+            if (state.activePanel == MissionPanelUiState.ActivePanel.LoadMission && state.consumesTouch) {
+                View.OnTouchListener { _, _ -> true }
+            } else {
+                null
+            }
+        )
     }
 
 
