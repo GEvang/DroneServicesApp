@@ -104,10 +104,20 @@ class ShellToolbarBinder(
             setTextColor(
                 ContextCompat.getColor(
                     activity,
-                    if (state.isConnected) R.color.ds_color_accent else R.color.ds_color_text_secondary
+                    if (state.isConnected) R.color.ds_color_shell_active else R.color.ds_color_shell_unselected
                 )
             )
         }
+        toolbar.findViewById<TextView>(R.id.drone_arm_text).setTextColor(
+            ContextCompat.getColor(
+                activity,
+                if (state.armedText == activity.getString(R.string.armed)) {
+                    R.color.ds_color_shell_active
+                } else {
+                    R.color.ds_color_shell_warning
+                }
+            )
+        )
 
         val uploadTxt = toolbar.findViewById<TextView>(R.id.mission_upload_progress_text)
         uploadTxt.text = state.uploadProgressText

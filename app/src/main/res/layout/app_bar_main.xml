@@ -12,7 +12,7 @@
         android:id="@+id/appBarMain"
         android:layout_width="match_parent"
         android:layout_height="@dimen/ds_toolbar_height"
-        android:background="@drawable/bg_ds_shell_appbar"
+        android:background="@android:color/transparent"
         android:elevation="0dp"
         android:theme="@style/ThemeOverlay.AppCompat.Dark">
 
@@ -20,7 +20,10 @@
             style="@style/Widget.DroneServices.Toolbar"
             android:id="@+id/customToolbar"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
+            android:layout_height="@dimen/ds_shell_toolbar_pill_height"
+            android:layout_marginStart="@dimen/ds_space_sm"
+            android:layout_marginTop="@dimen/ds_space_sm"
+            android:layout_marginEnd="@dimen/ds_space_sm"
             android:background="@drawable/bg_ds_shell_appbar"
             app:navigationIconTint="@color/ds_color_text_primary">
 
@@ -45,6 +48,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/ds_space_xs"
+                    android:maxLines="1"
                     android:text="@string/unknown_percentage"
                     style="@style/TextAppearance.DroneServices.ToolbarMetricStrong" />
 
@@ -61,6 +65,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/ds_space_xs"
+                    android:maxLines="1"
                     android:text="@string/unknown_percentage"
                     style="@style/TextAppearance.DroneServices.ToolbarMetric" />
 
@@ -77,6 +82,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/ds_space_xs"
+                    android:maxLines="1"
                     android:text="@string/unknown_value"
                     style="@style/TextAppearance.DroneServices.ToolbarMetric" />
             </androidx.appcompat.widget.LinearLayoutCompat>
@@ -93,8 +99,13 @@
                     android:id="@+id/drone_connection_text"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
+                    android:maxLines="1"
+                    android:paddingLeft="@dimen/ds_space_md"
+                    android:paddingTop="@dimen/ds_space_xs"
+                    android:paddingRight="@dimen/ds_space_md"
+                    android:paddingBottom="@dimen/ds_space_xs"
                     android:text="@string/shell_status_disconnected"
-                    android:textColor="@color/ds_color_text_secondary"
+                    android:textColor="@color/ds_color_shell_unselected"
                     style="@style/TextAppearance.DroneServices.ToolbarMetric" />
 
                 <TextView
@@ -102,8 +113,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/ds_space_sm"
+                    android:maxLines="1"
+                    android:background="@drawable/bg_ds_shell_status_segment"
+                    android:minHeight="@dimen/ds_shell_status_segment_height"
+                    android:gravity="center"
+                    android:paddingLeft="@dimen/ds_space_lg"
+                    android:paddingRight="@dimen/ds_space_lg"
                     android:text="@string/disarmed"
-                    android:textColor="@color/ds_color_accent"
+                    android:textColor="@color/ds_color_shell_warning"
                     style="@style/TextAppearance.DroneServices.ToolbarMetricStrong" />
 
                 <TextView
@@ -111,9 +128,10 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="@dimen/ds_space_sm"
+                    android:maxLines="1"
                     android:visibility="gone"
                     android:text="Uploading 0%"
-                    android:textColor="@color/ds_color_accent_dim"
+                    android:textColor="@color/ds_color_shell_active"
                     style="@style/TextAppearance.DroneServices.ToolbarMetric" />
             </androidx.appcompat.widget.LinearLayoutCompat>
 

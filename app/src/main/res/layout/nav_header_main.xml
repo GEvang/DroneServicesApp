@@ -10,7 +10,7 @@
     android:paddingTop="@dimen/ds_space_lg"
     android:paddingRight="@dimen/ds_space_lg"
     android:paddingBottom="@dimen/ds_space_lg"
-    android:background="@color/ds_color_surface_primary">
+    android:background="@android:color/transparent">
 
     <ImageView
         android:layout_width="wrap_content"
@@ -34,7 +34,7 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/ds_space_xs"
         android:text="@string/shell_operator_console"
-        android:textColor="@color/ds_color_text_secondary"
+        android:textColor="@color/ds_color_shell_unselected"
         android:textSize="@dimen/ds_shell_header_subtitle_size"
         android:fontFamily="@font/inter" />
 
@@ -42,5 +42,5 @@
         android:layout_width="48dp"
         android:layout_height="2dp"
         android:layout_marginTop="@dimen/ds_space_sm"
-        android:background="@color/ds_color_accent"/>
+        android:background="@color/ds_color_shell_active"/>
 </LinearLayout>

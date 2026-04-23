@@ -18,7 +18,7 @@
     <dimen name="ds_radius_round">24dp</dimen>
 
     <!-- Compact chrome sizing -->
-    <dimen name="ds_toolbar_height">40dp</dimen>
+    <dimen name="ds_toolbar_height">56dp</dimen>
     <dimen name="ds_status_text_size">13sp</dimen>
     <dimen name="ds_fab_icon_size">25dp</dimen>
     <dimen name="ds_panel_min_width">320dp</dimen>
@@ -33,6 +33,9 @@
     <dimen name="ds_shell_toolbar_icon_size">18dp</dimen>
     <dimen name="ds_shell_header_title_size">15sp</dimen>
     <dimen name="ds_shell_header_subtitle_size">12sp</dimen>
+    <dimen name="ds_shell_toolbar_pill_height">40dp</dimen>
+    <dimen name="ds_shell_status_segment_height">30dp</dimen>
+    <dimen name="ds_shell_floating_nav_margin">24dp</dimen>
 
     <!-- Overriding sizes of the FAB -->
 

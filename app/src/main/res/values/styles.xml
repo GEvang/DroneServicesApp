@@ -68,9 +68,9 @@
 
     <style name="Widget.DroneServices.Toolbar">
         <item name="android:background">@drawable/bg_ds_shell_appbar</item>
-        <item name="contentInsetStart">10dp</item>
-        <item name="contentInsetStartWithNavigation">10dp</item>
-        <item name="contentInsetEnd">10dp</item>
+        <item name="contentInsetStart">14dp</item>
+        <item name="contentInsetStartWithNavigation">14dp</item>
+        <item name="contentInsetEnd">14dp</item>
         <item name="titleTextAppearance">@style/Toolbar.TitleText</item>
         <item name="popupTheme">@style/ThemeOverlay.AppCompat.Dark</item>
     </style>
@@ -78,9 +78,9 @@
     <style name="Widget.DroneServices.NavigationView">
         <item name="android:background">@drawable/bg_ds_shell_drawer</item>
         <item name="elevation">0dp</item>
-        <item name="itemIconTint">@color/nav_item_icon</item>
-        <item name="itemTextColor">@color/nav_item_text</item>
-        <item name="itemBackground">@drawable/nav_item_background</item>
+        <item name="itemIconTint">@color/drawer_nav_item_icon</item>
+        <item name="itemTextColor">@color/drawer_nav_item_text</item>
+        <item name="itemBackground">@drawable/drawer_nav_item_background</item>
         <item name="itemHorizontalPadding">@dimen/ds_space_md</item>
         <item name="itemIconPadding">10dp</item>
         <item name="itemTextAppearance">@style/TextAppearance.DroneServices.NavItem</item>
@@ -94,7 +94,7 @@
         <item name="itemTextAppearanceActive">@style/TextAppearance.DroneServices.BottomNavActive</item>
         <item name="itemTextAppearanceInactive">@style/TextAppearance.DroneServices.BottomNavInactive</item>
         <item name="itemRippleColor">@color/ds_color_stroke</item>
-        <item name="itemBackground">@drawable/nav_item_background</item>
+        <item name="itemBackground">@drawable/bottom_nav_item_background</item>
     </style>
 
     <style name="Widget.DroneServices.Panel" parent="" />

@@ -25,6 +25,8 @@
         android:fitsSystemWindows="true"
         app:headerLayout="@layout/nav_header_main"
         app:menu="@menu/activity_main_drawer"
+        android:layout_marginTop="@dimen/ds_space_md"
+        android:layout_marginBottom="@dimen/ds_space_md"
         android:paddingTop="@dimen/ds_space_sm"
         android:paddingBottom="@dimen/ds_space_sm" />
 </androidx.drawerlayout.widget.DrawerLayout>
