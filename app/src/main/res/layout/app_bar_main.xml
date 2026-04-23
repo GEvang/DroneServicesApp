@@ -11,21 +11,17 @@
     <com.google.android.material.appbar.AppBarLayout
         android:id="@+id/appBarMain"
         android:layout_width="match_parent"
-        android:layout_height="40dp"
-        android:background="@color/surface_2"
+        android:layout_height="@dimen/ds_toolbar_height"
+        android:background="@color/ds_color_surface_secondary"
         android:elevation="0dp"
         android:theme="@style/ThemeOverlay.AppCompat.Dark">
 
         <androidx.appcompat.widget.Toolbar
+            style="@style/Widget.DroneServices.Toolbar"
             android:id="@+id/customToolbar"
             android:layout_width="match_parent"
             android:layout_height="match_parent"
-            android:background="@color/surface_2"
-            android:contentInsetStartWithNavigation="12dp"
-            android:contentInsetStart="12dp"
-            android:contentInsetEnd="12dp"
-            app:popupTheme="@style/ThemeOverlay.AppCompat.Dark"
-            app:titleTextAppearance="@style/Toolbar.TitleText">
+            android:background="@color/ds_color_surface_secondary">
 
             <!-- LEFT status cluster -->
             <androidx.appcompat.widget.LinearLayoutCompat
@@ -48,10 +44,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:text="@string/unknown_percentage"
-                    android:textColor="@color/text_primary"
-                    android:textSize="13sp"
-                    android:fontFamily="@font/inter"
-                    android:textStyle="bold" />
+                    style="@style/TextAppearance.DroneServices.ToolbarMetricStrong" />
 
                 <androidx.appcompat.widget.AppCompatImageView
                     android:layout_width="24dp"
@@ -67,9 +60,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:text="@string/unknown_percentage"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.ToolbarMetric" />
 
                 <androidx.appcompat.widget.AppCompatImageView
                     android:layout_width="24dp"
@@ -85,9 +76,7 @@
                     android:layout_height="wrap_content"
                     android:layout_marginStart="6dp"
                     android:text="@string/unknown_value"
-                    android:textColor="@color/text_secondary"
-                    android:textSize="13sp"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.ToolbarMetric" />
             </androidx.appcompat.widget.LinearLayoutCompat>
 
             <!-- RIGHT status cluster -->
@@ -104,9 +93,7 @@
                     android:layout_height="wrap_content"
                     android:text="@string/disarmed"
                     android:textColor="@color/accent_gold"
-                    android:textSize="13sp"
-                    android:fontFamily="@font/inter"
-                    android:textStyle="bold" />
+                    style="@style/TextAppearance.DroneServices.ToolbarMetricStrong" />
 
                 <TextView
                     android:id="@+id/mission_upload_progress_text"
@@ -116,8 +103,7 @@
                     android:visibility="gone"
                     android:text="Uploading 0%"
                     android:textColor="@color/accent_gold"
-                    android:textSize="13sp"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.ToolbarMetric" />
             </androidx.appcompat.widget.LinearLayoutCompat>
 
         </androidx.appcompat.widget.Toolbar>

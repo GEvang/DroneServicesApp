@@ -25,10 +25,8 @@
         android:layout_height="wrap_content"
         android:layout_marginTop="10dp"
         android:text="@string/drone_services_sprayer"
-        android:textColor="@color/text_primary"
-        android:fontFamily="@font/inter"
-        android:textSize="16sp"
-        android:textStyle="bold" />
+        style="@style/TextAppearance.DroneServices.BodyStrong"
+        android:textSize="16sp" />
 
     <View
         android:layout_width="48dp"

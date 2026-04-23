@@ -1,12 +1,185 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Some layouts reference @style/Text; define it to stop AAPT errors -->
+    <style name="TextAppearance.DroneServices" parent="" />
 
-    <!-- PANEL STYLES -->
+    <style name="TextAppearance.DroneServices.Body">
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/inter</item>
+        <item name="android:textColor">@color/ds_color_text_primary</item>
+        <item name="android:textSize">14sp</item>
+    </style>
 
-    <!-- Optional: use this for centered modal panels like Save/Load -->
+    <style name="TextAppearance.DroneServices.BodyStrong" parent="TextAppearance.DroneServices.Body">
+        <item name="android:textStyle">bold</item>
+    </style>
 
+    <style name="TextAppearance.DroneServices.Caption" parent="TextAppearance.DroneServices.Body">
+        <item name="android:textColor">@color/ds_color_text_secondary</item>
+        <item name="android:textSize">@dimen/ds_status_text_size</item>
+    </style>
+
+    <style name="TextAppearance.DroneServices.CaptionStrong" parent="TextAppearance.DroneServices.Caption">
+        <item name="android:textColor">@color/ds_color_text_primary</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.DroneServices.ToolbarMetric" parent="TextAppearance.DroneServices.Caption" />
+
+    <style name="TextAppearance.DroneServices.ToolbarMetricStrong" parent="TextAppearance.DroneServices.CaptionStrong" />
+
+    <style name="TextAppearance.DroneServices.TelemetryLabel" parent="TextAppearance.DroneServices.Caption" />
+
+    <style name="TextAppearance.DroneServices.TelemetryValue" parent="TextAppearance.DroneServices.CaptionStrong" />
+
+    <style name="TextAppearance.DroneServices.TelemetryValueAccent" parent="TextAppearance.DroneServices.TelemetryValue">
+        <item name="android:textColor">@color/ds_color_accent</item>
+    </style>
+
+    <style name="TextAppearance.DroneServices.PanelLabel" parent="TextAppearance.DroneServices.Caption">
+        <item name="android:textSize">@dimen/ds_panel_label_text_size</item>
+    </style>
+
+    <style name="TextAppearance.DroneServices.PanelValue" parent="TextAppearance.DroneServices.CaptionStrong">
+        <item name="android:textSize">@dimen/ds_panel_value_text_size</item>
+    </style>
+
+    <style name="TextAppearance.DroneServices.Title">
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/inter</item>
+        <item name="android:textColor">@color/ds_color_text_primary</item>
+        <item name="android:textSize">24sp</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="Widget.DroneServices" parent="" />
+
+    <style name="Widget.DroneServices.Toolbar">
+        <item name="android:background">@color/ds_color_surface_secondary</item>
+        <item name="contentInsetStart">12dp</item>
+        <item name="contentInsetStartWithNavigation">12dp</item>
+        <item name="contentInsetEnd">12dp</item>
+        <item name="titleTextAppearance">@style/Toolbar.TitleText</item>
+        <item name="popupTheme">@style/ThemeOverlay.AppCompat.Dark</item>
+    </style>
+
+    <style name="Widget.DroneServices.Panel" parent="" />
+
+    <style name="Widget.DroneServices.Panel.Card">
+        <item name="android:background">@drawable/bg_card_dark</item>
+        <item name="android:padding">@dimen/ds_space_lg</item>
+    </style>
+
+    <style name="Widget.DroneServices.Panel.Modal" parent="Widget.DroneServices.Panel.Card">
+        <item name="android:background">@drawable/bg_ds_panel_modal</item>
+    </style>
+
+    <style name="Widget.DroneServices.Panel.Overlay">
+        <item name="android:background">@drawable/bg_card_gold_stroke</item>
+        <item name="android:padding">@dimen/ds_space_lg</item>
+    </style>
+
+    <style name="Widget.DroneServices.Panel.Side" parent="Widget.DroneServices.Panel.Overlay">
+        <item name="android:background">@drawable/bg_ds_panel_side</item>
+    </style>
+
+    <style name="Widget.DroneServices.Button.Primary" parent="Widget.AppCompat.Button">
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/inter</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/ds_color_button_on_accent</item>
+        <item name="android:backgroundTint">@color/ds_color_accent</item>
+        <item name="backgroundTint">@color/ds_color_accent</item>
+        <item name="android:minHeight">@dimen/ds_compact_button_height</item>
+    </style>
+
+    <style name="Widget.DroneServices.Button.Secondary" parent="Widget.AppCompat.Button">
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/inter</item>
+        <item name="android:textAllCaps">false</item>
+        <item name="android:textColor">@color/ds_color_button_on_surface</item>
+        <item name="android:backgroundTint">@color/ds_color_surface_primary</item>
+        <item name="backgroundTint">@color/ds_color_surface_primary</item>
+        <item name="android:minHeight">@dimen/ds_compact_button_height</item>
+    </style>
+
+    <style name="Widget.DroneServices.Fab.Overlay" parent="Widget.MaterialComponents.FloatingActionButton">
+        <item name="backgroundTint">@color/fab_bg</item>
+        <item name="tint">@color/icon_on_dark</item>
+        <item name="fabSize">mini</item>
+        <item name="maxImageSize">@dimen/ds_fab_icon_size</item>
+        <item name="elevation">0dp</item>
+    </style>
+
+    <style name="Widget.DroneServices.TextView" parent="" />
+
+    <style name="Widget.DroneServices.TextView.StatusCard">
+        <item name="android:background">@drawable/bg_card_gold_stroke</item>
+        <item name="android:padding">@dimen/ds_space_md</item>
+        <item name="android:textColor">@color/ds_color_text_primary</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/inter</item>
+    </style>
+
+    <style name="Widget.DroneServices.TextInputLayout" parent="Widget.MaterialComponents.TextInputLayout.OutlinedBox">
+        <item name="boxBackgroundColor">@color/ds_color_surface_secondary</item>
+        <item name="boxStrokeColor">@color/ds_color_stroke</item>
+        <item name="boxStrokeWidth">1dp</item>
+        <item name="boxStrokeWidthFocused">1dp</item>
+        <item name="hintTextColor">@color/ds_color_text_secondary</item>
+        <item name="android:textColorHint">@color/ds_color_text_secondary</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearanceOverlay.DroneServices.TextInput</item>
+        <item name="endIconTint">@color/ds_color_text_secondary</item>
+    </style>
+
+    <style name="Widget.DroneServices.TextInputEditText">
+        <item name="android:textColor">@color/ds_color_text_primary</item>
+        <item name="android:textColorHint">@color/ds_color_text_secondary</item>
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/inter</item>
+    </style>
+
+    <style name="Widget.DroneServices.Button.Material.Primary" parent="Widget.MaterialComponents.Button">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/inter</item>
+        <item name="backgroundTint">@color/ds_color_accent</item>
+        <item name="android:textColor">@color/ds_color_button_on_accent</item>
+        <item name="cornerRadius">@dimen/ds_radius_md</item>
+        <item name="elevation">0dp</item>
+        <item name="iconTint">@color/ds_color_button_on_accent</item>
+    </style>
+
+    <style name="Widget.DroneServices.Button.Material.Secondary" parent="Widget.MaterialComponents.Button">
+        <item name="android:textAllCaps">false</item>
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/inter</item>
+        <item name="backgroundTint">@color/ds_color_surface_primary</item>
+        <item name="strokeColor">@color/ds_color_stroke</item>
+        <item name="strokeWidth">1dp</item>
+        <item name="android:textColor">@color/ds_color_button_on_surface</item>
+        <item name="cornerRadius">@dimen/ds_radius_md</item>
+        <item name="elevation">0dp</item>
+        <item name="iconTint">@color/ds_color_button_on_surface</item>
+    </style>
+
+    <style name="Widget.DroneServices.IconButton.Neutral" parent="Widget.AppCompat.ImageButton">
+        <item name="android:background">@drawable/bg_ds_control_button_neutral</item>
+        <item name="android:tint">@color/ds_color_text_secondary</item>
+        <item name="android:scaleType">centerInside</item>
+    </style>
+
+    <style name="Widget.DroneServices.IconButton.Accent" parent="Widget.AppCompat.ImageButton">
+        <item name="android:background">@drawable/bg_ds_control_button_accent</item>
+        <item name="android:tint">@color/ds_color_accent</item>
+        <item name="android:scaleType">centerInside</item>
+    </style>
+
+    <style name="ShapeAppearanceOverlay.DroneServices.TextInput" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">@dimen/ds_radius_md</item>
+    </style>
 
 </resources>
 

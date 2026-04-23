@@ -8,31 +8,34 @@
         <item name="fontFamily">@font/inter</item>
 
         <!-- Core colors -->
-        <item name="colorPrimary">@color/accent_gold</item>
-        <item name="colorPrimaryVariant">@color/accent_gold_dim</item>
-        <item name="colorSecondary">@color/accent_gold</item>
+        <item name="colorPrimary">@color/ds_color_accent</item>
+        <item name="colorPrimaryVariant">@color/ds_color_accent_dim</item>
+        <item name="colorSecondary">@color/ds_color_accent</item>
 
         <!-- App surfaces -->
-        <item name="android:colorBackground">@color/bg</item>
-        <item name="colorSurface">@color/surface</item>
+        <item name="android:colorBackground">@color/ds_color_background</item>
+        <item name="colorSurface">@color/ds_color_surface_primary</item>
 
         <!-- Text -->
-        <item name="android:textColorPrimary">@color/text_primary</item>
-        <item name="android:textColorSecondary">@color/text_secondary</item>
+        <item name="android:textColorPrimary">@color/ds_color_text_primary</item>
+        <item name="android:textColorSecondary">@color/ds_color_text_secondary</item>
 
         <!-- Common Material defaults that help on dark UI -->
-        <item name="android:statusBarColor">@color/bg</item>
-        <item name="android:navigationBarColor">@color/bg</item>
+        <item name="android:statusBarColor">@color/ds_color_background</item>
+        <item name="android:navigationBarColor">@color/ds_color_background</item>
 
         <!-- Optional: helps Material components pick correct contrast -->
-        <item name="colorOnPrimary">@color/bg</item>
-        <item name="colorOnSurface">@color/text_primary</item>
-        <item name="colorOnBackground">@color/text_primary</item>
-        <item name="colorControlNormal">@color/text_primary</item>
+        <item name="colorOnPrimary">@color/ds_color_background</item>
+        <item name="colorOnSurface">@color/ds_color_text_primary</item>
+        <item name="colorOnBackground">@color/ds_color_text_primary</item>
+        <item name="colorControlNormal">@color/ds_color_text_primary</item>
+        <item name="editTextStyle">@style/Widget.DroneServices.TextInputEditText</item>
+        <item name="textInputStyle">@style/Widget.DroneServices.TextInputLayout</item>
+        <item name="materialButtonStyle">@style/Widget.DroneServices.Button.Material.Primary</item>
 
     </style>
 
-    <style name="Theme.DroneServicesApp.NoActionBar">
+    <style name="Theme.DroneServicesApp.NoActionBar" parent="Theme.DroneServicesApp">
         <item name="windowActionBar">false</item>
         <item name="windowNoTitle">true</item>
     </style>

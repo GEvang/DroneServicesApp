@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="black">#FF000000</color>
-
     <!-- Base dark -->
     <color name="bg">#0B0B0D</color>
     <color name="surface">#121216</color>
@@ -31,4 +26,19 @@
     <color name="slider_thumb">#FFFFFF</color>        <!-- white knob -->
     <color name="slider_pill_bg">#1F2328</color>      <!-- pill container -->
     <color name="slider_end_btn_bg">#2B3036</color>   <!-- +/- button bg -->
+
+    <!-- Semantic design tokens -->
+    <color name="ds_color_background">@color/bg</color>
+    <color name="ds_color_surface_primary">@color/surface</color>
+    <color name="ds_color_surface_secondary">@color/surface_2</color>
+    <color name="ds_color_surface_tertiary">@color/slider_pill_bg</color>
+    <color name="ds_color_text_primary">@color/text_primary</color>
+    <color name="ds_color_text_secondary">@color/text_secondary</color>
+    <color name="ds_color_accent">@color/accent_gold</color>
+    <color name="ds_color_accent_dim">@color/accent_gold_dim</color>
+    <color name="ds_color_stroke">@color/stroke_subtle</color>
+    <color name="ds_color_button_on_accent">@color/icon_on_gold</color>
+    <color name="ds_color_button_on_surface">@color/text_primary</color>
+    <color name="ds_color_control_pill">@color/slider_pill_bg</color>
+    <color name="ds_color_control_neutral">@color/slider_end_btn_bg</color>
 </resources>

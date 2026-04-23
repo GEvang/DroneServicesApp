@@ -20,6 +20,7 @@
 
         <!-- My location -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
+            style="@style/Widget.DroneServices.Fab.Overlay"
             android:id="@+id/my_location_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -30,13 +31,11 @@
             android:contentDescription="@string/my_location_button_desc"
             android:focusable="true"
             android:src="@drawable/ic_baseline_my_location_48"
-            app:backgroundTint="@color/fab_bg"
-            app:fabSize="mini"
-            app:maxImageSize="25dp"
-            app:tint="@color/icon_on_dark" />
+            />
 
         <!-- Drone location -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
+            style="@style/Widget.DroneServices.Fab.Overlay"
             android:id="@+id/drone_location_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -48,13 +47,11 @@
             android:contentDescription="@string/drone_location_button"
             android:focusable="true"
             android:src="@drawable/drone_marker_36"
-            app:fabSize="mini"
-            app:maxImageSize="25dp"
-            app:backgroundTint="@color/fab_bg"
-            app:tint="@color/icon_on_dark" />
+            />
 
         <!-- Download offline -->
         <com.google.android.material.floatingactionbutton.FloatingActionButton
+            style="@style/Widget.DroneServices.Fab.Overlay"
             android:id="@+id/download_offline_button"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -66,10 +63,7 @@
             android:contentDescription="Download offline area"
             android:focusable="true"
             android:src="@android:drawable/stat_sys_download"
-            app:fabSize="mini"
-            app:maxImageSize="25dp"
-            app:backgroundTint="@color/fab_bg"
-            app:tint="@color/icon_on_dark" />
+            />
 
         <include
             android:id="@+id/mission_params_side_view"
@@ -91,7 +85,7 @@
         android:layout_gravity="center"
         android:orientation="vertical"
         android:background="@drawable/bg_card_gold_stroke"
-        android:padding="16dp"
+        android:padding="@dimen/ds_space_lg"
         android:visibility="gone">
 
         <!-- (content unchanged) -->
@@ -106,8 +100,7 @@
                 android:layout_height="wrap_content"
                 android:paddingEnd="8dp"
                 android:text="@string/name"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter"
+                style="@style/TextAppearance.DroneServices.Caption"
                 tools:ignore="RtlSymmetry" />
 
             <EditText
@@ -129,8 +122,7 @@
                 android:layout_height="wrap_content"
                 android:paddingLeft="8dp"
                 android:text="@string/waypoints"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter"
+                style="@style/TextAppearance.DroneServices.Caption"
                 tools:ignore="RtlHardcoded,RtlSymmetry" />
 
         </androidx.appcompat.widget.LinearLayoutCompat>
@@ -152,8 +144,7 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/override_existing_file"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter"
+                style="@style/TextAppearance.DroneServices.Caption"
                 android:layout_marginStart="8dp" />
         </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -165,23 +156,19 @@
             android:layout_marginTop="12dp">
 
             <Button
+                style="@style/Widget.DroneServices.Button.Primary"
                 android:id="@+id/save_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/save"
-                android:fontFamily="@font/inter"
-                android:textColor="@color/icon_on_gold"
-                android:backgroundTint="@color/accent_gold" />
+                android:text="@string/save" />
 
             <Button
+                style="@style/Widget.DroneServices.Button.Secondary"
                 android:id="@+id/cancel_button"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="@string/cancel"
-                android:layout_marginStart="12dp"
-                android:fontFamily="@font/inter"
-                android:textColor="@color/text_primary"
-                android:backgroundTint="@color/surface" />
+                android:layout_marginStart="12dp" />
         </androidx.appcompat.widget.LinearLayoutCompat>
 
     </androidx.appcompat.widget.LinearLayoutCompat>
@@ -194,7 +181,7 @@
         android:layout_gravity="center"
         android:orientation="vertical"
         android:background="@drawable/bg_card_gold_stroke"
-        android:padding="16dp"
+        android:padding="@dimen/ds_space_lg"
         android:visibility="gone">
 
         <!-- (content unchanged) -->
@@ -202,9 +189,8 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/select_a_file"
-            android:textSize="18sp"
-            android:textColor="@color/text_primary"
-            android:fontFamily="@font/inter" />
+            style="@style/TextAppearance.DroneServices.BodyStrong"
+            android:textSize="18sp" />
 
         <ListView
             android:id="@+id/file_list"
@@ -222,22 +208,18 @@
             android:orientation="horizontal">
 
             <Button
+                style="@style/Widget.DroneServices.Button.Secondary"
                 android:id="@+id/btn_cancel"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="@string/cancel"
-                android:fontFamily="@font/inter"
-                android:textColor="@color/text_primary"
-                android:backgroundTint="@color/surface" />
+                android:text="@string/cancel" />
 
             <Button
+                style="@style/Widget.DroneServices.Button.Primary"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="16dp"
-                android:text="@string/ok"
-                android:fontFamily="@font/inter"
-                android:textColor="@color/icon_on_gold"
-                android:backgroundTint="@color/accent_gold" />
+                android:text="@string/ok" />
         </LinearLayout>
 
     </androidx.appcompat.widget.LinearLayoutCompat>

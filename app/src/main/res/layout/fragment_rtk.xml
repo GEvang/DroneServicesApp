@@ -11,89 +11,76 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:padding="24dp">
+        android:padding="@dimen/ds_space_xl">
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:fontFamily="@font/inter"
             android:text="@string/rtk_title"
-            android:textColor="@color/text_primary"
-            android:textSize="24sp" />
+            style="@style/TextAppearance.DroneServices.Title" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:fontFamily="@font/inter"
             android:text="@string/rtk_status"
-            android:textColor="@color/text_secondary" />
+            style="@style/TextAppearance.DroneServices.Caption" />
 
         <TextView
             android:id="@+id/rtk_status_value"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:background="@drawable/bg_card_gold_stroke"
-            android:fontFamily="@font/inter"
-            android:padding="12dp"
             android:text="@string/rtk_status_idle"
-            android:textColor="@color/text_primary" />
+            style="@style/Widget.DroneServices.TextView.StatusCard" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:fontFamily="@font/inter"
             android:text="@string/rtk_forwarding_status"
-            android:textColor="@color/text_secondary" />
+            style="@style/TextAppearance.DroneServices.Caption" />
 
         <TextView
             android:id="@+id/rtk_forwarding_status_value"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:background="@drawable/bg_card_gold_stroke"
-            android:fontFamily="@font/inter"
-            android:padding="12dp"
             android:text="@string/rtk_forwarding_idle"
-            android:textColor="@color/text_primary" />
+            style="@style/Widget.DroneServices.TextView.StatusCard" />
 
         <TextView
             android:id="@+id/rtk_keep_awake_hint"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="8dp"
-            android:fontFamily="@font/inter"
             android:text="@string/rtk_keep_awake_hint"
-            android:textColor="@color/text_secondary" />
+            style="@style/TextAppearance.DroneServices.Caption" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:fontFamily="@font/inter"
             android:text="@string/rtk_gps_debug_status"
-            android:textColor="@color/text_secondary" />
+            style="@style/TextAppearance.DroneServices.Caption" />
 
         <TextView
             android:id="@+id/rtk_gps_debug_value"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="4dp"
-            android:background="@drawable/bg_card_gold_stroke"
-            android:fontFamily="@font/inter"
-            android:padding="12dp"
             android:text="@string/rtk_gps_debug_default"
-            android:textColor="@color/text_primary" />
+            style="@style/Widget.DroneServices.TextView.StatusCard" />
 
         <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.DroneServices.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="20dp"
             android:hint="@string/rtk_ip">
 
             <com.google.android.material.textfield.TextInputEditText
+                style="@style/Widget.DroneServices.TextInputEditText"
                 android:id="@+id/rtk_ip_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -102,12 +89,14 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.DroneServices.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:hint="@string/rtk_port">
 
             <com.google.android.material.textfield.TextInputEditText
+                style="@style/Widget.DroneServices.TextInputEditText"
                 android:id="@+id/rtk_port_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -116,12 +105,14 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.DroneServices.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:hint="@string/rtk_username">
 
             <com.google.android.material.textfield.TextInputEditText
+                style="@style/Widget.DroneServices.TextInputEditText"
                 android:id="@+id/rtk_username_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -130,6 +121,7 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.DroneServices.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
@@ -137,6 +129,7 @@
             app:endIconMode="password_toggle">
 
             <com.google.android.material.textfield.TextInputEditText
+                style="@style/Widget.DroneServices.TextInputEditText"
                 android:id="@+id/rtk_password_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -145,12 +138,14 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.DroneServices.TextInputLayout"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
             android:hint="@string/rtk_mountpoint">
 
             <com.google.android.material.textfield.TextInputEditText
+                style="@style/Widget.DroneServices.TextInputEditText"
                 android:id="@+id/rtk_mountpoint_input"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -161,6 +156,7 @@
         </com.google.android.material.textfield.TextInputLayout>
 
         <com.google.android.material.button.MaterialButton
+            style="@style/Widget.DroneServices.Button.Material.Primary"
             android:id="@+id/fetch_mountpoints_button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -168,6 +164,7 @@
             android:text="@string/rtk_fetch_mountpoints" />
 
         <com.google.android.material.button.MaterialButton
+            style="@style/Widget.DroneServices.Button.Material.Primary"
             android:id="@+id/test_connection_button"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
