@@ -5,12 +5,13 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
+import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
-import androidx.navigation.findNavController
 import androidx.preference.PreferenceManager
 import androidx.appcompat.widget.Toolbar
+import androidx.drawerlayout.widget.DrawerLayout
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
@@ -172,8 +173,8 @@ class MissionMapFragment : Fragment() {
             },
             onOpenSettings = {
                 requireActivity()
-                    .findNavController(R.id.nav_host_fragment_content_main)
-                    .navigate(R.id.nav_settings)
+                    .findViewById<DrawerLayout>(R.id.drawer_layout)
+                    .openDrawer(GravityCompat.START)
             },
             onTogglePlanning = {
                 mapViewModel.togglePlanningPanelVisible()

@@ -16,6 +16,7 @@
     <string name="home_panel_flight_settings_subtitle">Survey geometry and spray profile</string>
     <string name="home_panel_actions">Mission Actions</string>
     <string name="home_panel_actions_subtitle">Save, exit, and upload the generated route</string>
+    <string name="home_panel_navigation_title">Navigation</string>
     <string name="home_panel_top_actions">Workflow</string>
     <string name="home_panel_top_actions_hint">Draw or load a mission from the bottom controls, then refine and upload here.</string>
     <string name="planning">Planning</string>
