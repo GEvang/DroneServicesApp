@@ -4,6 +4,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.LifecycleOwner
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.ui.shell.model.BottomActionBarUiState
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.material.bottomnavigation.BottomNavigationView
@@ -13,6 +14,8 @@ class ShellBottomNavBinder(
     private val bottomNavigationView: BottomNavigationView,
     private val activityViewModel: MainActivityViewModel,
 ) {
+    private val missionFileStore = MissionFileStore(activity)
+
     fun bind(lifecycleOwner: LifecycleOwner) {
         bottomNavigationView.setOnItemSelectedListener { item ->
             when (item.itemId) {
@@ -39,6 +42,15 @@ class ShellBottomNavBinder(
                     activityViewModel.sendAction(MainActivityViewModel.MapAction.ClearAll)
                 }
                 R.id.action_load -> {
+                    if (missionFileStore.listMissionFiles().isEmpty()) {
+                        Toast.makeText(
+                            activity,
+                            "No missions saved yet",
+                            Toast.LENGTH_LONG
+                        ).show()
+                        activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
+                        return@setOnItemSelectedListener true
+                    }
                     activityViewModel.missionArea.value?.clearAll()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.LoadMissionFromFile)
                 }
@@ -55,10 +67,21 @@ class ShellBottomNavBinder(
         if (state.preserveExistingMenu) return
 
         val menu = bottomNavigationView.menu
-        menu.findItem(R.id.action_cancel).isVisible = state.showCancel
-        menu.findItem(R.id.action_accept).isVisible = state.showAccept
-        menu.findItem(R.id.action_erase).isVisible = state.showErase
-        menu.findItem(R.id.action_draw).isVisible = state.showDraw
-        menu.findItem(R.id.action_load).isVisible = state.showLoad
+        val cancelItem = menu.findItem(R.id.action_cancel)
+        val acceptItem = menu.findItem(R.id.action_accept)
+        val eraseItem = menu.findItem(R.id.action_erase)
+        val drawItem = menu.findItem(R.id.action_draw)
+        val loadItem = menu.findItem(R.id.action_load)
+
+        cancelItem.isVisible = state.showCancel
+        acceptItem.isVisible = state.showAccept
+        eraseItem.isVisible = state.showErase
+        drawItem.isVisible = state.showDraw
+        loadItem.isVisible = state.showLoad
+
+        val checkedItem = menu.findItem(bottomNavigationView.selectedItemId)
+        if (checkedItem == null || !checkedItem.isVisible) {
+            drawItem.isChecked = drawItem.isVisible
+        }
     }
 }

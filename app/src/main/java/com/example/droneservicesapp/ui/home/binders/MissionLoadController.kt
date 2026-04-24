@@ -41,7 +41,7 @@ class MissionLoadController(
 
         if (files.isEmpty()) {
             Toast.makeText(activity, "No missions saved yet", Toast.LENGTH_LONG).show()
-            activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
+            activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
             return
         }
 
