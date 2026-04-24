@@ -3,9 +3,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/mission_params_left_panel"
     style="@style/Widget.DroneServices.Panel.MapLeft"
-    android:layout_width="320dp"
-    android:minWidth="@dimen/ds_panel_min_width"
-    android:maxWidth="@dimen/ds_panel_max_width"
+    android:layout_width="272dp"
+    android:minWidth="272dp"
+    android:maxWidth="320dp"
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
@@ -19,9 +19,49 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/ds_space_xs"
-        android:layout_marginBottom="@dimen/ds_space_lg"
+        android:layout_marginBottom="@dimen/ds_space_md"
         android:text="@string/home_panel_flight_settings_subtitle"
         style="@style/TextAppearance.DroneServices.MapPanelSubtitle" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/ds_space_md"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_ds_panel_pill_active"
+            android:gravity="center"
+            android:text="@string/relative"
+            android:textColor="@color/ds_color_shell_selected_content"
+            android:fontFamily="@font/inter"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="@dimen/ds_space_sm"
+            android:layout_weight="1"
+            android:background="@drawable/bg_ds_panel_pill_inactive"
+            android:gravity="center"
+            android:text="@string/terrain"
+            android:textColor="@color/ds_color_text_primary"
+            android:fontFamily="@font/inter" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginBottom="@dimen/ds_space_lg"
+        android:background="@drawable/bg_ds_panel_pill_inactive"
+        android:gravity="center"
+        android:text="@string/preset_dakos"
+        android:textColor="@color/ds_color_text_primary"
+        android:fontFamily="@font/inter"
+        android:textStyle="bold" />
 
     <!-- ===== Row template: title/value on top, pill slider below ===== -->
 
@@ -30,7 +70,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="10dp">
 
         <!-- Title + value (right) -->
         <LinearLayout
@@ -44,9 +84,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/mission_angle"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter" />
+                style="@style/TextAppearance.DroneServices.PanelLabel" />
 
             <!-- keep EditText ID (controller uses it), but visually act like a value label -->
             <LinearLayout
@@ -65,26 +103,22 @@
                     android:cursorVisible="false"
                     android:gravity="end"
                     android:text="@string/unknown_value_three_questionmarks"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelValue" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:text="@string/degrees"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_secondary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
             </LinearLayout>
         </LinearLayout>
 
         <!-- Slider pill -->
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="36dp"
-            android:layout_marginTop="8dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="6dp"
             android:background="@drawable/bg_slider_pill"
             android:paddingStart="10dp"
             android:paddingEnd="10dp"
@@ -146,7 +180,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="10dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -159,9 +193,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/line_distance"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter" />
+                style="@style/TextAppearance.DroneServices.PanelLabel" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -179,25 +211,21 @@
                     android:cursorVisible="false"
                     android:gravity="end"
                     android:text="@string/unknown_value_three_questionmarks"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelValue" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:text="@string/m"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_secondary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
             </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="36dp"
-            android:layout_marginTop="8dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="6dp"
             android:background="@drawable/bg_slider_pill"
             android:paddingStart="10dp"
             android:paddingEnd="10dp"
@@ -260,7 +288,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="10dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -273,9 +301,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/flight_altitude"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter" />
+                style="@style/TextAppearance.DroneServices.PanelLabel" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -293,25 +319,21 @@
                     android:cursorVisible="false"
                     android:gravity="end"
                     android:text="@string/unknown_value_three_questionmarks"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelValue" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:text="@string/m"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_secondary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
             </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="36dp"
-            android:layout_marginTop="8dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="6dp"
             android:background="@drawable/bg_slider_pill"
             android:paddingStart="10dp"
             android:paddingEnd="10dp"
@@ -374,7 +396,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="14dp">
+        android:layout_marginBottom="12dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -387,9 +409,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/sprayer_intensity"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter" />
+                style="@style/TextAppearance.DroneServices.PanelLabel" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -407,25 +427,21 @@
                     android:cursorVisible="false"
                     android:gravity="end"
                     android:text="@string/unknown_value_three_questionmarks"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelValue" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:text="@string/percentage_symbol"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_secondary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
             </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="match_parent"
-            android:layout_height="36dp"
-            android:layout_marginTop="8dp"
+            android:layout_height="40dp"
+            android:layout_marginTop="6dp"
             android:background="@drawable/bg_slider_pill"
             android:paddingStart="10dp"
             android:paddingEnd="10dp"
@@ -485,14 +501,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/flight_time"
-        android:textSize="13sp"
-        android:textColor="@color/text_secondary"
-        android:fontFamily="@font/inter" />
+        style="@style/TextAppearance.DroneServices.PanelLabel" />
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="36dp"
-        android:layout_marginTop="8dp"
+        android:layout_height="40dp"
+        android:layout_marginTop="6dp"
         android:background="@drawable/bg_slider_pill"
         android:paddingStart="10dp"
         android:paddingEnd="10dp"

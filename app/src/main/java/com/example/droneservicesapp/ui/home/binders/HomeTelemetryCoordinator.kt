@@ -1,8 +1,10 @@
 package com.example.droneservicesapp.ui.home.binders
 
 import androidx.appcompat.app.AppCompatActivity
+import android.location.Location
 import androidx.lifecycle.LifecycleOwner
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryUiState
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
@@ -53,7 +55,15 @@ class HomeTelemetryCoordinator(
         droneViewModel.droneLocationLiveData.observe(lifecycleOwner) { location ->
             if (droneViewModel.conStateLiveData.value != true) return@observe
             update { state ->
-                state.copy(altitudeText = "${location.altitude.toInt()}m")
+                state.copy(
+                    altitudeText = "${location.altitude.toInt()}m",
+                    speedText = formatSpeedText(location),
+                    gpsStatusText = formatGpsStatus(
+                        isConnected = true,
+                        hasLocation = true,
+                        rtkState = droneViewModel.rtkForwardingState.value
+                    )
+                )
             }
         }
 
@@ -95,6 +105,18 @@ class HomeTelemetryCoordinator(
                 state.copy(backDistanceMeters = backDistance)
             }
         }
+
+        droneViewModel.rtkForwardingState.observe(lifecycleOwner) { rtkState ->
+            update { state ->
+                state.copy(
+                    gpsStatusText = formatGpsStatus(
+                        isConnected = state.isConnected,
+                        hasLocation = droneViewModel.droneLocationLiveData.value != null,
+                        rtkState = rtkState
+                    )
+                )
+            }
+        }
     }
 
     private fun renderCurrent() {
@@ -116,15 +138,24 @@ class HomeTelemetryCoordinator(
             "${df.format(batteryPercentage * 100.0F)}%"
         }
         val uploadProgress = droneViewModel.uploadProgressPercent.value ?: 0
+        val batteryColorRes = resolveBatteryColorRes(batteryPercentage)
+        val currentLocation = droneViewModel.droneLocationLiveData.value
 
         homeTelemetryViewModel.homeTelemetryUiState.value = HomeTelemetryUiState(
             isConnected = isConnected,
             connectionText = activity.getString(
                 if (isConnected) R.string.shell_status_connected else R.string.shell_status_disconnected
             ),
+            gpsStatusText = formatGpsStatus(
+                isConnected = isConnected,
+                hasLocation = currentLocation != null,
+                rtkState = droneViewModel.rtkForwardingState.value
+            ),
             batteryText = batteryText,
             batteryIconRes = batteryIconRes,
-            altitudeText = droneViewModel.droneLocationLiveData.value?.altitude?.toInt()?.let { "${it}m" } ?: "--",
+            batteryColorRes = batteryColorRes,
+            altitudeText = currentLocation?.altitude?.toInt()?.let { "${it}m" } ?: "--",
+            speedText = formatSpeedText(currentLocation),
             sprayerText = "${droneViewModel.liquidLevel.value ?: 0}%",
             armedText = activity.getString(if (armed) R.string.armed else R.string.disarmed),
             isArmed = armed,
@@ -148,9 +179,12 @@ class HomeTelemetryCoordinator(
         return current.copy(
             isConnected = false,
             connectionText = activity.getString(R.string.shell_status_disconnected),
+            gpsStatusText = "NO GPS",
             batteryText = "--%",
             batteryIconRes = R.drawable.ic_baseline_battery_alert_24,
+            batteryColorRes = R.color.ds_color_shell_unselected,
             altitudeText = "--",
+            speedText = "SPD: 0.0",
             sprayerText = "--%",
             armedText = activity.getString(R.string.disarmed),
             isArmed = false,
@@ -158,5 +192,36 @@ class HomeTelemetryCoordinator(
             frontDistanceMeters = null,
             backDistanceMeters = null
         )
+    }
+
+    private fun resolveBatteryColorRes(batteryPercentage: Float?): Int {
+        if (batteryPercentage == null || batteryPercentage < 0f) {
+            return R.color.ds_color_shell_unselected
+        }
+        return when {
+            batteryPercentage <= 0.2f -> R.color.ds_color_shell_danger
+            batteryPercentage <= 0.4f -> R.color.ds_color_shell_warning
+            else -> R.color.ds_color_shell_active
+        }
+    }
+
+    private fun formatGpsStatus(
+        isConnected: Boolean,
+        hasLocation: Boolean,
+        rtkState: RtkForwardingState?,
+    ): String {
+        if (!isConnected) return "NO GPS"
+        return when (rtkState) {
+            is RtkForwardingState.Streaming -> "RTK FIX"
+            is RtkForwardingState.ConnectingToCaster,
+            is RtkForwardingState.Reconnecting -> "RTK FLOAT"
+            is RtkForwardingState.WaitingForGps -> "NO GPS"
+            else -> if (hasLocation) "3D LOCK" else "NO GPS"
+        }
+    }
+
+    private fun formatSpeedText(location: Location?): String {
+        val speedMetersPerSecond = location?.takeIf { it.hasSpeed() }?.speed ?: 0f
+        return "SPD: ${"%.1f".format(speedMetersPerSecond)}"
     }
 }

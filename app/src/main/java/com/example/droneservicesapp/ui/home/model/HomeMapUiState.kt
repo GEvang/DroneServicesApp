@@ -2,15 +2,30 @@ package com.example.droneservicesapp.ui.home.model
 
 data class HomeMapUiState(
     val screenMode: HomeMapScreenMode,
+    val shellState: HomeMapShellUiState,
     val panelState: MissionPanelUiState,
     val overlayControlsState: MapOverlayControlsUiState,
     val interactionState: HomeMapInteractionUiState,
 ) {
     companion object {
-        fun forScreenMode(screenMode: HomeMapScreenMode): HomeMapUiState {
+        fun forState(
+            screenMode: HomeMapScreenMode,
+            isPlanningPanelVisible: Boolean,
+            hasMissionArea: Boolean,
+        ): HomeMapUiState {
+            val shellState = HomeMapShellUiState(
+                isLeftPanelVisible = hasMissionArea &&
+                    screenMode != HomeMapScreenMode.SavingMission &&
+                    screenMode != HomeMapScreenMode.LoadingMission,
+                isRightPanelVisible = isPlanningPanelVisible &&
+                    screenMode != HomeMapScreenMode.SavingMission &&
+                    screenMode != HomeMapScreenMode.LoadingMission,
+                isBottomUtilityBarVisible = true
+            )
             return when (screenMode) {
                 HomeMapScreenMode.Idle -> HomeMapUiState(
                     screenMode = screenMode,
+                    shellState = shellState,
                     panelState = MissionPanelUiState.none(),
                     overlayControlsState = MapOverlayControlsUiState.defaultVisible(),
                     interactionState = HomeMapInteractionUiState(
@@ -20,6 +35,7 @@ data class HomeMapUiState(
                 )
                 HomeMapScreenMode.Drawing -> HomeMapUiState(
                     screenMode = screenMode,
+                    shellState = shellState,
                     panelState = MissionPanelUiState.none(),
                     overlayControlsState = MapOverlayControlsUiState.defaultVisible(),
                     interactionState = HomeMapInteractionUiState(
@@ -29,11 +45,12 @@ data class HomeMapUiState(
                 )
                 HomeMapScreenMode.EditingParams -> HomeMapUiState(
                     screenMode = screenMode,
+                    shellState = shellState.copy(isLeftPanelVisible = true),
                     panelState = MissionPanelUiState(
-                        activePanel = MissionPanelUiState.ActivePanel.MissionParams,
+                        activePanel = MissionPanelUiState.ActivePanel.None,
                         consumesTouch = true
                     ),
-                    overlayControlsState = MapOverlayControlsUiState.hidden(),
+                    overlayControlsState = MapOverlayControlsUiState.defaultVisible(),
                     interactionState = HomeMapInteractionUiState(
                         isDrawingEnabled = false,
                         isBottomActionBarVisible = true
@@ -41,11 +58,15 @@ data class HomeMapUiState(
                 )
                 HomeMapScreenMode.SavingMission -> HomeMapUiState(
                     screenMode = screenMode,
+                    shellState = shellState.copy(
+                        isLeftPanelVisible = false,
+                        isRightPanelVisible = false
+                    ),
                     panelState = MissionPanelUiState(
                         activePanel = MissionPanelUiState.ActivePanel.SaveMission,
                         consumesTouch = true
                     ),
-                    overlayControlsState = MapOverlayControlsUiState.hidden(),
+                    overlayControlsState = MapOverlayControlsUiState.defaultVisible(),
                     interactionState = HomeMapInteractionUiState(
                         isDrawingEnabled = false,
                         isBottomActionBarVisible = true
@@ -53,11 +74,15 @@ data class HomeMapUiState(
                 )
                 HomeMapScreenMode.LoadingMission -> HomeMapUiState(
                     screenMode = screenMode,
+                    shellState = shellState.copy(
+                        isLeftPanelVisible = false,
+                        isRightPanelVisible = false
+                    ),
                     panelState = MissionPanelUiState(
                         activePanel = MissionPanelUiState.ActivePanel.LoadMission,
                         consumesTouch = true
                     ),
-                    overlayControlsState = MapOverlayControlsUiState.hidden(),
+                    overlayControlsState = MapOverlayControlsUiState.defaultVisible(),
                     interactionState = HomeMapInteractionUiState(
                         isDrawingEnabled = false,
                         isBottomActionBarVisible = true
@@ -67,6 +92,12 @@ data class HomeMapUiState(
         }
     }
 }
+
+data class HomeMapShellUiState(
+    val isLeftPanelVisible: Boolean,
+    val isRightPanelVisible: Boolean,
+    val isBottomUtilityBarVisible: Boolean,
+)
 
 enum class HomeMapScreenMode {
     Idle,

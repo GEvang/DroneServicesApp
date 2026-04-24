@@ -8,7 +8,9 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.findNavController
 import androidx.preference.PreferenceManager
+import androidx.appcompat.widget.Toolbar
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
@@ -117,6 +119,7 @@ class MissionMapFragment : Fragment() {
         )
         homeMapPanelsBinder = HomeMapPanelsBinder(
             missionParamsView = requireView().findViewById(R.id.mission_params_side_view),
+            planningPanelView = requireView().findViewById(R.id.planning_panel_container),
             saveMissionView = requireView().findViewById(R.id.save_file_layout),
             loadMissionView = requireView().findViewById(R.id.load_file_selector_layout)
         )
@@ -166,6 +169,14 @@ class MissionMapFragment : Fragment() {
                 } else {
                     Toast.makeText(context, getString(R.string.no_conn_msg), Toast.LENGTH_LONG).show()
                 }
+            },
+            onOpenSettings = {
+                requireActivity()
+                    .findNavController(R.id.nav_host_fragment_content_main)
+                    .navigate(R.id.nav_settings)
+            },
+            onTogglePlanning = {
+                mapViewModel.togglePlanningPanelVisible()
             }
         )
 
@@ -188,6 +199,10 @@ class MissionMapFragment : Fragment() {
             droneHeading?.let { heading ->
                 osmdroidMapController.updateDroneHeadingDegrees(heading.toFloat())
             }
+        }
+
+        activityViewModel.missionArea.observe(viewLifecycleOwner) { missionArea ->
+            mapViewModel.setMissionAreaAvailable((missionArea?.vertices?.size ?: 0) >= 3)
         }
 
         droneViewModel.missionItems.observe(viewLifecycleOwner) { missionItems ->
@@ -243,6 +258,11 @@ class MissionMapFragment : Fragment() {
                 )
             }
         })
+
+        activityViewModel.surveyPath.observe(viewLifecycleOwner) { surveyPath ->
+            val hasPolygon = (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
+            mapViewModel.setMissionAreaAvailable(hasPolygon || !surveyPath.isNullOrEmpty())
+        }
 
         activityViewModel.mapState.observe(viewLifecycleOwner) { mapState ->
             mapViewModel.updateFromMapState(mapState)
@@ -300,9 +320,11 @@ class MissionMapFragment : Fragment() {
 
     private fun renderHomeMapUiState(state: HomeMapUiState) {
         osmdroidPolygonEditor.setEnabled(state.interactionState.isDrawingEnabled)
+        homeMapChromeBinder.renderShell(state.shellState)
         homeMapChromeBinder.renderInteraction(state.interactionState)
         homeMapChromeBinder.renderOverlayControls(state.overlayControlsState)
-        homeMapPanelsBinder.render(state.panelState)
+        homeMapPanelsBinder.renderShell(state.shellState)
+        homeMapPanelsBinder.renderOverlays(state.panelState)
         homeMapModeEffectsBinder.render(state.screenMode)
     }
 
@@ -395,6 +417,7 @@ class MissionMapFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        requireActivity().findViewById<Toolbar>(R.id.customToolbar)?.navigationIcon = null
         mapView.onResume()
         osmdroidMapController.onResume()
     }

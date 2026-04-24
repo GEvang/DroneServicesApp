@@ -49,6 +49,7 @@
     <color name="ds_color_shell_active">#46F29C</color>
     <color name="ds_color_shell_active_dim">#2ACB7E</color>
     <color name="ds_color_shell_warning">#E4A640</color>
+    <color name="ds_color_shell_danger">#FF5B5B</color>
     <color name="ds_color_shell_selected_surface">#F2F2F3</color>
     <color name="ds_color_shell_selected_content">#111315</color>
     <color name="ds_color_shell_unselected">#C9D0D6</color>

@@ -3,15 +3,44 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/home_workflow_panel"
     style="@style/Widget.DroneServices.Panel.MapRight"
-    android:layout_width="280dp"
+    android:layout_width="272dp"
+    android:minWidth="272dp"
+    android:maxWidth="320dp"
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
-    <TextView
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/home_panel_actions"
-        style="@style/TextAppearance.DroneServices.MapPanelTitle" />
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/home_panel_actions"
+            style="@style/TextAppearance.DroneServices.MapPanelTitle" />
+
+        <com.google.android.material.button.MaterialButton
+            style="@style/Widget.DroneServices.Button.MapDark"
+            android:id="@+id/exit"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_weight="0.42"
+            android:textAllCaps="false"
+            android:text="@string/exit" />
+
+        <com.google.android.material.button.MaterialButton
+            style="@style/Widget.DroneServices.Button.MapLight"
+            android:id="@+id/save_mission"
+            android:layout_width="0dp"
+            android:layout_height="36dp"
+            android:layout_marginStart="@dimen/ds_space_sm"
+            android:layout_weight="0.42"
+            android:textAllCaps="false"
+            android:text="@string/save" />
+    </LinearLayout>
 
     <TextView
         android:layout_width="match_parent"
@@ -24,7 +53,43 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/ds_space_lg"
-        android:text="@string/home_panel_top_actions"
+        android:text="@string/home_panel_mode_title"
+        style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_ds_panel_pill_inactive"
+            android:gravity="center"
+            android:text="@string/survey"
+            android:textColor="@color/ds_color_text_primary"
+            android:fontFamily="@font/inter" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="@dimen/ds_space_sm"
+            android:layout_weight="1"
+            android:background="@drawable/bg_ds_panel_pill_active"
+            android:gravity="center"
+            android:text="@string/spray"
+            android:textColor="@color/ds_color_shell_selected_content"
+            android:fontFamily="@font/inter"
+            android:textStyle="bold" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_lg"
+        android:text="@string/home_panel_instruction_title"
         style="@style/TextAppearance.DroneServices.PanelLabel" />
 
     <TextView
@@ -34,36 +99,64 @@
         android:text="@string/home_panel_top_actions_hint"
         style="@style/TextAppearance.DroneServices.MapPanelSubtitle" />
 
-    <LinearLayout
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/ds_space_lg"
-        android:gravity="center"
+        android:text="@string/home_panel_top_actions"
+        style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_sm"
         android:orientation="horizontal">
 
-        <com.google.android.material.button.MaterialButton
-            style="@style/Widget.DroneServices.Button.MapLight"
-            android:id="@+id/save_mission"
+        <TextView
             android:layout_width="0dp"
             android:layout_height="40dp"
-            android:layout_marginEnd="@dimen/ds_space_sm"
             android:layout_weight="1"
-            android:text="@string/save" />
+            android:background="@drawable/bg_ds_panel_pill_active"
+            android:gravity="center"
+            android:text="@string/area"
+            android:textColor="@color/ds_color_shell_selected_content"
+            android:fontFamily="@font/inter"
+            android:textStyle="bold" />
 
-        <com.google.android.material.button.MaterialButton
-            style="@style/Widget.DroneServices.Button.MapDark"
-            android:id="@+id/exit"
+        <TextView
             android:layout_width="0dp"
             android:layout_height="40dp"
+            android:layout_marginStart="@dimen/ds_space_sm"
             android:layout_weight="1"
-            android:text="@string/exit" />
+            android:background="@drawable/bg_ds_panel_pill_inactive"
+            android:gravity="center"
+            android:text="@string/points"
+            android:textColor="@color/ds_color_text_primary"
+            android:fontFamily="@font/inter" />
     </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="@dimen/ds_space_md"
+        android:background="@drawable/bg_ds_panel_pill_inactive"
+        android:gravity="center"
+        android:text="@string/draw_area"
+        android:textColor="@color/ds_color_text_primary"
+        android:fontFamily="@font/inter" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_lg"
+        android:text="@string/home_panel_operator_title"
+        style="@style/TextAppearance.DroneServices.PanelLabel" />
 
     <com.google.android.material.button.MaterialButton
         style="@style/Widget.DroneServices.Button.MapEmphasis"
         android:id="@+id/uploadMission"
         android:layout_width="match_parent"
-        android:layout_height="44dp"
-        android:layout_marginTop="@dimen/ds_space_md"
+        android:layout_height="46dp"
+        android:layout_marginTop="@dimen/ds_space_sm"
         android:text="@string/upload_mission" />
 </LinearLayout>
