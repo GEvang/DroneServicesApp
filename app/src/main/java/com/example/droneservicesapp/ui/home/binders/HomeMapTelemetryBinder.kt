@@ -3,9 +3,11 @@ package com.example.droneservicesapp.ui.home.binders
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.View
+import androidx.core.content.ContextCompat
 import android.widget.ImageView
 import android.widget.TextView
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.ui.home.model.HomeTelemetryUiState
 
 class HomeMapTelemetryBinder(
     private val rootView: View,
@@ -15,27 +17,31 @@ class HomeMapTelemetryBinder(
         private const val MAX_DISTANCE_VALUE = 15
     }
 
-    fun renderFrontDistance(distance: Int) {
+    fun render(state: HomeTelemetryUiState) {
         renderDistance(
-            distance = distance,
+            distance = state.frontDistanceMeters,
             textViewId = R.id.front_dist,
             colorIndex = 0
         )
-    }
-
-    fun renderBackDistance(distance: Int) {
         renderDistance(
-            distance = distance,
+            distance = state.backDistanceMeters,
             textViewId = R.id.back_dist,
             colorIndex = 2
         )
     }
 
     private fun renderDistance(
-        distance: Int,
+        distance: Int?,
         textViewId: Int,
         colorIndex: Int,
     ) {
+        if (distance == null) {
+            rootView.findViewById<TextView>(textViewId)?.text =
+                rootView.context.getString(R.string.home_avoidance_unknown)
+            resetCompassSegment(colorIndex)
+            return
+        }
+
         val color = getColor(distance)
         rootView.findViewById<TextView>(textViewId)?.text = "$distance m"
 
@@ -44,6 +50,17 @@ class HomeMapTelemetryBinder(
         drawable?.colors?.let { colors ->
             val newColors = colors.copyOf()
             newColors[colorIndex] = color
+            drawable.colors = newColors
+        }
+    }
+
+    private fun resetCompassSegment(colorIndex: Int) {
+        val compassImageView = rootView.findViewById<ImageView>(R.id.avoidance_compass)
+        val drawable = compassImageView?.drawable as? GradientDrawable
+        val neutralColor = ContextCompat.getColor(rootView.context, R.color.ds_color_shell_stroke)
+        drawable?.colors?.let { colors ->
+            val newColors = colors.copyOf()
+            newColors[colorIndex] = neutralColor
             drawable.colors = newColors
         }
     }

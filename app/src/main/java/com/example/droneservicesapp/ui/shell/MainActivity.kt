@@ -17,6 +17,8 @@ import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.databinding.ActivityMainBinding
 import com.example.droneservicesapp.mavserver.DroneViewModel
+import com.example.droneservicesapp.ui.home.binders.HomeTelemetryCoordinator
+import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.shell.binders.ShellBottomNavBinder
 import com.example.droneservicesapp.ui.shell.binders.ShellToolbarBinder
 import com.example.droneservicesapp.ui.shell.coordinators.LocationPermissionRequester
@@ -31,8 +33,10 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var droneViewModel: DroneViewModel
     private lateinit var activityViewModel: MainActivityViewModel
+    private lateinit var homeTelemetryViewModel: HomeTelemetryViewModel
     private lateinit var toolbarBinder: ShellToolbarBinder
     private lateinit var bottomNavBinder: ShellBottomNavBinder
+    private lateinit var homeTelemetryCoordinator: HomeTelemetryCoordinator
     private lateinit var mavlinkSessionCoordinator: MavlinkSessionCoordinator
     private lateinit var locationPermissionRequester: LocationPermissionRequester
 
@@ -48,8 +52,16 @@ class MainActivity : AppCompatActivity() {
 
         droneViewModel = ViewModelProvider(this)[DroneViewModel::class.java]
         activityViewModel = ViewModelProvider(this)[MainActivityViewModel::class.java]
+        homeTelemetryViewModel = ViewModelProvider(this)[HomeTelemetryViewModel::class.java]
 
-        toolbarBinder = ShellToolbarBinder(this, binding, droneViewModel)
+        homeTelemetryCoordinator = HomeTelemetryCoordinator(
+            activity = this,
+            droneViewModel = droneViewModel,
+            homeTelemetryViewModel = homeTelemetryViewModel
+        )
+        homeTelemetryCoordinator.bind(this)
+
+        toolbarBinder = ShellToolbarBinder(this, binding, homeTelemetryViewModel)
         toolbarBinder.bind(this)
 
         val drawerLayout: DrawerLayout = binding.drawerLayout

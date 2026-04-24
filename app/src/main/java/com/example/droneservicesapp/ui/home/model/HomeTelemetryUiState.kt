@@ -1,9 +1,9 @@
-package com.example.droneservicesapp.ui.shell.model
+package com.example.droneservicesapp.ui.home.model
 
 import androidx.annotation.DrawableRes
 import com.example.droneservicesapp.R
 
-data class ToolbarUiState(
+data class HomeTelemetryUiState(
     val isConnected: Boolean = false,
     val connectionText: String = "",
     val batteryText: String = "--%",
@@ -11,6 +11,9 @@ data class ToolbarUiState(
     val altitudeText: String = "--",
     val sprayerText: String = "--%",
     val armedText: String = "",
+    val isArmed: Boolean = false,
     val uploadProgressText: String = "Uploading 0%",
     val showUploadProgress: Boolean = false,
+    val frontDistanceMeters: Int? = null,
+    val backDistanceMeters: Int? = null,
 )

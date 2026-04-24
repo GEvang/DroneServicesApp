@@ -8,7 +8,6 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.distinctUntilChanged
 import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
@@ -25,6 +24,7 @@ import com.example.droneservicesapp.ui.home.binders.MissionSaveController
 import com.example.droneservicesapp.ui.home.components.EsriWorldImageryTileSource
 import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
 import com.example.droneservicesapp.ui.home.components.OsmdroidPolygonEditor
+import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
@@ -43,6 +43,7 @@ class MissionMapFragment : Fragment() {
 
     private lateinit var droneViewModel: DroneViewModel
     private lateinit var activityViewModel: MainActivityViewModel
+    private lateinit var homeTelemetryViewModel: HomeTelemetryViewModel
     private lateinit var mapViewModel: MissionMapViewModel
 
     private lateinit var missionParamsController: MissionParamsController
@@ -73,6 +74,7 @@ class MissionMapFragment : Fragment() {
 
         droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
         activityViewModel = ViewModelProvider(requireActivity())[MainActivityViewModel::class.java]
+        homeTelemetryViewModel = ViewModelProvider(requireActivity())[HomeTelemetryViewModel::class.java]
         mapViewModel = ViewModelProvider(this)[MissionMapViewModel::class.java]
 
         return binding.root
@@ -86,6 +88,7 @@ class MissionMapFragment : Fragment() {
         bindUiButtons()
         observeDroneViewModel()
         observeMapState()
+        observeHomeTelemetry()
         observeMissionMapViewModel()
 
         mapViewModel.updateFromMapState(activityViewModel.mapState.value ?: MainActivityViewModel.MapState.Idle)
@@ -187,16 +190,6 @@ class MissionMapFragment : Fragment() {
             }
         }
 
-        droneViewModel.droneFrontDistance.distinctUntilChanged()
-            .observe(viewLifecycleOwner) { frontDistance ->
-                homeMapTelemetryBinder.renderFrontDistance(frontDistance)
-            }
-
-        droneViewModel.droneBackDistance.distinctUntilChanged()
-            .observe(viewLifecycleOwner) { backDistance ->
-                homeMapTelemetryBinder.renderBackDistance(backDistance)
-            }
-
         droneViewModel.missionItems.observe(viewLifecycleOwner) { missionItems ->
             if (droneViewModel.conStateLiveData.value == true && missionItems.isNotEmpty()) {
                 osmdroidMapController.clearSurveyPath()
@@ -288,6 +281,12 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
                 }
             }
+        }
+    }
+
+    private fun observeHomeTelemetry() {
+        homeTelemetryViewModel.homeTelemetryUiState.observe(viewLifecycleOwner) { state ->
+            homeMapTelemetryBinder.render(state)
         }
     }
 
