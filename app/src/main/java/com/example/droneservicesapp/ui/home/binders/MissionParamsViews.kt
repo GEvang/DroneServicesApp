@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.ui.home.binders
 
 import android.view.View
+import android.widget.LinearLayout
 import android.widget.Button
 import android.widget.EditText
 import android.widget.ImageButton
@@ -15,21 +16,25 @@ class MissionParamsViews(
 
     val angleValue: EditText = rootView.findViewById(R.id.line_angle_value)
     val angleSeekbar: SeekBar = rootView.findViewById(R.id.line_angle_seekbar)
+    val angleSliderRow: LinearLayout = rootView.findViewById(R.id.angle_slider_row)
     val angleMinusButton: View = panelRoot.findViewById(R.id.btn_angle_minus)
     val anglePlusButton: View = panelRoot.findViewById(R.id.btn_angle_plus)
 
     val lineDistanceValue: EditText = rootView.findViewById(R.id.line_distance_value)
     val lineDistanceSeekbar: SeekBar = rootView.findViewById(R.id.line_distance_seekbar)
+    val lineDistanceSliderRow: LinearLayout = rootView.findViewById(R.id.line_distance_slider_row)
     val lineDistanceMinusButton: View = panelRoot.findViewById(R.id.btn_distance_minus)
     val lineDistancePlusButton: View = panelRoot.findViewById(R.id.btn_distance_plus)
 
     val altitudeValue: EditText = rootView.findViewById(R.id.altitude_value)
     val altitudeSeekbar: SeekBar = rootView.findViewById(R.id.altitude_seekbar)
+    val altitudeSliderRow: LinearLayout = rootView.findViewById(R.id.altitude_slider_row)
     val altitudeMinusButton: View = panelRoot.findViewById(R.id.btn_alt_minus)
     val altitudePlusButton: View = panelRoot.findViewById(R.id.btn_alt_plus)
 
     val sprayerValue: EditText = rootView.findViewById(R.id.sprayer_seekbar_value)
     val sprayerSeekbar: SeekBar = rootView.findViewById(R.id.sprayer_seekbar)
+    val sprayerSliderRow: LinearLayout = rootView.findViewById(R.id.sprayer_slider_row)
     val sprayerMinusButton: View = panelRoot.findViewById(R.id.btn_sprayer_minus)
     val sprayerPlusButton: View = panelRoot.findViewById(R.id.btn_sprayer_plus)
 

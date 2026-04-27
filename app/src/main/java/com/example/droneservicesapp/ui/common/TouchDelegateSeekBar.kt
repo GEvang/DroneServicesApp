@@ -16,11 +16,11 @@ class TouchDelegateSeekBar @JvmOverloads constructor(
     defStyleAttr: Int = android.R.attr.seekBarStyle
 ) : AppCompatSeekBar(context, attrs, defStyleAttr) {
 
-    private var extraTouchDp: Int = 18
+    private var extraTouchDp: Int = 44
 
     /**
      * Set the amount of extra touch padding in dp on all sides.
-     * Default is 18dp.
+     * Default is 44dp.
      *
      * @param dp The extra padding in dp
      */

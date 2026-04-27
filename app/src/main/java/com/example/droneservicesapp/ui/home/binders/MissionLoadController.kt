@@ -2,9 +2,12 @@ package com.example.droneservicesapp.ui.home.binders
 
 import android.view.View
 import android.widget.ArrayAdapter
+import android.widget.BaseAdapter
 import android.widget.Button
 import android.widget.ListView
+import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.storage.MissionFileStore
@@ -25,6 +28,7 @@ class MissionLoadController(
     private var isBound = false
 
     private var currentFiles: List<File> = emptyList()
+    private var selectedPosition: Int = -1
 
     private val store = MissionFileStore(activity)
 
@@ -34,6 +38,10 @@ class MissionLoadController(
 
     private val cancelButton: Button by lazy {
         rootView.findViewById<Button>(R.id.btn_cancel)
+    }
+
+    private val confirmButton: Button by lazy {
+        rootView.findViewById<Button>(R.id.btn_confirm_load)
     }
 
     fun show() {
@@ -46,8 +54,32 @@ class MissionLoadController(
         }
 
         val adapter =
-            ArrayAdapter(activity, R.layout.item_mission_file, names.toMutableList())
+            object : ArrayAdapter<String>(
+                activity,
+                R.layout.item_mission_file,
+                names.toMutableList()
+            ) {
+                override fun getView(position: Int, convertView: View?, parent: android.view.ViewGroup): View {
+                    val view = super.getView(position, convertView, parent) as TextView
+                    val isSelected = position == selectedPosition
+                    view.setBackgroundResource(
+                        if (isSelected) R.drawable.bg_ds_panel_pill_active
+                        else android.R.color.transparent
+                    )
+                    view.setTextColor(
+                        ContextCompat.getColor(
+                            activity,
+                            if (isSelected) R.color.ds_color_shell_selected_content
+                            else R.color.ds_color_text_primary
+                        )
+                    )
+                    return view
+                }
+            }
         listView.adapter = adapter
+        listView.choiceMode = ListView.CHOICE_MODE_SINGLE
+        listView.clearChoices()
+        listView.requestLayout()
 
         if (!isBound) {
             bindOnce()
@@ -55,6 +87,7 @@ class MissionLoadController(
         }
 
         currentFiles = files
+        selectedPosition = -1
     }
 
     private fun bindOnce() {
@@ -62,17 +95,25 @@ class MissionLoadController(
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
         }
 
-        listView.setOnItemClickListener { _, _, position, _ ->
+        confirmButton.setOnClickListener {
             val files = currentFiles
-            if (position < 0 || position >= files.size) return@setOnItemClickListener
+            if (selectedPosition !in files.indices) {
+                Toast.makeText(activity, activity.getString(R.string.select_a_file), Toast.LENGTH_SHORT).show()
+                return@setOnClickListener
+            }
 
-            val selectedFile = files[position]
-
+            val selectedFile = files[selectedPosition]
             MissionXmlParser(activity, activityViewModel).parseXml(
                 store.openMissionInputStream(selectedFile)
             )
+        }
 
-            Toast.makeText(activity, "Selected file: ${selectedFile.path}", Toast.LENGTH_SHORT).show()
+        listView.setOnItemClickListener { _, _, position, _ ->
+            val files = currentFiles
+            if (position < 0 || position >= files.size) return@setOnItemClickListener
+            selectedPosition = position
+            listView.setItemChecked(position, true)
+            (listView.adapter as? BaseAdapter)?.notifyDataSetChanged()
         }
     }
 

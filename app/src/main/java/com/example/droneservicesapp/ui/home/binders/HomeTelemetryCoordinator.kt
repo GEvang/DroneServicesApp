@@ -47,7 +47,8 @@ class HomeTelemetryCoordinator(
             update { state ->
                 state.copy(
                     batteryText = "${df.format(batteryPercentage * 100.0F)}%",
-                    batteryIconRes = iconRes
+                    batteryIconRes = iconRes,
+                    batteryColorRes = resolveBatteryColorRes(batteryPercentage)
                 )
             }
         }
@@ -200,7 +201,7 @@ class HomeTelemetryCoordinator(
         }
         return when {
             batteryPercentage <= 0.2f -> R.color.ds_color_shell_danger
-            batteryPercentage <= 0.4f -> R.color.ds_color_shell_warning
+            batteryPercentage <= 0.5f -> R.color.ds_color_shell_warning
             else -> R.color.ds_color_shell_active
         }
     }

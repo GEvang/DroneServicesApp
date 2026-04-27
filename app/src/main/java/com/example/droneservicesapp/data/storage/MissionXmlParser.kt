@@ -32,8 +32,8 @@ class MissionXmlParser(
                         "altitude" -> altitude = parser.nextText().toInt()
                         "angleDegrees" -> angleDegrees = parser.nextText().toInt()
                         "lineDistance" -> lineDistance = parser.nextText().toInt()
-                        "sprayerIntensityPercentage" -> sprayerIntensityPercentage =
-                            parser.nextText().toInt()
+                        "sprayerIntensityPercentage" ->
+                            sprayerIntensityPercentage = parser.nextText().toInt()
 
                         "LatLngList" -> {
                             while (parser.next() != XmlPullParser.END_TAG) {
@@ -62,14 +62,8 @@ class MissionXmlParser(
         activityViewModel.flightAltProgress.postValue(altitude.toDouble())
         activityViewModel.lineDistanceProgress.postValue(lineDistance.toDouble())
         activityViewModel.sprayerProgress.postValue(sprayerIntensityPercentage.toDouble())
-
-        // ✅ Write into pure model
-        activityViewModel.missionArea.value?.apply {
-            vertices.clear()
-            vertices.addAll(latLngList)
-            clearSurveyPath()
-        }
-
+        activityViewModel.setPolygonVertices(latLngList)
+        activityViewModel.surveyPath.postValue(emptyList())
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.SetFlightParams)
     }
 }

@@ -62,6 +62,9 @@ class MissionMapFragment : Fragment() {
     private lateinit var osmdroidMapController: OsmdroidMapController
     private lateinit var osmdroidPolygonEditor: OsmdroidPolygonEditor
     private lateinit var missionFileStore: MissionFileStore
+    private var hasCenteredInitialViewport = false
+    private var hasCenteredToDrone = false
+    private var initialCenterAttemptCount = 0
 
     companion object {
         private const val DEFAULT_MAP_ZOOM = 18.0
@@ -236,7 +239,7 @@ class MissionMapFragment : Fragment() {
         }
 
         requireView().findViewById<TextView>(R.id.right_panel_clear_area_button).setOnClickListener {
-            activityViewModel.sendAction(MainActivityViewModel.MapAction.ClearAll)
+            activityViewModel.sendAction(MainActivityViewModel.MapAction.ClearAreaOnly)
         }
 
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
@@ -287,8 +290,10 @@ class MissionMapFragment : Fragment() {
                     droneLocation.latitude,
                     droneLocation.longitude
                 )
+                centerOnDroneIfNeeded()
             } else {
                 osmdroidMapController.setDroneVisible(false)
+                centerInitialViewportIfNeeded()
             }
         }
 
@@ -299,7 +304,9 @@ class MissionMapFragment : Fragment() {
         }
 
         activityViewModel.missionArea.observe(viewLifecycleOwner) { missionArea ->
-            mapViewModel.setMissionAreaAvailable((missionArea?.vertices?.size ?: 0) >= 3)
+            val vertices = missionArea?.vertices ?: emptyList()
+            mapViewModel.setMissionAreaAvailable(vertices.size >= 3)
+            osmdroidPolygonEditor.setVertices(vertices)
         }
 
         droneViewModel.missionItems.observe(viewLifecycleOwner) { missionItems ->
@@ -363,6 +370,15 @@ class MissionMapFragment : Fragment() {
 
         activityViewModel.mapState.observe(viewLifecycleOwner) { mapState ->
             mapViewModel.updateFromMapState(mapState)
+            if (mapState == MainActivityViewModel.MapState.SetFlightParams) {
+                val hasPolygon = (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
+                if (hasPolygon) {
+                    drawSurveyMissionOnMap(
+                        activityViewModel.lineDistanceProgress.value ?: 0.0,
+                        activityViewModel.angleProgress.value?.toInt() ?: 0
+                    )
+                }
+            }
         }
 
         activityViewModel.mapAction.observe(viewLifecycleOwner) { event ->
@@ -374,6 +390,13 @@ class MissionMapFragment : Fragment() {
                     osmdroidPolygonEditor.clear()
                     osmdroidMapController.clearSurveyPath()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
+                }
+                is MainActivityViewModel.MapAction.ClearAreaOnly -> {
+                    activityViewModel.clearPolygonVertices()
+                    activityViewModel.surveyPath.postValue(emptyList())
+                    osmdroidPolygonEditor.clear()
+                    osmdroidMapController.clearSurveyPath()
+                    activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
                 }
                 is MainActivityViewModel.MapAction.ClearKeepDrawing -> {
                     activityViewModel.surveyPath.postValue(emptyList())
@@ -517,11 +540,42 @@ class MissionMapFragment : Fragment() {
         requireActivity().findViewById<Toolbar>(R.id.customToolbar)?.navigationIcon = null
         mapView.onResume()
         osmdroidMapController.onResume()
+        binding.root.post { centerInitialViewportIfNeeded() }
     }
 
     override fun onPause() {
         osmdroidMapController.onPause()
         mapView.onPause()
         super.onPause()
+    }
+
+    private fun centerInitialViewportIfNeeded() {
+        if (hasCenteredToDrone) return
+
+        if (osmdroidMapController.hasDronePosition()) {
+            centerOnDroneIfNeeded()
+            return
+        }
+
+        if (hasCenteredInitialViewport) return
+
+        val centered = osmdroidMapController.centerOnUserIfPermitted(showErrors = false)
+        if (centered) {
+            hasCenteredInitialViewport = true
+        } else if (initialCenterAttemptCount < 10) {
+            initialCenterAttemptCount += 1
+            binding.root.postDelayed({ centerInitialViewportIfNeeded() }, 1000L)
+        }
+    }
+
+    private fun centerOnDroneIfNeeded() {
+        if (hasCenteredToDrone) return
+
+        if (osmdroidMapController.centerOnDrone()) {
+            hasCenteredToDrone = true
+            hasCenteredInitialViewport = true
+        } else {
+            centerInitialViewportIfNeeded()
+        }
     }
 }

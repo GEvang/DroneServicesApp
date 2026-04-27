@@ -3,9 +3,9 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/mission_params_left_panel"
     style="@style/Widget.DroneServices.Panel.MapLeft"
-    android:layout_width="272dp"
-    android:minWidth="272dp"
-    android:maxWidth="320dp"
+    android:layout_width="304dp"
+    android:minWidth="304dp"
+    android:maxWidth="352dp"
     android:layout_height="wrap_content"
     android:orientation="vertical">
 
@@ -115,8 +115,9 @@
 
         <!-- Slider pill -->
         <LinearLayout
+            android:id="@+id/angle_slider_row"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
+            android:layout_height="44dp"
             android:layout_marginTop="6dp"
             android:background="@drawable/bg_slider_pill"
             android:paddingStart="10dp"
@@ -127,7 +128,7 @@
             android:focusable="false">
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -145,19 +146,19 @@
             <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
                 android:id="@+id/line_angle_seekbar"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="28dp"
                 android:layout_weight="1"
                 android:max="90"
                 android:progress="0"
                 android:splitTrack="false"
                 android:progressDrawable="@drawable/seekbar_progress_dji"
                 android:thumb="@drawable/seekbar_thumb_dji"
-                android:minHeight="15dp"
+                android:minHeight="20dp"
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp" />
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -222,8 +223,9 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/line_distance_slider_row"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
+            android:layout_height="44dp"
             android:layout_marginTop="6dp"
             android:background="@drawable/bg_slider_pill"
             android:paddingStart="10dp"
@@ -234,7 +236,7 @@
             android:focusable="false">
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -252,7 +254,7 @@
             <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
                 android:id="@+id/line_distance_seekbar"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="28dp"
                 android:layout_weight="1"
                 android:max="20"
                 android:min="2"
@@ -260,12 +262,12 @@
                 android:splitTrack="false"
                 android:progressDrawable="@drawable/seekbar_progress_dji"
                 android:thumb="@drawable/seekbar_thumb_dji"
-                android:minHeight="15dp"
+                android:minHeight="20dp"
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp" />
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -330,8 +332,9 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/altitude_slider_row"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
+            android:layout_height="44dp"
             android:layout_marginTop="6dp"
             android:background="@drawable/bg_slider_pill"
             android:paddingStart="10dp"
@@ -342,7 +345,7 @@
             android:focusable="false">
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -360,7 +363,7 @@
             <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
                 android:id="@+id/altitude_seekbar"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="28dp"
                 android:layout_weight="1"
                 android:max="20"
                 android:min="2"
@@ -368,12 +371,12 @@
                 android:splitTrack="false"
                 android:progressDrawable="@drawable/seekbar_progress_dji"
                 android:thumb="@drawable/seekbar_thumb_dji"
-                android:minHeight="15dp"
+                android:minHeight="20dp"
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp" />
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -438,8 +441,9 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/sprayer_slider_row"
             android:layout_width="match_parent"
-            android:layout_height="40dp"
+            android:layout_height="44dp"
             android:layout_marginTop="6dp"
             android:background="@drawable/bg_slider_pill"
             android:paddingStart="10dp"
@@ -448,7 +452,7 @@
             android:orientation="horizontal">
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -466,19 +470,19 @@
             <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
                 android:id="@+id/sprayer_seekbar"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="28dp"
                 android:layout_weight="1"
                 android:max="100"
                 android:progress="0"
                 android:splitTrack="false"
                 android:progressDrawable="@drawable/seekbar_progress_dji"
                 android:thumb="@drawable/seekbar_thumb_dji"
-                android:minHeight="15dp"
+                android:minHeight="20dp"
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp" />
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton

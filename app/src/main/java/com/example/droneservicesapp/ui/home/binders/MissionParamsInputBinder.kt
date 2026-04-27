@@ -1,5 +1,7 @@
 package com.example.droneservicesapp.ui.home.binders
 
+import android.view.MotionEvent
+import android.view.View
 import android.text.Editable
 import android.text.TextWatcher
 import android.widget.EditText
@@ -22,21 +24,25 @@ class MissionParamsInputBinder(
 
     private fun bindSeekbars() {
         bindSeekbar(
+            touchTarget = views.angleSliderRow,
             seekbar = views.angleSeekbar,
             valueView = views.angleValue,
             target = activityViewModel.angleProgress
         )
         bindSeekbar(
+            touchTarget = views.lineDistanceSliderRow,
             seekbar = views.lineDistanceSeekbar,
             valueView = views.lineDistanceValue,
             target = activityViewModel.lineDistanceProgress
         )
         bindSeekbar(
+            touchTarget = views.altitudeSliderRow,
             seekbar = views.altitudeSeekbar,
             valueView = views.altitudeValue,
             target = activityViewModel.flightAltProgress
         )
         bindSeekbar(
+            touchTarget = views.sprayerSliderRow,
             seekbar = views.sprayerSeekbar,
             valueView = views.sprayerValue,
             target = activityViewModel.sprayerProgress
@@ -90,6 +96,7 @@ class MissionParamsInputBinder(
     }
 
     private fun bindSeekbar(
+        touchTarget: View,
         seekbar: SeekBar,
         valueView: EditText,
         target: MutableLiveData<Double>,
@@ -97,6 +104,7 @@ class MissionParamsInputBinder(
         val initial = target.value?.toInt() ?: 0
         seekbar.progress = initial
         valueView.setText(initial.toString())
+        bindExpandedTouchTarget(touchTarget, seekbar)
 
         seekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
@@ -121,5 +129,33 @@ class MissionParamsInputBinder(
                 seekbar.setProgress(progress, true)
             }
         })
+    }
+
+    private fun bindExpandedTouchTarget(touchTarget: View, seekbar: SeekBar) {
+        touchTarget.setOnTouchListener { _, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
+                seekbar.parent?.requestDisallowInterceptTouchEvent(true)
+            }
+
+            val forwardedEvent = MotionEvent.obtain(event)
+            val seekbarLocation = IntArray(2)
+            val touchTargetLocation = IntArray(2)
+            seekbar.getLocationOnScreen(seekbarLocation)
+            touchTarget.getLocationOnScreen(touchTargetLocation)
+            forwardedEvent.offsetLocation(
+                (touchTargetLocation[0] - seekbarLocation[0]).toFloat(),
+                (touchTargetLocation[1] - seekbarLocation[1]).toFloat()
+            )
+            val handled = seekbar.dispatchTouchEvent(forwardedEvent)
+            forwardedEvent.recycle()
+
+            if (event.actionMasked == MotionEvent.ACTION_UP ||
+                event.actionMasked == MotionEvent.ACTION_CANCEL
+            ) {
+                seekbar.parent?.requestDisallowInterceptTouchEvent(false)
+            }
+
+            handled
+        }
     }
 }

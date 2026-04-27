@@ -52,13 +52,13 @@ class HomeMapChromeBinder(
             }
         }
         binding.homeBottomUtilityDock.isVisible = state.isBottomActionBarVisible
-        binding.homeBottomPlanningLabel.isVisible = state.isBottomActionBarVisible
+        binding.homeBottomPlanningLabel.isVisible = false
         binding.homeDrawActionBar.isVisible = state.isDrawActionButtonsVisible
     }
 
     fun renderShell(state: HomeMapShellUiState) {
         binding.homeBottomUtilityDock.isVisible = state.isBottomUtilityBarVisible
-        binding.homeBottomPlanningLabel.isVisible = state.isBottomUtilityBarVisible
+        binding.homeBottomPlanningLabel.isVisible = false
         binding.utilityPlanningButton.isSelected = state.isRightPanelVisible
         binding.utilityPlanningButton.setTextColor(
             ContextCompat.getColor(

@@ -44,10 +44,13 @@ class MissionMapViewModel : ViewModel() {
     }
 
     fun togglePlanningPanelVisible() {
-        isPlanningPanelVisible = !isPlanningPanelVisible
-        if (isPlanningPanelVisible) {
-            arePanelsDismissed = false
+        val hasVisibleSidePanel = isPlanningPanelVisible || (hasMissionArea && !arePanelsDismissed)
+        if (hasVisibleSidePanel) {
+            dismissSidePanels()
+            return
         }
+        isPlanningPanelVisible = true
+        arePanelsDismissed = false
         publishState()
     }
 

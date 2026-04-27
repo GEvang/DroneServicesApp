@@ -81,33 +81,31 @@ class OsmdroidPolygonEditor(
         redrawPolygonAndSyncModel()
     }
 
+    fun setVertices(vertices: List<LatLng>) {
+        if (isSameVertices(vertices)) return
+
+        mapView.overlays.removeAll(vertexMarkers)
+        vertexMarkers.clear()
+        points.clear()
+
+        vertices.forEach { vertex ->
+            val point = GeoPoint(vertex.latitude, vertex.longitude)
+            points.add(point)
+
+            val marker = createVertexMarker(point)
+            vertexMarkers.add(marker)
+            mapView.overlays.add(marker)
+        }
+
+        redrawPolygon()
+    }
+
     // ---------- Internals ----------
 
     private fun addVertex(p: GeoPoint) {
         points.add(p)
 
-        val marker = Marker(mapView).apply {
-            position = p
-            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-            isDraggable = true
-            icon = ContextCompat.getDrawable(activity, R.drawable.ic_baseline_mission_marker)
-
-            setOnMarkerClickListener { m, _ ->
-                if (!enabled) return@setOnMarkerClickListener false
-                removeVertex(m)
-                true
-            }
-
-            setOnMarkerDragListener(object : Marker.OnMarkerDragListener {
-                override fun onMarkerDrag(marker: Marker?) {}
-                override fun onMarkerDragStart(marker: Marker?) {}
-                override fun onMarkerDragEnd(marker: Marker?) {
-                    if (!enabled) return
-                    marker ?: return
-                    onVertexMoved(marker)
-                }
-            })
-        }
+        val marker = createVertexMarker(p)
 
         vertexMarkers.add(marker)
         mapView.overlays.add(marker)
@@ -135,6 +133,16 @@ class OsmdroidPolygonEditor(
     }
 
     private fun redrawPolygonAndSyncModel() {
+        redrawPolygon()
+
+        // Build new vertices and sync via ViewModel
+        val newVertices = points.map { LatLng(it.latitude, it.longitude) }
+        activityViewModel.setPolygonVertices(newVertices)
+
+        mapView.invalidate()
+    }
+
+    private fun redrawPolygon() {
         val poly = polygon ?: return
 
         if (points.size < 2) {
@@ -147,10 +155,39 @@ class OsmdroidPolygonEditor(
             poly.setVisible(true)
         }
 
-        // Build new vertices and sync via ViewModel
-        val newVertices = points.map { LatLng(it.latitude, it.longitude) }
-        activityViewModel.setPolygonVertices(newVertices)
-
         mapView.invalidate()
+    }
+
+    private fun createVertexMarker(point: GeoPoint): Marker =
+        Marker(mapView).apply {
+            position = point
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            isDraggable = true
+            icon = ContextCompat.getDrawable(activity, R.drawable.bg_mission_vertex_marker)
+
+            setOnMarkerClickListener { marker, _ ->
+                if (!enabled) return@setOnMarkerClickListener false
+                removeVertex(marker)
+                true
+            }
+
+            setOnMarkerDragListener(object : Marker.OnMarkerDragListener {
+                override fun onMarkerDrag(marker: Marker?) {}
+                override fun onMarkerDragStart(marker: Marker?) {}
+                override fun onMarkerDragEnd(marker: Marker?) {
+                    if (!enabled) return
+                    marker ?: return
+                    onVertexMoved(marker)
+                }
+            })
+        }
+
+    private fun isSameVertices(vertices: List<LatLng>): Boolean {
+        if (vertices.size != points.size) return false
+        return vertices.indices.all { index ->
+            val point = points[index]
+            val vertex = vertices[index]
+            point.latitude == vertex.latitude && point.longitude == vertex.longitude
+        }
     }
 }

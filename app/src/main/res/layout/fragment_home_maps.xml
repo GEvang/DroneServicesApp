@@ -68,6 +68,7 @@
             android:textColor="@android:color/white"
             android:textSize="16sp"
             android:textStyle="bold"
+            android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
@@ -189,16 +190,18 @@
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/home_draw_decline_button"
                 style="@style/Widget.DroneServices.Button.MapDark"
-                android:layout_width="184dp"
-                android:layout_height="52dp"
+                android:layout_width="200dp"
+                android:layout_height="56dp"
+                android:textSize="18sp"
                 android:text="@string/decline" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/home_draw_accept_button"
                 style="@style/Widget.DroneServices.Button.MapLight"
-                android:layout_width="184dp"
-                android:layout_height="52dp"
+                android:layout_width="200dp"
+                android:layout_height="56dp"
                 android:layout_marginStart="@dimen/ds_space_sm"
+                android:textSize="18sp"
                 android:text="@string/accept" />
         </LinearLayout>
 
@@ -233,12 +236,13 @@
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/save_file_layout"
         style="@style/Widget.DroneServices.Panel.MapCard"
-        android:layout_width="match_parent"
+        android:layout_width="380dp"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_marginTop="@dimen/ds_space_xl"
         android:layout_marginStart="@dimen/ds_overlay_horizontal_margin"
         android:layout_marginEnd="@dimen/ds_overlay_horizontal_margin"
+        android:descendantFocusability="afterDescendants"
         android:orientation="vertical"
         android:visibility="gone">
 
@@ -248,17 +252,10 @@
             android:text="@string/save"
             style="@style/TextAppearance.DroneServices.MapPanelTitle" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/ds_space_xs"
-            android:text="@string/home_panel_actions_subtitle"
-            style="@style/TextAppearance.DroneServices.MapPanelSubtitle" />
-
         <androidx.appcompat.widget.LinearLayoutCompat
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/ds_space_lg"
+            android:layout_height="52dp"
+            android:layout_marginTop="@dimen/ds_space_md"
             android:background="@drawable/bg_slider_pill"
             android:gravity="center_vertical"
             android:orientation="horizontal"
@@ -270,7 +267,7 @@
                 android:layout_height="wrap_content"
                 android:paddingEnd="@dimen/ds_space_sm"
                 android:text="@string/name"
-                style="@style/TextAppearance.DroneServices.Caption"
+                style="@style/TextAppearance.DroneServices.PanelLabel"
                 tools:ignore="RtlSymmetry" />
 
             <EditText
@@ -279,8 +276,14 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:background="@null"
+                android:clickable="true"
+                android:cursorVisible="true"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
                 android:hint="@string/enter_text"
                 android:inputType="textShortMessage"
+                android:imeOptions="actionDone"
+                android:textSize="16sp"
                 android:textColor="@color/text_primary"
                 android:textColorHint="@color/text_secondary"
                 android:fontFamily="@font/inter" />
@@ -289,8 +292,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:paddingLeft="@dimen/ds_space_sm"
-                android:text="@string/waypoints"
-                style="@style/TextAppearance.DroneServices.Caption"
+                android:text="@string/DroneServicesFilePageSuffix"
+                style="@style/TextAppearance.DroneServices.PanelLabel"
                 tools:ignore="RtlHardcoded,RtlSymmetry" />
         </androidx.appcompat.widget.LinearLayoutCompat>
 
@@ -326,14 +329,14 @@
                 style="@style/Widget.DroneServices.Button.MapDark"
                 android:id="@+id/cancel_button"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
+                android:layout_height="44dp"
                 android:text="@string/cancel" />
 
             <com.google.android.material.button.MaterialButton
-                style="@style/Widget.DroneServices.Button.MapLight"
+                style="@style/Widget.DroneServices.Button.MapEmphasis"
                 android:id="@+id/save_button"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
+                android:layout_height="44dp"
                 android:layout_marginStart="@dimen/ds_space_sm"
                 android:text="@string/save" />
         </androidx.appcompat.widget.LinearLayoutCompat>
@@ -343,7 +346,7 @@
     <androidx.appcompat.widget.LinearLayoutCompat
         android:id="@+id/load_file_selector_layout"
         style="@style/Widget.DroneServices.Panel.MapCard"
-        android:layout_width="match_parent"
+        android:layout_width="380dp"
         android:layout_height="wrap_content"
         android:layout_gravity="center"
         android:layout_marginTop="@dimen/ds_space_xl"
@@ -358,18 +361,11 @@
             android:text="@string/load"
             style="@style/TextAppearance.DroneServices.MapPanelTitle" />
 
-        <TextView
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/ds_space_xs"
-            android:text="@string/select_a_file"
-            style="@style/TextAppearance.DroneServices.MapPanelSubtitle" />
-
         <ListView
             android:id="@+id/file_list"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/ds_space_lg"
+            android:layout_marginTop="@dimen/ds_space_md"
             android:background="@drawable/bg_slider_pill"
             android:divider="@null"
             android:dividerHeight="0dp"
@@ -388,13 +384,14 @@
                 style="@style/Widget.DroneServices.Button.MapDark"
                 android:id="@+id/btn_cancel"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
+                android:layout_height="44dp"
                 android:text="@string/cancel" />
 
             <com.google.android.material.button.MaterialButton
-                style="@style/Widget.DroneServices.Button.MapLight"
+                style="@style/Widget.DroneServices.Button.MapEmphasis"
+                android:id="@+id/btn_confirm_load"
                 android:layout_width="wrap_content"
-                android:layout_height="40dp"
+                android:layout_height="44dp"
                 android:layout_marginStart="@dimen/ds_space_sm"
                 android:text="@string/ok" />
         </LinearLayout>

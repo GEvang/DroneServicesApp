@@ -14,7 +14,6 @@ import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 
-
 /**
  * osmdroid equivalent of the parts of MapController that are:
  * - user location (blue dot)
@@ -36,17 +35,14 @@ class OsmdroidMapController(
     private var surveyPolyline: Polyline? = null
 
     fun initOverlays() {
-        // ----- My location overlay -----
         myLocationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(context), mapView).apply {
             enableMyLocation()
-            // Do NOT follow by default; user can tap the button to center.
             disableFollowLocation()
         }
         mapView.overlays.add(myLocationOverlay)
 
-        // ----- Drone marker -----
         droneMarker = Marker(mapView).apply {
-            position = GeoPoint(0.0, 0.0) // placeholder; keep hidden until first update
+            position = GeoPoint(0.0, 0.0)
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             isEnabled = false
             setVisible(false)
@@ -57,7 +53,6 @@ class OsmdroidMapController(
         requestMapRedraw()
     }
 
-    // --- Lifecycle ---
     fun onResume() {
         mapView.onResume()
         myLocationOverlay?.enableMyLocation()
@@ -68,8 +63,7 @@ class OsmdroidMapController(
         mapView.onPause()
     }
 
-    // --- User location ---
-    fun centerOnUserIfPermitted(): Boolean {
+    fun centerOnUserIfPermitted(showErrors: Boolean = true): Boolean {
         val fineGranted = ContextCompat.checkSelfPermission(
             context,
             Manifest.permission.ACCESS_FINE_LOCATION
@@ -81,25 +75,28 @@ class OsmdroidMapController(
         ) == PackageManager.PERMISSION_GRANTED
 
         if (!(fineGranted || coarseGranted)) {
-            Toast.makeText(
-                context,
-                context.getString(R.string.invalid_location_permissions),
-                Toast.LENGTH_LONG
-            ).show()
+            if (showErrors) {
+                Toast.makeText(
+                    context,
+                    context.getString(R.string.invalid_location_permissions),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
             return false
         }
 
-        val p = myLocationOverlay?.myLocation
-        return if (p != null) {
-            mapView.controller.animateTo(p)
+        val point = myLocationOverlay?.myLocation
+        return if (point != null) {
+            mapView.controller.animateTo(point)
             true
         } else {
-            Toast.makeText(context, "Waiting for GPS fix…", Toast.LENGTH_SHORT).show()
+            if (showErrors) {
+                Toast.makeText(context, "Waiting for GPS fix...", Toast.LENGTH_SHORT).show()
+            }
             false
         }
     }
 
-    // --- Drone marker ---
     fun setDroneVisible(visible: Boolean) {
         val changed = droneMarker?.let { marker ->
             val wasVisible = marker.isEnabled
@@ -148,15 +145,17 @@ class OsmdroidMapController(
     }
 
     fun centerOnDrone(): Boolean {
-        val m = droneMarker
-        return if (m != null && m.isEnabled) {
-            mapView.controller.animateTo(m.position)
+        val marker = droneMarker
+        return if (marker != null && marker.isEnabled) {
+            mapView.controller.animateTo(marker.position)
             true
         } else {
             Toast.makeText(context, "Drone location not available yet", Toast.LENGTH_SHORT).show()
             false
         }
     }
+
+    fun hasDronePosition(): Boolean = droneMarker?.isEnabled == true
 
     fun setSurveyPath(path: List<LatLng>) {
         if (surveyPolyline == null) {
@@ -180,5 +179,4 @@ class OsmdroidMapController(
     private fun requestMapRedraw() {
         mapView.postInvalidateOnAnimation()
     }
-
 }

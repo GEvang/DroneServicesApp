@@ -20,6 +20,7 @@ class MainActivityViewModel : ViewModel() {
 
     sealed class MapAction {
         object ClearAll : MapAction()
+        object ClearAreaOnly : MapAction()
         object ClearKeepDrawing : MapAction()
         object ResetToIdle : MapAction()
         object UploadMissionSuccess : MapAction()

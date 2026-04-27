@@ -11,6 +11,11 @@ class HomeMapPanelsBinder(
     private val saveMissionView: View,
     private val loadMissionView: View,
 ) {
+    init {
+        blockMapPassthrough(missionParamsView)
+        blockMapPassthrough(planningPanelView)
+    }
+
     fun renderShell(state: HomeMapShellUiState) {
         missionParamsView.isVisible = state.isLeftPanelVisible
         planningPanelView.isVisible = state.isRightPanelVisible
@@ -35,12 +40,13 @@ class HomeMapPanelsBinder(
     }
 
     private fun applyTouchConsumption(targetView: View, shouldConsumeTouch: Boolean) {
-        targetView.setOnTouchListener(
-            if (shouldConsumeTouch) {
-                View.OnTouchListener { _, _ -> true }
-            } else {
-                null
-            }
-        )
+        targetView.setOnTouchListener(null)
+        targetView.isClickable = shouldConsumeTouch
+        targetView.isFocusable = false
+    }
+
+    private fun blockMapPassthrough(targetView: View) {
+        targetView.isClickable = true
+        targetView.isFocusable = true
     }
 }

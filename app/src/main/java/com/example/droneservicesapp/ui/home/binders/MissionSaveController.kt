@@ -1,6 +1,8 @@
 package com.example.droneservicesapp.ui.home.binders
 
+import android.content.Context
 import android.view.View
+import android.view.inputmethod.InputMethodManager
 import android.widget.Button
 import android.widget.CheckBox
 import android.widget.EditText
@@ -42,8 +44,18 @@ class MissionSaveController(
 
     fun show() {
         inputFilename.text.clear()
+        inputFilename.isEnabled = true
+        inputFilename.isFocusable = true
+        inputFilename.isFocusableInTouchMode = true
+        inputFilename.isClickable = true
         overrideFile = false
         overrideCheckBox.isChecked = false
+
+        inputFilename.post {
+            inputFilename.requestFocus()
+            inputFilename.setSelection(inputFilename.text.length)
+            showKeyboard()
+        }
 
         if (!isBound) {
             bindOnce()
@@ -52,12 +64,27 @@ class MissionSaveController(
     }
 
     private fun bindOnce() {
+        inputFilename.setOnClickListener {
+            inputFilename.requestFocus()
+            inputFilename.setSelection(inputFilename.text.length)
+            showKeyboard()
+        }
+
+        inputFilename.setOnTouchListener { _, _ ->
+            inputFilename.requestFocus()
+            inputFilename.setSelection(inputFilename.text.length)
+            showKeyboard()
+            false
+        }
+
         overrideCheckBox.setOnCheckedChangeListener { _, isChecked ->
             overrideFile = isChecked
         }
 
         buttonSaveMission.setOnClickListener {
-            if (inputFilename.text.isBlank()) {
+            val trimmedFileName = inputFilename.text.toString().trim()
+
+            if (trimmedFileName.isBlank()) {
                 Toast.makeText(
                     activity.baseContext,
                     activity.baseContext.getString(R.string.error_name_empty),
@@ -85,7 +112,7 @@ class MissionSaveController(
                 angleDeg = activityViewModel.angleProgress.value!!.toInt(),
                 alt = activityViewModel.flightAltProgress.value!!.toInt(),
                 sprayerPct = activityViewModel.sprayerProgress.value!!.toInt(),
-                fileName = inputFilename.text.toString(),
+                fileName = trimmedFileName,
                 overwrite = overrideFile
             )
 
@@ -114,5 +141,10 @@ class MissionSaveController(
         buttonCancel.setOnClickListener {
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
         }
+    }
+
+    private fun showKeyboard() {
+        val imm = activity.getSystemService(Context.INPUT_METHOD_SERVICE) as? InputMethodManager
+        imm?.showSoftInput(inputFilename, InputMethodManager.SHOW_IMPLICIT)
     }
 }
