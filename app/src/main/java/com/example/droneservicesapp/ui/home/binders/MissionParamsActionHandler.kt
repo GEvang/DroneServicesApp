@@ -16,10 +16,6 @@ class MissionParamsActionHandler(
 ) {
     fun bind() {
         views.uploadMissionButton.setOnClickListener { uploadMission() }
-        views.exitButton.setOnClickListener {
-            preferencesBridge.saveFromViewModel()
-            activityViewModel.sendAction(MainActivityViewModel.MapAction.ClearKeepDrawing)
-        }
         views.saveMissionButton.setOnClickListener {
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.SaveMissionToFile)
         }

@@ -27,6 +27,8 @@
     <string name="area">Area</string>
     <string name="points">Points</string>
     <string name="draw_area">Draw Area</string>
+    <string name="clear_area">Clear Area</string>
+    <string name="work_in_progress">Work in progress</string>
     <string name="home_panel_instruction_title">Instructions</string>
     <string name="home_panel_mode_title">Mode Select</string>
     <string name="home_panel_operator_title">Actions</string>

@@ -39,6 +39,5 @@ class MissionParamsViews(
     val speedPlusButton: ImageButton = rootView.findViewById(R.id.plus_button)
 
     val uploadMissionButton: Button = rootView.findViewById(R.id.uploadMission)
-    val exitButton: Button = rootView.findViewById(R.id.exit)
     val saveMissionButton: Button = rootView.findViewById(R.id.save_mission)
 }

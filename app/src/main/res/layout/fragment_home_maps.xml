@@ -101,7 +101,8 @@
                 android:layout_marginEnd="8dp"
                 android:background="@drawable/bg_bottom_dock_button"
                 android:contentDescription="@string/my_location_button_desc"
-                android:padding="10dp"
+                android:padding="12dp"
+                android:scaleType="centerInside"
                 android:src="@drawable/ic_baseline_my_location_48"
                 android:tint="@android:color/white" />
 
@@ -117,7 +118,8 @@
                 android:layout_marginEnd="10dp"
                 android:background="@drawable/bg_bottom_dock_button"
                 android:contentDescription="@string/drone_location_button"
-                android:padding="10dp"
+                android:padding="12dp"
+                android:scaleType="centerInside"
                 android:src="@drawable/drone_marker_36"
                 android:tint="@android:color/white" />
 

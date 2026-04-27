@@ -4,7 +4,9 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.TextView
 import android.widget.Toast
+import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
@@ -13,6 +15,7 @@ import androidx.preference.PreferenceManager
 import androidx.appcompat.widget.Toolbar
 import androidx.drawerlayout.widget.DrawerLayout
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
@@ -58,6 +61,7 @@ class MissionMapFragment : Fragment() {
     private lateinit var homeMapTelemetryBinder: HomeMapTelemetryBinder
     private lateinit var osmdroidMapController: OsmdroidMapController
     private lateinit var osmdroidPolygonEditor: OsmdroidPolygonEditor
+    private lateinit var missionFileStore: MissionFileStore
 
     companion object {
         private const val DEFAULT_MAP_ZOOM = 18.0
@@ -79,6 +83,7 @@ class MissionMapFragment : Fragment() {
         activityViewModel = ViewModelProvider(requireActivity())[MainActivityViewModel::class.java]
         homeTelemetryViewModel = ViewModelProvider(requireActivity())[HomeTelemetryViewModel::class.java]
         mapViewModel = ViewModelProvider(this)[MissionMapViewModel::class.java]
+        missionFileStore = MissionFileStore(requireContext())
 
         return binding.root
     }
@@ -181,7 +186,81 @@ class MissionMapFragment : Fragment() {
             }
         )
 
+        requireView().findViewById<com.google.android.material.button.MaterialButton>(R.id.right_panel_load_button)
+            .setOnClickListener {
+                if (missionFileStore.listMissionFiles().isEmpty()) {
+                    Toast.makeText(requireContext(), "No missions saved yet", Toast.LENGTH_LONG).show()
+                    activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
+                } else {
+                    activityViewModel.missionArea.value?.clearAll()
+                    activityViewModel.mapState.postValue(MainActivityViewModel.MapState.LoadMissionFromFile)
+                }
+            }
+
+        requireView().findViewById<com.google.android.material.button.MaterialButton>(R.id.right_panel_close_button)
+            .setOnClickListener {
+                mapViewModel.setPlanningPanelVisible(false)
+            }
+
+        val surveyButton = requireView().findViewById<TextView>(R.id.right_panel_survey_button)
+        val sprayButton = requireView().findViewById<TextView>(R.id.right_panel_spray_button)
+        bindPlanningModeToggle(surveyButton, sprayButton)
+
+        requireView().findViewById<TextView>(R.id.right_panel_area_button).setOnClickListener {
+            startAreaDrawing()
+        }
+
+        requireView().findViewById<TextView>(R.id.right_panel_draw_area_button).setOnClickListener {
+            startAreaDrawing()
+        }
+
+        requireView().findViewById<TextView>(R.id.right_panel_points_button).setOnClickListener {
+            Toast.makeText(requireContext(), getString(R.string.work_in_progress), Toast.LENGTH_SHORT).show()
+        }
+
+        requireView().findViewById<TextView>(R.id.right_panel_clear_area_button).setOnClickListener {
+            Toast.makeText(requireContext(), getString(R.string.work_in_progress), Toast.LENGTH_SHORT).show()
+        }
+
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
+    }
+
+    private fun startAreaDrawing() {
+        mapViewModel.setPlanningPanelVisible(false)
+        activityViewModel.missionArea.value?.clearAll()
+        activityViewModel.mapState.value = MainActivityViewModel.MapState.Draw
+    }
+
+    private fun bindPlanningModeToggle(surveyButton: TextView, sprayButton: TextView) {
+        fun applySelection(isSurveySelected: Boolean) {
+            surveyButton.setBackgroundResource(
+                if (isSurveySelected) R.drawable.bg_ds_panel_pill_active
+                else R.drawable.bg_ds_panel_pill_inactive
+            )
+            surveyButton.setTextColor(
+                ContextCompat.getColor(
+                    requireContext(),
+                    if (isSurveySelected) R.color.ds_color_shell_selected_content else R.color.ds_color_text_primary
+                )
+            )
+            surveyButton.setTypeface(surveyButton.typeface, if (isSurveySelected) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
+
+            sprayButton.setBackgroundResource(
+                if (isSurveySelected) R.drawable.bg_ds_panel_pill_inactive
+                else R.drawable.bg_ds_panel_pill_active
+            )
+            sprayButton.setTextColor(
+                ContextCompat.getColor(
+                    requireContext(),
+                    if (isSurveySelected) R.color.ds_color_text_primary else R.color.ds_color_shell_selected_content
+                )
+            )
+            sprayButton.setTypeface(sprayButton.typeface, if (isSurveySelected) android.graphics.Typeface.NORMAL else android.graphics.Typeface.BOLD)
+        }
+
+        surveyButton.setOnClickListener { applySelection(true) }
+        sprayButton.setOnClickListener { applySelection(false) }
+        applySelection(true)
     }
 
     private fun observeDroneViewModel() {

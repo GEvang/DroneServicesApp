@@ -30,17 +30,23 @@ data class HomeMapUiState(
                     overlayControlsState = MapOverlayControlsUiState.defaultVisible(),
                     interactionState = HomeMapInteractionUiState(
                         isDrawingEnabled = false,
-                        isBottomActionBarVisible = true
+                        isBottomActionBarVisible = true,
+                        isLegacyBottomActionBarVisible = false
                     )
                 )
                 HomeMapScreenMode.Drawing -> HomeMapUiState(
                     screenMode = screenMode,
-                    shellState = shellState,
+                    shellState = shellState.copy(
+                        isLeftPanelVisible = false,
+                        isRightPanelVisible = false,
+                        isBottomUtilityBarVisible = false
+                    ),
                     panelState = MissionPanelUiState.none(),
                     overlayControlsState = MapOverlayControlsUiState.defaultVisible(),
                     interactionState = HomeMapInteractionUiState(
                         isDrawingEnabled = true,
-                        isBottomActionBarVisible = true
+                        isBottomActionBarVisible = false,
+                        isLegacyBottomActionBarVisible = true
                     )
                 )
                 HomeMapScreenMode.EditingParams -> HomeMapUiState(
@@ -53,7 +59,8 @@ data class HomeMapUiState(
                     overlayControlsState = MapOverlayControlsUiState.defaultVisible(),
                     interactionState = HomeMapInteractionUiState(
                         isDrawingEnabled = false,
-                        isBottomActionBarVisible = true
+                        isBottomActionBarVisible = true,
+                        isLegacyBottomActionBarVisible = false
                     )
                 )
                 HomeMapScreenMode.SavingMission -> HomeMapUiState(
@@ -69,7 +76,8 @@ data class HomeMapUiState(
                     overlayControlsState = MapOverlayControlsUiState.defaultVisible(),
                     interactionState = HomeMapInteractionUiState(
                         isDrawingEnabled = false,
-                        isBottomActionBarVisible = true
+                        isBottomActionBarVisible = true,
+                        isLegacyBottomActionBarVisible = false
                     )
                 )
                 HomeMapScreenMode.LoadingMission -> HomeMapUiState(
@@ -85,7 +93,8 @@ data class HomeMapUiState(
                     overlayControlsState = MapOverlayControlsUiState.defaultVisible(),
                     interactionState = HomeMapInteractionUiState(
                         isDrawingEnabled = false,
-                        isBottomActionBarVisible = true
+                        isBottomActionBarVisible = true,
+                        isLegacyBottomActionBarVisible = false
                     )
                 )
             }
@@ -149,6 +158,7 @@ data class MapOverlayControlsUiState(
 data class HomeMapInteractionUiState(
     val isDrawingEnabled: Boolean,
     val isBottomActionBarVisible: Boolean,
+    val isLegacyBottomActionBarVisible: Boolean = false,
 )
 
 data class MissionParamsUiState(

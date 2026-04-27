@@ -34,7 +34,13 @@ class HomeMapChromeBinder(
     }
 
     fun renderInteraction(state: HomeMapInteractionUiState) {
-        bottomActionBarViewProvider()?.isVisible = false
+        bottomActionBarViewProvider()?.let { legacyBottomBar ->
+            legacyBottomBar.isVisible = state.isLegacyBottomActionBarVisible
+            if (state.isLegacyBottomActionBarVisible) {
+                legacyBottomBar.bringToFront()
+                legacyBottomBar.requestLayout()
+            }
+        }
         binding.homeBottomUtilityDock.isVisible = state.isBottomActionBarVisible
         binding.homeBottomPlanningLabel.isVisible = state.isBottomActionBarVisible
     }

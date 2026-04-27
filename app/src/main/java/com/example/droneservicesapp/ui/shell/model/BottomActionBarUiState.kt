@@ -19,8 +19,14 @@ data class BottomActionBarUiState(
                     showLoad = true
                 )
                 MainActivityViewModel.MapState.Draw,
-                MainActivityViewModel.MapState.SetFlightParams,
                 MainActivityViewModel.MapState.LoadMissionFromFile -> BottomActionBarUiState(
+                    showCancel = true,
+                    showAccept = true,
+                    showErase = false,
+                    showDraw = false,
+                    showLoad = false
+                )
+                MainActivityViewModel.MapState.SetFlightParams -> BottomActionBarUiState(
                     showCancel = true,
                     showAccept = true,
                     showErase = true,

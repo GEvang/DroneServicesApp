@@ -24,35 +24,20 @@
 
         <com.google.android.material.button.MaterialButton
             style="@style/Widget.DroneServices.Button.MapDark"
-            android:id="@+id/exit"
-            android:layout_width="0dp"
+            android:id="@+id/right_panel_close_button"
+            android:layout_width="36dp"
             android:layout_height="36dp"
-            android:layout_weight="0.42"
+            android:minWidth="0dp"
+            android:insetTop="0dp"
+            android:insetBottom="0dp"
             android:textAllCaps="false"
-            android:text="@string/exit" />
-
-        <com.google.android.material.button.MaterialButton
-            style="@style/Widget.DroneServices.Button.MapLight"
-            android:id="@+id/save_mission"
-            android:layout_width="0dp"
-            android:layout_height="36dp"
-            android:layout_marginStart="@dimen/ds_space_sm"
-            android:layout_weight="0.42"
-            android:textAllCaps="false"
-            android:text="@string/save" />
+            android:text="X" />
     </LinearLayout>
 
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/ds_space_xs"
-        android:text="@string/home_panel_actions_subtitle"
-        style="@style/TextAppearance.DroneServices.MapPanelSubtitle" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/ds_space_lg"
+        android:layout_marginTop="@dimen/ds_space_md"
         android:text="@string/home_panel_mode_title"
         style="@style/TextAppearance.DroneServices.PanelLabel" />
 
@@ -63,41 +48,29 @@
         android:orientation="horizontal">
 
         <TextView
+            android:id="@+id/right_panel_survey_button"
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_weight="1"
-            android:background="@drawable/bg_ds_panel_pill_inactive"
+            android:background="@drawable/bg_ds_panel_pill_active"
             android:gravity="center"
             android:text="@string/survey"
-            android:textColor="@color/ds_color_text_primary"
-            android:fontFamily="@font/inter" />
+            android:textColor="@color/ds_color_shell_selected_content"
+            android:fontFamily="@font/inter"
+            android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/right_panel_spray_button"
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_marginStart="@dimen/ds_space_sm"
             android:layout_weight="1"
-            android:background="@drawable/bg_ds_panel_pill_active"
+            android:background="@drawable/bg_ds_panel_pill_inactive"
             android:gravity="center"
             android:text="@string/spray"
-            android:textColor="@color/ds_color_shell_selected_content"
-            android:fontFamily="@font/inter"
-            android:textStyle="bold" />
+            android:textColor="@color/ds_color_text_primary"
+            android:fontFamily="@font/inter" />
     </LinearLayout>
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/ds_space_lg"
-        android:text="@string/home_panel_instruction_title"
-        style="@style/TextAppearance.DroneServices.PanelLabel" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/ds_space_xs"
-        android:text="@string/home_panel_top_actions_hint"
-        style="@style/TextAppearance.DroneServices.MapPanelSubtitle" />
 
     <TextView
         android:layout_width="match_parent"
@@ -113,6 +86,7 @@
         android:orientation="horizontal">
 
         <TextView
+            android:id="@+id/right_panel_area_button"
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_weight="1"
@@ -124,6 +98,7 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/right_panel_points_button"
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_marginStart="@dimen/ds_space_sm"
@@ -136,6 +111,7 @@
     </LinearLayout>
 
     <TextView
+        android:id="@+id/right_panel_draw_area_button"
         android:layout_width="match_parent"
         android:layout_height="40dp"
         android:layout_marginTop="@dimen/ds_space_md"
@@ -146,11 +122,46 @@
         android:fontFamily="@font/inter" />
 
     <TextView
+        android:id="@+id/right_panel_clear_area_button"
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:background="@drawable/bg_ds_panel_pill_inactive"
+        android:gravity="center"
+        android:text="@string/clear_area"
+        android:textColor="@color/ds_color_text_primary"
+        android:fontFamily="@font/inter" />
+
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/ds_space_lg"
         android:text="@string/home_panel_operator_title"
         style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/save_mission"
+            style="@style/Widget.DroneServices.Button.MapLight"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:text="@string/save" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/right_panel_load_button"
+            style="@style/Widget.DroneServices.Button.MapDark"
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="@dimen/ds_space_sm"
+            android:layout_weight="1"
+            android:text="@string/load" />
+    </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
         style="@style/Widget.DroneServices.Button.MapEmphasis"
