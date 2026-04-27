@@ -199,12 +199,29 @@ class MissionMapFragment : Fragment() {
 
         requireView().findViewById<com.google.android.material.button.MaterialButton>(R.id.right_panel_close_button)
             .setOnClickListener {
-                mapViewModel.setPlanningPanelVisible(false)
+                mapViewModel.dismissSidePanels()
             }
 
         val surveyButton = requireView().findViewById<TextView>(R.id.right_panel_survey_button)
         val sprayButton = requireView().findViewById<TextView>(R.id.right_panel_spray_button)
         bindPlanningModeToggle(surveyButton, sprayButton)
+
+        binding.homeDrawAcceptButton.setOnClickListener {
+            val verts = activityViewModel.missionArea.value?.vertices ?: emptyList()
+            if (verts.size < 3) {
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.wrong_schema_msg),
+                    Toast.LENGTH_LONG
+                ).show()
+            } else {
+                activityViewModel.mapState.value = MainActivityViewModel.MapState.SetFlightParams
+            }
+        }
+
+        binding.homeDrawDeclineButton.setOnClickListener {
+            activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
+        }
 
         requireView().findViewById<TextView>(R.id.right_panel_area_button).setOnClickListener {
             startAreaDrawing()
@@ -219,7 +236,7 @@ class MissionMapFragment : Fragment() {
         }
 
         requireView().findViewById<TextView>(R.id.right_panel_clear_area_button).setOnClickListener {
-            Toast.makeText(requireContext(), getString(R.string.work_in_progress), Toast.LENGTH_SHORT).show()
+            activityViewModel.sendAction(MainActivityViewModel.MapAction.ClearAll)
         }
 
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)

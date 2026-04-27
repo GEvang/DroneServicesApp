@@ -12,12 +12,15 @@ data class HomeMapUiState(
             screenMode: HomeMapScreenMode,
             isPlanningPanelVisible: Boolean,
             hasMissionArea: Boolean,
+            arePanelsDismissed: Boolean,
         ): HomeMapUiState {
             val shellState = HomeMapShellUiState(
                 isLeftPanelVisible = hasMissionArea &&
+                    !arePanelsDismissed &&
                     screenMode != HomeMapScreenMode.SavingMission &&
                     screenMode != HomeMapScreenMode.LoadingMission,
                 isRightPanelVisible = isPlanningPanelVisible &&
+                    !arePanelsDismissed &&
                     screenMode != HomeMapScreenMode.SavingMission &&
                     screenMode != HomeMapScreenMode.LoadingMission,
                 isBottomUtilityBarVisible = true
@@ -46,12 +49,13 @@ data class HomeMapUiState(
                     interactionState = HomeMapInteractionUiState(
                         isDrawingEnabled = true,
                         isBottomActionBarVisible = false,
-                        isLegacyBottomActionBarVisible = true
+                        isLegacyBottomActionBarVisible = false,
+                        isDrawActionButtonsVisible = true
                     )
                 )
                 HomeMapScreenMode.EditingParams -> HomeMapUiState(
                     screenMode = screenMode,
-                    shellState = shellState.copy(isLeftPanelVisible = true),
+                    shellState = shellState,
                     panelState = MissionPanelUiState(
                         activePanel = MissionPanelUiState.ActivePanel.None,
                         consumesTouch = true
@@ -159,6 +163,7 @@ data class HomeMapInteractionUiState(
     val isDrawingEnabled: Boolean,
     val isBottomActionBarVisible: Boolean,
     val isLegacyBottomActionBarVisible: Boolean = false,
+    val isDrawActionButtonsVisible: Boolean = false,
 )
 
 data class MissionParamsUiState(

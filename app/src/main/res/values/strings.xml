@@ -44,6 +44,8 @@
     <string name="accept">Accept</string>
     <string name="erase">Erase</string>
     <string name="cancel">Cancel</string>
+    <string name="decline">Decline</string>
+    <string name="clear">Clear</string>
     <string name="upload_mission">Upload Mission</string>
     <string name="exit">Exit</string>
     <string name="flight_altitude">Mission Altitude</string>

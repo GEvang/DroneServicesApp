@@ -18,14 +18,13 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/ds_space_xs"
-        android:layout_marginBottom="@dimen/ds_space_md"
-        android:text="@string/home_panel_flight_settings_subtitle"
+        android:visibility="gone"
         style="@style/TextAppearance.DroneServices.MapPanelSubtitle" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_sm"
         android:layout_marginBottom="@dimen/ds_space_md"
         android:orientation="horizontal">
 

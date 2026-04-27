@@ -8,17 +8,23 @@ class MissionMapViewModel : ViewModel() {
     private var currentScreenMode: HomeMapScreenMode = HomeMapScreenMode.Idle
     private var isPlanningPanelVisible: Boolean = false
     private var hasMissionArea: Boolean = false
+    private var arePanelsDismissed: Boolean = false
 
     val homeMapUiState: MutableLiveData<HomeMapUiState> =
         MutableLiveData(
             HomeMapUiState.forState(
                 screenMode = currentScreenMode,
                 isPlanningPanelVisible = isPlanningPanelVisible,
-                hasMissionArea = hasMissionArea
+                hasMissionArea = hasMissionArea,
+                arePanelsDismissed = arePanelsDismissed
             )
         )
 
     fun updateFromMapState(mapState: MainActivityViewModel.MapState) {
+        if (mapState == MainActivityViewModel.MapState.SetFlightParams) {
+            isPlanningPanelVisible = true
+            arePanelsDismissed = false
+        }
         currentScreenMode = when (mapState) {
             MainActivityViewModel.MapState.Idle -> HomeMapScreenMode.Idle
             MainActivityViewModel.MapState.Draw -> HomeMapScreenMode.Drawing
@@ -31,16 +37,31 @@ class MissionMapViewModel : ViewModel() {
 
     fun setPlanningPanelVisible(isVisible: Boolean) {
         isPlanningPanelVisible = isVisible
+        if (isVisible) {
+            arePanelsDismissed = false
+        }
         publishState()
     }
 
     fun togglePlanningPanelVisible() {
         isPlanningPanelVisible = !isPlanningPanelVisible
+        if (isPlanningPanelVisible) {
+            arePanelsDismissed = false
+        }
+        publishState()
+    }
+
+    fun dismissSidePanels() {
+        isPlanningPanelVisible = false
+        arePanelsDismissed = true
         publishState()
     }
 
     fun setMissionAreaAvailable(isAvailable: Boolean) {
         hasMissionArea = isAvailable
+        if (!isAvailable) {
+            arePanelsDismissed = false
+        }
         publishState()
     }
 
@@ -49,7 +70,8 @@ class MissionMapViewModel : ViewModel() {
             HomeMapUiState.forState(
                 screenMode = currentScreenMode,
                 isPlanningPanelVisible = isPlanningPanelVisible,
-                hasMissionArea = hasMissionArea
+                hasMissionArea = hasMissionArea,
+                arePanelsDismissed = arePanelsDismissed
             )
         )
     }
