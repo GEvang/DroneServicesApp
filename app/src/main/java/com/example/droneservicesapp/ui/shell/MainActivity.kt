@@ -42,6 +42,7 @@ class MainActivity : AppCompatActivity() {
 
     @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
+        setTheme(R.style.Theme_DroneServicesApp_NoActionBar)
         super.onCreate(savedInstanceState)
 
         Application.getInstance().initAppLanguage(this)

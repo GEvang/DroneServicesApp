@@ -40,6 +40,10 @@
         <item name="windowNoTitle">true</item>
     </style>
 
+    <style name="Theme.DroneServicesApp.Startup" parent="Theme.DroneServicesApp.NoActionBar">
+        <item name="android:windowBackground">@drawable/bg_startup_logo</item>
+    </style>
+
     <!-- FIXED: removed the stray extra '>' -->
 
     <style name="Toolbar.TitleText" parent="TextAppearance.Widget.AppCompat.Toolbar.Title">
