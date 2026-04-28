@@ -1,11 +1,15 @@
 package com.example.droneservicesapp.mavserver
 
+import android.content.Context
+import com.example.droneservicesapp.R
 import android.location.Location
 import androidx.lifecycle.MutableLiveData
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import io.dronefleet.mavlink.common.MissionItemInt
 
-internal class DroneUiStateStore {
+internal class DroneUiStateStore(
+    context: Context
+) {
     val droneLocationLiveData: MutableLiveData<Location> =
         MutableLiveData<Location>().default(Location(""))
     val conStateLiveData: MutableLiveData<Boolean> =
@@ -35,7 +39,7 @@ internal class DroneUiStateStore {
     val rtkForwardingState: MutableLiveData<RtkForwardingState> =
         MutableLiveData<RtkForwardingState>().default(RtkForwardingState.Idle)
     val rtkGpsDebugStatus: MutableLiveData<String> =
-        MutableLiveData<String>().default("Src: -- | Fix: -- | Sats: -- | HDOP: -- | Last GPS: --")
+        MutableLiveData<String>().default(context.getString(R.string.rtk_gps_debug_default))
 
     private fun <T : Any?> MutableLiveData<T>.default(initialValue: T) =
         apply { postValue(initialValue) }

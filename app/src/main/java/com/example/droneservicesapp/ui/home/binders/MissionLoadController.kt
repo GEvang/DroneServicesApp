@@ -48,7 +48,7 @@ class MissionLoadController(
         val (files, names) = refreshList()
 
         if (files.isEmpty()) {
-            Toast.makeText(activity, "No missions saved yet", Toast.LENGTH_LONG).show()
+            Toast.makeText(activity, activity.getString(R.string.no_saved_missions_yet), Toast.LENGTH_LONG).show()
             activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
             return
         }

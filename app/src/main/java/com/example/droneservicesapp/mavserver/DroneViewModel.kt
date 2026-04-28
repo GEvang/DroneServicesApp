@@ -33,7 +33,7 @@ class DroneViewModel : ViewModel() {
 
     private val repoDisposables = CompositeDisposable()
     private val runtimeState = DroneRuntimeState()
-    private val stateStore = DroneUiStateStore()
+    private val stateStore = DroneUiStateStore(Application.getInstance().applicationContext)
 
     private val repo = MavlinkConnectionManager()
     val mavlinkClient: MavlinkClient = repo

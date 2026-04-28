@@ -91,6 +91,7 @@
     <string name="rtk_forwarding_status">Forwarding Status</string>
     <string name="rtk_gps_debug_status">ArduPilot GPS Debug</string>
     <string name="rtk_gps_debug_default">Fix: -- | Sats: -- | Last GPS: --</string>
+    <string name="rtk_gps_debug_summary">Src: %1$s | Fix: %2$s | Sats: %3$s | HDOP: %4$s | EPH: %5$s | Last GPS: %6$s</string>
     <string name="rtk_keep_awake_hint">RTK auto-runs when mountpoint, internet, drone, and GPS prerequisites are ready. This screen stays awake while open.</string>
     <string name="rtk_keep_alive_notification_title">RTK forwarding active</string>
     <string name="rtk_keep_alive_notification_active">Keeping RTK streaming alive while the device is locked.</string>
@@ -160,4 +161,20 @@
     <string name="DroneServicesFilePageSuffix" translatable="false">.dsfp</string>
     <string name="decrease">Decrease values</string>
     <string name="increase">Increase values</string>
+    <string name="no_saved_missions_yet">No missions saved yet</string>
+    <string name="no_area_model_available">No area model available</string>
+    <string name="polygon_requires_three_points">Polygon must have at least 3 points</string>
+    <string name="drone_gps_not_available_yet">Drone GPS not available yet</string>
+    <string name="no_survey_path_available">No survey path available. Please generate survey first.</string>
+    <string name="missing_mission_parameters">Missing mission parameters</string>
+    <string name="waiting_for_gps_fix">Waiting for GPS fix...</string>
+    <string name="drone_location_not_available_yet">Drone location not available yet</string>
+    <string name="upload_complete">Upload complete</string>
+    <string name="upload_failed_with_reason">Upload failed: %1$s</string>
+    <string name="offline_download_started">Offline download started</string>
+    <string name="offline_download_complete">Offline download complete</string>
+    <string name="offline_download_failed">Offline download failed (%1$d)</string>
+    <string name="cache_directory_not_found">Cache directory not found</string>
+    <string name="offline_map_cache_cleared">Offline map cache cleared</string>
+    <string name="failed_to_clear_cache">Failed to clear cache (some files may be locked)</string>
 </resources>

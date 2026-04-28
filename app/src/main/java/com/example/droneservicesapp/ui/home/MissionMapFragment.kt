@@ -192,7 +192,7 @@ class MissionMapFragment : Fragment() {
         requireView().findViewById<com.google.android.material.button.MaterialButton>(R.id.right_panel_load_button)
             .setOnClickListener {
                 if (missionFileStore.listMissionFiles().isEmpty()) {
-                    Toast.makeText(requireContext(), "No missions saved yet", Toast.LENGTH_LONG).show()
+                    Toast.makeText(requireContext(), getString(R.string.no_saved_missions_yet), Toast.LENGTH_LONG).show()
                     activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
                 } else {
                     activityViewModel.missionArea.value?.clearAll()
@@ -412,12 +412,16 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
                 }
                 is MainActivityViewModel.MapAction.UploadMissionSuccess -> {
-                    Snackbar.make(requireView(), "Upload complete", Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(requireView(), getString(R.string.upload_complete), Snackbar.LENGTH_LONG).show()
                     activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
                 }
                 is MainActivityViewModel.MapAction.UploadMissionFailed -> {
                     Toast.makeText(context, action.reason, Toast.LENGTH_LONG).show()
-                    Snackbar.make(requireView(), "Upload failed: ${action.reason}", Snackbar.LENGTH_LONG).show()
+                    Snackbar.make(
+                        requireView(),
+                        getString(R.string.upload_failed_with_reason, action.reason),
+                        Snackbar.LENGTH_LONG
+                    ).show()
                     activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
                 }
             }
@@ -469,21 +473,21 @@ class MissionMapFragment : Fragment() {
             maxZoom,
             object : CacheManager.CacheManagerCallback {
                 override fun downloadStarted() {
-                    Toast.makeText(requireContext(), "Offline download started", Toast.LENGTH_SHORT)
+                    Toast.makeText(requireContext(), getString(R.string.offline_download_started), Toast.LENGTH_SHORT)
                         .show()
                 }
 
                 override fun setPossibleTilesInArea(total: Int) {}
                 override fun updateProgress(progress: Int, currentZoomLevel: Int, zoomMin: Int, zoomMax: Int) {}
                 override fun onTaskComplete() {
-                    Toast.makeText(requireContext(), "Offline download complete", Toast.LENGTH_LONG)
+                    Toast.makeText(requireContext(), getString(R.string.offline_download_complete), Toast.LENGTH_LONG)
                         .show()
                 }
 
                 override fun onTaskFailed(errors: Int) {
                     Toast.makeText(
                         requireContext(),
-                        "Offline download failed ($errors)",
+                        getString(R.string.offline_download_failed, errors),
                         Toast.LENGTH_LONG
                     ).show()
                 }

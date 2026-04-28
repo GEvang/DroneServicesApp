@@ -37,17 +37,17 @@ class MissionParamsActionHandler(
             }
 
             droneLoc == null -> {
-                showMessage("Drone GPS not available yet")
+                showMessage(context.getString(R.string.drone_gps_not_available_yet))
                 return
             }
 
             path.isNullOrEmpty() -> {
-                showMessage("No survey path available. Please generate survey first.")
+                showMessage(context.getString(R.string.no_survey_path_available))
                 return
             }
 
             alt == null || sprayer == null || speed == null || angle == null -> {
-                showMessage("Missing mission parameters")
+                showMessage(context.getString(R.string.missing_mission_parameters))
                 return
             }
         }

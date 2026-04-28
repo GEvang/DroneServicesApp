@@ -91,7 +91,7 @@ class OsmdroidMapController(
             true
         } else {
             if (showErrors) {
-                Toast.makeText(context, "Waiting for GPS fix...", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.waiting_for_gps_fix), Toast.LENGTH_SHORT).show()
             }
             false
         }
@@ -150,7 +150,7 @@ class OsmdroidMapController(
             mapView.controller.animateTo(marker.position)
             true
         } else {
-            Toast.makeText(context, "Drone location not available yet", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, context.getString(R.string.drone_location_not_available_yet), Toast.LENGTH_SHORT).show()
             false
         }
     }

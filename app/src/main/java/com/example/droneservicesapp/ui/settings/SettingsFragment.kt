@@ -34,19 +34,19 @@ class SettingsFragment : PreferenceFragmentCompat(),
         clearCachePref?.setOnPreferenceClickListener {
             val cacheDir = getOsmdroidTileCacheDir()
             if (cacheDir == null) {
-                cacheSizePref?.summary = "Cache directory not found"
+                cacheSizePref?.summary = getString(R.string.cache_directory_not_found)
                 return@setOnPreferenceClickListener true
             }
 
             val ok = deleteRecursively(cacheDir)
             if (ok) {
                 cacheSizePref?.summary = "0 B"
-                Toast.makeText(requireContext(), "Offline map cache cleared", Toast.LENGTH_SHORT)
+                Toast.makeText(requireContext(), getString(R.string.offline_map_cache_cleared), Toast.LENGTH_SHORT)
                     .show()
             } else {
                 Toast.makeText(
                     requireContext(),
-                    "Failed to clear cache (some files may be locked)",
+                    getString(R.string.failed_to_clear_cache),
                     Toast.LENGTH_LONG
                 ).show()
                 updateCacheSizeSummary()

@@ -45,7 +45,7 @@ class ShellBottomNavBinder(
                     if (missionFileStore.listMissionFiles().isEmpty()) {
                         Toast.makeText(
                             activity,
-                            "No missions saved yet",
+                            activity.getString(R.string.no_saved_missions_yet),
                             Toast.LENGTH_LONG
                         ).show()
                         activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle

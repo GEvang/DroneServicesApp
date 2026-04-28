@@ -4,6 +4,7 @@ import android.content.Context
 import android.location.Location
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
+import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.mavlink.MavlinkClient
 import com.example.droneservicesapp.data.rtk.RtkConfig
 import com.example.droneservicesapp.data.rtk.RtkForwardingService
@@ -368,7 +369,15 @@ internal class DroneRtkController(
         val fix = formatGpsMetric(lastFixType)
         val sats = formatGpsMetric(lastSatellitesVisible)
         rtkGpsDebugStatus.postValue(
-            "Src: $source | Fix: $fix | Sats: $sats | HDOP: $hdop | EPH: $ephText | Last GPS: $lastGpsAge"
+            context.getString(
+                R.string.rtk_gps_debug_summary,
+                source,
+                fix,
+                sats,
+                hdop,
+                ephText,
+                lastGpsAge
+            )
         )
     }
 

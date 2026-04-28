@@ -95,14 +95,22 @@ class MissionSaveController(
 
             val area = activityViewModel.missionArea.value
             if (area == null) {
-                Toast.makeText(activity.baseContext, "No area model available", Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                    activity.baseContext,
+                    activity.baseContext.getString(R.string.no_area_model_available),
+                    Toast.LENGTH_LONG
+                ).show()
                 return@setOnClickListener
             }
 
             // ✅ New model: vertices instead of polygonEdges
             val vertices = area.vertices
             if (vertices.size < 3) {
-                Toast.makeText(activity.baseContext, "Polygon must have at least 3 points", Toast.LENGTH_LONG).show()
+                Toast.makeText(
+                    activity.baseContext,
+                    activity.baseContext.getString(R.string.polygon_requires_three_points),
+                    Toast.LENGTH_LONG
+                ).show()
                 return@setOnClickListener
             }
 
