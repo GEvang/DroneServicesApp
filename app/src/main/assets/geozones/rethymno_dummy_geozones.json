@@ -1,0 +1,336 @@
+{
+  "title": "Dummy Rethymno geo-awareness test zones",
+  "description": "Development-only dummy data. Not official DAGR or HCAA data.",
+  "version": "dummy-rethymno-001",
+  "features": [
+    {
+      "identifier": "GR-RTH-DUMMY-001",
+      "country": "GRC",
+      "name": "Fortezza Test Prohibited Zone",
+      "type": "COMMON",
+      "restriction": "PROHIBITED",
+      "reason": ["OTHER"],
+      "otherReasonInfo": "Dummy heritage landmark no-fly test zone",
+      "applicability": [
+        {
+          "startDateTime": "2026-01-01T00:00:00Z",
+          "endDateTime": "2027-12-31T23:59:59Z",
+          "permanent": "YES"
+        }
+      ],
+      "message": "Dummy prohibited zone around Fortezza for testing mission warnings. Not official DAGR data.",
+      "zoneAuthority": [
+        {
+          "name": "Dummy Authority",
+          "service": "Development Test Data",
+          "contactName": "N/A",
+          "siteURL": "https://dagr.hasp.gov.gr/",
+          "email": "N/A",
+          "phone": "N/A",
+          "purpose": "INFORMATION"
+        }
+      ],
+      "geometry": [
+        {
+          "upperLimit": 120,
+          "lowerLimit": 0,
+          "uomDimensions": "M",
+          "upperVerticalReference": "AGL",
+          "lowerVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Circle",
+            "center": [24.4719, 35.3717],
+            "radius": 350
+          }
+        }
+      ],
+      "extendedProperties": {
+        "color": "FF0000",
+        "arc": "DUMMY"
+      }
+    },
+    {
+      "identifier": "GR-RTH-DUMMY-002",
+      "country": "GRC",
+      "name": "Venetian Harbour Conditional Zone",
+      "type": "COMMON",
+      "restriction": "CONDITIONAL",
+      "reason": ["OTHER"],
+      "otherReasonInfo": "Dummy harbour conditional test zone",
+      "applicability": [
+        {
+          "startDateTime": "2026-01-01T00:00:00Z",
+          "endDateTime": "2027-12-31T23:59:59Z",
+          "permanent": "YES"
+        }
+      ],
+      "message": "Dummy conditional zone around the Old Venetian Harbour. Not official DAGR data.",
+      "zoneAuthority": [
+        {
+          "name": "Dummy Authority",
+          "service": "Development Test Data",
+          "contactName": "N/A",
+          "siteURL": "https://dagr.hasp.gov.gr/",
+          "email": "N/A",
+          "phone": "N/A",
+          "purpose": "INFORMATION"
+        }
+      ],
+      "geometry": [
+        {
+          "upperLimit": 120,
+          "lowerLimit": 0,
+          "uomDimensions": "M",
+          "upperVerticalReference": "AGL",
+          "lowerVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Circle",
+            "center": [24.4756, 35.3699],
+            "radius": 250
+          }
+        }
+      ],
+      "extendedProperties": {
+        "color": "FFFF00",
+        "arc": "DUMMY"
+      }
+    },
+    {
+      "identifier": "GR-RTH-DUMMY-003",
+      "country": "GRC",
+      "name": "Rimondi Old Town Information Zone",
+      "type": "COMMON",
+      "restriction": "INFORMATION",
+      "reason": ["OTHER"],
+      "otherReasonInfo": "Dummy old town information test zone",
+      "applicability": [
+        {
+          "startDateTime": "2026-01-01T00:00:00Z",
+          "endDateTime": "2027-12-31T23:59:59Z",
+          "permanent": "YES"
+        }
+      ],
+      "message": "Dummy information zone around Rimondi Fountain / Old Town. Not official DAGR data.",
+      "zoneAuthority": [
+        {
+          "name": "Dummy Authority",
+          "service": "Development Test Data",
+          "contactName": "N/A",
+          "siteURL": "https://dagr.hasp.gov.gr/",
+          "email": "N/A",
+          "phone": "N/A",
+          "purpose": "INFORMATION"
+        }
+      ],
+      "geometry": [
+        {
+          "upperLimit": 120,
+          "lowerLimit": 0,
+          "uomDimensions": "M",
+          "upperVerticalReference": "AGL",
+          "lowerVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Circle",
+            "center": [24.4748, 35.3680],
+            "radius": 180
+          }
+        }
+      ],
+      "extendedProperties": {
+        "color": "00AEEF",
+        "arc": "DUMMY"
+      }
+    },
+    {
+      "identifier": "GR-RTH-DUMMY-004",
+      "country": "GRC",
+      "name": "Municipal Garden Authorization Zone",
+      "type": "COMMON",
+      "restriction": "REQ_AUTHORISATION",
+      "reason": ["OTHER"],
+      "otherReasonInfo": "Dummy public park authorization test zone",
+      "applicability": [
+        {
+          "startDateTime": "2026-01-01T00:00:00Z",
+          "endDateTime": "2027-12-31T23:59:59Z",
+          "permanent": "YES"
+        }
+      ],
+      "message": "Dummy authorization-required zone around Municipal Garden. Not official DAGR data.",
+      "zoneAuthority": [
+        {
+          "name": "Dummy Authority",
+          "service": "Development Test Data",
+          "contactName": "N/A",
+          "siteURL": "https://dagr.hasp.gov.gr/",
+          "email": "N/A",
+          "phone": "N/A",
+          "purpose": "AUTHORIZATION"
+        }
+      ],
+      "geometry": [
+        {
+          "upperLimit": 120,
+          "lowerLimit": 0,
+          "uomDimensions": "M",
+          "upperVerticalReference": "AGL",
+          "lowerVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Circle",
+            "center": [24.4720, 35.3660],
+            "radius": 220
+          }
+        }
+      ],
+      "extendedProperties": {
+        "color": "FFA500",
+        "arc": "DUMMY"
+      }
+    },
+    {
+      "identifier": "GR-RTH-DUMMY-005",
+      "country": "GRC",
+      "name": "Rethymno Marina Conditional Zone",
+      "type": "COMMON",
+      "restriction": "CONDITIONAL",
+      "reason": ["OTHER"],
+      "otherReasonInfo": "Dummy marina conditional test zone",
+      "applicability": [
+        {
+          "startDateTime": "2026-01-01T00:00:00Z",
+          "endDateTime": "2027-12-31T23:59:59Z",
+          "permanent": "YES"
+        }
+      ],
+      "message": "Dummy conditional zone around Rethymno Marina. Not official DAGR data.",
+      "zoneAuthority": [
+        {
+          "name": "Dummy Authority",
+          "service": "Development Test Data",
+          "contactName": "N/A",
+          "siteURL": "https://dagr.hasp.gov.gr/",
+          "email": "N/A",
+          "phone": "N/A",
+          "purpose": "INFORMATION"
+        }
+      ],
+      "geometry": [
+        {
+          "upperLimit": 120,
+          "lowerLimit": 0,
+          "uomDimensions": "M",
+          "upperVerticalReference": "AGL",
+          "lowerVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Circle",
+            "center": [24.4826, 35.3694],
+            "radius": 300
+          }
+        }
+      ],
+      "extendedProperties": {
+        "color": "FFFF00",
+        "arc": "DUMMY"
+      }
+    },
+    {
+      "identifier": "GR-RTH-DUMMY-006",
+      "country": "GRC",
+      "name": "Rethymno Beach Corridor Authorization Zone",
+      "type": "COMMON",
+      "restriction": "REQ_AUTHORISATION",
+      "reason": ["OTHER"],
+      "otherReasonInfo": "Dummy beach corridor authorization test zone",
+      "applicability": [
+        {
+          "startDateTime": "2026-01-01T00:00:00Z",
+          "endDateTime": "2027-12-31T23:59:59Z",
+          "permanent": "YES"
+        }
+      ],
+      "message": "Dummy authorization-required corridor along Rethymno beach. Not official DAGR data.",
+      "zoneAuthority": [
+        {
+          "name": "Dummy Authority",
+          "service": "Development Test Data",
+          "contactName": "N/A",
+          "siteURL": "https://dagr.hasp.gov.gr/",
+          "email": "N/A",
+          "phone": "N/A",
+          "purpose": "AUTHORIZATION"
+        }
+      ],
+      "geometry": [
+        {
+          "upperLimit": 120,
+          "lowerLimit": 0,
+          "uomDimensions": "M",
+          "upperVerticalReference": "AGL",
+          "lowerVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [24.4850, 35.3712],
+                [24.5060, 35.3698],
+                [24.5060, 35.3676],
+                [24.4850, 35.3685],
+                [24.4850, 35.3712]
+              ]
+            ]
+          }
+        }
+      ],
+      "extendedProperties": {
+        "color": "FFA500",
+        "arc": "DUMMY"
+      }
+    },
+    {
+      "identifier": "GR-RTH-DUMMY-007",
+      "country": "GRC",
+      "name": "Rethymno Hospital Emergency Zone",
+      "type": "COMMON",
+      "restriction": "PROHIBITED",
+      "reason": ["EMERGENCY"],
+      "otherReasonInfo": "Dummy hospital emergency no-fly test zone",
+      "applicability": [
+        {
+          "startDateTime": "2026-01-01T00:00:00Z",
+          "endDateTime": "2027-12-31T23:59:59Z",
+          "permanent": "YES"
+        }
+      ],
+      "message": "Dummy prohibited emergency zone around General Hospital of Rethymno. Not official DAGR data.",
+      "zoneAuthority": [
+        {
+          "name": "Dummy Authority",
+          "service": "Development Test Data",
+          "contactName": "N/A",
+          "siteURL": "https://dagr.hasp.gov.gr/",
+          "email": "N/A",
+          "phone": "N/A",
+          "purpose": "INFORMATION"
+        }
+      ],
+      "geometry": [
+        {
+          "upperLimit": 120,
+          "lowerLimit": 0,
+          "uomDimensions": "M",
+          "upperVerticalReference": "AGL",
+          "lowerVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Circle",
+            "center": [24.47145, 35.36512],
+            "radius": 500
+          }
+        }
+      ],
+      "extendedProperties": {
+        "color": "FF0000",
+        "arc": "DUMMY"
+      }
+    }
+  ]
+}
