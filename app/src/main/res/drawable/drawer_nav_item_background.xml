@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<selector xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:state_checked="true">
+        <inset
+            android:insetLeft="@dimen/ds_space_sm"
+            android:insetTop="@dimen/ds_space_xs"
+            android:insetRight="@dimen/ds_space_sm"
+            android:insetBottom="@dimen/ds_space_xs">
+            <shape>
+                <solid android:color="@color/ds_color_shell_selected_surface"/>
+                <corners android:radius="@dimen/ds_radius_round"/>
+            </shape>
+        </inset>
+    </item>
+    <item>
+        <inset
+            android:insetLeft="@dimen/ds_space_sm"
+            android:insetTop="@dimen/ds_space_xs"
+            android:insetRight="@dimen/ds_space_sm"
+            android:insetBottom="@dimen/ds_space_xs">
+            <shape>
+                <solid android:color="@android:color/transparent"/>
+                <corners android:radius="@dimen/ds_radius_round"/>
+            </shape>
+        </inset>
+    </item>
+</selector>

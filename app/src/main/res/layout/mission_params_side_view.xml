@@ -1,17 +1,66 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:id="@+id/mission_params_side_view"
-    android:layout_width="wrap_content"
-    android:minWidth="320dp"
-    android:maxWidth="420dp"
+    android:id="@+id/mission_params_left_panel"
+    style="@style/Widget.DroneServices.Panel.MapLeft"
+    android:layout_width="304dp"
+    android:minWidth="304dp"
+    android:maxWidth="352dp"
     android:layout_height="wrap_content"
-    android:orientation="vertical"
-    android:background="@drawable/bg_panel_flat"
-    android:paddingStart="14dp"
-    android:paddingTop="12dp"
-    android:paddingEnd="14dp"
-    android:paddingBottom="12dp">
+    android:orientation="vertical">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/home_panel_flight_settings"
+        style="@style/TextAppearance.DroneServices.MapPanelTitle" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        style="@style/TextAppearance.DroneServices.MapPanelSubtitle" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:layout_marginBottom="@dimen/ds_space_md"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_weight="1"
+            android:background="@drawable/bg_ds_panel_pill_active"
+            android:gravity="center"
+            android:text="@string/relative"
+            android:textColor="@color/ds_color_shell_selected_content"
+            android:fontFamily="@font/inter"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="40dp"
+            android:layout_marginStart="@dimen/ds_space_sm"
+            android:layout_weight="1"
+            android:background="@drawable/bg_ds_panel_pill_inactive"
+            android:gravity="center"
+            android:text="@string/terrain"
+            android:textColor="@color/ds_color_text_primary"
+            android:fontFamily="@font/inter" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="40dp"
+        android:layout_marginBottom="@dimen/ds_space_lg"
+        android:background="@drawable/bg_ds_panel_pill_inactive"
+        android:gravity="center"
+        android:text="@string/preset_dakos"
+        android:textColor="@color/ds_color_text_primary"
+        android:fontFamily="@font/inter"
+        android:textStyle="bold" />
 
     <!-- ===== Row template: title/value on top, pill slider below ===== -->
 
@@ -20,7 +69,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="10dp">
 
         <!-- Title + value (right) -->
         <LinearLayout
@@ -34,9 +83,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/mission_angle"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter" />
+                style="@style/TextAppearance.DroneServices.PanelLabel" />
 
             <!-- keep EditText ID (controller uses it), but visually act like a value label -->
             <LinearLayout
@@ -55,26 +102,23 @@
                     android:cursorVisible="false"
                     android:gravity="end"
                     android:text="@string/unknown_value_three_questionmarks"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelValue" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:text="@string/degrees"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_secondary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
             </LinearLayout>
         </LinearLayout>
 
         <!-- Slider pill -->
         <LinearLayout
+            android:id="@+id/angle_slider_row"
             android:layout_width="match_parent"
-            android:layout_height="36dp"
-            android:layout_marginTop="8dp"
+            android:layout_height="44dp"
+            android:layout_marginTop="6dp"
             android:background="@drawable/bg_slider_pill"
             android:paddingStart="10dp"
             android:paddingEnd="10dp"
@@ -84,7 +128,7 @@
             android:focusable="false">
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -99,22 +143,22 @@
                     android:contentDescription="@string/decrease" />
             </FrameLayout>
 
-            <com.example.droneservicesapp.ui.widgets.TouchDelegateSeekBar
+            <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
                 android:id="@+id/line_angle_seekbar"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="28dp"
                 android:layout_weight="1"
                 android:max="90"
                 android:progress="0"
                 android:splitTrack="false"
                 android:progressDrawable="@drawable/seekbar_progress_dji"
                 android:thumb="@drawable/seekbar_thumb_dji"
-                android:minHeight="15dp"
+                android:minHeight="20dp"
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp" />
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -136,7 +180,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="10dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -149,9 +193,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/line_distance"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter" />
+                style="@style/TextAppearance.DroneServices.PanelLabel" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -169,25 +211,22 @@
                     android:cursorVisible="false"
                     android:gravity="end"
                     android:text="@string/unknown_value_three_questionmarks"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelValue" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:text="@string/m"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_secondary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
             </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/line_distance_slider_row"
             android:layout_width="match_parent"
-            android:layout_height="36dp"
-            android:layout_marginTop="8dp"
+            android:layout_height="44dp"
+            android:layout_marginTop="6dp"
             android:background="@drawable/bg_slider_pill"
             android:paddingStart="10dp"
             android:paddingEnd="10dp"
@@ -197,7 +236,7 @@
             android:focusable="false">
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -212,10 +251,10 @@
                     android:contentDescription="@string/decrease" />
             </FrameLayout>
 
-            <com.example.droneservicesapp.ui.widgets.TouchDelegateSeekBar
+            <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
                 android:id="@+id/line_distance_seekbar"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="28dp"
                 android:layout_weight="1"
                 android:max="20"
                 android:min="2"
@@ -223,12 +262,12 @@
                 android:splitTrack="false"
                 android:progressDrawable="@drawable/seekbar_progress_dji"
                 android:thumb="@drawable/seekbar_thumb_dji"
-                android:minHeight="15dp"
+                android:minHeight="20dp"
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp" />
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -250,7 +289,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="12dp">
+        android:layout_marginBottom="10dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -263,9 +302,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/flight_altitude"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter" />
+                style="@style/TextAppearance.DroneServices.PanelLabel" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -283,25 +320,22 @@
                     android:cursorVisible="false"
                     android:gravity="end"
                     android:text="@string/unknown_value_three_questionmarks"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelValue" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:text="@string/m"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_secondary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
             </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/altitude_slider_row"
             android:layout_width="match_parent"
-            android:layout_height="36dp"
-            android:layout_marginTop="8dp"
+            android:layout_height="44dp"
+            android:layout_marginTop="6dp"
             android:background="@drawable/bg_slider_pill"
             android:paddingStart="10dp"
             android:paddingEnd="10dp"
@@ -311,7 +345,7 @@
             android:focusable="false">
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -326,10 +360,10 @@
                     android:contentDescription="@string/decrease" />
             </FrameLayout>
 
-            <com.example.droneservicesapp.ui.widgets.TouchDelegateSeekBar
+            <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
                 android:id="@+id/altitude_seekbar"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="28dp"
                 android:layout_weight="1"
                 android:max="20"
                 android:min="2"
@@ -337,12 +371,12 @@
                 android:splitTrack="false"
                 android:progressDrawable="@drawable/seekbar_progress_dji"
                 android:thumb="@drawable/seekbar_thumb_dji"
-                android:minHeight="15dp"
+                android:minHeight="20dp"
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp" />
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -364,7 +398,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical"
-        android:layout_marginBottom="14dp">
+        android:layout_marginBottom="12dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -377,9 +411,7 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/sprayer_intensity"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                android:fontFamily="@font/inter" />
+                style="@style/TextAppearance.DroneServices.PanelLabel" />
 
             <LinearLayout
                 android:layout_width="wrap_content"
@@ -397,25 +429,22 @@
                     android:cursorVisible="false"
                     android:gravity="end"
                     android:text="@string/unknown_value_three_questionmarks"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_primary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelValue" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="4dp"
                     android:text="@string/percentage_symbol"
-                    android:textSize="13sp"
-                    android:textColor="@color/text_secondary"
-                    android:fontFamily="@font/inter" />
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
             </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/sprayer_slider_row"
             android:layout_width="match_parent"
-            android:layout_height="36dp"
-            android:layout_marginTop="8dp"
+            android:layout_height="44dp"
+            android:layout_marginTop="6dp"
             android:background="@drawable/bg_slider_pill"
             android:paddingStart="10dp"
             android:paddingEnd="10dp"
@@ -423,7 +452,7 @@
             android:orientation="horizontal">
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -438,22 +467,22 @@
                     android:contentDescription="@string/decrease" />
             </FrameLayout>
 
-            <com.example.droneservicesapp.ui.widgets.TouchDelegateSeekBar
+            <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
                 android:id="@+id/sprayer_seekbar"
                 android:layout_width="0dp"
-                android:layout_height="wrap_content"
+                android:layout_height="28dp"
                 android:layout_weight="1"
                 android:max="100"
                 android:progress="0"
                 android:splitTrack="false"
                 android:progressDrawable="@drawable/seekbar_progress_dji"
                 android:thumb="@drawable/seekbar_thumb_dji"
-                android:minHeight="15dp"
+                android:minHeight="20dp"
                 android:paddingTop="0dp"
                 android:paddingBottom="0dp" />
 
             <FrameLayout
-                android:layout_width="48dp"
+                android:layout_width="42dp"
                 android:layout_height="48dp"
                 android:gravity="center">
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -475,14 +504,12 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="@string/flight_time"
-        android:textSize="13sp"
-        android:textColor="@color/text_secondary"
-        android:fontFamily="@font/inter" />
+        style="@style/TextAppearance.DroneServices.PanelLabel" />
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="36dp"
-        android:layout_marginTop="8dp"
+        android:layout_height="40dp"
+        android:layout_marginTop="6dp"
         android:background="@drawable/bg_slider_pill"
         android:paddingStart="10dp"
         android:paddingEnd="10dp"
@@ -498,9 +525,9 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_gravity="center"
-                android:background="@drawable/bg_icon_button_gold"
+                android:background="@drawable/bg_icon_button_neutral"
                 android:src="@drawable/ic_remove_24"
-                android:tint="@color/accent_gold"
+                android:tint="@color/text_secondary"
                 android:scaleType="centerInside"
                 android:contentDescription="@string/decrease" />
         </FrameLayout>
@@ -535,9 +562,9 @@
                 android:layout_width="24dp"
                 android:layout_height="24dp"
                 android:layout_gravity="center"
-                android:background="@drawable/bg_icon_button_gold"
+                android:background="@drawable/bg_icon_button_neutral"
                 android:src="@drawable/ic_add_24"
-                android:tint="@color/accent_gold"
+                android:tint="@color/text_secondary"
                 android:scaleType="centerInside"
                 android:contentDescription="@string/increase" />
         </FrameLayout>
@@ -560,46 +587,6 @@
             android:text="@string/mins"
             android:textSize="13sp"
             android:textColor="@color/text_secondary"
-            android:fontFamily="@font/inter" />
-    </LinearLayout>
-
-    <!-- ========= Actions ========= -->
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:orientation="vertical">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center">
-
-            <Button
-                android:id="@+id/save_mission"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:layout_marginEnd="10dp"
-                android:text="Save"
-                android:fontFamily="@font/inter" />
-
-            <Button
-                android:id="@+id/exit"
-                android:layout_width="0dp"
-                android:layout_height="40dp"
-                android:layout_weight="1"
-                android:text="@string/exit"
-                android:fontFamily="@font/inter" />
-        </LinearLayout>
-
-        <Button
-            android:id="@+id/uploadMission"
-            android:layout_width="match_parent"
-            android:layout_height="40dp"
-            android:layout_marginTop="10dp"
-            android:text="@string/upload_mission"
             android:fontFamily="@font/inter" />
     </LinearLayout>
 

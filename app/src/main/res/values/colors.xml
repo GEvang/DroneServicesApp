@@ -1,10 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="black">#FF000000</color>
-
     <!-- Base dark -->
     <color name="bg">#0B0B0D</color>
     <color name="surface">#121216</color>
@@ -14,7 +9,7 @@
     <color name="text_primary">#F2F2F3</color>
     <color name="text_secondary">#A7A7AD</color>
 
-    <!-- Accent (gold) -->
+    <!-- Legacy accent values retained for compatibility -->
     <color name="accent_gold">#D1B15C</color>
     <color name="accent_gold_dim">#9C8343</color>
 
@@ -31,4 +26,31 @@
     <color name="slider_thumb">#FFFFFF</color>        <!-- white knob -->
     <color name="slider_pill_bg">#1F2328</color>      <!-- pill container -->
     <color name="slider_end_btn_bg">#2B3036</color>   <!-- +/- button bg -->
+
+    <!-- Semantic design tokens -->
+    <color name="ds_color_background">@color/bg</color>
+    <color name="ds_color_surface_primary">@color/surface</color>
+    <color name="ds_color_surface_secondary">@color/surface_2</color>
+    <color name="ds_color_surface_tertiary">@color/slider_pill_bg</color>
+    <color name="ds_color_text_primary">@color/text_primary</color>
+    <color name="ds_color_text_secondary">@color/text_secondary</color>
+    <color name="ds_color_accent">@color/ds_color_shell_active</color>
+    <color name="ds_color_accent_dim">@color/ds_color_shell_active_dim</color>
+    <color name="ds_color_stroke">@color/stroke_subtle</color>
+    <color name="ds_color_button_on_accent">@color/ds_color_shell_selected_content</color>
+    <color name="ds_color_button_on_surface">@color/text_primary</color>
+    <color name="ds_color_control_pill">@color/slider_pill_bg</color>
+    <color name="ds_color_control_neutral">@color/slider_end_btn_bg</color>
+    <color name="ds_color_shell_scrim">#B30B0B0D</color>
+    <color name="ds_color_surface_elevated">#1B1B22</color>
+    <color name="ds_color_shell_overlay">#B8141618</color>
+    <color name="ds_color_shell_overlay_strong">#D0101214</color>
+    <color name="ds_color_shell_stroke">#4DFFFFFF</color>
+    <color name="ds_color_shell_active">#46F29C</color>
+    <color name="ds_color_shell_active_dim">#2ACB7E</color>
+    <color name="ds_color_shell_warning">#E4A640</color>
+    <color name="ds_color_shell_danger">#FF5B5B</color>
+    <color name="ds_color_shell_selected_surface">#F2F2F3</color>
+    <color name="ds_color_shell_selected_content">#111315</color>
+    <color name="ds_color_shell_unselected">#C9D0D6</color>
 </resources>

@@ -5,6 +5,37 @@
     <string name="menu_maps_home">Map</string>
     <string name="menu_settings">Settings</string>
     <string name="menu_rtk">RTK</string>
+    <string name="shell_operator_console">Operator Console</string>
+    <string name="shell_status_connected">LINK OK</string>
+    <string name="shell_status_disconnected">NO LINK</string>
+    <string name="shell_status_gps_placeholder">GPS: --</string>
+    <string name="shell_status_speed_placeholder">SPD: --</string>
+    <string name="shell_status_alt_prefix">ALT:</string>
+    <string name="shell_status_alt_placeholder">ALT: --</string>
+    <string name="home_panel_flight_settings">Flight Settings</string>
+    <string name="home_panel_flight_settings_subtitle">Survey geometry and spray profile</string>
+    <string name="home_panel_actions">Mission Actions</string>
+    <string name="home_panel_actions_subtitle">Save, exit, and upload the generated route</string>
+    <string name="home_panel_navigation_title">Navigation</string>
+    <string name="home_panel_top_actions">Workflow</string>
+    <string name="home_panel_top_actions_hint">Draw or load a mission from the bottom controls, then refine and upload here.</string>
+    <string name="planning">Planning</string>
+    <string name="relative">Relative</string>
+    <string name="terrain">Terrain</string>
+    <string name="preset_dakos">Preset: Dakos</string>
+    <string name="spray">Spray</string>
+    <string name="area">Area</string>
+    <string name="points">Points</string>
+    <string name="draw_area">Draw Area</string>
+    <string name="clear_area">Clear Area</string>
+    <string name="work_in_progress">Work in progress</string>
+    <string name="home_panel_instruction_title">Instructions</string>
+    <string name="home_panel_mode_title">Mode Select</string>
+    <string name="home_panel_operator_title">Actions</string>
+    <string name="home_avoidance_front">Front avoidance</string>
+    <string name="home_avoidance_back">Rear avoidance</string>
+    <string name="home_avoidance_unknown">-- m</string>
+    <string name="home_offline_download">Download current map area for offline use</string>
 
 
     <string name="my_location_button_desc">My Location Button</string>
@@ -13,6 +44,8 @@
     <string name="accept">Accept</string>
     <string name="erase">Erase</string>
     <string name="cancel">Cancel</string>
+    <string name="decline">Decline</string>
+    <string name="clear">Clear</string>
     <string name="upload_mission">Upload Mission</string>
     <string name="exit">Exit</string>
     <string name="flight_altitude">Mission Altitude</string>
@@ -43,6 +76,8 @@
     <string name="drone_con_props_title_pref">Drone Connection Properties</string>
     <string name="rtk">RTK</string>
     <string name="rtk_title">RTK</string>
+    <string name="rtk_console_subtitle">Configure caster access and monitor live correction flow.</string>
+    <string name="rtk_connection_section_title">Caster Access</string>
     <string name="rtk_ip">IP</string>
     <string name="rtk_port">Port</string>
     <string name="rtk_mountpoint">Mountpoint</string>
@@ -56,6 +91,7 @@
     <string name="rtk_forwarding_status">Forwarding Status</string>
     <string name="rtk_gps_debug_status">ArduPilot GPS Debug</string>
     <string name="rtk_gps_debug_default">Fix: -- | Sats: -- | Last GPS: --</string>
+    <string name="rtk_gps_debug_summary">Src: %1$s | Fix: %2$s | Sats: %3$s | HDOP: %4$s | EPH: %5$s | Last GPS: %6$s</string>
     <string name="rtk_keep_awake_hint">RTK auto-runs when mountpoint, internet, drone, and GPS prerequisites are ready. This screen stays awake while open.</string>
     <string name="rtk_keep_alive_notification_title">RTK forwarding active</string>
     <string name="rtk_keep_alive_notification_active">Keeping RTK streaming alive while the device is locked.</string>
@@ -125,4 +161,20 @@
     <string name="DroneServicesFilePageSuffix" translatable="false">.dsfp</string>
     <string name="decrease">Decrease values</string>
     <string name="increase">Increase values</string>
+    <string name="no_saved_missions_yet">No missions saved yet</string>
+    <string name="no_area_model_available">No area model available</string>
+    <string name="polygon_requires_three_points">Polygon must have at least 3 points</string>
+    <string name="drone_gps_not_available_yet">Drone GPS not available yet</string>
+    <string name="no_survey_path_available">No survey path available. Please generate survey first.</string>
+    <string name="missing_mission_parameters">Missing mission parameters</string>
+    <string name="waiting_for_gps_fix">Waiting for GPS fix...</string>
+    <string name="drone_location_not_available_yet">Drone location not available yet</string>
+    <string name="upload_complete">Upload complete</string>
+    <string name="upload_failed_with_reason">Upload failed: %1$s</string>
+    <string name="offline_download_started">Offline download started</string>
+    <string name="offline_download_complete">Offline download complete</string>
+    <string name="offline_download_failed">Offline download failed (%1$d)</string>
+    <string name="cache_directory_not_found">Cache directory not found</string>
+    <string name="offline_map_cache_cleared">Offline map cache cleared</string>
+    <string name="failed_to_clear_cache">Failed to clear cache (some files may be locked)</string>
 </resources>

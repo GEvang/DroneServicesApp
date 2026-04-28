@@ -4,6 +4,40 @@
     <dimen name="activity_vertical_margin">16dp</dimen>
     <dimen name="nav_header_height">176dp</dimen>
 
+    <!-- Design system spacing -->
+    <dimen name="ds_space_xs">4dp</dimen>
+    <dimen name="ds_space_sm">8dp</dimen>
+    <dimen name="ds_space_md">12dp</dimen>
+    <dimen name="ds_space_lg">16dp</dimen>
+    <dimen name="ds_space_xl">24dp</dimen>
+
+    <!-- Design system radii -->
+    <dimen name="ds_radius_sm">10dp</dimen>
+    <dimen name="ds_radius_md">14dp</dimen>
+    <dimen name="ds_radius_lg">16dp</dimen>
+    <dimen name="ds_radius_round">24dp</dimen>
+
+    <!-- Compact chrome sizing -->
+    <dimen name="ds_toolbar_height">56dp</dimen>
+    <dimen name="ds_status_text_size">13sp</dimen>
+    <dimen name="ds_fab_icon_size">25dp</dimen>
+    <dimen name="ds_panel_min_width">320dp</dimen>
+    <dimen name="ds_panel_max_width">420dp</dimen>
+    <dimen name="ds_compact_button_height">40dp</dimen>
+    <dimen name="ds_compact_icon_button_size">24dp</dimen>
+    <dimen name="ds_panel_label_text_size">13sp</dimen>
+    <dimen name="ds_panel_value_text_size">13sp</dimen>
+    <dimen name="ds_shell_drawer_width">304dp</dimen>
+    <dimen name="ds_shell_nav_height">60dp</dimen>
+    <dimen name="ds_shell_nav_icon_size">22dp</dimen>
+    <dimen name="ds_shell_toolbar_icon_size">18dp</dimen>
+    <dimen name="ds_shell_header_title_size">15sp</dimen>
+    <dimen name="ds_shell_header_subtitle_size">12sp</dimen>
+    <dimen name="ds_shell_toolbar_pill_height">40dp</dimen>
+    <dimen name="ds_shell_status_segment_height">30dp</dimen>
+    <dimen name="ds_shell_floating_nav_margin">24dp</dimen>
+    <dimen name="ds_overlay_horizontal_margin">24dp</dimen>
+
     <!-- Overriding sizes of the FAB -->
 
 

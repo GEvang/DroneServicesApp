@@ -1,16 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
 <selector xmlns:android="http://schemas.android.com/apk/res/android">
     <item android:state_checked="true">
-        <shape>
-            <solid android:color="@color/surface_2"/>
-            <corners android:radius="14dp"/>
-            <stroke android:width="1dp" android:color="@color/accent_gold"/>
-        </shape>
+        <inset
+            android:insetLeft="@dimen/ds_space_sm"
+            android:insetTop="@dimen/ds_space_xs"
+            android:insetRight="@dimen/ds_space_sm"
+            android:insetBottom="@dimen/ds_space_xs">
+            <shape>
+                <solid android:color="@color/ds_color_surface_secondary"/>
+                <corners android:radius="@dimen/ds_radius_md"/>
+                <stroke android:width="1dp" android:color="@color/ds_color_accent"/>
+            </shape>
+        </inset>
     </item>
     <item>
-        <shape>
-            <solid android:color="@android:color/transparent"/>
-            <corners android:radius="14dp"/>
-        </shape>
+        <inset
+            android:insetLeft="@dimen/ds_space_sm"
+            android:insetTop="@dimen/ds_space_xs"
+            android:insetRight="@dimen/ds_space_sm"
+            android:insetBottom="@dimen/ds_space_xs">
+            <shape>
+                <solid android:color="@android:color/transparent"/>
+                <corners android:radius="@dimen/ds_radius_md"/>
+            </shape>
+        </inset>
     </item>
 </selector>

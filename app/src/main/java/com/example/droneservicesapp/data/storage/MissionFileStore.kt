@@ -33,7 +33,10 @@ class MissionFileStore(
      */
     fun listMissionFiles(): List<File> {
         val dir = baseDir
-        return dir.listFiles()?.toList() ?: emptyList()
+        return dir.listFiles()
+            ?.filter { it.isFile && it.name.endsWith(context.getString(R.string.DroneServicesFilePageSuffix)) }
+            ?.toList()
+            ?: emptyList()
     }
     
     /**
@@ -65,7 +68,8 @@ class MissionFileStore(
         
         val dir = baseDir
         val suffix = context.getString(R.string.DroneServicesFilePageSuffix)
-        val file = File(dir, fileName.plus(suffix))
+        val normalizedName = fileName.trim()
+        val file = File(dir, normalizedName.plus(suffix))
         
         // Check if file exists
         if (file.exists()) {
@@ -86,7 +90,7 @@ class MissionFileStore(
             // Root element
             val root = doc.createElement("field")
             root.setAttribute("Title", "Drone Services Area/Mission Parameters")
-            root.setAttribute("Name", fileName)
+            root.setAttribute("Name", normalizedName)
             doc.appendChild(root)
             
             // Altitude

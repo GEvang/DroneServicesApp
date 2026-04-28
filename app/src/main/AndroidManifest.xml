@@ -29,10 +29,10 @@
             android:value="@string/google_maps_key" />
 
         <activity
-            android:name=".ui.main.MainActivity"
+            android:name=".ui.shell.MainActivity"
             android:exported="true"
             android:screenOrientation="landscape"
-            android:theme="@style/Theme.DroneServicesApp.NoActionBar">
+            android:theme="@style/Theme.DroneServicesApp.Startup">
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
