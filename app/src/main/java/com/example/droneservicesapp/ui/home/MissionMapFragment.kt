@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
@@ -19,7 +20,12 @@ import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.geoawareness.GeoZoneAssetDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
 import com.example.droneservicesapp.data.storage.MissionFileStore
+import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessChecker
+import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessResult
+import com.example.droneservicesapp.domain.geoawareness.GeoConflictType
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneConflict
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
@@ -34,6 +40,7 @@ import com.example.droneservicesapp.ui.home.binders.MissionSaveController
 import com.example.droneservicesapp.ui.home.components.EsriWorldImageryTileSource
 import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
 import com.example.droneservicesapp.ui.home.components.OsmdroidPolygonEditor
+import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessStatusViewBinder
 import com.example.droneservicesapp.ui.home.geoawareness.GeoZoneOverlayController
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
@@ -70,6 +77,9 @@ class MissionMapFragment : Fragment() {
     private var geoAwarenessZones: List<GeoZone> = emptyList()
     private var isGeoAwarenessLayerVisible: Boolean = true
     private var geoZoneOverlayController: GeoZoneOverlayController? = null
+    private var geoAwarenessChecker: GeoAwarenessChecker? = null
+    private var latestGeoAwarenessResult: GeoAwarenessResult = GeoAwarenessResult.clear()
+    private var geoAwarenessStatusBinder: GeoAwarenessStatusViewBinder? = null
     private var hasCenteredInitialViewport = false
     private var hasCenteredToDrone = false
     private var initialCenterAttemptCount = 0
@@ -81,6 +91,7 @@ class MissionMapFragment : Fragment() {
         private const val OFFLINE_MIN_ZOOM = 14
         private const val OFFLINE_MAX_ZOOM = 18
         private const val GEO_ZONE_TOGGLE_TAG = "GeoZoneToggle"
+        private const val GEO_PLANNING_STATUS_TAG = "GeoPlanningStatus"
     }
 
     override fun onCreateView(
@@ -129,9 +140,19 @@ class MissionMapFragment : Fragment() {
         osmdroidPolygonEditor.init()
 
         geoZoneOverlayController = GeoZoneOverlayController(requireContext(), mapView)
+        geoAwarenessChecker = GeoAwarenessChecker()
+        geoAwarenessStatusBinder = GeoAwarenessStatusViewBinder(
+            requireContext(),
+            binding.geoAwarenessStatusChip
+        )
         loadGeoAwarenessZonesIfNeeded()
         renderGeoAwarenessLayerIfVisible()
         updateGeoZoneToggleButton()
+        geoAwarenessStatusBinder?.clear()
+        geoAwarenessStatusBinder?.setOnClickListener(View.OnClickListener {
+            showGeoAwarenessPlanningDetails()
+        })
+        updateGeoAwarenessPlanningStatus()
     }
 
     private fun initControllers() {
@@ -325,6 +346,7 @@ class MissionMapFragment : Fragment() {
             val vertices = missionArea?.vertices ?: emptyList()
             mapViewModel.setMissionAreaAvailable(vertices.size >= 3)
             osmdroidPolygonEditor.setVertices(vertices)
+            updateGeoAwarenessPlanningStatus()
         }
 
         droneViewModel.missionItems.observe(viewLifecycleOwner) { missionItems ->
@@ -379,11 +401,13 @@ class MissionMapFragment : Fragment() {
                     altitude.toInt().toString()
                 )
             }
+            updateGeoAwarenessPlanningStatus()
         })
 
         activityViewModel.surveyPath.observe(viewLifecycleOwner) { surveyPath ->
             val hasPolygon = (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
             mapViewModel.setMissionAreaAvailable(hasPolygon || !surveyPath.isNullOrEmpty())
+            updateGeoAwarenessPlanningStatus()
         }
 
         activityViewModel.mapState.observe(viewLifecycleOwner) { mapState ->
@@ -555,6 +579,8 @@ class MissionMapFragment : Fragment() {
     override fun onDestroyView() {
         geoZoneOverlayController?.clear()
         geoZoneOverlayController = null
+        geoAwarenessStatusBinder = null
+        geoAwarenessChecker = null
         super.onDestroyView()
         _binding = null
     }
@@ -668,6 +694,113 @@ class MissionMapFragment : Fragment() {
             "Geo: ON"
         } else {
             "Geo: OFF"
+        }
+    }
+
+    private fun updateGeoAwarenessPlanningStatus() {
+        if (_binding == null) {
+            return
+        }
+
+        val missionPolygon = activityViewModel.missionArea.value?.vertices
+            ?.takeIf { it.isNotEmpty() }
+            ?.map { LatLon(lat = it.latitude, lon = it.longitude) }
+        val surveyPath = activityViewModel.surveyPath.value
+            ?.takeIf { it.isNotEmpty() }
+            ?.map { LatLon(lat = it.latitude, lon = it.longitude) }
+            .orEmpty()
+        val altitudeMeters = activityViewModel.flightAltProgress.value?.toDouble()
+        // TODO: Confirm altitude source unit is meters.
+
+        if (missionPolygon.isNullOrEmpty() && surveyPath.isEmpty()) {
+            latestGeoAwarenessResult = GeoAwarenessResult.clear()
+            geoAwarenessStatusBinder?.bindResult(latestGeoAwarenessResult)
+            return
+        }
+
+        if (!loadGeoAwarenessZonesIfNeeded()) {
+            latestGeoAwarenessResult = GeoAwarenessResult.clear()
+            geoAwarenessStatusBinder?.bindResult(latestGeoAwarenessResult)
+            return
+        }
+
+        val result = geoAwarenessChecker?.checkMission(
+            missionPolygon = missionPolygon,
+            surveyPath = surveyPath,
+            missionAltitudeMeters = altitudeMeters,
+            zones = geoAwarenessZones
+        ) ?: GeoAwarenessResult.clear()
+
+        latestGeoAwarenessResult = result
+        geoAwarenessStatusBinder?.bindResult(result)
+        Log.d(
+            GEO_PLANNING_STATUS_TAG,
+            "Planning geo-awareness updated: conflicts=${result.conflicts.size} highest=${result.highestRestriction} canUpload=${result.canUpload}"
+        )
+    }
+
+    private fun showGeoAwarenessPlanningDetails() {
+        val result = latestGeoAwarenessResult
+        val title: String
+        val message: String
+
+        if (!result.hasConflicts) {
+            title = "Geo-awareness"
+            message = buildString {
+                appendLine("No dummy geo-zone conflicts detected for the current mission plan.")
+                append("Development-only dummy data. Verify official restrictions in DAGR before flight.")
+            }
+        } else {
+            val orderedConflicts = result.conflicts.sortedWith(
+                compareByDescending<GeoZoneConflict> { restrictionRank(it.restriction) }
+                    .thenBy { it.zone.name }
+                    .thenBy { it.conflictType.name }
+            )
+            val visibleConflicts = orderedConflicts.take(6)
+            val remainingCount = orderedConflicts.size - visibleConflicts.size
+
+            title = "Geo-awareness warning"
+            message = buildString {
+                appendLine("Highest restriction: ${result.highestRestriction}")
+                appendLine("Upload allowed: ${if (result.canUpload) "Yes" else "No"}")
+                appendLine("Acknowledgement required: ${if (result.requiresAcknowledgement) "Yes" else "No"}")
+                appendLine()
+                visibleConflicts.forEach { conflict ->
+                    appendLine("- ${conflict.zone.name}")
+                    appendLine("  Restriction: ${conflict.restriction}")
+                    appendLine("  Type: ${formatConflictType(conflict.conflictType)}")
+                    appendLine("  Message: ${conflict.message ?: "No message"}")
+                }
+                if (remainingCount > 0) {
+                    appendLine("...and $remainingCount more.")
+                }
+                append("Development-only dummy data. Verify official restrictions in DAGR before flight.")
+            }
+        }
+
+        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+    }
+
+    private fun formatConflictType(conflictType: GeoConflictType): String {
+        return when (conflictType) {
+            GeoConflictType.MISSION_AREA_INTERSECTS_ZONE -> "Mission area intersects zone"
+            GeoConflictType.SURVEY_PATH_INTERSECTS_ZONE -> "Survey path intersects zone"
+            GeoConflictType.WAYPOINT_INSIDE_ZONE -> "Waypoint inside zone"
+        }
+    }
+
+    private fun restrictionRank(restriction: GeoZoneRestriction): Int {
+        return when (restriction) {
+            GeoZoneRestriction.PROHIBITED -> 4
+            GeoZoneRestriction.REQ_AUTHORISATION -> 3
+            GeoZoneRestriction.CONDITIONAL -> 2
+            GeoZoneRestriction.INFORMATION -> 1
+            GeoZoneRestriction.UNKNOWN -> 0
         }
     }
 }
