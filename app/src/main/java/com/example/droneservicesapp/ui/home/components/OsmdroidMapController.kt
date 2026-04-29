@@ -28,6 +28,7 @@ class OsmdroidMapController(
     companion object {
         private const val POSITION_EPSILON = 1e-7
         private const val HEADING_EPSILON_DEGREES = 0.5f
+        private const val MIN_VALID_ABS_COORDINATE = 1e-4
     }
 
     private var myLocationOverlay: MyLocationNewOverlay? = null
@@ -86,7 +87,7 @@ class OsmdroidMapController(
         }
 
         val point = myLocationOverlay?.myLocation
-        return if (point != null) {
+        return if (point != null && isValidMapPoint(point.latitude, point.longitude)) {
             mapView.controller.animateTo(point)
             true
         } else {
@@ -110,6 +111,10 @@ class OsmdroidMapController(
     }
 
     fun updateDronePosition(latitude: Double, longitude: Double) {
+        if (!isValidMapPoint(latitude, longitude)) {
+            return
+        }
+
         val changed = droneMarker?.let { marker ->
             val current = marker.position
             val positionChanged =
@@ -146,7 +151,7 @@ class OsmdroidMapController(
 
     fun centerOnDrone(): Boolean {
         val marker = droneMarker
-        return if (marker != null && marker.isEnabled) {
+        return if (marker != null && marker.isEnabled && isValidMapPoint(marker.position.latitude, marker.position.longitude)) {
             mapView.controller.animateTo(marker.position)
             true
         } else {
@@ -178,5 +183,18 @@ class OsmdroidMapController(
 
     private fun requestMapRedraw() {
         mapView.postInvalidateOnAnimation()
+    }
+
+    private fun isValidMapPoint(latitude: Double, longitude: Double): Boolean {
+        if (!latitude.isFinite() || !longitude.isFinite()) {
+            return false
+        }
+
+        if (latitude !in -90.0..90.0 || longitude !in -180.0..180.0) {
+            return false
+        }
+
+        return kotlin.math.abs(latitude) > MIN_VALID_ABS_COORDINATE ||
+            kotlin.math.abs(longitude) > MIN_VALID_ABS_COORDINATE
     }
 }

@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.ui.home
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -15,6 +16,8 @@ import androidx.preference.PreferenceManager
 import androidx.appcompat.widget.Toolbar
 import androidx.drawerlayout.widget.DrawerLayout
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.data.geoawareness.GeoZoneAssetDataSource
+import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
@@ -30,6 +33,7 @@ import com.example.droneservicesapp.ui.home.binders.MissionSaveController
 import com.example.droneservicesapp.ui.home.components.EsriWorldImageryTileSource
 import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
 import com.example.droneservicesapp.ui.home.components.OsmdroidPolygonEditor
+import com.example.droneservicesapp.ui.home.geoawareness.GeoZoneOverlayController
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
@@ -61,6 +65,7 @@ class MissionMapFragment : Fragment() {
     private lateinit var homeMapTelemetryBinder: HomeMapTelemetryBinder
     private lateinit var osmdroidMapController: OsmdroidMapController
     private lateinit var osmdroidPolygonEditor: OsmdroidPolygonEditor
+    private lateinit var geoZoneOverlayController: GeoZoneOverlayController
     private lateinit var missionFileStore: MissionFileStore
     private var hasCenteredInitialViewport = false
     private var hasCenteredToDrone = false
@@ -68,11 +73,11 @@ class MissionMapFragment : Fragment() {
 
     companion object {
         private const val DEFAULT_MAP_ZOOM = 18.0
-        private const val DEFAULT_MAP_LAT = 35.36449
-        private const val DEFAULT_MAP_LON = 24.48730
+        private const val DEFAULT_MAP_LAT = 35.3643003
+        private const val DEFAULT_MAP_LON = 24.4721854
         private const val OFFLINE_MIN_ZOOM = 14
         private const val OFFLINE_MAX_ZOOM = 18
-
+        private const val GEO_ZONE_TAG = "GeoZoneOverlay"
     }
 
     override fun onCreateView(
@@ -119,6 +124,9 @@ class MissionMapFragment : Fragment() {
 
         osmdroidPolygonEditor = OsmdroidPolygonEditor(requireActivity(), activityViewModel, mapView)
         osmdroidPolygonEditor.init()
+
+        geoZoneOverlayController = GeoZoneOverlayController(requireContext(), mapView)
+        renderDummyGeoZones()
     }
 
     private fun initControllers() {
@@ -535,6 +543,9 @@ class MissionMapFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        if (::geoZoneOverlayController.isInitialized) {
+            geoZoneOverlayController.clear()
+        }
         super.onDestroyView()
         _binding = null
     }
@@ -580,6 +591,19 @@ class MissionMapFragment : Fragment() {
             hasCenteredInitialViewport = true
         } else {
             centerInitialViewportIfNeeded()
+        }
+    }
+
+    private fun renderDummyGeoZones() {
+        try {
+            val repository = GeoZoneRepository(
+                GeoZoneAssetDataSource(requireContext().applicationContext)
+            )
+            val zones = repository.loadDummyRethymnoZones()
+            geoZoneOverlayController.renderZones(zones)
+            Log.d(GEO_ZONE_TAG, "Rendered ${zones.size} geo-awareness dummy zones")
+        } catch (error: Exception) {
+            Log.e(GEO_ZONE_TAG, "Failed to render geo-awareness dummy zones", error)
         }
     }
 }
