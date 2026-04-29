@@ -33,6 +33,8 @@ public class Application extends android.app.Application {
 
         if (BuildConfig.DEBUG) {
             com.example.droneservicesapp.data.geoawareness.GeoAwarenessDebugProbe.INSTANCE.logDummyRethymnoZones(this);
+            com.example.droneservicesapp.data.geoawareness.GeoAwarenessGeometryDebugProbe.INSTANCE.logGeometryValidation(this);
+            com.example.droneservicesapp.data.geoawareness.GeoAwarenessCheckerDebugProbe.INSTANCE.logCheckerValidation(this);
         }
 
     }

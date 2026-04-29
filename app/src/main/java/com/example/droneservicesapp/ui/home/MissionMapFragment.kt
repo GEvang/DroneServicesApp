@@ -19,6 +19,7 @@ import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.geoawareness.GeoZoneAssetDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
 import com.example.droneservicesapp.data.storage.MissionFileStore
+import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
@@ -65,8 +66,10 @@ class MissionMapFragment : Fragment() {
     private lateinit var homeMapTelemetryBinder: HomeMapTelemetryBinder
     private lateinit var osmdroidMapController: OsmdroidMapController
     private lateinit var osmdroidPolygonEditor: OsmdroidPolygonEditor
-    private lateinit var geoZoneOverlayController: GeoZoneOverlayController
     private lateinit var missionFileStore: MissionFileStore
+    private var geoAwarenessZones: List<GeoZone> = emptyList()
+    private var isGeoAwarenessLayerVisible: Boolean = true
+    private var geoZoneOverlayController: GeoZoneOverlayController? = null
     private var hasCenteredInitialViewport = false
     private var hasCenteredToDrone = false
     private var initialCenterAttemptCount = 0
@@ -77,7 +80,7 @@ class MissionMapFragment : Fragment() {
         private const val DEFAULT_MAP_LON = 24.4721854
         private const val OFFLINE_MIN_ZOOM = 14
         private const val OFFLINE_MAX_ZOOM = 18
-        private const val GEO_ZONE_TAG = "GeoZoneOverlay"
+        private const val GEO_ZONE_TOGGLE_TAG = "GeoZoneToggle"
     }
 
     override fun onCreateView(
@@ -126,7 +129,9 @@ class MissionMapFragment : Fragment() {
         osmdroidPolygonEditor.init()
 
         geoZoneOverlayController = GeoZoneOverlayController(requireContext(), mapView)
-        renderDummyGeoZones()
+        loadGeoAwarenessZonesIfNeeded()
+        renderGeoAwarenessLayerIfVisible()
+        updateGeoZoneToggleButton()
     }
 
     private fun initControllers() {
@@ -249,6 +254,11 @@ class MissionMapFragment : Fragment() {
         requireView().findViewById<TextView>(R.id.right_panel_clear_area_button).setOnClickListener {
             activityViewModel.sendAction(MainActivityViewModel.MapAction.ClearAreaOnly)
         }
+
+        binding.utilityGeoZonesButton.setOnClickListener {
+            toggleGeoAwarenessLayer()
+        }
+        updateGeoZoneToggleButton()
 
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
     }
@@ -543,9 +553,8 @@ class MissionMapFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        if (::geoZoneOverlayController.isInitialized) {
-            geoZoneOverlayController.clear()
-        }
+        geoZoneOverlayController?.clear()
+        geoZoneOverlayController = null
         super.onDestroyView()
         _binding = null
     }
@@ -594,16 +603,71 @@ class MissionMapFragment : Fragment() {
         }
     }
 
-    private fun renderDummyGeoZones() {
+    private fun loadGeoAwarenessZonesIfNeeded(): Boolean {
+        if (geoAwarenessZones.isNotEmpty()) {
+            return true
+        }
+
         try {
             val repository = GeoZoneRepository(
                 GeoZoneAssetDataSource(requireContext().applicationContext)
             )
-            val zones = repository.loadDummyRethymnoZones()
-            geoZoneOverlayController.renderZones(zones)
-            Log.d(GEO_ZONE_TAG, "Rendered ${zones.size} geo-awareness dummy zones")
+            geoAwarenessZones = repository.loadDummyRethymnoZones()
+            return true
         } catch (error: Exception) {
-            Log.e(GEO_ZONE_TAG, "Failed to render geo-awareness dummy zones", error)
+            Log.e(GEO_ZONE_TOGGLE_TAG, "Failed to load geo-awareness dummy zones", error)
+            if (_binding != null) {
+                binding.utilityGeoZonesButton.text = "Geo: ERR"
+            }
+        }
+
+        return false
+    }
+
+    private fun renderGeoAwarenessLayerIfVisible() {
+        if (!isGeoAwarenessLayerVisible) {
+            geoZoneOverlayController?.clear()
+            updateGeoZoneToggleButton()
+            return
+        }
+
+        if (!loadGeoAwarenessZonesIfNeeded()) {
+            return
+        }
+
+        geoZoneOverlayController?.renderZones(geoAwarenessZones)
+        Log.d(GEO_ZONE_TOGGLE_TAG, "Geo-awareness layer shown")
+        updateGeoZoneToggleButton()
+    }
+
+    private fun toggleGeoAwarenessLayer() {
+        if (isGeoAwarenessLayerVisible) {
+            geoZoneOverlayController?.clear()
+            isGeoAwarenessLayerVisible = false
+            updateGeoZoneToggleButton()
+            Log.d(GEO_ZONE_TOGGLE_TAG, "Geo-awareness layer hidden")
+            return
+        }
+
+        if (!loadGeoAwarenessZonesIfNeeded()) {
+            return
+        }
+
+        geoZoneOverlayController?.renderZones(geoAwarenessZones)
+        isGeoAwarenessLayerVisible = true
+        updateGeoZoneToggleButton()
+        Log.d(GEO_ZONE_TOGGLE_TAG, "Geo-awareness layer shown")
+    }
+
+    private fun updateGeoZoneToggleButton() {
+        if (_binding == null) {
+            return
+        }
+
+        binding.utilityGeoZonesButton.text = if (isGeoAwarenessLayerVisible) {
+            "Geo: ON"
+        } else {
+            "Geo: OFF"
         }
     }
 }

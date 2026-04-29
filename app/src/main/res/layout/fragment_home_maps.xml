@@ -153,6 +153,24 @@
                 android:src="@android:drawable/stat_sys_download"
                 android:tint="@android:color/white" />
 
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/utility_geo_zones_button"
+                android:layout_width="wrap_content"
+                android:layout_height="42dp"
+                android:layout_marginEnd="8dp"
+                android:background="@drawable/bg_bottom_dock_button"
+                android:fontFamily="@font/inter"
+                android:insetTop="0dp"
+                android:insetBottom="0dp"
+                android:minWidth="0dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="Geo: ON"
+                android:textAllCaps="false"
+                android:textColor="@android:color/white"
+                android:textSize="14sp"
+                android:textStyle="bold" />
+
             <Space
                 android:layout_width="0dp"
                 android:layout_height="1dp"
