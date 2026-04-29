@@ -1,37 +1,44 @@
 <resources xmlns:tools="http://schemas.android.com/tools">
 
     <!-- Base application theme -->
-    <style name="Theme.DroneServicesApp" parent="Theme.MaterialComponents.DayNight.NoActionBar">
+    <style name="Theme.DroneServicesApp" parent="Theme.MaterialComponents.Light.NoActionBar">
 
         <!-- Global font -->
-        <item name="android:fontFamily">@font/inter</item>
-        <item name="fontFamily">@font/inter</item>
+        <item name="android:fontFamily">sans-serif</item>
+        <item name="fontFamily">sans-serif</item>
 
         <!-- Core colors -->
-        <item name="colorPrimary">@color/ds_color_accent</item>
-        <item name="colorPrimaryVariant">@color/ds_color_accent_dim</item>
-        <item name="colorSecondary">@color/ds_color_accent</item>
+        <item name="colorPrimary">@color/app_light_primary</item>
+        <item name="colorPrimaryVariant">@color/app_light_primary_dark</item>
+        <item name="colorPrimaryDark">@color/app_light_primary_dark</item>
+        <item name="colorSecondary">@color/app_light_accent</item>
+        <item name="colorAccent">@color/app_light_accent</item>
+        <item name="android:colorAccent">@color/app_light_accent</item>
 
         <!-- App surfaces -->
-        <item name="android:colorBackground">@color/ds_color_background</item>
-        <item name="colorSurface">@color/ds_color_surface_primary</item>
+        <item name="android:colorBackground">@color/app_light_background</item>
+        <item name="colorSurface">@color/app_light_surface</item>
 
         <!-- Text -->
-        <item name="android:textColorPrimary">@color/ds_color_text_primary</item>
-        <item name="android:textColorSecondary">@color/ds_color_text_secondary</item>
+        <item name="android:textColorPrimary">@color/app_light_text_primary</item>
+        <item name="android:textColorSecondary">@color/app_light_text_secondary</item>
 
-        <!-- Common Material defaults that help on dark UI -->
-        <item name="android:statusBarColor">@color/ds_color_background</item>
-        <item name="android:navigationBarColor">@color/ds_color_background</item>
+        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
 
-        <!-- Optional: helps Material components pick correct contrast -->
-        <item name="colorOnPrimary">@color/ds_color_background</item>
-        <item name="colorOnSurface">@color/ds_color_text_primary</item>
-        <item name="colorOnBackground">@color/ds_color_text_primary</item>
-        <item name="colorControlNormal">@color/ds_color_text_primary</item>
+        <!-- Common Material defaults -->
+        <item name="android:statusBarColor">@color/app_light_background</item>
+        <item name="android:navigationBarColor">@color/app_light_background</item>
+
+        <item name="colorOnPrimary">@color/app_light_background</item>
+        <item name="colorOnSurface">@color/app_light_text_primary</item>
+        <item name="colorOnBackground">@color/app_light_text_primary</item>
+        <item name="colorControlNormal">@color/app_light_text_primary</item>
         <item name="editTextStyle">@style/Widget.DroneServices.TextInputEditText</item>
         <item name="textInputStyle">@style/Widget.DroneServices.TextInputLayout</item>
         <item name="materialButtonStyle">@style/Widget.DroneServices.Button.Material.Primary</item>
+        <item name="alertDialogTheme">@style/Theme.DroneServicesApp.AlertDialog</item>
+        <item name="android:alertDialogTheme">@style/Theme.DroneServicesApp.AlertDialog</item>
+        <item name="materialAlertDialogTheme">@style/Theme.DroneServicesApp.AlertDialog</item>
 
     </style>
 
@@ -42,6 +49,15 @@
 
     <style name="Theme.DroneServicesApp.Startup" parent="Theme.DroneServicesApp.NoActionBar">
         <item name="android:windowBackground">@drawable/bg_startup_logo</item>
+    </style>
+
+    <style name="Theme.DroneServicesApp.AlertDialog" parent="ThemeOverlay.AppCompat.Dialog.Alert">
+        <item name="android:windowBackground">@color/app_light_background</item>
+        <item name="android:colorAccent">@color/app_light_accent</item>
+        <item name="colorAccent">@color/app_light_accent</item>
+        <item name="android:textColorPrimary">@color/app_light_text_primary</item>
+        <item name="android:textColorSecondary">@color/app_light_text_secondary</item>
+        <item name="android:backgroundDimEnabled">true</item>
     </style>
 
     <!-- FIXED: removed the stray extra '>' -->

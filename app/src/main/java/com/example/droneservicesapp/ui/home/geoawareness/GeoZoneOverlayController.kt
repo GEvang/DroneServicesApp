@@ -3,6 +3,7 @@ package com.example.droneservicesapp.ui.home.geoawareness
 import android.content.Context
 import android.graphics.Color
 import androidx.appcompat.app.AlertDialog
+import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneGeometry
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
@@ -99,11 +100,12 @@ class GeoZoneOverlayController(
             append("Dummy data notice: Development-only dummy data. Verify official restrictions in DAGR before flight.")
         }
 
-        AlertDialog.Builder(context)
+        val dialog = AlertDialog.Builder(context, R.style.Theme_DroneServicesApp_AlertDialog)
             .setTitle(zone.name)
             .setMessage(message)
             .setPositiveButton(android.R.string.ok, null)
             .show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(Color.parseColor("#212121"))
     }
 
     private fun formatAltitude(geometry: GeoZoneGeometry): String {

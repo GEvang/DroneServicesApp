@@ -3,6 +3,8 @@ package com.example.droneservicesapp;
 import android.content.Context;
 import android.preference.PreferenceManager;
 
+import androidx.appcompat.app.AppCompatDelegate;
+
 import com.example.droneservicesapp.core.util.LocaleUtils;
 
 import org.osmdroid.config.Configuration;
@@ -18,6 +20,7 @@ public class Application extends android.app.Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
         applicationInstance = this;
 
         // osmdroid init (required)
