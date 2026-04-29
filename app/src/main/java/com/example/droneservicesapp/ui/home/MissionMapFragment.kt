@@ -92,6 +92,7 @@ class MissionMapFragment : Fragment() {
         private const val OFFLINE_MAX_ZOOM = 18
         private const val GEO_ZONE_TOGGLE_TAG = "GeoZoneToggle"
         private const val GEO_PLANNING_STATUS_TAG = "GeoPlanningStatus"
+        private const val GEO_UPLOAD_GUARD_TAG = "GeoUploadGuard"
     }
 
     override fun onCreateView(
@@ -173,7 +174,10 @@ class MissionMapFragment : Fragment() {
             rootView = requireView(),
             lifecycleOwner = viewLifecycleOwner,
             activityViewModel = activityViewModel,
-            droneViewModel = droneViewModel
+            droneViewModel = droneViewModel,
+            beforeUploadGuard = { onAllowed ->
+                handleGeoAwarenessBeforeUpload(onAllowed)
+            }
         )
 
         missionSaveController = MissionSaveController(
@@ -702,6 +706,15 @@ class MissionMapFragment : Fragment() {
             return
         }
 
+        latestGeoAwarenessResult = calculateGeoAwarenessPlanningResult()
+        geoAwarenessStatusBinder?.bindResult(latestGeoAwarenessResult)
+        Log.d(
+            GEO_PLANNING_STATUS_TAG,
+            "Planning geo-awareness updated: conflicts=${latestGeoAwarenessResult.conflicts.size} highest=${latestGeoAwarenessResult.highestRestriction} canUpload=${latestGeoAwarenessResult.canUpload}"
+        )
+    }
+
+    private fun calculateGeoAwarenessPlanningResult(): GeoAwarenessResult {
         val missionPolygon = activityViewModel.missionArea.value?.vertices
             ?.takeIf { it.isNotEmpty() }
             ?.map { LatLon(lat = it.latitude, lon = it.longitude) }
@@ -713,30 +726,19 @@ class MissionMapFragment : Fragment() {
         // TODO: Confirm altitude source unit is meters.
 
         if (missionPolygon.isNullOrEmpty() && surveyPath.isEmpty()) {
-            latestGeoAwarenessResult = GeoAwarenessResult.clear()
-            geoAwarenessStatusBinder?.bindResult(latestGeoAwarenessResult)
-            return
+            return GeoAwarenessResult.clear()
         }
 
         if (!loadGeoAwarenessZonesIfNeeded()) {
-            latestGeoAwarenessResult = GeoAwarenessResult.clear()
-            geoAwarenessStatusBinder?.bindResult(latestGeoAwarenessResult)
-            return
+            return GeoAwarenessResult.clear()
         }
 
-        val result = geoAwarenessChecker?.checkMission(
+        return geoAwarenessChecker?.checkMission(
             missionPolygon = missionPolygon,
             surveyPath = surveyPath,
             missionAltitudeMeters = altitudeMeters,
             zones = geoAwarenessZones
         ) ?: GeoAwarenessResult.clear()
-
-        latestGeoAwarenessResult = result
-        geoAwarenessStatusBinder?.bindResult(result)
-        Log.d(
-            GEO_PLANNING_STATUS_TAG,
-            "Planning geo-awareness updated: conflicts=${result.conflicts.size} highest=${result.highestRestriction} canUpload=${result.canUpload}"
-        )
     }
 
     private fun showGeoAwarenessPlanningDetails() {
@@ -802,5 +804,148 @@ class MissionMapFragment : Fragment() {
             GeoZoneRestriction.INFORMATION -> 1
             GeoZoneRestriction.UNKNOWN -> 0
         }
+    }
+
+    private fun handleGeoAwarenessBeforeUpload(onAllowed: () -> Unit) {
+        if (geoAwarenessZones.isEmpty() && !loadGeoAwarenessZonesIfNeeded()) {
+            Log.w(GEO_UPLOAD_GUARD_TAG, "Geo-awareness result unavailable; proceeding in dummy mode")
+            onAllowed()
+            return
+        }
+
+        val result = try {
+            calculateGeoAwarenessPlanningResult().also { latestGeoAwarenessResult = it }
+        } catch (error: Exception) {
+            Log.w(GEO_UPLOAD_GUARD_TAG, "Geo-awareness result unavailable; proceeding in dummy mode", error)
+            onAllowed()
+            return
+        }
+
+        if (!result.hasConflicts) {
+            Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: clear, proceeding")
+            onAllowed()
+            return
+        }
+
+        when {
+            !result.canUpload -> {
+                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: blocked conflicts=${result.conflicts.size}")
+                showGeoAwarenessBlockedDialog(result)
+            }
+            result.requiresAcknowledgement -> {
+                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: acknowledgement required conflicts=${result.conflicts.size}")
+                showGeoAwarenessAcknowledgementDialog(result) {
+                    Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after acknowledgement")
+                    onAllowed()
+                }
+            }
+            else -> {
+                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: notice conflicts=${result.conflicts.size}")
+                showGeoAwarenessNoticeDialog(result) {
+                    Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after notice")
+                    onAllowed()
+                }
+            }
+        }
+    }
+
+    private fun showGeoAwarenessBlockedDialog(result: GeoAwarenessResult) {
+        val message = buildString {
+            appendLine("This mission intersects a prohibited dummy geo-zone.")
+            appendLine("Upload is blocked in this development build to validate the geo-awareness guard.")
+            appendLine("This is development-only dummy data, not official DAGR/HCAA data.")
+            appendLine("Verify official restrictions in DAGR before flight.")
+            appendLine()
+            append(buildGeoConflictSummary(result))
+        }
+        showGeoAwarenessDialog(
+            title = "Geo-awareness upload blocked",
+            message = message
+        )
+    }
+
+    private fun showGeoAwarenessAcknowledgementDialog(
+        result: GeoAwarenessResult,
+        onAcknowledged: () -> Unit
+    ) {
+        val message = buildString {
+            appendLine("This mission intersects a dummy authorization-required geo-zone.")
+            appendLine("Proceed only if you have verified the required authorization.")
+            appendLine("This is development-only dummy data, not official DAGR/HCAA data.")
+            appendLine()
+            append(buildGeoConflictSummary(result))
+        }
+        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
+            .setTitle("Geo-awareness authorization warning")
+            .setMessage(message)
+            .setPositiveButton("Proceed") { _, _ ->
+                onAcknowledged()
+            }
+            .setNegativeButton("Cancel") { _, _ ->
+                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled")
+            }
+            .show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+    }
+
+    private fun showGeoAwarenessNoticeDialog(
+        result: GeoAwarenessResult,
+        onContinue: () -> Unit
+    ) {
+        val message = buildString {
+            appendLine("This mission intersects dummy conditional/information geo-zones.")
+            appendLine()
+            appendLine(buildGeoConflictSummary(result))
+            appendLine()
+            append("This is development-only dummy data, not official DAGR/HCAA data. Verify official restrictions in DAGR before flight.")
+        }
+        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
+            .setTitle("Geo-awareness notice")
+            .setMessage(message)
+            .setPositiveButton("Continue") { _, _ ->
+                onContinue()
+            }
+            .setNegativeButton("Cancel") { _, _ ->
+                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled")
+            }
+            .show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+    }
+
+    private fun buildGeoConflictSummary(result: GeoAwarenessResult, maxItems: Int = 5): String {
+        val orderedConflicts = result.conflicts.sortedWith(
+            compareByDescending<GeoZoneConflict> { restrictionRank(it.restriction) }
+                .thenBy { it.zone.name }
+                .thenBy { it.conflictType.name }
+        )
+        val visibleConflicts = orderedConflicts.take(maxItems)
+        val remainingCount = orderedConflicts.size - visibleConflicts.size
+
+        return buildString {
+            appendLine("Highest restriction: ${result.highestRestriction}")
+            appendLine("Upload allowed: ${if (result.canUpload) "Yes" else "No"}")
+            appendLine("Acknowledgement required: ${if (result.requiresAcknowledgement) "Yes" else "No"}")
+            appendLine()
+            visibleConflicts.forEach { conflict ->
+                appendLine("- ${conflict.zone.name}")
+                appendLine("  Restriction: ${conflict.restriction}")
+                appendLine("  Type: ${formatConflictType(conflict.conflictType)}")
+                appendLine("  Message: ${conflict.message ?: "No message"}")
+            }
+            if (remainingCount > 0) {
+                append("...and $remainingCount more")
+            }
+        }
+    }
+
+    private fun showGeoAwarenessDialog(title: String, message: String) {
+        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
+            .setTitle(title)
+            .setMessage(message)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
     }
 }

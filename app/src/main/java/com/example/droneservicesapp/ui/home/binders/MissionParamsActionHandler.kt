@@ -13,6 +13,7 @@ class MissionParamsActionHandler(
     private val activityViewModel: MainActivityViewModel,
     private val droneViewModel: DroneViewModel,
     private val preferencesBridge: MissionParamsPreferencesBridge,
+    private val beforeUploadGuard: (((onAllowed: () -> Unit) -> Unit))? = null,
 ) {
     fun bind() {
         views.uploadMissionButton.setOnClickListener { uploadMission() }
@@ -70,8 +71,12 @@ class MissionParamsActionHandler(
             targetComponentId = droneViewModel.getTargetComponentId()
         )
 
-        droneViewModel.uploadMissionNew(missionItems, activityViewModel)
-        preferencesBridge.saveFromViewModel()
+        val proceedWithUpload = {
+            droneViewModel.uploadMissionNew(missionItems, activityViewModel)
+            preferencesBridge.saveFromViewModel()
+        }
+
+        beforeUploadGuard?.invoke(proceedWithUpload) ?: proceedWithUpload()
     }
 
     private fun showMessage(message: String) {
