@@ -26,6 +26,7 @@ import com.example.droneservicesapp.domain.geoawareness.GeoConflictType
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneConflict
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
+import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessChecker
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
@@ -41,6 +42,7 @@ import com.example.droneservicesapp.ui.home.components.EsriWorldImageryTileSourc
 import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
 import com.example.droneservicesapp.ui.home.components.OsmdroidPolygonEditor
 import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessStatusViewBinder
+import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoAwarenessStatusViewBinder
 import com.example.droneservicesapp.ui.home.geoawareness.GeoZoneOverlayController
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
@@ -80,6 +82,10 @@ class MissionMapFragment : Fragment() {
     private var geoAwarenessChecker: GeoAwarenessChecker? = null
     private var latestGeoAwarenessResult: GeoAwarenessResult = GeoAwarenessResult.clear()
     private var geoAwarenessStatusBinder: GeoAwarenessStatusViewBinder? = null
+    private var liveGeoAwarenessChecker: LiveGeoAwarenessChecker? = null
+    private var latestLiveGeoZones: List<GeoZone> = emptyList()
+    private var liveGeoAwarenessStatusBinder: LiveGeoAwarenessStatusViewBinder? = null
+    private var latestLiveDronePosition: LatLon? = null
     private var hasCenteredInitialViewport = false
     private var hasCenteredToDrone = false
     private var initialCenterAttemptCount = 0
@@ -93,6 +99,8 @@ class MissionMapFragment : Fragment() {
         private const val GEO_ZONE_TOGGLE_TAG = "GeoZoneToggle"
         private const val GEO_PLANNING_STATUS_TAG = "GeoPlanningStatus"
         private const val GEO_UPLOAD_GUARD_TAG = "GeoUploadGuard"
+        private const val LIVE_GEO_AWARENESS_TAG = "LiveGeoAwareness"
+        private const val MIN_VALID_ABS_COORDINATE = 1e-4
     }
 
     override fun onCreateView(
@@ -146,12 +154,21 @@ class MissionMapFragment : Fragment() {
             requireContext(),
             binding.geoAwarenessStatusChip
         )
+        liveGeoAwarenessChecker = LiveGeoAwarenessChecker()
+        liveGeoAwarenessStatusBinder = LiveGeoAwarenessStatusViewBinder(
+            requireContext(),
+            binding.liveGeoAwarenessStatusChip
+        )
         loadGeoAwarenessZonesIfNeeded()
         renderGeoAwarenessLayerIfVisible()
         updateGeoZoneToggleButton()
         geoAwarenessStatusBinder?.clear()
         geoAwarenessStatusBinder?.setOnClickListener(View.OnClickListener {
             showGeoAwarenessPlanningDetails()
+        })
+        liveGeoAwarenessStatusBinder?.bindUnknown("No drone position")
+        liveGeoAwarenessStatusBinder?.setOnClickListener(View.OnClickListener {
+            showLiveGeoAwarenessDetails()
         })
         updateGeoAwarenessPlanningStatus()
     }
@@ -328,16 +345,22 @@ class MissionMapFragment : Fragment() {
 
     private fun observeDroneViewModel() {
         droneViewModel.droneLocationLiveData.observe(viewLifecycleOwner) { droneLocation ->
-            if (droneLocation != null) {
+            val livePosition = droneLocation?.takeIf(::isUsableDroneLocation)?.let {
+                LatLon(lat = it.latitude, lon = it.longitude)
+            }
+            val liveAltitudeMeters = droneLocation?.takeIf(::isUsableDroneLocation)?.altitude
+
+            if (livePosition != null) {
                 osmdroidMapController.updateDronePosition(
-                    droneLocation.latitude,
-                    droneLocation.longitude
+                    livePosition.lat,
+                    livePosition.lon
                 )
                 centerOnDroneIfNeeded()
             } else {
                 osmdroidMapController.setDroneVisible(false)
                 centerInitialViewportIfNeeded()
             }
+            updateLiveGeoAwarenessStatus(livePosition, liveAltitudeMeters)
         }
 
         droneViewModel.droneHeading.observe(viewLifecycleOwner) { droneHeading ->
@@ -585,6 +608,8 @@ class MissionMapFragment : Fragment() {
         geoZoneOverlayController = null
         geoAwarenessStatusBinder = null
         geoAwarenessChecker = null
+        liveGeoAwarenessStatusBinder = null
+        liveGeoAwarenessChecker = null
         super.onDestroyView()
         _binding = null
     }
@@ -947,5 +972,92 @@ class MissionMapFragment : Fragment() {
             .setPositiveButton(android.R.string.ok, null)
             .show()
         dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+    }
+
+    private fun updateLiveGeoAwarenessStatus(
+        dronePosition: LatLon?,
+        droneAltitudeMeters: Double?
+    ) {
+        latestLiveDronePosition = dronePosition
+
+        if (dronePosition == null) {
+            latestLiveGeoZones = emptyList()
+            liveGeoAwarenessStatusBinder?.bindUnknown("No drone position")
+            return
+        }
+
+        if (!loadGeoAwarenessZonesIfNeeded()) {
+            latestLiveGeoZones = emptyList()
+            liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
+            return
+        }
+
+        val insideZones = liveGeoAwarenessChecker?.checkDronePosition(
+            dronePosition = dronePosition,
+            droneAltitudeMeters = droneAltitudeMeters,
+            zones = geoAwarenessZones
+        ).orEmpty()
+
+        latestLiveGeoZones = insideZones
+        if (insideZones.isEmpty()) {
+            liveGeoAwarenessStatusBinder?.bindClear()
+        } else {
+            liveGeoAwarenessStatusBinder?.bindInsideMultiple(insideZones)
+        }
+
+        Log.d(
+            LIVE_GEO_AWARENESS_TAG,
+            "Live geo-awareness updated: inside=${insideZones.size} highest=${insideZones.firstOrNull()?.restriction}"
+        )
+    }
+
+    private fun showLiveGeoAwarenessDetails() {
+        val title: String
+        val message: String
+
+        when {
+            latestLiveDronePosition == null -> {
+                title = "Live geo-awareness"
+                message = "No drone position available yet."
+            }
+            latestLiveGeoZones.isEmpty() -> {
+                title = "Live geo-awareness"
+                message = buildString {
+                    appendLine("Drone is not inside any loaded dummy geo-zone.")
+                    append("Development-only dummy data. Verify official restrictions in DAGR before flight.")
+                }
+            }
+            else -> {
+                val visibleZones = latestLiveGeoZones.take(5)
+                val remainingCount = latestLiveGeoZones.size - visibleZones.size
+                title = "Live geo-awareness warning"
+                message = buildString {
+                    appendLine("Drone is inside loaded dummy geo-zone(s):")
+                    appendLine()
+                    visibleZones.forEach { zone ->
+                        appendLine("- ${zone.name}")
+                        appendLine("  Restriction: ${zone.restriction}")
+                        appendLine("  Message: ${zone.message ?: "No message"}")
+                    }
+                    if (remainingCount > 0) {
+                        appendLine("...and $remainingCount more.")
+                    }
+                    append("Development-only dummy data. Verify official restrictions in DAGR before flight.")
+                }
+            }
+        }
+
+        showGeoAwarenessDialog(title, message)
+    }
+
+    private fun isUsableDroneLocation(location: android.location.Location): Boolean {
+        if (!location.latitude.isFinite() || !location.longitude.isFinite()) {
+            return false
+        }
+        if (location.latitude !in -90.0..90.0 || location.longitude !in -180.0..180.0) {
+            return false
+        }
+        return kotlin.math.abs(location.latitude) > MIN_VALID_ABS_COORDINATE ||
+            kotlin.math.abs(location.longitude) > MIN_VALID_ABS_COORDINATE
     }
 }
