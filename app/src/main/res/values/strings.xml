@@ -9,6 +9,7 @@
     <string name="geo_awareness_title">Geo-awareness</string>
     <string name="geo_awareness_subtitle">Airspace and zone awareness</string>
     <string name="geo_awareness_live_status">Live status</string>
+    <string name="geo_awareness_health_section">Health</string>
     <string name="geo_awareness_overlay_section">Zone overlay</string>
     <string name="geo_awareness_dataset_section">Dataset</string>
     <string name="geo_awareness_notice_section">Notice</string>
@@ -19,6 +20,7 @@
     <string name="geo_awareness_version_label">Version:</string>
     <string name="geo_awareness_official_label">Official:</string>
     <string name="geo_awareness_zones_label">Zones:</string>
+    <string name="geo_awareness_health_label">Geo-awareness status:</string>
     <string name="geo_awareness_live_no_position">No drone position available yet.</string>
     <string name="geo_awareness_live_clear">Drone is not inside any loaded dummy geo-zone.\nDevelopment-only dummy data. Verify official restrictions in DAGR before flight.</string>
     <string name="geo_awareness_debug_note">Debug-only map tap testing is enabled from the controls below.</string>
@@ -26,6 +28,11 @@
     <string name="geo_awareness_debug_test_off">Geo Test: OFF</string>
     <string name="geo_awareness_debug_test_on">Geo Test: ON</string>
     <string name="geo_awareness_debug_clear_test">Clear Geo Test</string>
+    <string name="geo_awareness_health_available">AVAILABLE</string>
+    <string name="geo_awareness_health_dummy">DUMMY DATA</string>
+    <string name="geo_awareness_health_degraded">DEGRADED</string>
+    <string name="geo_awareness_health_stale">STALE</string>
+    <string name="geo_awareness_health_unavailable">UNAVAILABLE</string>
     <string name="shell_operator_console">Operator Console</string>
     <string name="shell_status_connected">LINK OK</string>
     <string name="shell_status_disconnected">NO LINK</string>

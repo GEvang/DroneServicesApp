@@ -1,5 +1,7 @@
 package com.example.droneservicesapp.ui.geoawareness
 
+import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.location.Location
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -14,6 +16,9 @@ import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.geoawareness.GeoZoneAssetDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
 import com.example.droneservicesapp.databinding.FragmentGeoAwarenessBinding
+import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
+import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthEvaluator
+import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthState
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessChecker
@@ -38,6 +43,8 @@ class GeoAwarenessFragment : Fragment() {
     private var latestLiveZones: List<GeoZone> = emptyList()
     private var latestRealDronePosition: LatLon? = null
     private var latestRealDroneAltitudeMeters: Double? = null
+    private var geoAwarenessHealth: GeoAwarenessHealth? = null
+    private var geoAwarenessLoadError: Throwable? = null
     private var liveStatusBinder: LiveGeoAwarenessStatusViewBinder? = null
 
     override fun onCreateView(
@@ -91,6 +98,13 @@ class GeoAwarenessFragment : Fragment() {
         observeSharedState()
         observeDroneLocation()
         updateGeoTestControls()
+        renderHealthStatus(
+            activityViewModel.geoAwarenessHealth.value ?: GeoAwarenessHealthEvaluator.evaluate(
+                datasetInfo = datasetInfo,
+                zones = geoZones,
+                loadError = geoAwarenessLoadError
+            )
+        )
     }
 
     private fun observeSharedState() {
@@ -103,6 +117,11 @@ class GeoAwarenessFragment : Fragment() {
                 datasetInfo = info
                 bindDatasetSummary()
             }
+        }
+
+        activityViewModel.geoAwarenessHealth.observe(viewLifecycleOwner) { health ->
+            geoAwarenessHealth = health
+            renderHealthStatus(health)
         }
 
         activityViewModel.geoTestModeEnabled.observe(viewLifecycleOwner) {
@@ -143,10 +162,25 @@ class GeoAwarenessFragment : Fragment() {
             val loadResult = repository.loadDummyRethymnoDataset()
             geoZones = loadResult.zones
             datasetInfo = loadResult.datasetInfo
+            geoAwarenessLoadError = null
             activityViewModel.geoZoneDatasetInfo.value = loadResult.datasetInfo
-        } catch (_: Exception) {
+            val health = GeoAwarenessHealthEvaluator.evaluate(
+                datasetInfo = loadResult.datasetInfo,
+                zones = loadResult.zones
+            )
+            geoAwarenessHealth = health
+            activityViewModel.geoAwarenessHealth.value = health
+        } catch (error: Exception) {
             datasetInfo = null
             geoZones = emptyList()
+            geoAwarenessLoadError = error
+            val health = GeoAwarenessHealthEvaluator.evaluate(
+                datasetInfo = null,
+                zones = emptyList(),
+                loadError = error
+            )
+            geoAwarenessHealth = health
+            activityViewModel.geoAwarenessHealth.value = health
         }
     }
 
@@ -164,6 +198,53 @@ class GeoAwarenessFragment : Fragment() {
         binding.geoAwarenessDatasetZones.text = getString(
             R.string.geo_awareness_zones_label
         ) + " " + (info?.zoneCount ?: 0)
+    }
+
+    private fun renderHealthStatus(health: GeoAwarenessHealth?) {
+        val resolvedHealth = health ?: GeoAwarenessHealthEvaluator.evaluate(
+            datasetInfo = datasetInfo,
+            zones = geoZones,
+            loadError = geoAwarenessLoadError
+        )
+        geoAwarenessHealth = resolvedHealth
+
+        val (label, backgroundColor, textColor) = when (resolvedHealth.state) {
+            GeoAwarenessHealthState.AVAILABLE -> Triple(
+                getString(R.string.geo_awareness_health_available),
+                Color.parseColor("#2E7D32"),
+                Color.WHITE
+            )
+            GeoAwarenessHealthState.DUMMY_DATA -> Triple(
+                getString(R.string.geo_awareness_health_dummy),
+                Color.parseColor("#8E24AA"),
+                Color.WHITE
+            )
+            GeoAwarenessHealthState.DEGRADED -> Triple(
+                getString(R.string.geo_awareness_health_degraded),
+                Color.parseColor("#E65100"),
+                Color.WHITE
+            )
+            GeoAwarenessHealthState.STALE -> Triple(
+                getString(R.string.geo_awareness_health_stale),
+                Color.parseColor("#EF6C00"),
+                Color.WHITE
+            )
+            GeoAwarenessHealthState.UNAVAILABLE -> Triple(
+                getString(R.string.geo_awareness_health_unavailable),
+                Color.parseColor("#B71C1C"),
+                Color.WHITE
+            )
+        }
+
+        binding.geoAwarenessHealthChip.text = getString(R.string.geo_awareness_health_label) + " " + label
+        binding.geoAwarenessHealthChip.setTextColor(textColor)
+        binding.geoAwarenessHealthChip.background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = (18 * resources.displayMetrics.density)
+            setColor(backgroundColor)
+            setStroke((1 * resources.displayMetrics.density).toInt(), Color.parseColor("#33FFFFFF"))
+        }
+        binding.geoAwarenessHealthMessage.text = resolvedHealth.message
     }
 
     private fun updateLiveStatus() {

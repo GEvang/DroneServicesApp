@@ -22,6 +22,9 @@ import com.example.droneservicesapp.data.geoawareness.GeoZoneAssetDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessChecker
+import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
+import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthEvaluator
+import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthState
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessResult
 import com.example.droneservicesapp.domain.geoawareness.GeoConflictType
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
@@ -83,6 +86,8 @@ class MissionMapFragment : Fragment() {
     private lateinit var missionFileStore: MissionFileStore
     private var geoAwarenessZones: List<GeoZone> = emptyList()
     private var geoZoneDatasetInfo: GeoZoneDatasetInfo? = null
+    private var geoAwarenessHealth: GeoAwarenessHealth? = null
+    private var geoAwarenessLoadError: Throwable? = null
     private var geoZoneOverlayController: GeoZoneOverlayController? = null
     private var geoAwarenessChecker: GeoAwarenessChecker? = null
     private var latestGeoAwarenessResult: GeoAwarenessResult = GeoAwarenessResult.clear()
@@ -654,6 +659,7 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun centerInitialViewportIfNeeded() {
+        if (_binding == null) return
         if (hasCenteredToDrone) return
 
         if (osmdroidMapController.hasDronePosition()) {
@@ -668,7 +674,7 @@ class MissionMapFragment : Fragment() {
             hasCenteredInitialViewport = true
         } else if (initialCenterAttemptCount < 10) {
             initialCenterAttemptCount += 1
-            binding.root.postDelayed({ centerInitialViewportIfNeeded() }, 1000L)
+            _binding?.root?.postDelayed({ centerInitialViewportIfNeeded() }, 1000L)
         }
     }
 
@@ -685,6 +691,15 @@ class MissionMapFragment : Fragment() {
 
     private fun loadGeoAwarenessZonesIfNeeded(): Boolean {
         if (geoAwarenessZones.isNotEmpty()) {
+            if (geoAwarenessHealth == null) {
+                val health = GeoAwarenessHealthEvaluator.evaluate(
+                    datasetInfo = geoZoneDatasetInfo,
+                    zones = geoAwarenessZones,
+                    loadError = geoAwarenessLoadError
+                )
+                geoAwarenessHealth = health
+                activityViewModel.geoAwarenessHealth.value = health
+            }
             return true
         }
 
@@ -695,12 +710,26 @@ class MissionMapFragment : Fragment() {
             val loadResult = repository.loadDummyRethymnoDataset()
             geoAwarenessZones = loadResult.zones
             geoZoneDatasetInfo = loadResult.datasetInfo
+            geoAwarenessLoadError = null
+            geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
+                datasetInfo = loadResult.datasetInfo,
+                zones = loadResult.zones
+            )
             activityViewModel.geoZoneDatasetInfo.value = loadResult.datasetInfo
+            activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
             return true
         } catch (error: Exception) {
             Log.e(GEO_ZONE_TOGGLE_TAG, "Failed to load geo-awareness dummy zones", error)
+            geoAwarenessZones = emptyList()
             geoZoneDatasetInfo = null
+            geoAwarenessLoadError = error
+            geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
+                datasetInfo = null,
+                zones = emptyList(),
+                loadError = error
+            )
             activityViewModel.geoZoneDatasetInfo.value = null
+            activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
         }
 
         return false
@@ -743,7 +772,12 @@ class MissionMapFragment : Fragment() {
         }
 
         latestGeoAwarenessResult = calculateGeoAwarenessPlanningResult()
-        geoAwarenessStatusBinder?.bindResult(latestGeoAwarenessResult)
+        val health = ensureGeoAwarenessHealth()
+        if (!latestGeoAwarenessResult.hasConflicts && health.state != GeoAwarenessHealthState.AVAILABLE) {
+            geoAwarenessStatusBinder?.bindHealth(health)
+        } else {
+            geoAwarenessStatusBinder?.bindResult(latestGeoAwarenessResult)
+        }
         updatePlanningGeoAwarenessVisibility()
         Log.d(
             GEO_PLANNING_STATUS_TAG,
@@ -855,18 +889,44 @@ class MissionMapFragment : Fragment() {
         }
     }
 
-    private fun handleGeoAwarenessBeforeUpload(onAllowed: () -> Unit) {
-        if (geoAwarenessZones.isEmpty() && !loadGeoAwarenessZonesIfNeeded()) {
-            Log.w(GEO_UPLOAD_GUARD_TAG, "Geo-awareness result unavailable; proceeding in dummy mode")
-            onAllowed()
-            return
+    private fun ensureGeoAwarenessHealth(): GeoAwarenessHealth {
+        if (geoAwarenessZones.isEmpty() && geoZoneDatasetInfo == null && geoAwarenessLoadError == null) {
+            loadGeoAwarenessZonesIfNeeded()
         }
 
+        val health = GeoAwarenessHealthEvaluator.evaluate(
+            datasetInfo = geoZoneDatasetInfo,
+            zones = geoAwarenessZones,
+            loadError = geoAwarenessLoadError
+        )
+        geoAwarenessHealth = health
+        activityViewModel.geoAwarenessHealth.value = health
+        return health
+    }
+
+    private fun shouldWarnForGeoHealthBeforeUpload(
+        result: GeoAwarenessResult,
+        health: GeoAwarenessHealth
+    ): Boolean {
+        return !result.hasConflicts && health.requiresAcknowledgementBeforeUpload
+    }
+
+    private fun handleGeoAwarenessBeforeUpload(onAllowed: () -> Unit) {
         val result = try {
             calculateGeoAwarenessPlanningResult().also { latestGeoAwarenessResult = it }
         } catch (error: Exception) {
             Log.w(GEO_UPLOAD_GUARD_TAG, "Geo-awareness result unavailable; proceeding in dummy mode", error)
             onAllowed()
+            return
+        }
+        val health = ensureGeoAwarenessHealth()
+
+        if (shouldWarnForGeoHealthBeforeUpload(result, health)) {
+            Log.w(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: health warning state=${health.state}")
+            showGeoAwarenessHealthAcknowledgementDialog(health) {
+                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after health acknowledgement")
+                onAllowed()
+            }
             return
         }
 
@@ -879,37 +939,34 @@ class MissionMapFragment : Fragment() {
         when {
             !result.canUpload -> {
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: blocked conflicts=${result.conflicts.size}")
-                showGeoAwarenessBlockedDialog(result)
+                showGeoAwarenessBlockedDialog(result, health)
             }
             result.requiresAcknowledgement -> {
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: acknowledgement required conflicts=${result.conflicts.size}")
-                showGeoAwarenessAcknowledgementDialog(result) {
+                showGeoAwarenessAcknowledgementDialog(result, health) {
                     Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after acknowledgement")
                     onAllowed()
                 }
             }
             else -> {
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: notice conflicts=${result.conflicts.size}")
-                showGeoAwarenessNoticeDialog(result) {
+                showGeoAwarenessNoticeDialog(result, health) {
                     Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after notice")
                     onAllowed()
                 }
             }
         }
-
-        activityViewModel.geoAwarenessLayerVisible.observe(viewLifecycleOwner) {
-            renderGeoAwarenessLayerIfVisible()
-        }
     }
 
-    private fun showGeoAwarenessBlockedDialog(result: GeoAwarenessResult) {
+    private fun showGeoAwarenessBlockedDialog(result: GeoAwarenessResult, health: GeoAwarenessHealth) {
         val message = buildString {
             appendLine("This mission intersects a prohibited dummy geo-zone.")
             appendLine("Upload is blocked in this development build to validate the geo-awareness guard.")
-            appendLine("This is development-only dummy data, not official DAGR/HCAA data.")
+            appendLine(health.message)
+            appendLine(buildGeoHealthNotice(health))
             appendLine("Verify official restrictions in DAGR before flight.")
             appendLine()
-            append(buildGeoConflictSummary(result))
+            append(buildGeoConflictSummary(result, health))
         }
         showGeoAwarenessDialog(
             title = "Geo-awareness upload blocked",
@@ -919,14 +976,16 @@ class MissionMapFragment : Fragment() {
 
     private fun showGeoAwarenessAcknowledgementDialog(
         result: GeoAwarenessResult,
+        health: GeoAwarenessHealth,
         onAcknowledged: () -> Unit
     ) {
         val message = buildString {
             appendLine("This mission intersects a dummy authorization-required geo-zone.")
             appendLine("Proceed only if you have verified the required authorization.")
-            appendLine("This is development-only dummy data, not official DAGR/HCAA data.")
+            appendLine(health.message)
+            appendLine(buildGeoHealthNotice(health))
             appendLine()
-            append(buildGeoConflictSummary(result))
+            append(buildGeoConflictSummary(result, health))
         }
         val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
             .setTitle("Geo-awareness authorization warning")
@@ -944,14 +1003,15 @@ class MissionMapFragment : Fragment() {
 
     private fun showGeoAwarenessNoticeDialog(
         result: GeoAwarenessResult,
+        health: GeoAwarenessHealth,
         onContinue: () -> Unit
     ) {
         val message = buildString {
             appendLine("This mission intersects dummy conditional/information geo-zones.")
             appendLine()
-            appendLine(buildGeoConflictSummary(result))
+            appendLine(buildGeoConflictSummary(result, health))
             appendLine()
-            append("This is development-only dummy data, not official DAGR/HCAA data. Verify official restrictions in DAGR before flight.")
+            append(buildGeoHealthNotice(health))
         }
         val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
             .setTitle("Geo-awareness notice")
@@ -967,7 +1027,35 @@ class MissionMapFragment : Fragment() {
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
     }
 
-    private fun buildGeoConflictSummary(result: GeoAwarenessResult, maxItems: Int = 5): String {
+    private fun showGeoAwarenessHealthAcknowledgementDialog(
+        health: GeoAwarenessHealth,
+        onContinue: () -> Unit
+    ) {
+        val message = buildString {
+            appendLine("Current geo-awareness state: ${health.state}")
+            appendLine(health.message)
+            appendLine(buildGeoHealthNotice(health))
+            appendLine("Verify official restrictions in DAGR before flight.")
+        }
+        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
+            .setTitle("Geo-awareness health warning")
+            .setMessage(message)
+            .setPositiveButton("Continue") { _, _ ->
+                onContinue()
+            }
+            .setNegativeButton("Cancel") { _, _ ->
+                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled")
+            }
+            .show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+    }
+
+    private fun buildGeoConflictSummary(
+        result: GeoAwarenessResult,
+        health: GeoAwarenessHealth,
+        maxItems: Int = 5
+    ): String {
         val orderedConflicts = result.conflicts.sortedWith(
             compareByDescending<GeoZoneConflict> { restrictionRank(it.restriction) }
                 .thenBy { it.zone.name }
@@ -977,6 +1065,8 @@ class MissionMapFragment : Fragment() {
         val remainingCount = orderedConflicts.size - visibleConflicts.size
 
         return buildString {
+            appendLine("Geo-awareness health: ${health.state}")
+            appendLine("Health message: ${health.message}")
             appendLine("Highest restriction: ${result.highestRestriction}")
             appendLine("Upload allowed: ${if (result.canUpload) "Yes" else "No"}")
             appendLine("Acknowledgement required: ${if (result.requiresAcknowledgement) "Yes" else "No"}")
@@ -990,6 +1080,16 @@ class MissionMapFragment : Fragment() {
             if (remainingCount > 0) {
                 append("...and $remainingCount more")
             }
+        }
+    }
+
+    private fun buildGeoHealthNotice(health: GeoAwarenessHealth): String {
+        return when (health.state) {
+            GeoAwarenessHealthState.DUMMY_DATA -> "This is development-only dummy data. It is not official DAGR/HCAA data."
+            GeoAwarenessHealthState.STALE -> "Geo-awareness data may be stale."
+            GeoAwarenessHealthState.DEGRADED -> "Geo-awareness data is degraded or unofficial."
+            GeoAwarenessHealthState.UNAVAILABLE -> "Geo-awareness data is unavailable. Continuing will bypass geo-awareness protection."
+            GeoAwarenessHealthState.AVAILABLE -> "Geo-awareness data is available."
         }
     }
 

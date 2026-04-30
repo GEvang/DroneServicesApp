@@ -4,6 +4,7 @@ import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.core.util.Event
+import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.MissionArea
@@ -96,6 +97,10 @@ class MainActivityViewModel : ViewModel() {
     }
 
     val geoZoneDatasetInfo: MutableLiveData<GeoZoneDatasetInfo?> by lazy {
+        MutableLiveData(null)
+    }
+
+    val geoAwarenessHealth: MutableLiveData<GeoAwarenessHealth?> by lazy {
         MutableLiveData(null)
     }
 

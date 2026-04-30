@@ -5,6 +5,8 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.widget.TextView
+import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
+import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthState
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessResult
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
 
@@ -54,6 +56,32 @@ class GeoAwarenessStatusViewBinder(
             backgroundColor = Color.parseColor("#2E7D32"),
             textColor = Color.WHITE
         )
+    }
+
+    fun bindHealth(health: GeoAwarenessHealth) {
+        when (health.state) {
+            GeoAwarenessHealthState.AVAILABLE -> clear()
+            GeoAwarenessHealthState.DUMMY_DATA -> applyStyle(
+                text = "GEO: DUMMY",
+                backgroundColor = Color.parseColor("#8E24AA"),
+                textColor = Color.WHITE
+            )
+            GeoAwarenessHealthState.DEGRADED -> applyStyle(
+                text = "GEO: DEGRADED",
+                backgroundColor = Color.parseColor("#E65100"),
+                textColor = Color.WHITE
+            )
+            GeoAwarenessHealthState.STALE -> applyStyle(
+                text = "GEO: STALE",
+                backgroundColor = Color.parseColor("#EF6C00"),
+                textColor = Color.WHITE
+            )
+            GeoAwarenessHealthState.UNAVAILABLE -> applyStyle(
+                text = "GEO: UNAVAILABLE",
+                backgroundColor = Color.parseColor("#B71C1C"),
+                textColor = Color.WHITE
+            )
+        }
     }
 
     fun setOnClickListener(listener: View.OnClickListener?) {

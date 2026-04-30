@@ -42,6 +42,43 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_health_section"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:orientation="vertical"
+                android:padding="@dimen/ds_space_md">
+
+                <TextView
+                    android:id="@+id/geo_awareness_health_chip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/inter"
+                    android:paddingLeft="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingRight="14dp"
+                    android:paddingBottom="8dp"
+                    android:text="Geo-awareness status: UNKNOWN"
+                    android:textColor="@android:color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/geo_awareness_health_message"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_sm"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
                 android:text="@string/geo_awareness_live_status"
                 style="@style/TextAppearance.DroneServices.StatusLabel" />
 
