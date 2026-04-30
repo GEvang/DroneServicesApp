@@ -25,6 +25,7 @@ import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessChecker
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessResult
 import com.example.droneservicesapp.domain.geoawareness.GeoConflictType
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneConflict
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
 import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessChecker
@@ -43,6 +44,7 @@ import com.example.droneservicesapp.ui.home.components.EsriWorldImageryTileSourc
 import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
 import com.example.droneservicesapp.ui.home.components.OsmdroidPolygonEditor
 import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessStatusViewBinder
+import com.example.droneservicesapp.ui.home.geoawareness.GeoDatasetStatusViewBinder
 import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoAwarenessStatusViewBinder
 import com.example.droneservicesapp.ui.home.geoawareness.GeoZoneOverlayController
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
@@ -59,6 +61,9 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class MissionMapFragment : Fragment() {
     private var _binding: FragmentHomeMapsBinding? = null
@@ -81,11 +86,13 @@ class MissionMapFragment : Fragment() {
     private lateinit var osmdroidPolygonEditor: OsmdroidPolygonEditor
     private lateinit var missionFileStore: MissionFileStore
     private var geoAwarenessZones: List<GeoZone> = emptyList()
+    private var geoZoneDatasetInfo: GeoZoneDatasetInfo? = null
     private var isGeoAwarenessLayerVisible: Boolean = true
     private var geoZoneOverlayController: GeoZoneOverlayController? = null
     private var geoAwarenessChecker: GeoAwarenessChecker? = null
     private var latestGeoAwarenessResult: GeoAwarenessResult = GeoAwarenessResult.clear()
     private var geoAwarenessStatusBinder: GeoAwarenessStatusViewBinder? = null
+    private var geoDatasetStatusBinder: GeoDatasetStatusViewBinder? = null
     private var liveGeoAwarenessChecker: LiveGeoAwarenessChecker? = null
     private var latestLiveGeoZones: List<GeoZone> = emptyList()
     private var liveGeoAwarenessStatusBinder: LiveGeoAwarenessStatusViewBinder? = null
@@ -109,6 +116,7 @@ class MissionMapFragment : Fragment() {
         private const val OFFLINE_MAX_ZOOM = 18
         private const val GEO_ZONE_TOGGLE_TAG = "GeoZoneToggle"
         private const val GEO_PLANNING_STATUS_TAG = "GeoPlanningStatus"
+        private const val GEO_DATASET_STATUS_TAG = "GeoDatasetStatus"
         private const val GEO_UPLOAD_GUARD_TAG = "GeoUploadGuard"
         private const val LIVE_GEO_AWARENESS_TAG = "LiveGeoAwareness"
         private const val GEO_TEST_MODE_TAG = "GeoTestMode"
@@ -166,6 +174,10 @@ class MissionMapFragment : Fragment() {
             requireContext(),
             binding.geoAwarenessStatusChip
         )
+        geoDatasetStatusBinder = GeoDatasetStatusViewBinder(
+            requireContext(),
+            binding.geoDatasetStatusChip
+        )
         liveGeoAwarenessChecker = LiveGeoAwarenessChecker()
         liveGeoAwarenessStatusBinder = LiveGeoAwarenessStatusViewBinder(
             requireContext(),
@@ -177,6 +189,10 @@ class MissionMapFragment : Fragment() {
         geoAwarenessStatusBinder?.clear()
         geoAwarenessStatusBinder?.setOnClickListener(View.OnClickListener {
             showGeoAwarenessPlanningDetails()
+        })
+        geoDatasetStatusBinder?.bind(geoZoneDatasetInfo)
+        geoDatasetStatusBinder?.setOnClickListener(View.OnClickListener {
+            showGeoDatasetDetails()
         })
         liveGeoAwarenessStatusBinder?.bindUnknown("No drone position")
         liveGeoAwarenessStatusBinder?.setOnClickListener(View.OnClickListener {
@@ -636,6 +652,7 @@ class MissionMapFragment : Fragment() {
         geoZoneOverlayController?.clear()
         geoZoneOverlayController = null
         geoAwarenessStatusBinder = null
+        geoDatasetStatusBinder = null
         geoAwarenessChecker = null
         liveGeoAwarenessStatusBinder = null
         liveGeoAwarenessChecker = null
@@ -698,10 +715,15 @@ class MissionMapFragment : Fragment() {
             val repository = GeoZoneRepository(
                 GeoZoneAssetDataSource(requireContext().applicationContext)
             )
-            geoAwarenessZones = repository.loadDummyRethymnoZones()
+            val loadResult = repository.loadDummyRethymnoDataset()
+            geoAwarenessZones = loadResult.zones
+            geoZoneDatasetInfo = loadResult.datasetInfo
+            geoDatasetStatusBinder?.bind(geoZoneDatasetInfo)
             return true
         } catch (error: Exception) {
             Log.e(GEO_ZONE_TOGGLE_TAG, "Failed to load geo-awareness dummy zones", error)
+            geoZoneDatasetInfo = null
+            geoDatasetStatusBinder?.bindUnavailable("Geo Data: ERROR")
             if (_binding != null) {
                 binding.utilityGeoZonesButton.text = "Geo: ERR"
             }
@@ -1003,6 +1025,50 @@ class MissionMapFragment : Fragment() {
             .setPositiveButton(android.R.string.ok, null)
             .show()
         dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+    }
+
+    private fun showGeoDatasetDetails() {
+        val info = geoZoneDatasetInfo
+        if (info == null) {
+            showGeoAwarenessDialog(
+                title = "Geo-awareness dataset",
+                message = "Geo-awareness dataset information is unavailable."
+            )
+            return
+        }
+
+        val loadedAtText = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            .format(Date(info.loadedAtMillis))
+        val notice = when {
+            info.isDummy -> "This is development-only dummy data. It is not official DAGR/HCAA data. Verify official restrictions in DAGR before flight."
+            !info.isOfficial -> "This dataset is not marked official. Verify restrictions with the responsible authority before flight."
+            else -> "Verify dataset validity and operational restrictions before flight."
+        }
+        val message = buildString {
+            appendLine("Dataset: ${info.title}")
+            appendLine("Description: ${info.description ?: "N/A"}")
+            appendLine("Version: ${info.version ?: "N/A"}")
+            appendLine("Source: ${info.source ?: "N/A"}")
+            appendLine("Source URL: ${info.sourceUrl ?: "N/A"}")
+            appendLine("Country: ${info.country ?: "N/A"}")
+            appendLine("Official: ${if (info.isOfficial) "Yes" else "No"}")
+            appendLine("Dummy/test data: ${if (info.isDummy) "Yes" else "No"}")
+            appendLine("Zones loaded: ${info.zoneCount}")
+            appendLine("Circle geometries: ${info.circleGeometryCount}")
+            appendLine("Polygon geometries: ${info.polygonGeometryCount}")
+            appendLine("Loaded at: $loadedAtText")
+            appendLine()
+            append(notice)
+        }
+
+        Log.d(
+            GEO_DATASET_STATUS_TAG,
+            "Showing dataset info title=${info.title} version=${info.version} dummy=${info.isDummy} official=${info.isOfficial}"
+        )
+        showGeoAwarenessDialog(
+            title = "Geo-awareness dataset",
+            message = message
+        )
     }
 
     private fun updateLiveGeoAwarenessStatus(

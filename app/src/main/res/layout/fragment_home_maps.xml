@@ -213,6 +213,25 @@
             app:layout_constraintEnd_toEndOf="parent" />
 
         <TextView
+            android:id="@+id/geoDatasetStatusChip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/ds_space_md"
+            android:layout_marginBottom="@dimen/ds_space_sm"
+            android:fontFamily="@font/inter"
+            android:gravity="center"
+            android:paddingLeft="14dp"
+            android:paddingTop="8dp"
+            android:paddingRight="14dp"
+            android:paddingBottom="8dp"
+            android:text="Geo Data: Unknown"
+            android:textColor="@android:color/white"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toTopOf="@id/liveGeoAwarenessStatusChip"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
             android:id="@+id/liveGeoAwarenessStatusChip"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -240,7 +259,7 @@
             android:gravity="end"
             android:orientation="vertical"
             android:visibility="gone"
-            app:layout_constraintBottom_toTopOf="@id/liveGeoAwarenessStatusChip"
+            app:layout_constraintBottom_toTopOf="@id/geoDatasetStatusChip"
             app:layout_constraintEnd_toEndOf="parent">
 
             <com.google.android.material.button.MaterialButton

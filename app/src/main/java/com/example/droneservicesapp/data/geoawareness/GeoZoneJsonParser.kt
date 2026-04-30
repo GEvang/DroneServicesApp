@@ -4,6 +4,7 @@ import android.util.Log
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneApplicability
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneAuthority
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneGeometry
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
 import com.example.droneservicesapp.domain.model.LatLon
@@ -39,6 +40,20 @@ class GeoZoneJsonParser {
         }
 
         return zones
+    }
+
+    fun parseDatasetInfo(
+        rawJson: String,
+        zones: List<GeoZone>,
+        loadedAtMillis: Long = System.currentTimeMillis()
+    ): GeoZoneDatasetInfo {
+        return try {
+            val root = JSONObject(rawJson)
+            buildDatasetInfo(root, zones, loadedAtMillis)
+        } catch (error: Exception) {
+            Log.w(TAG, "Failed to parse geozone dataset metadata", error)
+            buildDatasetInfo(null, zones, loadedAtMillis)
+        }
     }
 
     private fun parseFeature(feature: JSONObject, index: Int): GeoZone? {
@@ -249,6 +264,60 @@ class GeoZoneJsonParser {
             is Boolean -> value
             is String -> value.equals("YES", ignoreCase = true)
             else -> false
+        }
+    }
+
+    private fun buildDatasetInfo(
+        root: JSONObject?,
+        zones: List<GeoZone>,
+        loadedAtMillis: Long
+    ): GeoZoneDatasetInfo {
+        val title = optStringOrNull(root, "title") ?: "Unknown geo-zone dataset"
+        val description = optStringOrNull(root, "description")
+        val version = optStringOrNull(root, "version")
+        val source = optStringOrNull(root, "source") ?: "Bundled asset"
+        val sourceUrl = optStringOrNull(root, "sourceUrl") ?: "https://dagr.hasp.gov.gr/"
+        val country = optStringOrNull(root, "country") ?: resolveCountry(zones)
+        val isDummy = sequenceOf(title, description, version)
+            .filterNotNull()
+            .any { it.contains("dummy", ignoreCase = true) } || zones.any { it.isDummy }
+        val officialDeclared = when (val value = root?.opt("official")) {
+            is Boolean -> value
+            is String -> value.equals("true", ignoreCase = true)
+            else -> false
+        }
+        val circleGeometryCount = zones.sumOf { zone ->
+            zone.geometries.count { geometry -> geometry is GeoZoneGeometry.Circle }
+        }
+        val polygonGeometryCount = zones.sumOf { zone ->
+            zone.geometries.count { geometry -> geometry is GeoZoneGeometry.Polygon }
+        }
+
+        return GeoZoneDatasetInfo(
+            title = title,
+            description = description,
+            version = version,
+            source = source,
+            sourceUrl = sourceUrl,
+            country = country,
+            isOfficial = officialDeclared && !isDummy,
+            isDummy = isDummy,
+            loadedAtMillis = loadedAtMillis,
+            zoneCount = zones.size,
+            circleGeometryCount = circleGeometryCount,
+            polygonGeometryCount = polygonGeometryCount
+        )
+    }
+
+    private fun resolveCountry(zones: List<GeoZone>): String? {
+        val countries = zones.mapNotNull { zone ->
+            zone.country.trim().takeIf { it.isNotEmpty() }
+        }.distinct()
+
+        return when {
+            countries.isEmpty() -> null
+            countries.size == 1 -> countries.first()
+            else -> "Multiple"
         }
     }
 
