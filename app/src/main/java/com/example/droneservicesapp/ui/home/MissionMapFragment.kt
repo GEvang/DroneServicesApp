@@ -16,6 +16,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
 import androidx.appcompat.widget.Toolbar
 import androidx.drawerlayout.widget.DrawerLayout
+import com.example.droneservicesapp.BuildConfig
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.geoawareness.GeoZoneAssetDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
@@ -52,9 +53,12 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.snackbar.Snackbar
 import com.google.maps.android.SphericalUtil
 import io.dronefleet.mavlink.common.MavCmd
+import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.cachemanager.CacheManager
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.MapEventsOverlay
+import org.osmdroid.views.overlay.Marker
 
 class MissionMapFragment : Fragment() {
     private var _binding: FragmentHomeMapsBinding? = null
@@ -86,6 +90,13 @@ class MissionMapFragment : Fragment() {
     private var latestLiveGeoZones: List<GeoZone> = emptyList()
     private var liveGeoAwarenessStatusBinder: LiveGeoAwarenessStatusViewBinder? = null
     private var latestLiveDronePosition: LatLon? = null
+    private var latestRealDronePosition: LatLon? = null
+    private var latestRealDroneAltitudeMeters: Double? = null
+    private var isGeoTestModeEnabled = false
+    private var virtualGeoTestPosition: LatLon? = null
+    private var virtualGeoTestMarker: Marker? = null
+    private var virtualGeoTestEventsOverlay: MapEventsOverlay? = null
+    private var isDrawingModeActive = false
     private var hasCenteredInitialViewport = false
     private var hasCenteredToDrone = false
     private var initialCenterAttemptCount = 0
@@ -100,6 +111,7 @@ class MissionMapFragment : Fragment() {
         private const val GEO_PLANNING_STATUS_TAG = "GeoPlanningStatus"
         private const val GEO_UPLOAD_GUARD_TAG = "GeoUploadGuard"
         private const val LIVE_GEO_AWARENESS_TAG = "LiveGeoAwareness"
+        private const val GEO_TEST_MODE_TAG = "GeoTestMode"
         private const val MIN_VALID_ABS_COORDINATE = 1e-4
     }
 
@@ -170,6 +182,7 @@ class MissionMapFragment : Fragment() {
         liveGeoAwarenessStatusBinder?.setOnClickListener(View.OnClickListener {
             showLiveGeoAwarenessDetails()
         })
+        initializeVirtualGeoTestControls()
         updateGeoAwarenessPlanningStatus()
     }
 
@@ -349,6 +362,8 @@ class MissionMapFragment : Fragment() {
                 LatLon(lat = it.latitude, lon = it.longitude)
             }
             val liveAltitudeMeters = droneLocation?.takeIf(::isUsableDroneLocation)?.altitude
+            latestRealDronePosition = livePosition
+            latestRealDroneAltitudeMeters = liveAltitudeMeters
 
             if (livePosition != null) {
                 osmdroidMapController.updateDronePosition(
@@ -360,7 +375,8 @@ class MissionMapFragment : Fragment() {
                 osmdroidMapController.setDroneVisible(false)
                 centerInitialViewportIfNeeded()
             }
-            updateLiveGeoAwarenessStatus(livePosition, liveAltitudeMeters)
+
+            updateLiveGeoAwarenessFromActiveSource()
         }
 
         droneViewModel.droneHeading.observe(viewLifecycleOwner) { droneHeading ->
@@ -512,6 +528,8 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun renderHomeMapUiState(state: HomeMapUiState) {
+        val wasDrawingModeActive = isDrawingModeActive
+        isDrawingModeActive = state.interactionState.isDrawingEnabled
         osmdroidPolygonEditor.setEnabled(state.interactionState.isDrawingEnabled)
         homeMapChromeBinder.renderShell(state.shellState)
         homeMapChromeBinder.renderInteraction(state.interactionState)
@@ -519,6 +537,17 @@ class MissionMapFragment : Fragment() {
         homeMapPanelsBinder.renderShell(state.shellState)
         homeMapPanelsBinder.renderOverlays(state.panelState)
         homeMapModeEffectsBinder.render(state.screenMode)
+
+        if (!wasDrawingModeActive && isDrawingModeActive && isGeoTestModeEnabled) {
+            setVirtualGeoTestModeEnabled(false)
+            Toast.makeText(
+                requireContext(),
+                "Geo Test disabled while drawing",
+                Toast.LENGTH_SHORT
+            ).show()
+        } else {
+            updateVirtualGeoTestTapOverlay()
+        }
     }
 
     private fun savePreference(key: String, value: String) {
@@ -610,6 +639,8 @@ class MissionMapFragment : Fragment() {
         geoAwarenessChecker = null
         liveGeoAwarenessStatusBinder = null
         liveGeoAwarenessChecker = null
+        removeVirtualGeoTestMarker()
+        removeVirtualGeoTestTapOverlay()
         super.onDestroyView()
         _binding = null
     }
@@ -1059,5 +1090,169 @@ class MissionMapFragment : Fragment() {
         }
         return kotlin.math.abs(location.latitude) > MIN_VALID_ABS_COORDINATE ||
             kotlin.math.abs(location.longitude) > MIN_VALID_ABS_COORDINATE
+    }
+
+    private fun initializeVirtualGeoTestControls() {
+        binding.geoTestDebugControlsContainer.visibility = if (BuildConfig.DEBUG) {
+            View.VISIBLE
+        } else {
+            View.GONE
+        }
+
+        if (!BuildConfig.DEBUG) {
+            return
+        }
+
+        binding.geoTestModeButton.setOnClickListener {
+            if (!isGeoTestModeEnabled && isDrawingModeActive) {
+                Toast.makeText(
+                    requireContext(),
+                    "Finish drawing before using Geo Test",
+                    Toast.LENGTH_SHORT
+                ).show()
+                return@setOnClickListener
+            }
+
+            setVirtualGeoTestModeEnabled(!isGeoTestModeEnabled)
+        }
+
+        binding.clearGeoTestButton.setOnClickListener {
+            clearVirtualGeoTestPosition()
+        }
+
+        updateVirtualGeoTestButtons()
+        updateVirtualGeoTestTapOverlay()
+    }
+
+    private fun setVirtualGeoTestModeEnabled(enabled: Boolean) {
+        if (isGeoTestModeEnabled == enabled && !(enabled && virtualGeoTestPosition == null)) {
+            return
+        }
+
+        isGeoTestModeEnabled = enabled
+        if (!enabled) {
+            virtualGeoTestPosition = null
+            removeVirtualGeoTestMarker()
+        }
+        updateVirtualGeoTestButtons()
+        updateVirtualGeoTestTapOverlay()
+        updateLiveGeoAwarenessFromActiveSource()
+    }
+
+    private fun clearVirtualGeoTestPosition() {
+        virtualGeoTestPosition = null
+        removeVirtualGeoTestMarker()
+        updateLiveGeoAwarenessFromActiveSource()
+        Log.d(GEO_TEST_MODE_TAG, "Virtual geo test position cleared")
+    }
+
+    private fun updateVirtualGeoTestButtons() {
+        if (!BuildConfig.DEBUG || _binding == null) {
+            return
+        }
+
+        binding.geoTestModeButton.text = if (isGeoTestModeEnabled) {
+            "Geo Test: ON"
+        } else {
+            "Geo Test: OFF"
+        }
+    }
+
+    private fun updateVirtualGeoTestTapOverlay() {
+        if (!BuildConfig.DEBUG || _binding == null) {
+            removeVirtualGeoTestTapOverlay()
+            return
+        }
+
+        val shouldInterceptTaps = isGeoTestModeEnabled && !isDrawingModeActive
+        if (!shouldInterceptTaps) {
+            removeVirtualGeoTestTapOverlay()
+            return
+        }
+
+        if (virtualGeoTestEventsOverlay != null) {
+            return
+        }
+
+        val receiver = object : MapEventsReceiver {
+            override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
+                if (!isGeoTestModeEnabled || isDrawingModeActive) {
+                    return false
+                }
+
+                setVirtualGeoTestPosition(LatLon(lat = p.latitude, lon = p.longitude))
+                return true
+            }
+
+            override fun longPressHelper(p: GeoPoint): Boolean = false
+        }
+
+        virtualGeoTestEventsOverlay = MapEventsOverlay(receiver)
+        mapView.overlays.add(virtualGeoTestEventsOverlay)
+        mapView.invalidate()
+    }
+
+    private fun removeVirtualGeoTestTapOverlay() {
+        val overlay = virtualGeoTestEventsOverlay ?: return
+        mapView.overlays.remove(overlay)
+        virtualGeoTestEventsOverlay = null
+        mapView.invalidate()
+    }
+
+    private fun setVirtualGeoTestPosition(position: LatLon) {
+        virtualGeoTestPosition = position
+        ensureVirtualGeoTestMarker()
+        updateVirtualGeoTestMarker(position)
+        updateLiveGeoAwarenessStatus(position, null)
+        Log.d(
+            GEO_TEST_MODE_TAG,
+            "Virtual geo test position set: lat=${position.lat} lon=${position.lon}"
+        )
+    }
+
+    private fun ensureVirtualGeoTestMarker() {
+        if (virtualGeoTestMarker != null) {
+            return
+        }
+
+        virtualGeoTestMarker = Marker(mapView).apply {
+            title = "Geo Test Drone"
+            subDescription = "Debug-only virtual test position"
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            icon = ContextCompat.getDrawable(requireContext(), R.drawable.drone_marker_36)
+            isEnabled = true
+            setVisible(true)
+        }
+        mapView.overlays.add(virtualGeoTestMarker)
+        mapView.invalidate()
+    }
+
+    private fun updateVirtualGeoTestMarker(position: LatLon) {
+        val marker = virtualGeoTestMarker ?: return
+        marker.position = GeoPoint(position.lat, position.lon)
+        marker.isEnabled = true
+        marker.setVisible(true)
+        mapView.invalidate()
+    }
+
+    private fun removeVirtualGeoTestMarker() {
+        val marker = virtualGeoTestMarker ?: return
+        mapView.overlays.remove(marker)
+        virtualGeoTestMarker = null
+        mapView.invalidate()
+    }
+
+    private fun updateLiveGeoAwarenessFromActiveSource() {
+        val positionToUse = if (isGeoTestModeEnabled && virtualGeoTestPosition != null) {
+            virtualGeoTestPosition
+        } else {
+            latestRealDronePosition
+        }
+        val altitudeToUse = if (isGeoTestModeEnabled && virtualGeoTestPosition != null) {
+            null
+        } else {
+            latestRealDroneAltitudeMeters
+        }
+        updateLiveGeoAwarenessStatus(positionToUse, altitudeToUse)
     }
 }
