@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ds_color_background"
+    android:fillViewport="true"
+    android:scrollbars="none"
+    tools:context=".ui.geoawareness.GeoAwarenessFragment">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/ds_space_lg"
+        android:paddingTop="@dimen/ds_space_lg"
+        android:paddingEnd="@dimen/ds_space_lg"
+        android:paddingBottom="@dimen/ds_space_xl">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_ds_overlay_card"
+            android:orientation="vertical"
+            android:padding="@dimen/ds_space_lg">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/geo_awareness_title"
+                style="@style/TextAppearance.DroneServices.SectionTitle" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_xs"
+                android:text="@string/geo_awareness_subtitle"
+                style="@style/TextAppearance.DroneServices.MapPanelSubtitle" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_live_status"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <TextView
+                android:id="@+id/geo_awareness_live_status_chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:fontFamily="@font/inter"
+                android:paddingLeft="14dp"
+                android:paddingTop="8dp"
+                android:paddingRight="14dp"
+                android:paddingBottom="8dp"
+                android:text="LIVE GEO: NO POS"
+                android:textColor="@android:color/white"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_overlay_section"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="@dimen/ds_space_md">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/geo_awareness_show_zones"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/geo_awareness_overlay_switch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_dataset_section"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:orientation="vertical"
+                android:padding="@dimen/ds_space_md">
+
+                <TextView
+                    android:id="@+id/geo_awareness_dataset_title"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Dataset: Unknown geo-zone dataset"
+                    style="@style/TextAppearance.DroneServices.StatusValue" />
+
+                <TextView
+                    android:id="@+id/geo_awareness_dataset_version"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_xs"
+                    android:text="Version: N/A"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <TextView
+                    android:id="@+id/geo_awareness_dataset_official"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_xs"
+                    android:text="Official: No"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <TextView
+                    android:id="@+id/geo_awareness_dataset_zones"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_xs"
+                    android:text="Zones: 0"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/geo_awareness_dataset_details_button"
+                    style="@style/Widget.DroneServices.Button.MapLight"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="@dimen/ds_space_md"
+                    android:text="@string/geo_awareness_view_dataset_details" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_notice_section"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:padding="@dimen/ds_space_md"
+                android:text="@string/geo_awareness_dummy_notice"
+                style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+            <TextView
+                android:id="@+id/geo_awareness_debug_note"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_md"
+                android:text="@string/geo_awareness_debug_note"
+                android:visibility="gone"
+                style="@style/TextAppearance.DroneServices.Caption" />
+
+            <TextView
+                android:id="@+id/geo_awareness_debug_section_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_debug_section"
+                android:visibility="gone"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:id="@+id/geo_awareness_debug_controls_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="@dimen/ds_space_md"
+                android:visibility="gone">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/geo_awareness_geo_test_mode_button"
+                    style="@style/Widget.DroneServices.Button.MapDark"
+                    android:layout_width="0dp"
+                    android:layout_height="42dp"
+                    android:layout_weight="1"
+                    android:text="@string/geo_awareness_debug_test_off"
+                    android:textAllCaps="false" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/geo_awareness_clear_geo_test_button"
+                    style="@style/Widget.DroneServices.Button.MapLight"
+                    android:layout_width="wrap_content"
+                    android:layout_height="42dp"
+                    android:layout_marginStart="@dimen/ds_space_sm"
+                    android:text="@string/geo_awareness_debug_clear_test"
+                    android:textAllCaps="false" />
+            </LinearLayout>
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

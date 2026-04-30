@@ -20,5 +20,10 @@
             android:icon="@drawable/ic_baseline_check_circle_outline_24"
             android:title="@string/menu_rtk" />
 
+        <item
+            android:id="@+id/nav_geo_awareness"
+            android:icon="@drawable/ic_baseline_layers_clear_24"
+            android:title="@string/menu_geo_awareness" />
+
     </group>
 </menu>

@@ -21,4 +21,10 @@
         android:label="@string/rtk_title"
         tools:layout="@layout/fragment_rtk" />
 
+    <fragment
+        android:id="@+id/nav_geo_awareness"
+        android:name="com.example.droneservicesapp.ui.geoawareness.GeoAwarenessFragment"
+        android:label="@string/geo_awareness_title"
+        tools:layout="@layout/fragment_geo_awareness" />
+
 </navigation>

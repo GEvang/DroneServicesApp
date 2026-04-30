@@ -4,6 +4,8 @@ import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.core.util.Event
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
+import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.MissionArea
 import com.example.droneservicesapp.domain.model.MissionParams
 import com.google.android.gms.maps.model.LatLng
@@ -87,6 +89,22 @@ class MainActivityViewModel : ViewModel() {
     // ✅ Survey path from mission planning (separate from pure area model)
     val surveyPath: MutableLiveData<List<LatLng>> by lazy {
         MutableLiveData(emptyList())
+    }
+
+    val geoAwarenessLayerVisible: MutableLiveData<Boolean> by lazy {
+        MutableLiveData(true)
+    }
+
+    val geoZoneDatasetInfo: MutableLiveData<GeoZoneDatasetInfo?> by lazy {
+        MutableLiveData(null)
+    }
+
+    val geoTestModeEnabled: MutableLiveData<Boolean> by lazy {
+        MutableLiveData(false)
+    }
+
+    val virtualGeoTestPosition: MutableLiveData<LatLon?> by lazy {
+        MutableLiveData(null)
     }
 
     fun setPolygonVertices(vertices: List<LatLng>) {
