@@ -19,6 +19,7 @@ import androidx.core.content.FileProvider
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.example.droneservicesapp.BuildConfig
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.geoawareness.GeoZoneAssetDataSource
@@ -37,6 +38,9 @@ import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetStalenessPolicy
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetSourceType
 import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessChecker
+import com.example.droneservicesapp.domain.geoawareness.testing.GeoAwarenessTestRunResult
+import com.example.droneservicesapp.domain.geoawareness.testing.GeoAwarenessTestRunner
+import com.example.droneservicesapp.domain.geoawareness.testing.GeoAwarenessTestStatus
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationSeverity
 import com.example.droneservicesapp.domain.model.LatLon
@@ -47,6 +51,9 @@ import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class GeoAwarenessFragment : Fragment() {
 
@@ -76,6 +83,7 @@ class GeoAwarenessFragment : Fragment() {
     private var pendingDatasetPickerMode: DatasetPickerMode = DatasetPickerMode.IMPORT_NEW
     private var pendingDatasetFileNameToUpdate: String? = null
     private var lastStaleSignature: String? = null
+    private var lastTestRunResult: GeoAwarenessTestRunResult? = null
     private val importDatasetLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             handleImportedDatasetUri(uri)
@@ -140,6 +148,9 @@ class GeoAwarenessFragment : Fragment() {
         binding.geoAwarenessClearLogsButton.setOnClickListener {
             confirmClearGeoAwarenessLogs()
         }
+        binding.geoAwarenessRunTestsButton.setOnClickListener {
+            runGeoAwarenessTests()
+        }
         binding.geoAwarenessGeoTestModeButton.setOnClickListener {
             val enabled = !(activityViewModel.geoTestModeEnabled.value == true)
             activityViewModel.geoTestModeEnabled.value = enabled
@@ -160,6 +171,7 @@ class GeoAwarenessFragment : Fragment() {
         observeDroneLocation()
         updateGeoTestControls()
         refreshEventLogCount()
+        renderTestRunResult(null, isRunning = false)
         renderHealthStatus(
             activityViewModel.geoAwarenessHealth.value ?: GeoAwarenessHealthEvaluator.evaluate(
                 datasetInfo = datasetInfo,
@@ -488,6 +500,123 @@ class GeoAwarenessFragment : Fragment() {
             setStroke((1 * resources.displayMetrics.density).toInt(), Color.parseColor("#33FFFFFF"))
         }
         binding.geoAwarenessHealthMessage.text = resolvedHealth.message
+    }
+
+    private fun runGeoAwarenessTests() {
+        if (_binding == null) return
+        renderTestRunResult(lastTestRunResult, isRunning = true)
+        lifecycleScope.launch {
+            try {
+                val repository = buildRepository()
+                val result = withContext(Dispatchers.Default) {
+                    GeoAwarenessTestRunner(
+                        context = requireContext().applicationContext,
+                        repository = repository,
+                        eventLogger = geoEventLogger
+                    ).runAllTests()
+                }
+                lastTestRunResult = result
+                renderTestRunResult(result, isRunning = false)
+                refreshEventLogCount()
+            } catch (error: Exception) {
+                showReadableDialog(
+                    title = "Geo-awareness tests",
+                    message = error.message ?: "Failed to run geo-awareness tests."
+                )
+                renderTestRunResult(lastTestRunResult, isRunning = false)
+            }
+        }
+    }
+
+    private fun renderTestRunResult(
+        runResult: GeoAwarenessTestRunResult?,
+        isRunning: Boolean
+    ) {
+        if (_binding == null) return
+        binding.geoAwarenessRunTestsButton.isEnabled = !isRunning
+        val container = binding.geoAwarenessTestResultsContainer
+        container.removeAllViews()
+
+        if (isRunning) {
+            binding.geoAwarenessTestSummary.text = getString(R.string.geo_awareness_tests_running)
+            return
+        }
+
+        if (runResult == null) {
+            binding.geoAwarenessTestSummary.text = getString(R.string.geo_awareness_tests_idle)
+            return
+        }
+
+        binding.geoAwarenessTestSummary.text = buildString {
+            appendLine("${getString(R.string.geo_awareness_tests_overall)} ${runResult.overallStatus.name}")
+            appendLine("${getString(R.string.geo_awareness_tests_passed)} ${runResult.passCount}")
+            appendLine("${getString(R.string.geo_awareness_tests_warnings)} ${runResult.warningCount}")
+            appendLine("${getString(R.string.geo_awareness_tests_failed)} ${runResult.failCount}")
+            append("${getString(R.string.geo_awareness_tests_skipped)} ${runResult.skippedCount}")
+        }
+
+        runResult.results.forEachIndexed { index, result ->
+            if (index > 0) {
+                container.addView(View(requireContext()).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        (1 * resources.displayMetrics.density).toInt()
+                    ).apply {
+                        topMargin = (10 * resources.displayMetrics.density).toInt()
+                        bottomMargin = (10 * resources.displayMetrics.density).toInt()
+                    }
+                    setBackgroundColor(Color.parseColor("#1F2A44"))
+                })
+            }
+            container.addView(createTestResultView(result.id, result.name, result.status, result.message))
+        }
+    }
+
+    private fun createTestResultView(
+        id: String,
+        name: String,
+        status: GeoAwarenessTestStatus,
+        message: String
+    ): View {
+        val wrapper = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+        }
+        val statusColor = when (status) {
+            GeoAwarenessTestStatus.PASS -> Color.parseColor("#2E7D32")
+            GeoAwarenessTestStatus.WARNING -> Color.parseColor("#EF6C00")
+            GeoAwarenessTestStatus.FAIL -> Color.parseColor("#B71C1C")
+            GeoAwarenessTestStatus.SKIPPED -> Color.parseColor("#616161")
+        }
+        wrapper.addView(createStatusValue("$id  $name"))
+        wrapper.addView(TextView(requireContext()).apply {
+            text = status.name
+            setTextColor(Color.WHITE)
+            textSize = 12f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 18f * resources.displayMetrics.density
+                setColor(statusColor)
+            }
+            setPadding(
+                (12 * resources.displayMetrics.density).toInt(),
+                (6 * resources.displayMetrics.density).toInt(),
+                (12 * resources.displayMetrics.density).toInt(),
+                (6 * resources.displayMetrics.density).toInt()
+            )
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = (8 * resources.displayMetrics.density).toInt()
+            }
+        })
+        wrapper.addView(createPanelText(message))
+        return wrapper
     }
 
     private fun renderValidationStatus(result: GeoZoneValidationResult?) {

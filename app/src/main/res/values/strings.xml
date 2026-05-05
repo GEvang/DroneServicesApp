@@ -16,6 +16,7 @@
     <string name="geo_awareness_dataset_section">Dataset</string>
     <string name="geo_awareness_validation_section">Dataset validation</string>
     <string name="geo_awareness_logs_section">Event logs</string>
+    <string name="geo_awareness_diagnostics_section">Diagnostics</string>
     <string name="geo_awareness_notice_section">Notice</string>
     <string name="geo_awareness_show_zones">Show geo-zones on map</string>
     <string name="geo_awareness_current_source_label">Current source:</string>
@@ -40,6 +41,14 @@
     <string name="geo_awareness_view_validation_details">View validation details</string>
     <string name="geo_awareness_export_logs">Export logs</string>
     <string name="geo_awareness_clear_logs">Clear logs</string>
+    <string name="geo_awareness_run_tests">Run geo-awareness tests</string>
+    <string name="geo_awareness_tests_idle">No geo-awareness test results yet.</string>
+    <string name="geo_awareness_tests_running">Running...</string>
+    <string name="geo_awareness_tests_overall">Overall:</string>
+    <string name="geo_awareness_tests_passed">Passed:</string>
+    <string name="geo_awareness_tests_warnings">Warnings:</string>
+    <string name="geo_awareness_tests_failed">Failed:</string>
+    <string name="geo_awareness_tests_skipped">Skipped:</string>
     <string name="geo_awareness_dummy_notice">Development-only dummy data. Verify official restrictions in DAGR before flight.</string>
     <string name="geo_awareness_dataset_label">Dataset:</string>
     <string name="geo_awareness_version_label">Version:</string>

@@ -329,6 +329,44 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_diagnostics_section"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:orientation="vertical"
+                android:padding="@dimen/ds_space_md">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/geo_awareness_run_tests_button"
+                    style="@style/Widget.DroneServices.Button.MapLight"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:text="@string/geo_awareness_run_tests" />
+
+                <TextView
+                    android:id="@+id/geo_awareness_test_summary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_md"
+                    android:text="@string/geo_awareness_tests_idle"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <LinearLayout
+                    android:id="@+id/geo_awareness_test_results_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_sm"
+                    android:orientation="vertical" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
                 android:text="@string/geo_awareness_notice_section"
                 style="@style/TextAppearance.DroneServices.StatusLabel" />
 
