@@ -12,9 +12,12 @@
     <string name="geo_awareness_health_section">Health</string>
     <string name="geo_awareness_overlay_section">Zone overlay</string>
     <string name="geo_awareness_dataset_section">Dataset</string>
+    <string name="geo_awareness_logs_section">Event logs</string>
     <string name="geo_awareness_notice_section">Notice</string>
     <string name="geo_awareness_show_zones">Show geo-zones on map</string>
     <string name="geo_awareness_view_dataset_details">View dataset details</string>
+    <string name="geo_awareness_export_logs">Export logs</string>
+    <string name="geo_awareness_clear_logs">Clear logs</string>
     <string name="geo_awareness_dummy_notice">Development-only dummy data. Verify official restrictions in DAGR before flight.</string>
     <string name="geo_awareness_dataset_label">Dataset:</string>
     <string name="geo_awareness_version_label">Version:</string>
@@ -33,6 +36,7 @@
     <string name="geo_awareness_health_degraded">DEGRADED</string>
     <string name="geo_awareness_health_stale">STALE</string>
     <string name="geo_awareness_health_unavailable">UNAVAILABLE</string>
+    <string name="geo_awareness_event_count">Geo-awareness events recorded:</string>
     <string name="shell_operator_console">Operator Console</string>
     <string name="shell_status_connected">LINK OK</string>
     <string name="shell_status_disconnected">NO LINK</string>

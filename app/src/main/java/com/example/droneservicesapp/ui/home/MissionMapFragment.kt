@@ -23,6 +23,8 @@ import com.example.droneservicesapp.BuildConfig
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.geoawareness.GeoZoneAssetDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
+import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
+import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessChecker
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
@@ -80,6 +82,7 @@ class MissionMapFragment : Fragment() {
     private lateinit var missionParamsController: MissionParamsController
     private lateinit var missionSaveController: MissionSaveController
     private lateinit var missionLoadController: MissionLoadController
+    private lateinit var geoEventLogger: GeoAwarenessEventLogger
     private lateinit var homeMapChromeBinder: HomeMapChromeBinder
     private lateinit var homeMapPanelsBinder: HomeMapPanelsBinder
     private lateinit var homeMapModeEffectsBinder: HomeMapModeEffectsBinder
@@ -103,6 +106,11 @@ class MissionMapFragment : Fragment() {
     private var latestRealDroneAltitudeMeters: Double? = null
     private var virtualGeoTestMarker: Marker? = null
     private var virtualGeoTestEventsOverlay: MapEventsOverlay? = null
+    private var lastPlanningLogSignature: String? = null
+    private var lastConflictLogSignature: String? = null
+    private var lastHealthLogSignature: String? = null
+    private var lastHealthState: GeoAwarenessHealthState? = null
+    private var lastLiveZoneSignature: String? = null
     private var isDrawingModeActive = false
     private var hasCenteredInitialViewport = false
     private var hasCenteredToDrone = false
@@ -134,6 +142,7 @@ class MissionMapFragment : Fragment() {
         homeTelemetryViewModel = ViewModelProvider(requireActivity())[HomeTelemetryViewModel::class.java]
         mapViewModel = ViewModelProvider(this)[MissionMapViewModel::class.java]
         missionFileStore = MissionFileStore(requireContext())
+        geoEventLogger = GeoAwarenessEventLogger(requireContext().applicationContext)
 
         return binding.root
     }
@@ -749,6 +758,8 @@ class MissionMapFragment : Fragment() {
             )
             activityViewModel.geoZoneDatasetInfo.value = loadResult.datasetInfo
             activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
+            logDatasetLoaded(loadResult.datasetInfo)
+            geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
             return true
         } catch (error: Exception) {
             Log.e(GEO_ZONE_TOGGLE_TAG, "Failed to load geo-awareness dummy zones", error)
@@ -762,6 +773,8 @@ class MissionMapFragment : Fragment() {
             )
             activityViewModel.geoZoneDatasetInfo.value = null
             activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
+            logDatasetLoadFailed(error)
+            geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
         }
 
         return false
@@ -770,6 +783,14 @@ class MissionMapFragment : Fragment() {
     private fun renderGeoAwarenessLayerIfVisible() {
         if (activityViewModel.geoAwarenessLayerVisible.value != true) {
             geoZoneOverlayController?.clear()
+            geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.GEO_LAYER_HIDDEN,
+                severity = "INFO",
+                message = "Geo-awareness layer hidden",
+                datasetTitle = geoZoneDatasetInfo?.title,
+                datasetVersion = geoZoneDatasetInfo?.version,
+                healthState = geoAwarenessHealth?.state?.name
+            )
             return
         }
 
@@ -778,6 +799,14 @@ class MissionMapFragment : Fragment() {
         }
 
         geoZoneOverlayController?.renderZones(geoAwarenessZones)
+        geoEventLogger.logSimple(
+            type = GeoAwarenessEventType.GEO_LAYER_SHOWN,
+            severity = "INFO",
+            message = "Geo-awareness layer shown",
+            datasetTitle = geoZoneDatasetInfo?.title,
+            datasetVersion = geoZoneDatasetInfo?.version,
+            healthState = geoAwarenessHealth?.state?.name
+        )
         Log.d(GEO_ZONE_TOGGLE_TAG, "Geo-awareness layer shown")
     }
 
@@ -811,6 +840,7 @@ class MissionMapFragment : Fragment() {
             geoAwarenessStatusBinder?.bindResult(latestGeoAwarenessResult)
         }
         updatePlanningGeoAwarenessVisibility()
+        logPlanningStatusIfNeeded(latestGeoAwarenessResult)
         Log.d(
             GEO_PLANNING_STATUS_TAG,
             "Planning geo-awareness updated: conflicts=${latestGeoAwarenessResult.conflicts.size} highest=${latestGeoAwarenessResult.highestRestriction} canUpload=${latestGeoAwarenessResult.canUpload}"
@@ -933,6 +963,7 @@ class MissionMapFragment : Fragment() {
         )
         geoAwarenessHealth = health
         activityViewModel.geoAwarenessHealth.value = health
+        logHealthEvaluationIfNeeded(health)
         return health
     }
 
@@ -957,6 +988,14 @@ class MissionMapFragment : Fragment() {
             Log.w(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: health warning state=${health.state}")
             showGeoAwarenessHealthAcknowledgementDialog(health) {
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after health acknowledgement")
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.UPLOAD_CONTINUED_WITH_WARNING,
+                    severity = "WARNING",
+                    message = "Upload continued with geo-awareness health warning",
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = health.state.name
+                )
                 onAllowed()
             }
             return
@@ -964,6 +1003,14 @@ class MissionMapFragment : Fragment() {
 
         if (!result.hasConflicts) {
             Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: clear, proceeding")
+            geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.UPLOAD_GUARD_CLEAR,
+                severity = "INFO",
+                message = "Geo upload guard clear, proceeding",
+                datasetTitle = geoZoneDatasetInfo?.title,
+                datasetVersion = geoZoneDatasetInfo?.version,
+                healthState = health.state.name
+            )
             onAllowed()
             return
         }
@@ -971,17 +1018,58 @@ class MissionMapFragment : Fragment() {
         when {
             !result.canUpload -> {
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: blocked conflicts=${result.conflicts.size}")
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.UPLOAD_BLOCKED,
+                    severity = "BLOCKED",
+                    message = "Geo upload blocked",
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = health.state.name,
+                    zoneIds = result.conflicts.map { it.zone.id }.distinct(),
+                    zoneNames = result.conflicts.map { it.zone.name }.distinct(),
+                    restriction = result.highestRestriction.name
+                )
                 showGeoAwarenessBlockedDialog(result, health)
             }
             result.requiresAcknowledgement -> {
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: acknowledgement required conflicts=${result.conflicts.size}")
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.UPLOAD_ACK_REQUIRED,
+                    severity = "WARNING",
+                    message = "Geo upload requires acknowledgement",
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = health.state.name,
+                    zoneIds = result.conflicts.map { it.zone.id }.distinct(),
+                    zoneNames = result.conflicts.map { it.zone.name }.distinct(),
+                    restriction = result.highestRestriction.name
+                )
                 showGeoAwarenessAcknowledgementDialog(result, health) {
                     Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after acknowledgement")
+                    geoEventLogger.logSimple(
+                        type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
+                        severity = "INFO",
+                        message = "User acknowledged geo upload warning",
+                        datasetTitle = geoZoneDatasetInfo?.title,
+                        datasetVersion = geoZoneDatasetInfo?.version,
+                        healthState = health.state.name
+                    )
                     onAllowed()
                 }
             }
             else -> {
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: notice conflicts=${result.conflicts.size}")
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.UPLOAD_CONTINUED_WITH_WARNING,
+                    severity = "WARNING",
+                    message = "Geo upload warning shown",
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = health.state.name,
+                    zoneIds = result.conflicts.map { it.zone.id }.distinct(),
+                    zoneNames = result.conflicts.map { it.zone.name }.distinct(),
+                    restriction = result.highestRestriction.name
+                )
                 showGeoAwarenessNoticeDialog(result, health) {
                     Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after notice")
                     onAllowed()
@@ -1027,6 +1115,14 @@ class MissionMapFragment : Fragment() {
             }
             .setNegativeButton("Cancel") { _, _ ->
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled")
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.UPLOAD_CANCELLED,
+                    severity = "INFO",
+                    message = "User cancelled geo upload acknowledgement",
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = health.state.name
+                )
             }
             .show()
         dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
@@ -1049,10 +1145,26 @@ class MissionMapFragment : Fragment() {
             .setTitle("Geo-awareness notice")
             .setMessage(message)
             .setPositiveButton("Continue") { _, _ ->
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
+                    severity = "INFO",
+                    message = "User continued after geo upload warning",
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = health.state.name
+                )
                 onContinue()
             }
             .setNegativeButton("Cancel") { _, _ ->
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled")
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.UPLOAD_CANCELLED,
+                    severity = "INFO",
+                    message = "User cancelled geo upload warning",
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = health.state.name
+                )
             }
             .show()
         dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
@@ -1073,10 +1185,26 @@ class MissionMapFragment : Fragment() {
             .setTitle("Geo-awareness health warning")
             .setMessage(message)
             .setPositiveButton("Continue") { _, _ ->
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
+                    severity = "INFO",
+                    message = "User acknowledged geo-awareness health warning",
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = health.state.name
+                )
                 onContinue()
             }
             .setNegativeButton("Cancel") { _, _ ->
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled")
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.UPLOAD_CANCELLED,
+                    severity = "INFO",
+                    message = "User cancelled geo-awareness health warning",
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = health.state.name
+                )
             }
             .show()
         dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
@@ -1125,6 +1253,198 @@ class MissionMapFragment : Fragment() {
         }
     }
 
+    private fun logDatasetLoaded(info: GeoZoneDatasetInfo) {
+        geoEventLogger.logSimple(
+            type = GeoAwarenessEventType.DATASET_LOADED,
+            severity = "INFO",
+            message = "Geo-awareness dataset loaded",
+            datasetTitle = info.title,
+            datasetVersion = info.version,
+            details = mapOf(
+                "zoneCount" to info.zoneCount.toString(),
+                "circleGeometryCount" to info.circleGeometryCount.toString(),
+                "polygonGeometryCount" to info.polygonGeometryCount.toString(),
+                "official" to info.isOfficial.toString(),
+                "dummy" to info.isDummy.toString()
+            )
+        )
+    }
+
+    private fun logDatasetLoadFailed(error: Throwable) {
+        geoEventLogger.logSimple(
+            type = GeoAwarenessEventType.DATASET_LOAD_FAILED,
+            severity = "ERROR",
+            message = "Geo-awareness dataset failed to load: ${error::class.java.simpleName}: ${error.message}",
+            details = mapOf(
+                "errorClass" to error::class.java.name,
+                "errorMessage" to (error.message ?: "unknown")
+            )
+        )
+    }
+
+    private fun logHealthEvaluationIfNeeded(health: GeoAwarenessHealth) {
+        val signature = "${health.state}|${health.message}"
+        val severity = when (health.state) {
+            GeoAwarenessHealthState.AVAILABLE -> "INFO"
+            GeoAwarenessHealthState.UNAVAILABLE -> "ERROR"
+            else -> "WARNING"
+        }
+
+        if (lastHealthLogSignature != signature) {
+            geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.HEALTH_EVALUATED,
+                severity = severity,
+                message = health.message,
+                datasetTitle = geoZoneDatasetInfo?.title,
+                datasetVersion = geoZoneDatasetInfo?.version,
+                healthState = health.state.name
+            )
+            lastHealthLogSignature = signature
+        }
+
+        if (lastHealthState != null && lastHealthState != health.state) {
+            geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.HEALTH_CHANGED,
+                severity = severity,
+                message = "Geo-awareness health changed to ${health.state}",
+                datasetTitle = geoZoneDatasetInfo?.title,
+                datasetVersion = geoZoneDatasetInfo?.version,
+                healthState = health.state.name,
+                details = mapOf(
+                    "previousState" to lastHealthState!!.name,
+                    "newState" to health.state.name
+                )
+            )
+        }
+        lastHealthState = health.state
+    }
+
+    private fun logPlanningStatusIfNeeded(result: GeoAwarenessResult) {
+        val sortedZoneIds = result.conflicts.map { it.zone.id }.distinct().sorted()
+        val planningSignature = buildString {
+            append(result.conflicts.size)
+            append('|')
+            append(result.highestRestriction.name)
+            append('|')
+            append(result.canUpload)
+            append('|')
+            append(result.requiresAcknowledgement)
+            append('|')
+            append(sortedZoneIds.joinToString(","))
+        }
+        if (planningSignature != lastPlanningLogSignature) {
+            geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.PLANNING_CHECKED,
+                severity = if (result.hasConflicts) "WARNING" else "INFO",
+                message = if (result.hasConflicts) "Planning geo-awareness check found conflicts" else "Planning geo-awareness check clear",
+                datasetTitle = geoZoneDatasetInfo?.title,
+                datasetVersion = geoZoneDatasetInfo?.version,
+                healthState = geoAwarenessHealth?.state?.name,
+                zoneIds = sortedZoneIds,
+                zoneNames = result.conflicts.map { it.zone.name }.distinct().sorted(),
+                restriction = result.highestRestriction.name,
+                details = mapOf(
+                    "conflicts" to result.conflicts.size.toString(),
+                    "highestRestriction" to result.highestRestriction.name,
+                    "canUpload" to result.canUpload.toString(),
+                    "requiresAcknowledgement" to result.requiresAcknowledgement.toString()
+                )
+            )
+            lastPlanningLogSignature = planningSignature
+        }
+
+        if (result.hasConflicts && planningSignature != lastConflictLogSignature) {
+            geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.PLANNING_CONFLICT_DETECTED,
+                severity = "WARNING",
+                message = "Planning geo-awareness conflict detected",
+                datasetTitle = geoZoneDatasetInfo?.title,
+                datasetVersion = geoZoneDatasetInfo?.version,
+                healthState = geoAwarenessHealth?.state?.name,
+                zoneIds = sortedZoneIds,
+                zoneNames = result.conflicts.map { it.zone.name }.distinct().sorted(),
+                restriction = result.highestRestriction.name
+            )
+            lastConflictLogSignature = planningSignature
+        } else if (!result.hasConflicts) {
+            lastConflictLogSignature = null
+        }
+    }
+
+    private fun logLiveStatusIfNeeded(
+        zones: List<GeoZone>,
+        latitude: Double?,
+        longitude: Double?,
+        altitudeMeters: Double?
+    ) {
+        val sortedIds = zones.map { it.id }.sorted()
+        val newSignature = sortedIds.joinToString(",")
+        if (newSignature == lastLiveZoneSignature) {
+            return
+        }
+
+        val previousIds = lastLiveZoneSignature
+            ?.split(',')
+            ?.filter { it.isNotBlank() }
+            ?.toSet()
+            ?: emptySet()
+        val currentIds = sortedIds.toSet()
+        val entered = zones.filter { it.id !in previousIds }
+        val exitedIds = previousIds - currentIds
+
+        if (entered.isNotEmpty()) {
+            geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.LIVE_ZONE_ENTERED,
+                severity = when (entered.first().restriction) {
+                    GeoZoneRestriction.INFORMATION -> "INFO"
+                    else -> "WARNING"
+                },
+                message = "Live position entered geo-zone(s)",
+                datasetTitle = geoZoneDatasetInfo?.title,
+                datasetVersion = geoZoneDatasetInfo?.version,
+                healthState = geoAwarenessHealth?.state?.name,
+                zoneIds = entered.map { it.id },
+                zoneNames = entered.map { it.name },
+                restriction = entered.first().restriction.name,
+                latitude = latitude,
+                longitude = longitude,
+                altitudeMeters = altitudeMeters
+            )
+        }
+
+        if (exitedIds.isNotEmpty()) {
+            geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.LIVE_ZONE_EXITED,
+                severity = "INFO",
+                message = "Live position exited geo-zone(s)",
+                datasetTitle = geoZoneDatasetInfo?.title,
+                datasetVersion = geoZoneDatasetInfo?.version,
+                healthState = geoAwarenessHealth?.state?.name,
+                zoneIds = exitedIds.sorted(),
+                zoneNames = exitedIds.sorted(),
+                latitude = latitude,
+                longitude = longitude,
+                altitudeMeters = altitudeMeters
+            )
+        }
+
+        geoEventLogger.logSimple(
+            type = GeoAwarenessEventType.LIVE_STATUS_CHANGED,
+            severity = if (zones.isEmpty()) "INFO" else "WARNING",
+            message = if (zones.isEmpty()) "Live geo-awareness clear" else "Live geo-awareness status changed",
+            datasetTitle = geoZoneDatasetInfo?.title,
+            datasetVersion = geoZoneDatasetInfo?.version,
+            healthState = geoAwarenessHealth?.state?.name,
+            zoneIds = sortedIds,
+            zoneNames = zones.map { it.name },
+            restriction = zones.firstOrNull()?.restriction?.name,
+            latitude = latitude,
+            longitude = longitude,
+            altitudeMeters = altitudeMeters
+        )
+        lastLiveZoneSignature = newSignature
+    }
+
     private fun showGeoAwarenessDialog(title: String, message: String) {
         val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
             .setTitle(title)
@@ -1158,6 +1478,12 @@ class MissionMapFragment : Fragment() {
             zones = geoAwarenessZones
         ).orEmpty()
 
+        logLiveStatusIfNeeded(
+            zones = insideZones,
+            latitude = dronePosition.lat,
+            longitude = dronePosition.lon,
+            altitudeMeters = droneAltitudeMeters
+        )
         latestLiveGeoZones = insideZones
         if (insideZones.isEmpty()) {
             liveGeoAwarenessStatusBinder?.bindClear()
@@ -1275,6 +1601,14 @@ class MissionMapFragment : Fragment() {
 
     private fun clearVirtualGeoTestPosition() {
         activityViewModel.virtualGeoTestPosition.value = null
+        geoEventLogger.logSimple(
+            type = GeoAwarenessEventType.GEO_TEST_POSITION_CLEARED,
+            severity = "INFO",
+            message = "Virtual geo test position cleared",
+            datasetTitle = geoZoneDatasetInfo?.title,
+            datasetVersion = geoZoneDatasetInfo?.version,
+            healthState = geoAwarenessHealth?.state?.name
+        )
         Log.d(GEO_TEST_MODE_TAG, "Virtual geo test position cleared")
     }
 
@@ -1321,6 +1655,16 @@ class MissionMapFragment : Fragment() {
 
     private fun setVirtualGeoTestPosition(position: LatLon) {
         activityViewModel.virtualGeoTestPosition.value = position
+        geoEventLogger.logSimple(
+            type = GeoAwarenessEventType.GEO_TEST_POSITION_SET,
+            severity = "INFO",
+            message = "Virtual geo test position set",
+            datasetTitle = geoZoneDatasetInfo?.title,
+            datasetVersion = geoZoneDatasetInfo?.version,
+            healthState = geoAwarenessHealth?.state?.name,
+            latitude = position.lat,
+            longitude = position.lon
+        )
         Log.d(
             GEO_TEST_MODE_TAG,
             "Virtual geo test position set: lat=${position.lat} lon=${position.lon}"

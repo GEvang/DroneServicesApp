@@ -1,5 +1,6 @@
 package com.example.droneservicesapp.ui.geoawareness
 
+import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.location.Location
@@ -7,7 +8,9 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.core.content.FileProvider
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -15,6 +18,7 @@ import com.example.droneservicesapp.BuildConfig
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.geoawareness.GeoZoneAssetDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
+import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
 import com.example.droneservicesapp.databinding.FragmentGeoAwarenessBinding
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthEvaluator
@@ -45,6 +49,7 @@ class GeoAwarenessFragment : Fragment() {
     private var latestRealDroneAltitudeMeters: Double? = null
     private var geoAwarenessHealth: GeoAwarenessHealth? = null
     private var geoAwarenessLoadError: Throwable? = null
+    private lateinit var geoEventLogger: GeoAwarenessEventLogger
     private var liveStatusBinder: LiveGeoAwarenessStatusViewBinder? = null
 
     override fun onCreateView(
@@ -60,6 +65,7 @@ class GeoAwarenessFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         activityViewModel = ViewModelProvider(requireActivity())[MainActivityViewModel::class.java]
         droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
+        geoEventLogger = GeoAwarenessEventLogger(requireContext().applicationContext)
 
         requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
         liveStatusBinder = LiveGeoAwarenessStatusViewBinder(
@@ -82,6 +88,12 @@ class GeoAwarenessFragment : Fragment() {
         binding.geoAwarenessDatasetDetailsButton.setOnClickListener {
             showDatasetDetails()
         }
+        binding.geoAwarenessExportLogsButton.setOnClickListener {
+            exportGeoAwarenessLogs()
+        }
+        binding.geoAwarenessClearLogsButton.setOnClickListener {
+            confirmClearGeoAwarenessLogs()
+        }
         binding.geoAwarenessGeoTestModeButton.setOnClickListener {
             val enabled = !(activityViewModel.geoTestModeEnabled.value == true)
             activityViewModel.geoTestModeEnabled.value = enabled
@@ -98,6 +110,7 @@ class GeoAwarenessFragment : Fragment() {
         observeSharedState()
         observeDroneLocation()
         updateGeoTestControls()
+        refreshEventLogCount()
         renderHealthStatus(
             activityViewModel.geoAwarenessHealth.value ?: GeoAwarenessHealthEvaluator.evaluate(
                 datasetInfo = datasetInfo,
@@ -105,6 +118,13 @@ class GeoAwarenessFragment : Fragment() {
                 loadError = geoAwarenessLoadError
             )
         )
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (_binding != null) {
+            refreshEventLogCount()
+        }
     }
 
     private fun observeSharedState() {
@@ -245,6 +265,53 @@ class GeoAwarenessFragment : Fragment() {
             setStroke((1 * resources.displayMetrics.density).toInt(), Color.parseColor("#33FFFFFF"))
         }
         binding.geoAwarenessHealthMessage.text = resolvedHealth.message
+    }
+
+    private fun refreshEventLogCount() {
+        if (_binding == null) return
+        val count = geoEventLogger.readEvents(maxLines = Int.MAX_VALUE).size
+        binding.geoAwarenessLogCount.text =
+            getString(R.string.geo_awareness_event_count) + " " + count
+    }
+
+    private fun exportGeoAwarenessLogs() {
+        try {
+            val exportFile = geoEventLogger.exportLogsToJson()
+            val uri = FileProvider.getUriForFile(
+                requireContext(),
+                "${requireContext().packageName}.fileprovider",
+                exportFile
+            )
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/json"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "Geo-awareness event logs")
+                putExtra(Intent.EXTRA_TEXT, "Geo-awareness event log export")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(shareIntent, "Share geo-awareness logs"))
+            refreshEventLogCount()
+        } catch (error: Exception) {
+            showReadableDialog(
+                title = "Export geo-awareness logs",
+                message = "Failed to share geo-awareness logs.\n\n${error.message ?: "Unknown error"}"
+            )
+        }
+    }
+
+    private fun confirmClearGeoAwarenessLogs() {
+        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
+            .setTitle("Clear geo-awareness logs?")
+            .setMessage("This will delete stored geo-awareness event logs from this device.")
+            .setPositiveButton("Clear") { _, _ ->
+                geoEventLogger.clearLogs()
+                refreshEventLogCount()
+                Toast.makeText(requireContext(), "Geo-awareness logs cleared", Toast.LENGTH_SHORT).show()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
     }
 
     private fun updateLiveStatus() {
