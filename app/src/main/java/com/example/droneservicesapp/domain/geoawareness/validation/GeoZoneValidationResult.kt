@@ -31,5 +31,12 @@ data class GeoZoneValidationResult(
                 issues = issues
             )
         }
+
+        fun combine(results: List<GeoZoneValidationResult>): GeoZoneValidationResult {
+            if (results.isEmpty()) {
+                return ok()
+            }
+            return fromIssues(results.flatMap { it.issues })
+        }
     }
 }

@@ -148,6 +148,30 @@
                     android:text="Current source: Bundled dummy dataset"
                     style="@style/TextAppearance.DroneServices.StatusValue" />
 
+                <TextView
+                    android:id="@+id/geo_awareness_loaded_datasets_summary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_xs"
+                    android:text="Loaded datasets: 1"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <TextView
+                    android:id="@+id/geo_awareness_total_zones_summary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_xs"
+                    android:text="Total zones: 0"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <TextView
+                    android:id="@+id/geo_awareness_total_validation_summary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_xs"
+                    android:text="Total validation: Errors 0 | Warnings 0"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
                 <LinearLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
@@ -170,6 +194,22 @@
                         android:text="@string/geo_awareness_reset_dataset" />
                 </LinearLayout>
             </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_loaded_datasets_section"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:id="@+id/geo_awareness_dataset_records_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:orientation="vertical"
+                android:padding="@dimen/ds_space_md" />
 
             <TextView
                 android:layout_width="match_parent"

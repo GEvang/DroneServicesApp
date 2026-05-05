@@ -2,9 +2,13 @@ package com.example.droneservicesapp.domain.geoawareness
 
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 
-data class GeoZoneLoadResult(
+data class GeoZoneDatasetRecord(
+    val datasetId: String,
+    val displayName: String,
+    val storageFileName: String?,
+    val sourceType: GeoZoneDatasetSourceType,
     val datasetInfo: GeoZoneDatasetInfo,
-    val zones: List<GeoZone>,
     val validationResult: GeoZoneValidationResult,
-    val datasetRecords: List<GeoZoneDatasetRecord> = emptyList()
+    val zoneCount: Int,
+    val importedAtMillis: Long?
 )

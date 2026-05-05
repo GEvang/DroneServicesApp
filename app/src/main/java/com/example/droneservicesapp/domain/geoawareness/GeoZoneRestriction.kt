@@ -9,13 +9,28 @@ enum class GeoZoneRestriction {
 
     companion object {
         fun fromRaw(raw: String?): GeoZoneRestriction {
-            return when (raw?.trim()?.uppercase()) {
+            return when (normalize(raw)) {
                 "PROHIBITED" -> PROHIBITED
-                "REQ_AUTHORISATION", "REQ_AUTHORIZATION" -> REQ_AUTHORISATION
+                "REQ_AUTHORISATION",
+                "REQ_AUTHORIZATION",
+                "AUTHORISATION",
+                "AUTHORIZATION",
+                "AUTHORISATION_REQUIRED",
+                "AUTHORIZATION_REQUIRED" -> REQ_AUTHORISATION
                 "CONDITIONAL" -> CONDITIONAL
-                "INFORMATION" -> INFORMATION
+                "INFORMATION",
+                "NO_RESTRICTION" -> INFORMATION
                 else -> UNKNOWN
             }
+        }
+
+        private fun normalize(raw: String?): String? {
+            return raw
+                ?.trim()
+                ?.uppercase()
+                ?.replace('-', '_')
+                ?.replace(' ', '_')
+                ?.takeIf { it.isNotEmpty() }
         }
     }
 }

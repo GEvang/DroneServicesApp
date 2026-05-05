@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.core.util.Event
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 import com.example.droneservicesapp.domain.model.LatLon
@@ -107,6 +108,10 @@ class MainActivityViewModel : ViewModel() {
 
     val geoZoneValidationResult: MutableLiveData<GeoZoneValidationResult?> by lazy {
         MutableLiveData(null)
+    }
+
+    val geoZoneDatasetRecords: MutableLiveData<List<GeoZoneDatasetRecord>> by lazy {
+        MutableLiveData(emptyList())
     }
 
     val geoZoneImportedActive: MutableLiveData<Boolean> by lazy {

@@ -753,21 +753,10 @@ class MissionMapFragment : Fragment() {
         try {
             val repository = buildGeoZoneRepository()
             val loadResult = repository.loadCurrentDataset()
-            geoAwarenessZones = loadResult.zones
-            geoZoneDatasetInfo = loadResult.datasetInfo
-            geoZoneValidationResult = loadResult.validationResult
-            geoAwarenessLoadError = null
-            geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
-                datasetInfo = loadResult.datasetInfo,
-                zones = loadResult.zones,
-                validationResult = loadResult.validationResult
-            )
-            activityViewModel.geoZoneDatasetInfo.value = loadResult.datasetInfo
-            activityViewModel.geoZoneValidationResult.value = loadResult.validationResult
-            activityViewModel.geoZoneImportedActive.value = repository.hasImportedDataset()
-            activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
+            applyGeoZoneLoadResult(loadResult, repository.hasImportedDatasets())
             logDatasetLoaded(loadResult.datasetInfo)
             logDatasetValidation(loadResult.validationResult, loadResult.datasetInfo)
+            logMultiDatasetLoadedIfNeeded(loadResult)
             geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
             return true
         } catch (error: Exception) {
@@ -780,12 +769,13 @@ class MissionMapFragment : Fragment() {
                 datasetInfo = null,
                 zones = emptyList(),
                 loadError = error
-            )
-            activityViewModel.geoZoneDatasetInfo.value = null
-            activityViewModel.geoZoneValidationResult.value = null
-            activityViewModel.geoZoneImportedActive.value = false
-            activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
-            logDatasetLoadFailed(error)
+              )
+              activityViewModel.geoZoneDatasetInfo.value = null
+              activityViewModel.geoZoneValidationResult.value = null
+              activityViewModel.geoZoneDatasetRecords.value = emptyList()
+              activityViewModel.geoZoneImportedActive.value = false
+              activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
+              logDatasetLoadFailed(error)
             geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
         }
 
@@ -809,19 +799,8 @@ class MissionMapFragment : Fragment() {
         try {
             val repository = buildGeoZoneRepository()
             val loadResult = repository.loadCurrentDataset()
-            geoAwarenessZones = loadResult.zones
-            geoZoneDatasetInfo = loadResult.datasetInfo
-            geoZoneValidationResult = loadResult.validationResult
-            geoAwarenessLoadError = null
-            geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
-                datasetInfo = loadResult.datasetInfo,
-                zones = loadResult.zones,
-                validationResult = loadResult.validationResult
-            )
-            activityViewModel.geoZoneDatasetInfo.value = loadResult.datasetInfo
-            activityViewModel.geoZoneValidationResult.value = loadResult.validationResult
-            activityViewModel.geoZoneImportedActive.value = repository.hasImportedDataset()
-            activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
+            applyGeoZoneLoadResult(loadResult, repository.hasImportedDatasets())
+            logMultiDatasetLoadedIfNeeded(loadResult)
             renderGeoAwarenessLayerIfVisible()
             updateGeoAwarenessPlanningStatus()
             updateLiveGeoAwarenessFromActiveSource()
@@ -846,6 +825,26 @@ class MissionMapFragment : Fragment() {
             assetDataSource = GeoZoneAssetDataSource(appContext),
             importedDataSource = GeoZoneImportedFileDataSource(appContext)
         )
+    }
+
+    private fun applyGeoZoneLoadResult(
+        result: com.example.droneservicesapp.domain.geoawareness.GeoZoneLoadResult,
+        importedActive: Boolean
+    ) {
+        geoAwarenessZones = result.zones
+        geoZoneDatasetInfo = result.datasetInfo
+        geoZoneValidationResult = result.validationResult
+        geoAwarenessLoadError = null
+        geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
+            datasetInfo = result.datasetInfo,
+            zones = result.zones,
+            validationResult = result.validationResult
+        )
+        activityViewModel.geoZoneDatasetInfo.value = result.datasetInfo
+        activityViewModel.geoZoneValidationResult.value = result.validationResult
+        activityViewModel.geoZoneDatasetRecords.value = result.datasetRecords
+        activityViewModel.geoZoneImportedActive.value = importedActive
+        activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
     }
 
     private fun renderGeoAwarenessLayerIfVisible() {
@@ -1390,6 +1389,28 @@ class MissionMapFragment : Fragment() {
                 details = details
             )
         }
+    }
+
+    private fun logMultiDatasetLoadedIfNeeded(
+        result: com.example.droneservicesapp.domain.geoawareness.GeoZoneLoadResult
+    ) {
+        if (result.datasetRecords.size <= 1) {
+            return
+        }
+        geoEventLogger.logSimple(
+            type = GeoAwarenessEventType.MULTI_DATASET_LOADED,
+            severity = if (result.validationResult.hasWarnings) "WARNING" else "INFO",
+            message = "Multiple geo-zone datasets loaded",
+            datasetTitle = result.datasetInfo.title,
+            datasetVersion = result.datasetInfo.version,
+            healthState = geoAwarenessHealth?.state?.name,
+            details = mapOf(
+                "datasetCount" to result.datasetRecords.size.toString(),
+                "totalZones" to result.datasetInfo.zoneCount.toString(),
+                "totalWarnings" to result.validationResult.warningCount.toString(),
+                "totalErrors" to result.validationResult.errorCount.toString()
+            )
+        )
     }
 
     private fun logHealthEvaluationIfNeeded(health: GeoAwarenessHealth) {
