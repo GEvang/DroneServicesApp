@@ -40,6 +40,7 @@ public class Application extends android.app.Application {
             com.example.droneservicesapp.data.geoawareness.GeoAwarenessCheckerDebugProbe.INSTANCE.logCheckerValidation(this);
             com.example.droneservicesapp.data.geoawareness.LiveGeoAwarenessDebugProbe.INSTANCE.logLiveGeoValidation(this);
             com.example.droneservicesapp.data.geoawareness.GeoAwarenessHealthDebugProbe.INSTANCE.logHealthValidation(this);
+            com.example.droneservicesapp.data.geoawareness.GeoZoneValidationDebugProbe.INSTANCE.logValidationProbe(this);
         }
 
     }

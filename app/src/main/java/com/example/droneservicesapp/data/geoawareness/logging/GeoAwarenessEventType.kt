@@ -3,6 +3,8 @@ package com.example.droneservicesapp.data.geoawareness.logging
 enum class GeoAwarenessEventType {
     DATASET_LOADED,
     DATASET_LOAD_FAILED,
+    DATASET_VALIDATED,
+    DATASET_VALIDATION_FAILED,
     HEALTH_EVALUATED,
     HEALTH_CHANGED,
     PLANNING_CHECKED,

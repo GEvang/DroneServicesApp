@@ -37,6 +37,7 @@ import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneConflict
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
 import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessChecker
+import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
@@ -94,6 +95,7 @@ class MissionMapFragment : Fragment() {
     private var geoZoneDatasetInfo: GeoZoneDatasetInfo? = null
     private var geoAwarenessHealth: GeoAwarenessHealth? = null
     private var geoAwarenessLoadError: Throwable? = null
+    private var geoZoneValidationResult: GeoZoneValidationResult? = null
     private var geoZoneOverlayController: GeoZoneOverlayController? = null
     private var geoAwarenessChecker: GeoAwarenessChecker? = null
     private var latestGeoAwarenessResult: GeoAwarenessResult = GeoAwarenessResult.clear()
@@ -736,6 +738,7 @@ class MissionMapFragment : Fragment() {
                 val health = GeoAwarenessHealthEvaluator.evaluate(
                     datasetInfo = geoZoneDatasetInfo,
                     zones = geoAwarenessZones,
+                    validationResult = geoZoneValidationResult,
                     loadError = geoAwarenessLoadError
                 )
                 geoAwarenessHealth = health
@@ -751,14 +754,18 @@ class MissionMapFragment : Fragment() {
             val loadResult = repository.loadDummyRethymnoDataset()
             geoAwarenessZones = loadResult.zones
             geoZoneDatasetInfo = loadResult.datasetInfo
+            geoZoneValidationResult = loadResult.validationResult
             geoAwarenessLoadError = null
             geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
                 datasetInfo = loadResult.datasetInfo,
-                zones = loadResult.zones
+                zones = loadResult.zones,
+                validationResult = loadResult.validationResult
             )
             activityViewModel.geoZoneDatasetInfo.value = loadResult.datasetInfo
+            activityViewModel.geoZoneValidationResult.value = loadResult.validationResult
             activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
             logDatasetLoaded(loadResult.datasetInfo)
+            logDatasetValidation(loadResult.validationResult, loadResult.datasetInfo)
             geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
             return true
         } catch (error: Exception) {
@@ -766,12 +773,14 @@ class MissionMapFragment : Fragment() {
             geoAwarenessZones = emptyList()
             geoZoneDatasetInfo = null
             geoAwarenessLoadError = error
+            geoZoneValidationResult = null
             geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
                 datasetInfo = null,
                 zones = emptyList(),
                 loadError = error
             )
             activityViewModel.geoZoneDatasetInfo.value = null
+            activityViewModel.geoZoneValidationResult.value = null
             activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
             logDatasetLoadFailed(error)
             geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
@@ -959,6 +968,7 @@ class MissionMapFragment : Fragment() {
         val health = GeoAwarenessHealthEvaluator.evaluate(
             datasetInfo = geoZoneDatasetInfo,
             zones = geoAwarenessZones,
+            validationResult = geoZoneValidationResult,
             loadError = geoAwarenessLoadError
         )
         geoAwarenessHealth = health
@@ -1280,6 +1290,47 @@ class MissionMapFragment : Fragment() {
                 "errorMessage" to (error.message ?: "unknown")
             )
         )
+    }
+
+    private fun logDatasetValidation(
+        result: GeoZoneValidationResult,
+        info: GeoZoneDatasetInfo
+    ) {
+        val details = mapOf(
+            "errorCount" to result.errorCount.toString(),
+            "warningCount" to result.warningCount.toString(),
+            "infoCount" to result.infoCount.toString(),
+            "issueCodes" to result.issues.take(10).joinToString(",") { it.code }
+        )
+        when {
+            result.hasErrors -> geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.DATASET_VALIDATION_FAILED,
+                severity = "ERROR",
+                message = "Geo-awareness dataset validation failed",
+                datasetTitle = info.title,
+                datasetVersion = info.version,
+                healthState = geoAwarenessHealth?.state?.name,
+                details = details
+            )
+            result.hasWarnings -> geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.DATASET_VALIDATED,
+                severity = "WARNING",
+                message = "Geo-awareness dataset validation completed with warnings",
+                datasetTitle = info.title,
+                datasetVersion = info.version,
+                healthState = geoAwarenessHealth?.state?.name,
+                details = details
+            )
+            else -> geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.DATASET_VALIDATED,
+                severity = "INFO",
+                message = "Geo-awareness dataset validation passed",
+                datasetTitle = info.title,
+                datasetVersion = info.version,
+                healthState = geoAwarenessHealth?.state?.name,
+                details = details
+            )
+        }
     }
 
     private fun logHealthEvaluationIfNeeded(health: GeoAwarenessHealth) {

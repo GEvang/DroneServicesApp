@@ -26,6 +26,8 @@ import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthState
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessChecker
+import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
+import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationSeverity
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoAwarenessStatusViewBinder
@@ -49,6 +51,7 @@ class GeoAwarenessFragment : Fragment() {
     private var latestRealDroneAltitudeMeters: Double? = null
     private var geoAwarenessHealth: GeoAwarenessHealth? = null
     private var geoAwarenessLoadError: Throwable? = null
+    private var validationResult: GeoZoneValidationResult? = null
     private lateinit var geoEventLogger: GeoAwarenessEventLogger
     private var liveStatusBinder: LiveGeoAwarenessStatusViewBinder? = null
 
@@ -88,6 +91,9 @@ class GeoAwarenessFragment : Fragment() {
         binding.geoAwarenessDatasetDetailsButton.setOnClickListener {
             showDatasetDetails()
         }
+        binding.geoAwarenessValidationDetailsButton.setOnClickListener {
+            showValidationDetails()
+        }
         binding.geoAwarenessExportLogsButton.setOnClickListener {
             exportGeoAwarenessLogs()
         }
@@ -107,6 +113,7 @@ class GeoAwarenessFragment : Fragment() {
 
         loadDatasetIfNeeded()
         bindDatasetSummary()
+        renderValidationStatus(activityViewModel.geoZoneValidationResult.value)
         observeSharedState()
         observeDroneLocation()
         updateGeoTestControls()
@@ -115,6 +122,7 @@ class GeoAwarenessFragment : Fragment() {
             activityViewModel.geoAwarenessHealth.value ?: GeoAwarenessHealthEvaluator.evaluate(
                 datasetInfo = datasetInfo,
                 zones = geoZones,
+                validationResult = validationResult,
                 loadError = geoAwarenessLoadError
             )
         )
@@ -132,11 +140,16 @@ class GeoAwarenessFragment : Fragment() {
             binding.geoAwarenessOverlaySwitch.isChecked = visible ?: true
         }
 
-        activityViewModel.geoZoneDatasetInfo.observe(viewLifecycleOwner) { info ->
+            activityViewModel.geoZoneDatasetInfo.observe(viewLifecycleOwner) { info ->
             if (info != null) {
                 datasetInfo = info
                 bindDatasetSummary()
             }
+        }
+
+        activityViewModel.geoZoneValidationResult.observe(viewLifecycleOwner) { result ->
+            validationResult = result
+            renderValidationStatus(result)
         }
 
         activityViewModel.geoAwarenessHealth.observe(viewLifecycleOwner) { health ->
@@ -170,8 +183,10 @@ class GeoAwarenessFragment : Fragment() {
         }
 
         val sharedInfo = activityViewModel.geoZoneDatasetInfo.value
+        val sharedValidation = activityViewModel.geoZoneValidationResult.value
         if (sharedInfo != null && geoZones.isNotEmpty()) {
             datasetInfo = sharedInfo
+            validationResult = sharedValidation
             return
         }
 
@@ -186,10 +201,13 @@ class GeoAwarenessFragment : Fragment() {
             activityViewModel.geoZoneDatasetInfo.value = loadResult.datasetInfo
             val health = GeoAwarenessHealthEvaluator.evaluate(
                 datasetInfo = loadResult.datasetInfo,
-                zones = loadResult.zones
+                zones = loadResult.zones,
+                validationResult = loadResult.validationResult
             )
             geoAwarenessHealth = health
             activityViewModel.geoAwarenessHealth.value = health
+            validationResult = loadResult.validationResult
+            activityViewModel.geoZoneValidationResult.value = loadResult.validationResult
         } catch (error: Exception) {
             datasetInfo = null
             geoZones = emptyList()
@@ -201,6 +219,8 @@ class GeoAwarenessFragment : Fragment() {
             )
             geoAwarenessHealth = health
             activityViewModel.geoAwarenessHealth.value = health
+            validationResult = null
+            activityViewModel.geoZoneValidationResult.value = null
         }
     }
 
@@ -224,6 +244,7 @@ class GeoAwarenessFragment : Fragment() {
         val resolvedHealth = health ?: GeoAwarenessHealthEvaluator.evaluate(
             datasetInfo = datasetInfo,
             zones = geoZones,
+            validationResult = validationResult,
             loadError = geoAwarenessLoadError
         )
         geoAwarenessHealth = resolvedHealth
@@ -265,6 +286,25 @@ class GeoAwarenessFragment : Fragment() {
             setStroke((1 * resources.displayMetrics.density).toInt(), Color.parseColor("#33FFFFFF"))
         }
         binding.geoAwarenessHealthMessage.text = resolvedHealth.message
+    }
+
+    private fun renderValidationStatus(result: GeoZoneValidationResult?) {
+        if (_binding == null) return
+        val resolved = result ?: GeoZoneValidationResult.ok()
+        val (label, backgroundColor) = when {
+            resolved.hasErrors -> getString(R.string.geo_awareness_validation_errors) to Color.parseColor("#B71C1C")
+            resolved.hasWarnings -> getString(R.string.geo_awareness_validation_warnings) to Color.parseColor("#EF6C00")
+            else -> getString(R.string.geo_awareness_validation_ok) to Color.parseColor("#2E7D32")
+        }
+        binding.geoAwarenessValidationChip.text = "Validation: $label"
+        binding.geoAwarenessValidationChip.background = GradientDrawable().apply {
+            shape = GradientDrawable.RECTANGLE
+            cornerRadius = (18 * resources.displayMetrics.density)
+            setColor(backgroundColor)
+            setStroke((1 * resources.displayMetrics.density).toInt(), Color.parseColor("#33FFFFFF"))
+        }
+        binding.geoAwarenessValidationCounts.text =
+            "Errors: ${resolved.errorCount}  Warnings: ${resolved.warningCount}  Info: ${resolved.infoCount}"
     }
 
     private fun refreshEventLogCount() {
@@ -430,6 +470,41 @@ class GeoAwarenessFragment : Fragment() {
             append(notice)
         }
         showReadableDialog("Geo-awareness dataset", message)
+    }
+
+    private fun showValidationDetails() {
+        val result = validationResult ?: GeoZoneValidationResult.ok()
+        val message = if (result.issues.isEmpty()) {
+            "Dataset validation passed."
+        } else {
+            val visibleIssues = result.issues.take(30)
+            val remaining = result.issues.size - visibleIssues.size
+            buildString {
+                GeoZoneValidationSeverity.values().forEach { severity ->
+                    val severityIssues = visibleIssues.filter { it.severity == severity }
+                    if (severityIssues.isEmpty()) return@forEach
+                    appendLine(severity.name)
+                    severityIssues.forEach { issue ->
+                        append("- [${issue.code}] ${issue.message}")
+                        if (!issue.zoneId.isNullOrBlank()) {
+                            append(" (zoneId=${issue.zoneId}")
+                            if (!issue.field.isNullOrBlank()) {
+                                append(", field=${issue.field}")
+                            }
+                            append(")")
+                        } else if (!issue.field.isNullOrBlank()) {
+                            append(" (field=${issue.field})")
+                        }
+                        appendLine()
+                    }
+                    appendLine()
+                }
+                if (remaining > 0) {
+                    append("...and $remaining more.")
+                }
+            }
+        }
+        showReadableDialog("Geo-zone dataset validation", message)
     }
 
     private fun showReadableDialog(title: String, message: String) {

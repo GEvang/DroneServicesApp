@@ -1,5 +1,7 @@
 package com.example.droneservicesapp.domain.geoawareness
 
+import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
+
 object GeoAwarenessHealthEvaluator {
 
     const val DEFAULT_STALE_AFTER_MILLIS = 7L * 24L * 60L * 60L * 1000L
@@ -7,6 +9,7 @@ object GeoAwarenessHealthEvaluator {
     fun evaluate(
         datasetInfo: GeoZoneDatasetInfo?,
         zones: List<GeoZone>,
+        validationResult: GeoZoneValidationResult? = null,
         loadError: Throwable? = null,
         nowMillis: Long = System.currentTimeMillis()
     ): GeoAwarenessHealth {
@@ -43,10 +46,32 @@ object GeoAwarenessHealthEvaluator {
             )
         }
 
+        if (validationResult?.hasErrors == true) {
+            return GeoAwarenessHealth(
+                state = if (zones.isEmpty()) GeoAwarenessHealthState.UNAVAILABLE else GeoAwarenessHealthState.DEGRADED,
+                message = "Geo-awareness dataset validation failed.",
+                canPlan = zones.isNotEmpty(),
+                canUploadWithoutAcknowledgement = false,
+                requiresAcknowledgementBeforeUpload = true,
+                checkedAtMillis = nowMillis
+            )
+        }
+
         if (datasetInfo.isDummy) {
             return GeoAwarenessHealth(
                 state = GeoAwarenessHealthState.DUMMY_DATA,
                 message = "Using development-only dummy geo-awareness data.",
+                canPlan = true,
+                canUploadWithoutAcknowledgement = false,
+                requiresAcknowledgementBeforeUpload = true,
+                checkedAtMillis = nowMillis
+            )
+        }
+
+        if (validationResult?.hasWarnings == true) {
+            return GeoAwarenessHealth(
+                state = GeoAwarenessHealthState.DEGRADED,
+                message = "Geo-awareness dataset has validation warnings.",
                 canPlan = true,
                 canUploadWithoutAcknowledgement = false,
                 requiresAcknowledgementBeforeUpload = true,

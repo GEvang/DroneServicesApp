@@ -3,6 +3,7 @@ package com.example.droneservicesapp.data.geoawareness
 import android.util.Log
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneLoadResult
+import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneDatasetValidator
 
 class GeoZoneRepository(
     private val assetDataSource: GeoZoneAssetDataSource,
@@ -25,13 +26,23 @@ class GeoZoneRepository(
             zones = zones,
             loadedAtMillis = loadedAtMillis
         )
+        val validationResult = GeoZoneDatasetValidator.validate(
+            rawJson = rawJson,
+            datasetInfo = datasetInfo,
+            zones = zones
+        )
         Log.d(
             TAG,
             "Loaded geo-awareness dataset title=${datasetInfo.title} version=${datasetInfo.version} zones=${datasetInfo.zoneCount} official=${datasetInfo.isOfficial} dummy=${datasetInfo.isDummy}"
         )
+        Log.d(
+            TAG,
+            "Validated geo-awareness dataset errors=${validationResult.errorCount} warnings=${validationResult.warningCount} valid=${validationResult.isValid}"
+        )
         return GeoZoneLoadResult(
             datasetInfo = datasetInfo,
-            zones = zones
+            zones = zones,
+            validationResult = validationResult
         )
     }
 
