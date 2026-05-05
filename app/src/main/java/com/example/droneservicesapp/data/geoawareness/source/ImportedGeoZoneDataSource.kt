@@ -14,13 +14,16 @@ class ImportedGeoZoneDataSource(
 
     override fun loadDatasets(): List<GeoZoneRawDataset> {
         return importedFileDataSource.listImportedDatasetFiles().map { file ->
+            val metadata = importedFileDataSource.readMetadata(file.name)
             GeoZoneRawDataset(
-                datasetId = file.nameWithoutExtension,
-                displayName = file.nameWithoutExtension,
+                datasetId = metadata?.datasetId ?: file.nameWithoutExtension,
+                displayName = metadata?.originalFileName ?: file.nameWithoutExtension,
                 rawJson = importedFileDataSource.loadRawJson(file),
                 sourceType = sourceType,
                 storageFileName = file.name,
-                importedAtMillis = file.lastModified().takeIf { it > 0L }
+                originalFileName = metadata?.originalFileName,
+                updatedAtMillis = metadata?.updatedAtMillis ?: file.lastModified().takeIf { it > 0L },
+                importedAtMillis = metadata?.importedAtMillis ?: file.lastModified().takeIf { it > 0L }
             )
         }
     }

@@ -5,6 +5,7 @@ import com.example.droneservicesapp.data.geoawareness.source.BundledGeoZoneDataS
 import com.example.droneservicesapp.data.geoawareness.source.GeoZoneRawDataset
 import com.example.droneservicesapp.data.geoawareness.source.ImportedGeoZoneDataSource
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetStalenessPolicy
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetSourceType
@@ -43,21 +44,20 @@ class GeoZoneRepository(
         }
     }
 
-    fun importDataset(rawJson: String): GeoZoneLoadResult {
-        val preview = buildLoadResultFromRawDatasets(
-            rawDatasets = listOf(
-                GeoZoneRawDataset(
-                    datasetId = "import-preview",
-                    displayName = "Imported file",
-                    rawJson = rawJson,
-                    sourceType = GeoZoneDatasetSourceType.IMPORTED_FILE,
-                    storageFileName = null,
-                    importedAtMillis = System.currentTimeMillis()
-                )
+    fun importDataset(rawJson: String, originalFileName: String? = null): GeoZoneLoadResult {
+        val preview = buildSingleDatasetLoad(
+            GeoZoneRawDataset(
+                datasetId = "import-preview",
+                displayName = originalFileName ?: "Imported file",
+                rawJson = rawJson,
+                sourceType = GeoZoneDatasetSourceType.IMPORTED_FILE,
+                storageFileName = null,
+                originalFileName = originalFileName,
+                updatedAtMillis = System.currentTimeMillis(),
+                importedAtMillis = System.currentTimeMillis()
             )
         )
-        val previewRecord = preview.datasetRecords.firstOrNull()
-        val previewValidation = previewRecord?.validationResult ?: preview.validationResult
+        val previewValidation = preview.validationResult
         if (previewValidation.hasErrors) {
             throw GeoZoneDatasetValidationException(
                 validationResult = previewValidation,
@@ -66,7 +66,45 @@ class GeoZoneRepository(
         }
         val source = importedFileDataSource
             ?: throw IllegalStateException("Imported geo-zone storage is unavailable.")
-        source.saveImportedDataset(rawJson, suggestedName = preview.datasetInfo.title)
+        source.saveImportedDataset(
+            rawJson = rawJson,
+            suggestedName = preview.datasetInfo.title,
+            originalFileName = originalFileName
+        )
+        return loadCurrentDataset()
+    }
+
+    fun updateImportedDataset(
+        storageFileName: String,
+        rawJson: String,
+        originalFileName: String? = null
+    ): GeoZoneLoadResult {
+        val preview = buildSingleDatasetLoad(
+            GeoZoneRawDataset(
+                datasetId = storageFileName.substringBeforeLast('.'),
+                displayName = originalFileName ?: storageFileName,
+                rawJson = rawJson,
+                sourceType = GeoZoneDatasetSourceType.IMPORTED_FILE,
+                storageFileName = storageFileName,
+                originalFileName = originalFileName,
+                updatedAtMillis = System.currentTimeMillis(),
+                importedAtMillis = importedFileDataSource?.readMetadata(storageFileName)?.importedAtMillis
+            )
+        )
+        val previewValidation = preview.validationResult
+        if (previewValidation.hasErrors) {
+            throw GeoZoneDatasetValidationException(
+                validationResult = previewValidation,
+                message = "Updated geo-zone dataset failed validation."
+            )
+        }
+        val source = importedFileDataSource
+            ?: throw IllegalStateException("Imported geo-zone storage is unavailable.")
+        source.updateImportedDataset(
+            storageFileName = storageFileName,
+            rawJson = rawJson,
+            originalFileName = originalFileName
+        )
         return loadCurrentDataset()
     }
 
@@ -158,7 +196,16 @@ class GeoZoneRepository(
             datasetInfo = datasetInfo,
             validationResult = validationResult,
             zoneCount = zones.size,
-            importedAtMillis = rawDataset.importedAtMillis
+            importedAtMillis = rawDataset.importedAtMillis,
+            updatedAtMillis = rawDataset.updatedAtMillis,
+            isStale = rawDataset.sourceType == GeoZoneDatasetSourceType.IMPORTED_FILE &&
+                GeoZoneDatasetStalenessPolicy.isStale(rawDataset.updatedAtMillis),
+            staleAfterMillis = GeoZoneDatasetStalenessPolicy.DEFAULT_STALE_AFTER_MILLIS,
+            ageDescription = if (rawDataset.sourceType == GeoZoneDatasetSourceType.IMPORTED_FILE) {
+                GeoZoneDatasetStalenessPolicy.ageDescription(rawDataset.updatedAtMillis)
+            } else {
+                null
+            }
         )
         logLoad(datasetInfo, validationResult)
         return SingleDatasetLoad(

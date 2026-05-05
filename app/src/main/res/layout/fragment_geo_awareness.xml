@@ -176,22 +176,36 @@
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="@dimen/ds_space_md"
-                    android:orientation="horizontal">
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/geo_awareness_import_dataset_button"
+                            style="@style/Widget.DroneServices.Button.MapLight"
+                            android:layout_width="wrap_content"
+                            android:layout_height="44dp"
+                            android:text="@string/geo_awareness_import_dataset" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/geo_awareness_reset_dataset_button"
+                            style="@style/Widget.DroneServices.Button.MapDark"
+                            android:layout_width="wrap_content"
+                            android:layout_height="44dp"
+                            android:layout_marginStart="@dimen/ds_space_sm"
+                            android:text="@string/geo_awareness_reset_dataset" />
+                    </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
-                        android:id="@+id/geo_awareness_import_dataset_button"
+                        android:id="@+id/geo_awareness_refresh_status_button"
                         style="@style/Widget.DroneServices.Button.MapLight"
                         android:layout_width="wrap_content"
                         android:layout_height="44dp"
-                        android:text="@string/geo_awareness_import_dataset" />
-
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/geo_awareness_reset_dataset_button"
-                        style="@style/Widget.DroneServices.Button.MapDark"
-                        android:layout_width="wrap_content"
-                        android:layout_height="44dp"
-                        android:layout_marginStart="@dimen/ds_space_sm"
-                        android:text="@string/geo_awareness_reset_dataset" />
+                        android:layout_marginTop="@dimen/ds_space_sm"
+                        android:text="@string/geo_awareness_refresh_status" />
                 </LinearLayout>
             </LinearLayout>
 

@@ -9,6 +9,7 @@ object GeoAwarenessHealthEvaluator {
     fun evaluate(
         datasetInfo: GeoZoneDatasetInfo?,
         zones: List<GeoZone>,
+        datasetRecords: List<GeoZoneDatasetRecord> = emptyList(),
         validationResult: GeoZoneValidationResult? = null,
         loadError: Throwable? = null,
         nowMillis: Long = System.currentTimeMillis()
@@ -61,6 +62,28 @@ object GeoAwarenessHealthEvaluator {
             return GeoAwarenessHealth(
                 state = GeoAwarenessHealthState.DUMMY_DATA,
                 message = "Using development-only dummy geo-awareness data.",
+                canPlan = true,
+                canUploadWithoutAcknowledgement = false,
+                requiresAcknowledgementBeforeUpload = true,
+                checkedAtMillis = nowMillis
+            )
+        }
+
+        val staleRecords = datasetRecords.filter { !it.datasetInfo.isDummy && it.isStale }
+        if (staleRecords.isNotEmpty()) {
+            val baseMessage = if (staleRecords.size == 1) {
+                "Geo-awareness dataset may be stale."
+            } else {
+                "One or more geo-awareness datasets may be stale."
+            }
+            val fullMessage = if (!datasetInfo.isOfficial) {
+                "$baseMessage Dataset is not marked official."
+            } else {
+                baseMessage
+            }
+            return GeoAwarenessHealth(
+                state = GeoAwarenessHealthState.STALE,
+                message = fullMessage,
                 canPlan = true,
                 canUploadWithoutAcknowledgement = false,
                 requiresAcknowledgementBeforeUpload = true,

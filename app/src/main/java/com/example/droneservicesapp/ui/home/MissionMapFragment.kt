@@ -741,6 +741,7 @@ class MissionMapFragment : Fragment() {
                 val health = GeoAwarenessHealthEvaluator.evaluate(
                     datasetInfo = geoZoneDatasetInfo,
                     zones = geoAwarenessZones,
+                    datasetRecords = activityViewModel.geoZoneDatasetRecords.value.orEmpty(),
                     validationResult = geoZoneValidationResult,
                     loadError = geoAwarenessLoadError
                 )
@@ -768,6 +769,7 @@ class MissionMapFragment : Fragment() {
             geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
                 datasetInfo = null,
                 zones = emptyList(),
+                datasetRecords = emptyList(),
                 loadError = error
               )
               activityViewModel.geoZoneDatasetInfo.value = null
@@ -811,6 +813,7 @@ class MissionMapFragment : Fragment() {
             geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
                 datasetInfo = geoZoneDatasetInfo,
                 zones = geoAwarenessZones,
+                datasetRecords = activityViewModel.geoZoneDatasetRecords.value.orEmpty(),
                 validationResult = geoZoneValidationResult,
                 loadError = error
             )
@@ -838,6 +841,7 @@ class MissionMapFragment : Fragment() {
         geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
             datasetInfo = result.datasetInfo,
             zones = result.zones,
+            datasetRecords = result.datasetRecords,
             validationResult = result.validationResult
         )
         activityViewModel.geoZoneDatasetInfo.value = result.datasetInfo
@@ -1026,6 +1030,7 @@ class MissionMapFragment : Fragment() {
         val health = GeoAwarenessHealthEvaluator.evaluate(
             datasetInfo = geoZoneDatasetInfo,
             zones = geoAwarenessZones,
+            datasetRecords = activityViewModel.geoZoneDatasetRecords.value.orEmpty(),
             validationResult = geoZoneValidationResult,
             loadError = geoAwarenessLoadError
         )

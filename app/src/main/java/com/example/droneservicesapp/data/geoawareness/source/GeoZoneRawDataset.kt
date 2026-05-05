@@ -8,5 +8,7 @@ data class GeoZoneRawDataset(
     val rawJson: String,
     val sourceType: GeoZoneDatasetSourceType,
     val storageFileName: String?,
+    val originalFileName: String? = null,
+    val updatedAtMillis: Long? = null,
     val importedAtMillis: Long? = null
 )

@@ -10,5 +10,9 @@ data class GeoZoneDatasetRecord(
     val datasetInfo: GeoZoneDatasetInfo,
     val validationResult: GeoZoneValidationResult,
     val zoneCount: Int,
-    val importedAtMillis: Long?
+    val importedAtMillis: Long?,
+    val updatedAtMillis: Long? = null,
+    val isStale: Boolean = false,
+    val staleAfterMillis: Long? = null,
+    val ageDescription: String? = null
 )

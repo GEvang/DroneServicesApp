@@ -26,10 +26,16 @@
     <string name="geo_awareness_total_validation_label">Total validation:</string>
     <string name="geo_awareness_import_dataset">Import geo-zone JSON</string>
     <string name="geo_awareness_reset_dataset">Reset to bundled dummy dataset</string>
+    <string name="geo_awareness_refresh_status">Refresh status</string>
     <string name="geo_awareness_remove_dataset">Remove</string>
+    <string name="geo_awareness_update_dataset">Update</string>
     <string name="geo_awareness_dataset_source_bundled_row">Bundled asset</string>
     <string name="geo_awareness_dataset_source_imported_row">Imported file</string>
     <string name="geo_awareness_dataset_list_empty">No loaded dataset records.</string>
+    <string name="geo_awareness_updated_label">Updated:</string>
+    <string name="geo_awareness_stale_label">Stale:</string>
+    <string name="geo_awareness_yes">Yes</string>
+    <string name="geo_awareness_no">No</string>
     <string name="geo_awareness_view_dataset_details">View dataset details</string>
     <string name="geo_awareness_view_validation_details">View validation details</string>
     <string name="geo_awareness_export_logs">Export logs</string>
