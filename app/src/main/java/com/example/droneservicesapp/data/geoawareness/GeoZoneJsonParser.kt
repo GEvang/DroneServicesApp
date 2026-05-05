@@ -45,14 +45,16 @@ class GeoZoneJsonParser {
     fun parseDatasetInfo(
         rawJson: String,
         zones: List<GeoZone>,
-        loadedAtMillis: Long = System.currentTimeMillis()
+        loadedAtMillis: Long = System.currentTimeMillis(),
+        fallbackSource: String = "Bundled asset",
+        fallbackSourceUrl: String? = "https://dagr.hasp.gov.gr/"
     ): GeoZoneDatasetInfo {
         return try {
             val root = JSONObject(rawJson)
-            buildDatasetInfo(root, zones, loadedAtMillis)
+            buildDatasetInfo(root, zones, loadedAtMillis, fallbackSource, fallbackSourceUrl)
         } catch (error: Exception) {
             Log.w(TAG, "Failed to parse geozone dataset metadata", error)
-            buildDatasetInfo(null, zones, loadedAtMillis)
+            buildDatasetInfo(null, zones, loadedAtMillis, fallbackSource, fallbackSourceUrl)
         }
     }
 
@@ -270,13 +272,15 @@ class GeoZoneJsonParser {
     private fun buildDatasetInfo(
         root: JSONObject?,
         zones: List<GeoZone>,
-        loadedAtMillis: Long
+        loadedAtMillis: Long,
+        fallbackSource: String,
+        fallbackSourceUrl: String?
     ): GeoZoneDatasetInfo {
         val title = optStringOrNull(root, "title") ?: "Unknown geo-zone dataset"
         val description = optStringOrNull(root, "description")
         val version = optStringOrNull(root, "version")
-        val source = optStringOrNull(root, "source") ?: "Bundled asset"
-        val sourceUrl = optStringOrNull(root, "sourceUrl") ?: "https://dagr.hasp.gov.gr/"
+        val source = optStringOrNull(root, "source") ?: fallbackSource
+        val sourceUrl = optStringOrNull(root, "sourceUrl") ?: fallbackSourceUrl
         val country = optStringOrNull(root, "country") ?: resolveCountry(zones)
         val isDummy = sequenceOf(title, description, version)
             .filterNotNull()

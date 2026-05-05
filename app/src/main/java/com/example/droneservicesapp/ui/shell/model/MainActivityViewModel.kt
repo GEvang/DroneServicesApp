@@ -109,6 +109,14 @@ class MainActivityViewModel : ViewModel() {
         MutableLiveData(null)
     }
 
+    val geoZoneImportedActive: MutableLiveData<Boolean> by lazy {
+        MutableLiveData(false)
+    }
+
+    val geoZoneReloadToken: MutableLiveData<Long> by lazy {
+        MutableLiveData(0L)
+    }
+
     val geoTestModeEnabled: MutableLiveData<Boolean> by lazy {
         MutableLiveData(false)
     }
@@ -132,5 +140,9 @@ class MainActivityViewModel : ViewModel() {
 
     fun sendAction(action: MapAction) {
         mapAction.postValue(Event(action))
+    }
+
+    fun notifyGeoZoneDatasetReloaded() {
+        geoZoneReloadToken.postValue(System.currentTimeMillis())
     }
 }

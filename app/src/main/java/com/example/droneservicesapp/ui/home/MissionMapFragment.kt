@@ -22,6 +22,7 @@ import androidx.drawerlayout.widget.DrawerLayout
 import com.example.droneservicesapp.BuildConfig
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.geoawareness.GeoZoneAssetDataSource
+import com.example.droneservicesapp.data.geoawareness.GeoZoneImportedFileDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
@@ -117,6 +118,7 @@ class MissionMapFragment : Fragment() {
     private var hasCenteredInitialViewport = false
     private var hasCenteredToDrone = false
     private var initialCenterAttemptCount = 0
+    private var lastGeoZoneReloadToken: Long = 0L
 
     companion object {
         private const val DEFAULT_MAP_ZOOM = 18.0
@@ -160,6 +162,7 @@ class MissionMapFragment : Fragment() {
         observeMapState()
         observeHomeTelemetry()
         observeMissionMapViewModel()
+        observeGeoAwarenessSharedState()
 
         mapViewModel.updateFromMapState(activityViewModel.mapState.value ?: MainActivityViewModel.MapState.Idle)
     }
@@ -748,10 +751,8 @@ class MissionMapFragment : Fragment() {
         }
 
         try {
-            val repository = GeoZoneRepository(
-                GeoZoneAssetDataSource(requireContext().applicationContext)
-            )
-            val loadResult = repository.loadDummyRethymnoDataset()
+            val repository = buildGeoZoneRepository()
+            val loadResult = repository.loadCurrentDataset()
             geoAwarenessZones = loadResult.zones
             geoZoneDatasetInfo = loadResult.datasetInfo
             geoZoneValidationResult = loadResult.validationResult
@@ -763,6 +764,7 @@ class MissionMapFragment : Fragment() {
             )
             activityViewModel.geoZoneDatasetInfo.value = loadResult.datasetInfo
             activityViewModel.geoZoneValidationResult.value = loadResult.validationResult
+            activityViewModel.geoZoneImportedActive.value = repository.hasImportedDataset()
             activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
             logDatasetLoaded(loadResult.datasetInfo)
             logDatasetValidation(loadResult.validationResult, loadResult.datasetInfo)
@@ -781,12 +783,69 @@ class MissionMapFragment : Fragment() {
             )
             activityViewModel.geoZoneDatasetInfo.value = null
             activityViewModel.geoZoneValidationResult.value = null
+            activityViewModel.geoZoneImportedActive.value = false
             activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
             logDatasetLoadFailed(error)
             geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
         }
 
         return false
+    }
+
+    private fun observeGeoAwarenessSharedState() {
+        activityViewModel.geoAwarenessLayerVisible.observe(viewLifecycleOwner) {
+            renderGeoAwarenessLayerIfVisible()
+        }
+        activityViewModel.geoZoneReloadToken.observe(viewLifecycleOwner) { token ->
+            if (token == null || token <= 0L || token == lastGeoZoneReloadToken) {
+                return@observe
+            }
+            lastGeoZoneReloadToken = token
+            reloadCurrentGeoAwarenessDataset()
+        }
+    }
+
+    private fun reloadCurrentGeoAwarenessDataset() {
+        try {
+            val repository = buildGeoZoneRepository()
+            val loadResult = repository.loadCurrentDataset()
+            geoAwarenessZones = loadResult.zones
+            geoZoneDatasetInfo = loadResult.datasetInfo
+            geoZoneValidationResult = loadResult.validationResult
+            geoAwarenessLoadError = null
+            geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
+                datasetInfo = loadResult.datasetInfo,
+                zones = loadResult.zones,
+                validationResult = loadResult.validationResult
+            )
+            activityViewModel.geoZoneDatasetInfo.value = loadResult.datasetInfo
+            activityViewModel.geoZoneValidationResult.value = loadResult.validationResult
+            activityViewModel.geoZoneImportedActive.value = repository.hasImportedDataset()
+            activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
+            renderGeoAwarenessLayerIfVisible()
+            updateGeoAwarenessPlanningStatus()
+            updateLiveGeoAwarenessFromActiveSource()
+            geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
+        } catch (error: Exception) {
+            Log.e(GEO_ZONE_TOGGLE_TAG, "Failed to reload geo-awareness dataset", error)
+            geoAwarenessLoadError = error
+            geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
+                datasetInfo = geoZoneDatasetInfo,
+                zones = geoAwarenessZones,
+                validationResult = geoZoneValidationResult,
+                loadError = error
+            )
+            activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
+            geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
+        }
+    }
+
+    private fun buildGeoZoneRepository(): GeoZoneRepository {
+        val appContext = requireContext().applicationContext
+        return GeoZoneRepository(
+            assetDataSource = GeoZoneAssetDataSource(appContext),
+            importedDataSource = GeoZoneImportedFileDataSource(appContext)
+        )
     }
 
     private fun renderGeoAwarenessLayerIfVisible() {

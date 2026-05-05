@@ -1,5 +1,6 @@
 package com.example.droneservicesapp.ui.geoawareness
 
+import android.net.Uri
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
@@ -10,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -17,7 +19,10 @@ import androidx.lifecycle.ViewModelProvider
 import com.example.droneservicesapp.BuildConfig
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.geoawareness.GeoZoneAssetDataSource
+import com.example.droneservicesapp.data.geoawareness.GeoZoneDatasetValidationException
+import com.example.droneservicesapp.data.geoawareness.GeoZoneImportedFileDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
+import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
 import com.example.droneservicesapp.databinding.FragmentGeoAwarenessBinding
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
@@ -32,6 +37,7 @@ import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoAwarenessStatusViewBinder
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
+import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -52,8 +58,18 @@ class GeoAwarenessFragment : Fragment() {
     private var geoAwarenessHealth: GeoAwarenessHealth? = null
     private var geoAwarenessLoadError: Throwable? = null
     private var validationResult: GeoZoneValidationResult? = null
+    private var importedDatasetActive: Boolean = false
     private lateinit var geoEventLogger: GeoAwarenessEventLogger
     private var liveStatusBinder: LiveGeoAwarenessStatusViewBinder? = null
+    private val importDatasetLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) {
+            handleImportedDatasetUri(uri)
+        }
+    }
+
+    companion object {
+        private const val MAX_IMPORT_BYTES = 5L * 1024L * 1024L
+    }
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -91,6 +107,12 @@ class GeoAwarenessFragment : Fragment() {
         binding.geoAwarenessDatasetDetailsButton.setOnClickListener {
             showDatasetDetails()
         }
+        binding.geoAwarenessImportDatasetButton.setOnClickListener {
+            launchImportDatasetPicker()
+        }
+        binding.geoAwarenessResetDatasetButton.setOnClickListener {
+            confirmResetToBundledDataset()
+        }
         binding.geoAwarenessValidationDetailsButton.setOnClickListener {
             showValidationDetails()
         }
@@ -113,6 +135,7 @@ class GeoAwarenessFragment : Fragment() {
 
         loadDatasetIfNeeded()
         bindDatasetSummary()
+        updateCurrentSourceSummary()
         renderValidationStatus(activityViewModel.geoZoneValidationResult.value)
         observeSharedState()
         observeDroneLocation()
@@ -150,6 +173,11 @@ class GeoAwarenessFragment : Fragment() {
         activityViewModel.geoZoneValidationResult.observe(viewLifecycleOwner) { result ->
             validationResult = result
             renderValidationStatus(result)
+        }
+
+        activityViewModel.geoZoneImportedActive.observe(viewLifecycleOwner) { imported ->
+            importedDatasetActive = imported == true
+            updateCurrentSourceSummary()
         }
 
         activityViewModel.geoAwarenessHealth.observe(viewLifecycleOwner) { health ->
@@ -191,23 +219,9 @@ class GeoAwarenessFragment : Fragment() {
         }
 
         try {
-            val repository = GeoZoneRepository(
-                GeoZoneAssetDataSource(requireContext().applicationContext)
-            )
-            val loadResult = repository.loadDummyRethymnoDataset()
-            geoZones = loadResult.zones
-            datasetInfo = loadResult.datasetInfo
-            geoAwarenessLoadError = null
-            activityViewModel.geoZoneDatasetInfo.value = loadResult.datasetInfo
-            val health = GeoAwarenessHealthEvaluator.evaluate(
-                datasetInfo = loadResult.datasetInfo,
-                zones = loadResult.zones,
-                validationResult = loadResult.validationResult
-            )
-            geoAwarenessHealth = health
-            activityViewModel.geoAwarenessHealth.value = health
-            validationResult = loadResult.validationResult
-            activityViewModel.geoZoneValidationResult.value = loadResult.validationResult
+            val repository = buildRepository()
+            val loadResult = repository.loadCurrentDataset()
+            applyLoadedDataset(loadResult, repository.hasImportedDataset())
         } catch (error: Exception) {
             datasetInfo = null
             geoZones = emptyList()
@@ -221,7 +235,35 @@ class GeoAwarenessFragment : Fragment() {
             activityViewModel.geoAwarenessHealth.value = health
             validationResult = null
             activityViewModel.geoZoneValidationResult.value = null
+            importedDatasetActive = false
+            activityViewModel.geoZoneImportedActive.value = false
         }
+    }
+
+    private fun applyLoadedDataset(
+        loadResult: com.example.droneservicesapp.domain.geoawareness.GeoZoneLoadResult,
+        importedActive: Boolean
+    ) {
+        geoZones = loadResult.zones
+        datasetInfo = loadResult.datasetInfo
+        validationResult = loadResult.validationResult
+        importedDatasetActive = importedActive
+        geoAwarenessLoadError = null
+        val health = GeoAwarenessHealthEvaluator.evaluate(
+            datasetInfo = loadResult.datasetInfo,
+            zones = loadResult.zones,
+            validationResult = loadResult.validationResult
+        )
+        geoAwarenessHealth = health
+        activityViewModel.geoZoneDatasetInfo.value = loadResult.datasetInfo
+        activityViewModel.geoZoneValidationResult.value = loadResult.validationResult
+        activityViewModel.geoAwarenessHealth.value = health
+        activityViewModel.geoZoneImportedActive.value = importedActive
+        bindDatasetSummary()
+        updateCurrentSourceSummary()
+        renderValidationStatus(loadResult.validationResult)
+        renderHealthStatus(health)
+        updateLiveStatus()
     }
 
     private fun bindDatasetSummary() {
@@ -238,6 +280,17 @@ class GeoAwarenessFragment : Fragment() {
         binding.geoAwarenessDatasetZones.text = getString(
             R.string.geo_awareness_zones_label
         ) + " " + (info?.zoneCount ?: 0)
+    }
+
+    private fun updateCurrentSourceSummary() {
+        if (_binding == null) return
+        val sourceLabel = if (importedDatasetActive) {
+            getString(R.string.geo_awareness_current_source_imported)
+        } else {
+            getString(R.string.geo_awareness_current_source_bundled)
+        }
+        binding.geoAwarenessCurrentSource.text =
+            getString(R.string.geo_awareness_current_source_label) + " " + sourceLabel
     }
 
     private fun renderHealthStatus(health: GeoAwarenessHealth?) {
@@ -470,6 +523,162 @@ class GeoAwarenessFragment : Fragment() {
             append(notice)
         }
         showReadableDialog("Geo-awareness dataset", message)
+    }
+
+    private fun launchImportDatasetPicker() {
+        importDatasetLauncher.launch(arrayOf("application/json", "text/json", "text/plain", "*/*"))
+    }
+
+    private fun handleImportedDatasetUri(uri: Uri) {
+        geoEventLogger.logSimple(
+            type = GeoAwarenessEventType.DATASET_IMPORT_STARTED,
+            severity = "INFO",
+            message = "Geo-zone dataset import started",
+            details = mapOf("uri" to uri.toString())
+        )
+
+        try {
+            val rawJson = readUtf8FromUri(uri)
+            val repository = buildRepository()
+            val loadResult = repository.importDataset(rawJson)
+            applyLoadedDataset(loadResult, importedActive = true)
+            activityViewModel.notifyGeoZoneDatasetReloaded()
+            geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.DATASET_IMPORT_SUCCEEDED,
+                severity = "INFO",
+                message = "Geo-zone dataset import succeeded",
+                datasetTitle = loadResult.datasetInfo.title,
+                datasetVersion = loadResult.datasetInfo.version,
+                healthState = geoAwarenessHealth?.state?.name,
+                details = mapOf(
+                    "title" to loadResult.datasetInfo.title,
+                    "version" to (loadResult.datasetInfo.version ?: "N/A"),
+                    "zoneCount" to loadResult.datasetInfo.zoneCount.toString(),
+                    "errorCount" to loadResult.validationResult.errorCount.toString(),
+                    "warningCount" to loadResult.validationResult.warningCount.toString(),
+                    "infoCount" to loadResult.validationResult.infoCount.toString()
+                )
+            )
+            refreshEventLogCount()
+            val warningSuffix = if (loadResult.validationResult.warningCount > 0) {
+                "\nValidation warnings: ${loadResult.validationResult.warningCount}"
+            } else {
+                ""
+            }
+            showReadableDialog(
+                title = "Import complete",
+                message = "${getString(R.string.geo_awareness_import_success)}\n\nZones loaded: ${loadResult.datasetInfo.zoneCount}$warningSuffix"
+            )
+        } catch (error: GeoZoneDatasetValidationException) {
+            showImportFailure(error, error.validationResult)
+        } catch (error: Exception) {
+            showImportFailure(error, null)
+        }
+    }
+
+    private fun confirmResetToBundledDataset() {
+        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
+            .setTitle("Reset geo-zone dataset?")
+            .setMessage("This will remove the imported dataset and restore the bundled Rethymno dummy dataset.")
+            .setPositiveButton("Reset") { _, _ ->
+                resetToBundledDataset()
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+    }
+
+    private fun resetToBundledDataset() {
+        try {
+            val repository = buildRepository()
+            val loadResult = repository.resetToBundledDataset()
+            applyLoadedDataset(loadResult, importedActive = false)
+            activityViewModel.notifyGeoZoneDatasetReloaded()
+            geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.DATASET_RESET_TO_BUNDLED,
+                severity = "INFO",
+                message = "Geo-zone dataset reset to bundled dummy dataset",
+                datasetTitle = loadResult.datasetInfo.title,
+                datasetVersion = loadResult.datasetInfo.version,
+                healthState = geoAwarenessHealth?.state?.name
+            )
+            refreshEventLogCount()
+            Toast.makeText(requireContext(), "Bundled dummy dataset restored", Toast.LENGTH_SHORT).show()
+        } catch (error: Exception) {
+            showReadableDialog(
+                title = "Reset failed",
+                message = error.message ?: "Failed to restore bundled dummy dataset."
+            )
+        }
+    }
+
+    private fun readUtf8FromUri(uri: Uri): String {
+        val resolver = requireContext().contentResolver
+        resolver.openInputStream(uri)?.use { inputStream ->
+            val buffer = ByteArray(8192)
+            val output = ByteArrayOutputStream()
+            while (true) {
+                val read = inputStream.read(buffer)
+                if (read <= 0) break
+                output.write(buffer, 0, read)
+                if (output.size().toLong() > MAX_IMPORT_BYTES) {
+                    throw IllegalStateException("Selected file exceeds the 5 MB import limit.")
+                }
+            }
+            val rawJson = output.toString(Charsets.UTF_8.name())
+            if (rawJson.isBlank()) {
+                throw IllegalStateException("Selected geo-zone file is empty.")
+            }
+            return rawJson
+        }
+        throw IllegalStateException("Failed to open selected geo-zone file.")
+    }
+
+    private fun showImportFailure(
+        error: Throwable,
+        result: GeoZoneValidationResult?
+    ) {
+        geoEventLogger.logSimple(
+            type = GeoAwarenessEventType.DATASET_IMPORT_FAILED,
+            severity = "ERROR",
+            message = "Geo-zone dataset import failed: ${error.message ?: error::class.java.simpleName}",
+            healthState = geoAwarenessHealth?.state?.name,
+            details = buildMap {
+                put("errorMessage", error.message ?: error::class.java.simpleName)
+                result?.let {
+                    put("errorCount", it.errorCount.toString())
+                    put("warningCount", it.warningCount.toString())
+                    put("infoCount", it.infoCount.toString())
+                }
+            }
+        )
+        refreshEventLogCount()
+        val issueLines = result?.issues
+            ?.filter { it.severity == GeoZoneValidationSeverity.ERROR }
+            ?.take(10)
+            ?.joinToString("\n") { "- [${it.code}] ${it.message}" }
+            .orEmpty()
+        val summary = buildString {
+            appendLine(error.message ?: "The selected geo-zone file could not be imported.")
+            result?.let {
+                appendLine()
+                appendLine("Errors: ${it.errorCount}  Warnings: ${it.warningCount}  Info: ${it.infoCount}")
+            }
+            if (issueLines.isNotBlank()) {
+                appendLine()
+                append(issueLines)
+            }
+        }
+        showReadableDialog("Import failed", summary.trim())
+    }
+
+    private fun buildRepository(): GeoZoneRepository {
+        val appContext = requireContext().applicationContext
+        return GeoZoneRepository(
+            assetDataSource = GeoZoneAssetDataSource(appContext),
+            importedDataSource = GeoZoneImportedFileDataSource(appContext)
+        )
     }
 
     private fun showValidationDetails() {

@@ -68,15 +68,24 @@ object GeoZoneValidationDebugProbe {
                     upperLimitMeters = 120.0
                 )
             )
-            val duplicateId = GeoZoneDatasetValidator.validate(
+            val duplicateResult = GeoZoneDatasetValidator.validate(
                 rawJson = """{"features":[{},{}]}""",
                 datasetInfo = loadResult.datasetInfo,
                 zones = listOf(duplicateOne, duplicateTwo)
-            ).issues.any { it.code == "ZONE_ID_DUPLICATE" }
+            )
+            val duplicateIdDetected = duplicateResult.issues.any { it.code == "ZONE_ID_DUPLICATE" }
+            val duplicateIdWarning = duplicateResult.issues.any {
+                it.code == "ZONE_ID_DUPLICATE" &&
+                    it.severity == com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationSeverity.WARNING
+            }
+            val duplicateIdError = duplicateResult.issues.any {
+                it.code == "ZONE_ID_DUPLICATE" &&
+                    it.severity == com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationSeverity.ERROR
+            }
 
             Log.d(
                 TAG,
-                "Validation probe: dummyValid=$dummyValid blankInvalid=$blankInvalid missingFeatures=$missingFeatures badCoordinate=$badCoordinate duplicateId=$duplicateId"
+                "Validation probe: dummyValid=$dummyValid blankInvalid=$blankInvalid missingFeatures=$missingFeatures badCoordinate=$badCoordinate duplicateIdDetected=$duplicateIdDetected duplicateIdWarning=$duplicateIdWarning duplicateIdError=$duplicateIdError"
             )
         } catch (error: Exception) {
             Log.e(TAG, "Validation probe failed", error)

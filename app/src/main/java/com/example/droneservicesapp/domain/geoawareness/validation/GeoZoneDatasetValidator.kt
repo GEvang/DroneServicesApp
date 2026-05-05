@@ -119,9 +119,9 @@ object GeoZoneDatasetValidator {
             .keys
             .forEach { duplicateId ->
                 issues += issue(
-                    GeoZoneValidationSeverity.ERROR,
+                    GeoZoneValidationSeverity.WARNING,
                     "ZONE_ID_DUPLICATE",
-                    "Duplicate zone identifier detected.",
+                    "Duplicate zone identifier detected. Import allowed, but conflicts/logs may reference non-unique IDs.",
                     zoneId = duplicateId,
                     field = "id"
                 )

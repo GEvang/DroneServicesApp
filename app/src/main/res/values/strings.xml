@@ -11,11 +11,17 @@
     <string name="geo_awareness_live_status">Live status</string>
     <string name="geo_awareness_health_section">Health</string>
     <string name="geo_awareness_overlay_section">Zone overlay</string>
+    <string name="geo_awareness_dataset_source_section">Dataset source</string>
     <string name="geo_awareness_dataset_section">Dataset</string>
     <string name="geo_awareness_validation_section">Dataset validation</string>
     <string name="geo_awareness_logs_section">Event logs</string>
     <string name="geo_awareness_notice_section">Notice</string>
     <string name="geo_awareness_show_zones">Show geo-zones on map</string>
+    <string name="geo_awareness_current_source_label">Current source:</string>
+    <string name="geo_awareness_current_source_bundled">Bundled dummy dataset</string>
+    <string name="geo_awareness_current_source_imported">Imported file</string>
+    <string name="geo_awareness_import_dataset">Import geo-zone JSON</string>
+    <string name="geo_awareness_reset_dataset">Reset to bundled dummy dataset</string>
     <string name="geo_awareness_view_dataset_details">View dataset details</string>
     <string name="geo_awareness_view_validation_details">View validation details</string>
     <string name="geo_awareness_export_logs">Export logs</string>
@@ -42,6 +48,7 @@
     <string name="geo_awareness_validation_warnings">Warnings</string>
     <string name="geo_awareness_validation_errors">Errors</string>
     <string name="geo_awareness_event_count">Geo-awareness events recorded:</string>
+    <string name="geo_awareness_import_success">Geo-zone dataset imported successfully.</string>
     <string name="shell_operator_console">Operator Console</string>
     <string name="shell_status_connected">LINK OK</string>
     <string name="shell_status_disconnected">NO LINK</string>

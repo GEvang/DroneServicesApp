@@ -120,19 +120,25 @@ class DroneViewModel : ViewModel() {
             TAG,
             "foreground transition keepAlive=${shouldKeepRtkAliveInBackground()} healthy=${isMavlinkSessionHealthy()} lastHeartbeatMs=${mavlinkClient.lastHeartbeatMs}"
         )
-        if (shouldKeepRtkAliveInBackground() && isMavlinkSessionHealthy()) {
-            Log.i(TAG, "restart skipped: reusing healthy MAVLink session while RTK keep-alive is active")
+        if (isMavlinkSessionHealthy()) {
+            Log.i(TAG, "restart skipped: reusing healthy MAVLink session on foreground")
             attachRepositoryBridge()
             rtkController.onRtkConfigurationChanged()
             return
         }
-        if (shouldKeepRtkAliveInBackground()) {
-            Log.w(TAG, "onAppForegrounded restarting stale MAVLink session before resuming RTK")
-            rtkController.stopStreamingForMavlinkRestart()
+        try {
+            if (shouldKeepRtkAliveInBackground()) {
+                Log.w(TAG, "onAppForegrounded restarting stale MAVLink session before resuming RTK")
+                rtkController.stopStreamingForMavlinkRestart()
+            }
+            mavlinkClient.restart(config)
+            attachRepositoryBridge()
+            rtkController.onRtkConfigurationChanged()
+        } catch (error: Exception) {
+            Log.e(TAG, "Failed to restart MAVLink session on foreground", error)
+            conStateLiveData.postValue(false)
+            telemetryAliveLiveData.postValue(false)
         }
-        mavlinkClient.restart(config)
-        attachRepositoryBridge()
-        rtkController.onRtkConfigurationChanged()
     }
 
     fun onAppBackgrounded() {
