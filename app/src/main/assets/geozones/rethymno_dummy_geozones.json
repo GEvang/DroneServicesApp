@@ -1,7 +1,7 @@
 {
   "title": "Dummy Rethymno geo-awareness test zones",
   "description": "Development-only dummy data. Not official DAGR or HCAA data.",
-  "version": "dummy-rethymno-001",
+  "version": "dummy-rethymno-002",
   "features": [
     {
       "identifier": "GR-RTH-DUMMY-001",
@@ -359,6 +359,59 @@
                 [24.4722834, 35.3653389],
                 [24.4705551, 35.3655008],
                 [24.4709684, 35.3648446]
+              ]
+            ]
+          }
+        }
+      ],
+      "extendedProperties": {
+        "color": "FF0000",
+        "arc": "DUMMY"
+      }
+    },
+    {
+      "identifier": "GR-RTH-DUMMY-008",
+      "country": "GRC",
+      "name": "AigaioSkytech",
+      "type": "COMMON",
+      "restriction": "PROHIBITED",
+      "reason": ["OTHER"],
+      "otherReasonInfo": "Dummy restricted area for Aigaio Skytech testing",
+      "applicability": [
+        {
+          "startDateTime": "2026-01-01T00:00:00Z",
+          "endDateTime": "2027-12-31T23:59:59Z",
+          "permanent": "YES"
+        }
+      ],
+      "message": "Dummy prohibited zone named AigaioSkytech for testing. Not official DAGR data.",
+      "zoneAuthority": [
+        {
+          "name": "Dummy Authority",
+          "service": "Development Test Data",
+          "contactName": "N/A",
+          "siteURL": "https://dagr.hasp.gov.gr/",
+          "email": "N/A",
+          "phone": "N/A",
+          "purpose": "INFORMATION"
+        }
+      ],
+      "geometry": [
+        {
+          "upperLimit": 120,
+          "lowerLimit": 0,
+          "uomDimensions": "M",
+          "upperVerticalReference": "AGL",
+          "lowerVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [24.6128029, 35.3877511],
+                [24.6133071, 35.3874056],
+                [24.6137363, 35.3876330],
+                [24.6132857, 35.3881359],
+                [24.6128029, 35.3877511]
               ]
             ]
           }

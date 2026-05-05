@@ -823,7 +823,7 @@ class MissionMapFragment : Fragment() {
         val appContext = requireContext().applicationContext
         return GeoZoneRepository(
             assetDataSource = GeoZoneAssetDataSource(appContext),
-            importedDataSource = GeoZoneImportedFileDataSource(appContext)
+            importedFileDataSource = GeoZoneImportedFileDataSource(appContext)
         )
     }
 

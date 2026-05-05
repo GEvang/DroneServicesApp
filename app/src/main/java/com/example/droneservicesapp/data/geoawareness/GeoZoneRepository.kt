@@ -1,6 +1,9 @@
 package com.example.droneservicesapp.data.geoawareness
 
 import android.util.Log
+import com.example.droneservicesapp.data.geoawareness.source.BundledGeoZoneDataSource
+import com.example.droneservicesapp.data.geoawareness.source.GeoZoneRawDataset
+import com.example.droneservicesapp.data.geoawareness.source.ImportedGeoZoneDataSource
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
@@ -9,84 +12,66 @@ import com.example.droneservicesapp.domain.geoawareness.GeoZoneGeometry
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneLoadResult
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneDatasetValidator
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
-import java.io.File
-
 class GeoZoneRepository(
     private val assetDataSource: GeoZoneAssetDataSource,
-    private val importedDataSource: GeoZoneImportedFileDataSource? = null,
-    private val parser: GeoZoneJsonParser = GeoZoneJsonParser()
+    private val importedFileDataSource: GeoZoneImportedFileDataSource? = null
 ) {
+    private val parser = GeoZoneJsonParser()
+    private val bundledSource = BundledGeoZoneDataSource(assetDataSource)
+    private val importedSource = importedFileDataSource?.let { ImportedGeoZoneDataSource(it) }
 
     fun loadDummyRethymnoZones(): List<GeoZone> {
-        val rawJson = assetDataSource.loadRawAsset(GeoZoneAssetDataSource.DEFAULT_ASSET_PATH)
+        val rawJson = bundledSource.loadDatasets().first().rawJson
         val zones = parser.parse(rawJson)
         Log.d(TAG, "Loaded ${zones.size} dummy geo-awareness zones")
         return zones
     }
 
     fun loadDummyRethymnoDataset(): GeoZoneLoadResult {
-        val rawJson = assetDataSource.loadRawAsset(GeoZoneAssetDataSource.DEFAULT_ASSET_PATH)
-        return buildSingleDatasetResult(
-            rawJson = rawJson,
-            fallbackSource = "Bundled asset",
-            fallbackSourceUrl = "https://dagr.hasp.gov.gr/",
-            sourceType = GeoZoneDatasetSourceType.BUNDLED_ASSET,
-            storageFileName = null,
-            importedAtMillis = null
-        )
+        return buildLoadResultFromRawDatasets(bundledSource.loadDatasets())
     }
 
     fun loadCurrentDataset(): GeoZoneLoadResult {
-        val importedFiles = importedDataSource?.listImportedDatasetFiles().orEmpty()
-        if (importedFiles.isEmpty()) {
-            return loadDummyRethymnoDataset()
+        val source = importedSource
+        return if (source != null && source.hasData()) {
+            buildLoadResultFromRawDatasets(
+                rawDatasets = source.loadDatasets(),
+                combinedTitle = "Combined geo-awareness datasets"
+            )
+        } else {
+            loadDummyRethymnoDataset()
         }
-
-        val validResults = mutableListOf<SingleDatasetLoad>()
-        importedFiles.forEach { file ->
-            runCatching { loadImportedDatasetFile(file) }
-                .onSuccess { single ->
-                    if (single.validationResult.hasErrors) {
-                        Log.w(TAG, "Skipping imported dataset with validation errors file=${file.name}")
-                    } else {
-                        validResults += single
-                    }
-                }
-                .onFailure { error ->
-                    Log.w(TAG, "Skipping unreadable imported dataset file=${file.name}", error)
-                }
-        }
-
-        if (validResults.isEmpty()) {
-            throw IllegalStateException("No valid imported geo-zone datasets could be loaded.")
-        }
-
-        return buildCombinedResult(validResults)
     }
 
     fun importDataset(rawJson: String): GeoZoneLoadResult {
-        val preview = buildSingleDatasetResult(
-            rawJson = rawJson,
-            fallbackSource = "Imported file",
-            fallbackSourceUrl = null,
-            sourceType = GeoZoneDatasetSourceType.IMPORTED_FILE,
-            storageFileName = null,
-            importedAtMillis = System.currentTimeMillis()
+        val preview = buildLoadResultFromRawDatasets(
+            rawDatasets = listOf(
+                GeoZoneRawDataset(
+                    datasetId = "import-preview",
+                    displayName = "Imported file",
+                    rawJson = rawJson,
+                    sourceType = GeoZoneDatasetSourceType.IMPORTED_FILE,
+                    storageFileName = null,
+                    importedAtMillis = System.currentTimeMillis()
+                )
+            )
         )
-        if (preview.validationResult.hasErrors) {
+        val previewRecord = preview.datasetRecords.firstOrNull()
+        val previewValidation = previewRecord?.validationResult ?: preview.validationResult
+        if (previewValidation.hasErrors) {
             throw GeoZoneDatasetValidationException(
-                validationResult = preview.validationResult,
+                validationResult = previewValidation,
                 message = "Imported geo-zone dataset failed validation."
             )
         }
-        val source = importedDataSource
+        val source = importedFileDataSource
             ?: throw IllegalStateException("Imported geo-zone storage is unavailable.")
         source.saveImportedDataset(rawJson, suggestedName = preview.datasetInfo.title)
         return loadCurrentDataset()
     }
 
     fun removeImportedDataset(storageFileName: String): GeoZoneLoadResult {
-        val source = importedDataSource
+        val source = importedFileDataSource
             ?: throw IllegalStateException("Imported geo-zone storage is unavailable.")
         if (!source.deleteImportedDataset(storageFileName)) {
             throw IllegalStateException("Failed to remove imported geo-zone dataset: $storageFileName")
@@ -95,82 +80,85 @@ class GeoZoneRepository(
     }
 
     fun resetToBundledDataset(): GeoZoneLoadResult {
-        importedDataSource?.deleteAllImportedDatasets()
+        importedFileDataSource?.deleteAllImportedDatasets()
         return loadDummyRethymnoDataset()
     }
 
-    fun hasImportedDatasets(): Boolean = importedDataSource?.hasImportedDatasets() == true
+    fun hasImportedDatasets(): Boolean = importedFileDataSource?.hasImportedDatasets() == true
 
-    private fun loadImportedDatasetFile(file: File): SingleDatasetLoad {
-        val rawJson = importedDataSource?.loadRawJson(file)
-            ?: throw IllegalStateException("Imported geo-zone storage is unavailable.")
-        val importedAtMillis = file.lastModified().takeIf { it > 0L }
-        return buildSingleDatasetLoad(
-            rawJson = rawJson,
-            fallbackSource = "Imported file",
-            fallbackSourceUrl = null,
-            sourceType = GeoZoneDatasetSourceType.IMPORTED_FILE,
-            storageFileName = file.name,
-            importedAtMillis = importedAtMillis
-        )
-    }
-
-    private fun buildSingleDatasetResult(
-        rawJson: String,
-        fallbackSource: String,
-        fallbackSourceUrl: String?,
-        sourceType: GeoZoneDatasetSourceType,
-        storageFileName: String?,
-        importedAtMillis: Long?
+    private fun buildLoadResultFromRawDatasets(
+        rawDatasets: List<GeoZoneRawDataset>,
+        combinedTitle: String? = null
     ): GeoZoneLoadResult {
-        val single = buildSingleDatasetLoad(
-            rawJson = rawJson,
-            fallbackSource = fallbackSource,
-            fallbackSourceUrl = fallbackSourceUrl,
-            sourceType = sourceType,
-            storageFileName = storageFileName,
-            importedAtMillis = importedAtMillis
-        )
-        return GeoZoneLoadResult(
-            datasetInfo = single.datasetInfo,
-            zones = single.zones,
-            validationResult = single.validationResult,
-            datasetRecords = listOf(single.record)
-        )
+        val validResults = mutableListOf<SingleDatasetLoad>()
+        rawDatasets.forEach { rawDataset ->
+            runCatching { buildSingleDatasetLoad(rawDataset) }
+                .onSuccess { single ->
+                    if (single.validationResult.hasErrors) {
+                        Log.w(
+                            TAG,
+                            "Skipping dataset with validation errors sourceType=${rawDataset.sourceType} datasetId=${rawDataset.datasetId} storageFileName=${rawDataset.storageFileName}"
+                        )
+                    } else {
+                        validResults += single
+                    }
+                }
+                .onFailure { error ->
+                    Log.w(
+                        TAG,
+                        "Skipping unreadable dataset sourceType=${rawDataset.sourceType} datasetId=${rawDataset.datasetId} storageFileName=${rawDataset.storageFileName}",
+                        error
+                    )
+                }
+        }
+
+        if (validResults.isEmpty()) {
+            throw IllegalStateException("No valid geo-zone datasets could be loaded.")
+        }
+
+        if (validResults.size == 1) {
+            val single = validResults.first()
+            return GeoZoneLoadResult(
+                datasetInfo = single.datasetInfo,
+                zones = single.zones,
+                validationResult = single.validationResult,
+                datasetRecords = listOf(single.record)
+            )
+        }
+
+        return buildCombinedResult(validResults, combinedTitle)
     }
 
-    private fun buildSingleDatasetLoad(
-        rawJson: String,
-        fallbackSource: String,
-        fallbackSourceUrl: String?,
-        sourceType: GeoZoneDatasetSourceType,
-        storageFileName: String?,
-        importedAtMillis: Long?
-    ): SingleDatasetLoad {
+    private fun buildSingleDatasetLoad(rawDataset: GeoZoneRawDataset): SingleDatasetLoad {
         val loadedAtMillis = System.currentTimeMillis()
-        val zones = parser.parse(rawJson)
+        val zones = parser.parse(rawDataset.rawJson)
         val datasetInfo = parser.parseDatasetInfo(
-            rawJson = rawJson,
+            rawJson = rawDataset.rawJson,
             zones = zones,
             loadedAtMillis = loadedAtMillis,
-            fallbackSource = fallbackSource,
-            fallbackSourceUrl = fallbackSourceUrl
+            fallbackSource = when (rawDataset.sourceType) {
+                GeoZoneDatasetSourceType.BUNDLED_ASSET -> "Bundled asset"
+                GeoZoneDatasetSourceType.IMPORTED_FILE -> "Imported file"
+            },
+            fallbackSourceUrl = when (rawDataset.sourceType) {
+                GeoZoneDatasetSourceType.BUNDLED_ASSET -> "https://dagr.hasp.gov.gr/"
+                GeoZoneDatasetSourceType.IMPORTED_FILE -> null
+            }
         )
         val validationResult = GeoZoneDatasetValidator.validate(
-            rawJson = rawJson,
+            rawJson = rawDataset.rawJson,
             datasetInfo = datasetInfo,
             zones = zones
         )
-        val datasetId = storageFileName?.substringBeforeLast('.') ?: "${sourceType.name.lowercase()}_${loadedAtMillis}"
         val record = GeoZoneDatasetRecord(
-            datasetId = datasetId,
+            datasetId = rawDataset.datasetId,
             displayName = datasetInfo.title,
-            storageFileName = storageFileName,
-            sourceType = sourceType,
+            storageFileName = rawDataset.storageFileName,
+            sourceType = rawDataset.sourceType,
             datasetInfo = datasetInfo,
             validationResult = validationResult,
             zoneCount = zones.size,
-            importedAtMillis = importedAtMillis
+            importedAtMillis = rawDataset.importedAtMillis
         )
         logLoad(datasetInfo, validationResult)
         return SingleDatasetLoad(
@@ -181,17 +169,10 @@ class GeoZoneRepository(
         )
     }
 
-    private fun buildCombinedResult(results: List<SingleDatasetLoad>): GeoZoneLoadResult {
-        if (results.size == 1) {
-            val single = results.first()
-            return GeoZoneLoadResult(
-                datasetInfo = single.datasetInfo,
-                zones = single.zones,
-                validationResult = single.validationResult,
-                datasetRecords = listOf(single.record)
-            )
-        }
-
+    private fun buildCombinedResult(
+        results: List<SingleDatasetLoad>,
+        combinedTitle: String? = null
+    ): GeoZoneLoadResult {
         val zones = results.flatMap { it.zones }
         val combinedValidation = GeoZoneValidationResult.combine(results.map { it.validationResult })
         val datasetRecords = results.map { it.record }
@@ -200,7 +181,7 @@ class GeoZoneRepository(
         val circleCount = results.sumOf { it.datasetInfo.circleGeometryCount }
         val polygonCount = results.sumOf { it.datasetInfo.polygonGeometryCount }
         val combinedInfo = GeoZoneDatasetInfo(
-            title = "Combined geo-awareness datasets",
+            title = combinedTitle ?: "Combined geo-awareness datasets",
             description = "Combined active imported geo-zone datasets.",
             version = "multiple",
             source = "Imported files",

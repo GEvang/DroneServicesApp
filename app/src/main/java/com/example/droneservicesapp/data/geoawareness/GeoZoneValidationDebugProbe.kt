@@ -21,7 +21,7 @@ object GeoZoneValidationDebugProbe {
 
             val dummyValid = loadResult.validationResult.isValid &&
                 loadResult.validationResult.errorCount == 0 &&
-                loadResult.zones.size == 7
+                loadResult.zones.size == 8
 
             val blankInvalid = GeoZoneDatasetValidator.validate(
                 rawJson = "",
