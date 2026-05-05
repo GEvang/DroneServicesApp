@@ -1,9 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/home_workflow_panel"
     style="@style/Widget.DroneServices.Panel.MapRight"
-    android:layout_width="@dimen/phone_map_panel_right_width"
+    android:layout_width="272dp"
     android:layout_height="wrap_content"
+    android:maxWidth="320dp"
+    android:minWidth="272dp"
     android:orientation="vertical">
 
     <LinearLayout
@@ -13,7 +16,7 @@
         android:orientation="horizontal">
 
         <TextView
-            style="@style/TextAppearance.DroneServices.PhoneMapPanelTitle"
+            style="@style/TextAppearance.DroneServices.MapPanelTitle"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
@@ -22,8 +25,8 @@
         <com.google.android.material.button.MaterialButton
             android:id="@+id/right_panel_close_button"
             style="@style/Widget.DroneServices.Button.MapDark"
-            android:layout_width="36dp"
-            android:layout_height="36dp"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
             android:gravity="center"
             android:insetTop="0dp"
             android:insetBottom="0dp"
@@ -32,11 +35,11 @@
             android:paddingRight="0dp"
             android:text="X"
             android:textAllCaps="false"
-            android:textSize="@dimen/phone_map_panel_title_text_size" />
+            android:textSize="18sp" />
     </LinearLayout>
 
     <TextView
-        style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
+        style="@style/TextAppearance.DroneServices.PanelLabel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/ds_space_md"
@@ -51,32 +54,30 @@
         <TextView
             android:id="@+id/right_panel_survey_button"
             android:layout_width="0dp"
-            android:layout_height="@dimen/phone_map_panel_tab_height"
+            android:layout_height="40dp"
             android:layout_weight="1"
             android:background="@drawable/bg_ds_panel_pill_active"
             android:fontFamily="@font/inter"
             android:gravity="center"
             android:text="@string/survey"
             android:textColor="@color/ds_color_shell_selected_content"
-            android:textSize="@dimen/phone_map_panel_label_text_size"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/right_panel_spray_button"
             android:layout_width="0dp"
-            android:layout_height="@dimen/phone_map_panel_tab_height"
+            android:layout_height="40dp"
             android:layout_marginStart="@dimen/ds_space_sm"
             android:layout_weight="1"
             android:background="@drawable/bg_ds_panel_pill_inactive"
             android:fontFamily="@font/inter"
             android:gravity="center"
             android:text="@string/spray"
-            android:textColor="@color/ds_color_text_primary"
-            android:textSize="@dimen/phone_map_panel_label_text_size" />
+            android:textColor="@color/ds_color_text_primary" />
     </LinearLayout>
 
     <TextView
-        style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
+        style="@style/TextAppearance.DroneServices.PanelLabel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/ds_space_lg"
@@ -91,56 +92,52 @@
         <TextView
             android:id="@+id/right_panel_area_button"
             android:layout_width="0dp"
-            android:layout_height="@dimen/phone_map_panel_tab_height"
+            android:layout_height="40dp"
             android:layout_weight="1"
             android:background="@drawable/bg_ds_panel_pill_active"
             android:fontFamily="@font/inter"
             android:gravity="center"
             android:text="@string/area"
             android:textColor="@color/ds_color_shell_selected_content"
-            android:textSize="@dimen/phone_map_panel_label_text_size"
             android:textStyle="bold" />
 
         <TextView
             android:id="@+id/right_panel_points_button"
             android:layout_width="0dp"
-            android:layout_height="@dimen/phone_map_panel_tab_height"
+            android:layout_height="40dp"
             android:layout_marginStart="@dimen/ds_space_sm"
             android:layout_weight="1"
             android:background="@drawable/bg_ds_panel_pill_inactive"
             android:fontFamily="@font/inter"
             android:gravity="center"
             android:text="@string/points"
-            android:textColor="@color/ds_color_text_primary"
-            android:textSize="@dimen/phone_map_panel_label_text_size" />
+            android:textColor="@color/ds_color_text_primary" />
     </LinearLayout>
 
     <TextView
         android:id="@+id/right_panel_draw_area_button"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/phone_map_panel_button_height"
+        android:layout_height="40dp"
         android:layout_marginTop="@dimen/ds_space_md"
         android:background="@drawable/bg_ds_panel_pill_inactive"
         android:fontFamily="@font/inter"
         android:gravity="center"
         android:text="@string/draw_area"
-        android:textColor="@color/ds_color_text_primary"
-        android:textSize="@dimen/phone_map_panel_label_text_size" />
+        android:textColor="@color/ds_color_text_primary" />
 
     <TextView
         android:id="@+id/right_panel_clear_area_button"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/phone_map_panel_button_height"
+        android:layout_height="40dp"
         android:layout_marginTop="@dimen/ds_space_sm"
         android:background="@drawable/bg_ds_panel_pill_inactive"
         android:fontFamily="@font/inter"
         android:gravity="center"
         android:text="@string/clear_area"
-        android:textColor="@color/ds_color_text_primary"
-        android:textSize="@dimen/phone_map_panel_label_text_size" />
+        android:textColor="@color/ds_color_text_primary" />
 
     <TextView
-        style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
+        style="@style/TextAppearance.DroneServices.PanelLabel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/ds_space_lg"
@@ -156,28 +153,25 @@
             android:id="@+id/save_mission"
             style="@style/Widget.DroneServices.Button.MapLight"
             android:layout_width="0dp"
-            android:layout_height="@dimen/phone_map_panel_button_height"
+            android:layout_height="40dp"
             android:layout_weight="1"
-            android:text="@string/save"
-            android:textSize="@dimen/phone_map_panel_label_text_size" />
+            android:text="@string/save" />
 
         <com.google.android.material.button.MaterialButton
             android:id="@+id/right_panel_load_button"
             style="@style/Widget.DroneServices.Button.MapDark"
             android:layout_width="0dp"
-            android:layout_height="@dimen/phone_map_panel_button_height"
+            android:layout_height="40dp"
             android:layout_marginStart="@dimen/ds_space_sm"
             android:layout_weight="1"
-            android:text="@string/load"
-            android:textSize="@dimen/phone_map_panel_label_text_size" />
+            android:text="@string/load" />
     </LinearLayout>
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/uploadMission"
         style="@style/Widget.DroneServices.Button.MapEmphasis"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/phone_map_panel_button_height_tall"
+        android:layout_height="46dp"
         android:layout_marginTop="@dimen/ds_space_sm"
-        android:text="@string/upload_mission"
-        android:textSize="@dimen/phone_map_panel_label_text_size" />
+        android:text="@string/upload_mission" />
 </LinearLayout>

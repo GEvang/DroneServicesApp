@@ -15,6 +15,10 @@ class HomeMapChromeBinder(
     private val binding: FragmentHomeMapsBinding,
     private val bottomActionBarViewProvider: () -> View?
 ) {
+    private val drawBarReplacesDock =
+        binding.root.resources.getBoolean(R.bool.config_map_draw_bar_replaces_dock)
+    private var isDrawActionBarVisible: Boolean = false
+
     fun bindActions(
         onDownloadOffline: () -> Unit,
         onCenterOnUser: () -> Unit,
@@ -51,13 +55,16 @@ class HomeMapChromeBinder(
                 legacyBottomBar.requestLayout()
             }
         }
-        binding.homeBottomUtilityDock.isVisible = state.isBottomActionBarVisible
+        isDrawActionBarVisible = state.isDrawActionButtonsVisible
+        binding.homeBottomUtilityDock.isVisible =
+            state.isBottomActionBarVisible && !(drawBarReplacesDock && isDrawActionBarVisible)
         binding.homeBottomPlanningLabel.isVisible = false
-        binding.homeDrawActionBar.isVisible = state.isDrawActionButtonsVisible
+        binding.homeDrawActionBar.isVisible = isDrawActionBarVisible
     }
 
     fun renderShell(state: HomeMapShellUiState) {
-        binding.homeBottomUtilityDock.isVisible = state.isBottomUtilityBarVisible
+        binding.homeBottomUtilityDock.isVisible =
+            state.isBottomUtilityBarVisible && !(drawBarReplacesDock && isDrawActionBarVisible)
         binding.homeBottomPlanningLabel.isVisible = false
         binding.utilityPlanningButton.isSelected = state.isRightPanelVisible
         binding.utilityPlanningButton.setTextColor(

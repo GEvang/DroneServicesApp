@@ -4,12 +4,15 @@ import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
+import android.view.ViewGroup.MarginLayoutParams
 import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
@@ -141,6 +144,7 @@ class MissionMapFragment : Fragment() {
         initializeMapView(view)
         initControllers()
         bindUiButtons()
+        applyMapInsets()
         observeDroneViewModel()
         observeMapState()
         observeHomeTelemetry()
@@ -319,6 +323,34 @@ class MissionMapFragment : Fragment() {
         mapViewModel.setPlanningPanelVisible(false)
         activityViewModel.missionArea.value?.clearAll()
         activityViewModel.mapState.value = MainActivityViewModel.MapState.Draw
+    }
+
+    private fun applyMapInsets() {
+        val dockBottomMargin = (binding.homeBottomUtilityDock.layoutParams as MarginLayoutParams).bottomMargin
+        val drawBottomMargin = (binding.homeDrawActionBar.layoutParams as MarginLayoutParams).bottomMargin
+        val planningLabelBottomMargin = (binding.homeBottomPlanningLabel.layoutParams as MarginLayoutParams).bottomMargin
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val bottomInset = insets.getInsets(
+                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
+            ).bottom
+
+            updateBottomMargin(binding.homeBottomUtilityDock, dockBottomMargin + bottomInset)
+            updateBottomMargin(binding.homeDrawActionBar, drawBottomMargin + bottomInset)
+            updateBottomMargin(binding.homeBottomPlanningLabel, planningLabelBottomMargin + bottomInset)
+
+            insets
+        }
+        ViewCompat.requestApplyInsets(binding.root)
+    }
+
+    private fun updateBottomMargin(view: View, marginBottom: Int) {
+        val layoutParams = view.layoutParams as? MarginLayoutParams ?: return
+        if (layoutParams.bottomMargin == marginBottom) {
+            return
+        }
+        layoutParams.bottomMargin = marginBottom
+        view.layoutParams = layoutParams
     }
 
     private fun bindPlanningModeToggle(surveyButton: TextView, sprayButton: TextView) {
