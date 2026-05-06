@@ -341,10 +341,18 @@
                 android:padding="@dimen/ds_space_md">
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/geo_awareness_open_checklist_button"
+                    style="@style/Widget.DroneServices.Button.MapLight"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:text="@string/geo_awareness_open_verification_checklist" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/geo_awareness_run_tests_button"
                     style="@style/Widget.DroneServices.Button.MapLight"
                     android:layout_width="wrap_content"
                     android:layout_height="44dp"
+                    android:layout_marginTop="@dimen/ds_space_sm"
                     android:text="@string/geo_awareness_run_tests" />
 
                 <TextView
