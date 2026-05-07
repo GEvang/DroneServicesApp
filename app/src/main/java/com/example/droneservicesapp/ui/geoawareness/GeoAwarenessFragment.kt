@@ -28,6 +28,7 @@ import com.example.droneservicesapp.data.geoawareness.GeoZoneDatasetValidationEx
 import com.example.droneservicesapp.data.geoawareness.GeoZoneImportedFileDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
 import com.example.droneservicesapp.data.geoawareness.evidence.GeoAwarenessEvidencePackageExporter
+import com.example.droneservicesapp.data.geoawareness.incident.GeoIncidentEncryptedLogStore
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEvent
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
@@ -131,6 +132,12 @@ class GeoAwarenessFragment : Fragment() {
         binding.geoAwarenessDebugNote.isVisible = BuildConfig.DEBUG
         binding.geoAwarenessDebugSectionTitle.isVisible = BuildConfig.DEBUG
         binding.geoAwarenessDebugControlsContainer.isVisible = BuildConfig.DEBUG
+        binding.geoAwarenessFlightLogsSectionTitle.isVisible = false
+        binding.geoAwarenessFlightLogsSection.isVisible = false
+        binding.geoAwarenessLogsSectionTitle.isVisible = false
+        binding.geoAwarenessLogsSection.isVisible = false
+        binding.geoAwarenessInternalSectionTitle.isVisible = BuildConfig.DEBUG
+        binding.geoAwarenessInternalSection.isVisible = BuildConfig.DEBUG
         binding.geoAwarenessOverlaySwitch.setOnCheckedChangeListener { _, isChecked ->
             if (activityViewModel.geoAwarenessLayerVisible.value != isChecked) {
                 activityViewModel.geoAwarenessLayerVisible.value = isChecked
@@ -169,6 +176,9 @@ class GeoAwarenessFragment : Fragment() {
         binding.geoAwarenessOpenChecklistButton.setOnClickListener {
             showVerificationChecklistDialog()
         }
+        binding.geoAwarenessExportEncryptedIncidentsButton.setOnClickListener {
+            exportEncryptedIncidentLogs()
+        }
         binding.geoAwarenessGeoTestModeButton.setOnClickListener {
             val enabled = !(activityViewModel.geoTestModeEnabled.value == true)
             activityViewModel.geoTestModeEnabled.value = enabled
@@ -188,7 +198,6 @@ class GeoAwarenessFragment : Fragment() {
         observeSharedState()
         observeDroneLocation()
         updateGeoTestControls()
-        refreshEventLogCount()
         renderTestRunResult(null, isRunning = false)
         renderHealthStatus(
             activityViewModel.geoAwarenessHealth.value ?: GeoAwarenessHealthEvaluator.evaluate(
@@ -203,9 +212,6 @@ class GeoAwarenessFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        if (_binding != null) {
-            refreshEventLogCount()
-        }
     }
 
     private fun observeSharedState() {
@@ -1083,6 +1089,44 @@ class GeoAwarenessFragment : Fragment() {
             showReadableDialog(
                 title = "Export evidence package",
                 message = "Failed to export evidence package.\n\n${error.message ?: "Unknown error"}"
+            )
+        }
+    }
+
+    private fun exportEncryptedIncidentLogs() {
+        if (!BuildConfig.DEBUG) {
+            return
+        }
+        try {
+            val store = GeoIncidentEncryptedLogStore(requireContext().applicationContext)
+            val files = store.getEncryptedLogFiles()
+            if (files.isEmpty()) {
+                showReadableDialog(
+                    title = "Export encrypted geo incident logs",
+                    message = getString(R.string.geo_awareness_no_encrypted_incidents)
+                )
+                return
+            }
+            val uris = ArrayList<Uri>(files.size)
+            files.forEach { file ->
+                uris += FileProvider.getUriForFile(
+                    requireContext(),
+                    "${requireContext().packageName}.fileprovider",
+                    file
+                )
+            }
+            val shareIntent = Intent(Intent.ACTION_SEND_MULTIPLE).apply {
+                type = "application/octet-stream"
+                putParcelableArrayListExtra(Intent.EXTRA_STREAM, uris)
+                putExtra(Intent.EXTRA_SUBJECT, "Encrypted geo incident logs")
+                putExtra(Intent.EXTRA_TEXT, "Encrypted geo incident logs export")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(shareIntent, "Share encrypted geo incident logs"))
+        } catch (error: Exception) {
+            showReadableDialog(
+                title = "Export encrypted geo incident logs",
+                message = "Failed to export encrypted geo incident logs.\n\n${error.message ?: "Unknown error"}"
             )
         }
     }

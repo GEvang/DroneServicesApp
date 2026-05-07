@@ -24,6 +24,8 @@ import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.geoawareness.GeoZoneAssetDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneImportedFileDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
+import com.example.droneservicesapp.data.geoawareness.incident.GeoIncidentEncryptedLogStore
+import com.example.droneservicesapp.data.geoawareness.incident.GeoIncidentLogger
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
 import com.example.droneservicesapp.data.geoawareness.logging.OperatorFlightEventLogger
@@ -87,6 +89,7 @@ class MissionMapFragment : Fragment() {
     private lateinit var missionSaveController: MissionSaveController
     private lateinit var missionLoadController: MissionLoadController
     private lateinit var geoEventLogger: GeoAwarenessEventLogger
+    private lateinit var geoIncidentLogger: GeoIncidentLogger
     private lateinit var operatorEventLogger: OperatorFlightEventLogger
     private lateinit var homeMapChromeBinder: HomeMapChromeBinder
     private lateinit var homeMapPanelsBinder: HomeMapPanelsBinder
@@ -116,7 +119,7 @@ class MissionMapFragment : Fragment() {
     private var lastConflictLogSignature: String? = null
     private var lastHealthLogSignature: String? = null
     private var lastHealthState: GeoAwarenessHealthState? = null
-    private var lastLiveZoneSignature: String? = null
+    private var lastLiveZoneIdentityMap: Map<String, GeoZone> = emptyMap()
     private var lastRtkStreamingActive: Boolean? = null
     private var isDrawingModeActive = false
     private var hasCenteredInitialViewport = false
@@ -151,6 +154,9 @@ class MissionMapFragment : Fragment() {
         mapViewModel = ViewModelProvider(this)[MissionMapViewModel::class.java]
         missionFileStore = MissionFileStore(requireContext())
         geoEventLogger = GeoAwarenessEventLogger(requireContext().applicationContext)
+        geoIncidentLogger = GeoIncidentLogger(
+            GeoIncidentEncryptedLogStore(requireContext().applicationContext)
+        )
         operatorEventLogger = OperatorFlightEventLogger(geoEventLogger)
 
         return binding.root
@@ -1552,85 +1558,58 @@ class MissionMapFragment : Fragment() {
         longitude: Double?,
         altitudeMeters: Double?
     ) {
-        val sortedIds = zones.map { it.id }.sorted()
-        val newSignature = sortedIds.joinToString(",")
-        if (newSignature == lastLiveZoneSignature) {
+        val currentZoneMap = zones.associateBy(::buildLiveZoneIdentity)
+        if (currentZoneMap.keys == lastLiveZoneIdentityMap.keys) {
             return
         }
 
-        val previousIds = lastLiveZoneSignature
-            ?.split(',')
-            ?.filter { it.isNotBlank() }
-            ?.toSet()
-            ?: emptySet()
-        val currentIds = sortedIds.toSet()
-        val entered = zones.filter { it.id !in previousIds }
-        val exitedIds = previousIds - currentIds
+        val entered = currentZoneMap
+            .filterKeys { it !in lastLiveZoneIdentityMap }
+            .values
+            .toList()
+        val exited = lastLiveZoneIdentityMap
+            .filterKeys { it !in currentZoneMap }
+            .values
+            .toList()
+        val source = if (activityViewModel.geoTestModeEnabled.value == true &&
+            activityViewModel.virtualGeoTestPosition.value != null
+        ) {
+            "geo_test"
+        } else {
+            "live_drone"
+        }
 
         if (entered.isNotEmpty()) {
-            operatorEventLogger.logGeoZoneEntered(
+            geoIncidentLogger.logZoneEntered(
                 zones = entered,
-                position = latestLiveDronePosition,
-                altitudeMeters = altitudeMeters
-            )
-            geoEventLogger.logSimple(
-                type = GeoAwarenessEventType.LIVE_ZONE_ENTERED,
-                severity = when (entered.first().restriction) {
-                    GeoZoneRestriction.INFORMATION -> "INFO"
-                    else -> "WARNING"
-                },
-                message = "Live position entered geo-zone(s)",
-                category = "GEO",
+                latitude = latitude,
+                longitude = longitude,
+                altitudeMeters = altitudeMeters,
                 datasetTitle = geoZoneDatasetInfo?.title,
                 datasetVersion = geoZoneDatasetInfo?.version,
                 healthState = geoAwarenessHealth?.state?.name,
-                zoneIds = entered.map { it.id },
-                zoneNames = entered.map { it.name },
-                restriction = entered.first().restriction.name,
-                latitude = latitude,
-                longitude = longitude,
-                altitudeMeters = altitudeMeters
+                source = source
             )
         }
 
-        if (exitedIds.isNotEmpty()) {
-            operatorEventLogger.logGeoZoneExited(
-                zones = latestLiveGeoZones.filter { it.id in exitedIds },
-                position = latestLiveDronePosition,
-                altitudeMeters = altitudeMeters
-            )
-            geoEventLogger.logSimple(
-                type = GeoAwarenessEventType.LIVE_ZONE_EXITED,
-                severity = "INFO",
-                message = "Live position exited geo-zone(s)",
-                category = "GEO",
+        if (exited.isNotEmpty()) {
+            geoIncidentLogger.logZoneExited(
+                zones = exited,
+                latitude = latitude,
+                longitude = longitude,
+                altitudeMeters = altitudeMeters,
                 datasetTitle = geoZoneDatasetInfo?.title,
                 datasetVersion = geoZoneDatasetInfo?.version,
                 healthState = geoAwarenessHealth?.state?.name,
-                zoneIds = exitedIds.sorted(),
-                zoneNames = exitedIds.sorted(),
-                latitude = latitude,
-                longitude = longitude,
-                altitudeMeters = altitudeMeters
+                source = source
             )
         }
 
-        geoEventLogger.logSimple(
-            type = GeoAwarenessEventType.LIVE_STATUS_CHANGED,
-            severity = if (zones.isEmpty()) "INFO" else "WARNING",
-            message = if (zones.isEmpty()) "Live geo-awareness clear" else "Live geo-awareness status changed",
-            category = "GEO",
-            datasetTitle = geoZoneDatasetInfo?.title,
-            datasetVersion = geoZoneDatasetInfo?.version,
-            healthState = geoAwarenessHealth?.state?.name,
-            zoneIds = sortedIds,
-            zoneNames = zones.map { it.name },
-            restriction = zones.firstOrNull()?.restriction?.name,
-            latitude = latitude,
-            longitude = longitude,
-            altitudeMeters = altitudeMeters
-        )
-        lastLiveZoneSignature = newSignature
+        lastLiveZoneIdentityMap = currentZoneMap
+    }
+
+    private fun buildLiveZoneIdentity(zone: GeoZone): String {
+        return "${zone.id}|${zone.name}|${zone.restriction.name}"
     }
 
     private fun showGeoAwarenessDialog(title: String, message: String) {

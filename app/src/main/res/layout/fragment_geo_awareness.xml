@@ -388,19 +388,23 @@
                 style="@style/TextAppearance.DroneServices.PanelLabel" />
 
             <TextView
+                android:id="@+id/geo_awareness_flight_logs_section_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/ds_space_lg"
                 android:text="@string/geo_awareness_flight_logs_section"
+                android:visibility="gone"
                 style="@style/TextAppearance.DroneServices.StatusLabel" />
 
             <LinearLayout
+                android:id="@+id/geo_awareness_flight_logs_section"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/ds_space_sm"
                 android:background="@drawable/bg_ds_shell_status_segment"
                 android:orientation="vertical"
-                android:padding="@dimen/ds_space_md">
+                android:padding="@dimen/ds_space_md"
+                android:visibility="gone">
 
                 <LinearLayout
                     android:id="@+id/geo_awareness_flight_log_container"
@@ -432,19 +436,23 @@
             </LinearLayout>
 
             <TextView
+                android:id="@+id/geo_awareness_logs_section_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/ds_space_lg"
                 android:text="@string/geo_awareness_logs_section"
+                android:visibility="gone"
                 style="@style/TextAppearance.DroneServices.StatusLabel" />
 
             <LinearLayout
+                android:id="@+id/geo_awareness_logs_section"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/ds_space_sm"
                 android:background="@drawable/bg_ds_shell_status_segment"
                 android:orientation="vertical"
-                android:padding="@dimen/ds_space_md">
+                android:padding="@dimen/ds_space_md"
+                android:visibility="gone">
 
                 <TextView
                     android:id="@+id/geo_awareness_log_count"
@@ -474,6 +482,40 @@
                         android:layout_marginStart="@dimen/ds_space_sm"
                         android:text="@string/geo_awareness_clear_logs" />
                 </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/geo_awareness_internal_section_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_internal_section"
+                android:visibility="gone"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:id="@+id/geo_awareness_internal_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:orientation="vertical"
+                android:padding="@dimen/ds_space_md"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/geo_awareness_internal_logs_notice"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/geo_awareness_export_encrypted_incidents_button"
+                    style="@style/Widget.DroneServices.Button.MapLight"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="@dimen/ds_space_md"
+                    android:text="@string/geo_awareness_export_encrypted_incidents" />
             </LinearLayout>
 
             <TextView

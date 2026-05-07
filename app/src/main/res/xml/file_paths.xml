@@ -3,4 +3,7 @@
     <cache-path
         name="geo_awareness_exports"
         path="geo_awareness_exports/" />
+    <files-path
+        name="geo_awareness_incidents"
+        path="geo_awareness/incidents/" />
 </paths>

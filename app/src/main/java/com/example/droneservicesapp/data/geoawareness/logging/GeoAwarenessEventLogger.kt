@@ -14,14 +14,15 @@ import java.util.UUID
 class GeoAwarenessEventLogger(private val context: Context) {
 
     fun log(event: GeoAwarenessEvent) {
-        synchronized(FILE_LOCK) {
+        synchronized(EVENT_LOCK) {
             try {
-                val logFile = getLogFile()
-                ensureParentDirs(logFile)
-                rotateIfNeeded(logFile)
-                logFile.appendText(toJson(event).toString() + "\n")
+                memoryEvents.add(event)
+                if (memoryEvents.size > MAX_IN_MEMORY_EVENTS) {
+                    memoryEvents = memoryEvents.takeLast(MAX_IN_MEMORY_EVENTS).toMutableList()
+                }
+                Unit
             } catch (error: Exception) {
-                Log.e(TAG, "Failed to append geo-awareness event", error)
+                Log.e(TAG, "Failed to record in-memory geo-awareness event", error)
             }
         }
     }
@@ -84,32 +85,12 @@ class GeoAwarenessEventLogger(private val context: Context) {
     }
 
     fun readEvents(maxLines: Int = 500): List<GeoAwarenessEvent> {
-        val events = mutableListOf<GeoAwarenessEvent>()
-        val files = listOf(getRotatedLogFile(), getLogFile())
-        for (file in files) {
-            if (!file.exists()) continue
-            try {
-                file.useLines { lines ->
-                    lines.forEach { line ->
-                        if (line.isBlank()) return@forEach
-                        try {
-                            val event = fromJson(JSONObject(line))
-                            if (event != null) {
-                                events += event
-                            }
-                        } catch (error: Exception) {
-                            Log.w(TAG, "Skipping malformed geo-awareness log line", error)
-                        }
-                    }
-                }
-            } catch (error: Exception) {
-                Log.e(TAG, "Failed to read geo-awareness events", error)
+        synchronized(EVENT_LOCK) {
+            return if (memoryEvents.size <= maxLines) {
+                memoryEvents.toList()
+            } else {
+                memoryEvents.takeLast(maxLines)
             }
-        }
-        return if (events.size <= maxLines) {
-            events
-        } else {
-            events.takeLast(maxLines)
         }
     }
 
@@ -126,67 +107,25 @@ class GeoAwarenessEventLogger(private val context: Context) {
     }
 
     fun exportLogsToJson(): File {
-        synchronized(FILE_LOCK) {
+        synchronized(EVENT_LOCK) {
             val exportFile = getExportFile()
-            try {
-                val root = JSONObject().apply {
-                    put("exportedAtMillis", System.currentTimeMillis())
-                    put("appPackage", context.packageName)
-                    put("format", "geo-awareness-events-v1")
-                    put("events", JSONArray().apply {
-                        readEvents(maxLines = Int.MAX_VALUE).forEach { put(toJson(it)) }
-                    })
-                }
-                exportFile.writeText(root.toString(2))
-                logSimple(
-                    type = GeoAwarenessEventType.LOGS_EXPORTED,
-                    severity = "INFO",
-                    message = "Geo-awareness logs exported",
-                    details = mapOf("exportFile" to exportFile.absolutePath)
-                )
-            } catch (error: Exception) {
-                Log.e(TAG, "Failed to export geo-awareness logs", error)
-                throw error
+            val root = JSONObject().apply {
+                put("exportedAtMillis", System.currentTimeMillis())
+                put("appPackage", context.packageName)
+                put("format", "geo-awareness-events-ephemeral-v1")
+                put("persistentStorageEnabled", false)
+                put("events", JSONArray().apply {
+                    memoryEvents.forEach { put(toJson(it)) }
+                })
             }
+            exportFile.writeText(root.toString(2))
             return exportFile
         }
     }
 
     fun clearLogs() {
-        synchronized(FILE_LOCK) {
-            try {
-                getLogFile().delete()
-                getRotatedLogFile().delete()
-                logSimple(
-                    type = GeoAwarenessEventType.LOGS_CLEARED,
-                    severity = "INFO",
-                    message = "Geo-awareness logs cleared"
-                )
-            } catch (error: Exception) {
-                Log.e(TAG, "Failed to clear geo-awareness logs", error)
-            }
-        }
-    }
-
-    private fun rotateIfNeeded(logFile: File) {
-        if (logFile.exists() && logFile.length() >= MAX_LOG_BYTES) {
-            val rotated = getRotatedLogFile()
-            if (rotated.exists()) {
-                rotated.delete()
-            }
-            logFile.renameTo(rotated)
-        }
-    }
-
-    private fun getRotatedLogFile(): File {
-        return File(File(context.filesDir, LOG_DIR), ROTATED_LOG_FILE_NAME)
-    }
-
-    private fun ensureParentDirs(file: File) {
-        file.parentFile?.let { parent ->
-            if (!parent.exists()) {
-                parent.mkdirs()
-            }
+        synchronized(EVENT_LOCK) {
+            memoryEvents.clear()
         }
     }
 
@@ -221,70 +160,6 @@ class GeoAwarenessEventLogger(private val context: Context) {
         }
     }
 
-    private fun fromJson(obj: JSONObject): GeoAwarenessEvent? {
-        val typeName = obj.optString("type").takeIf { it.isNotBlank() } ?: return null
-        val type = runCatching { GeoAwarenessEventType.valueOf(typeName) }.getOrNull() ?: return null
-        return GeoAwarenessEvent(
-            id = obj.optString("id"),
-            timestampMillis = obj.optLong("timestampMillis"),
-            timestampIsoUtc = obj.optString("timestampIsoUtc").takeIf { it.isNotBlank() }
-                ?: formatIsoUtc(obj.optLong("timestampMillis")),
-            type = type,
-            severity = obj.optString("severity"),
-            message = obj.optString("message"),
-            category = obj.optString("category").takeIf { it.isNotBlank() },
-            operatorAction = obj.optString("operatorAction").takeIf { it.isNotBlank() },
-            flightState = obj.optString("flightState").takeIf { it.isNotBlank() },
-            connectionState = obj.optString("connectionState").takeIf { it.isNotBlank() },
-            missionId = obj.optString("missionId").takeIf { it.isNotBlank() },
-            deviceTimeZone = obj.optString("deviceTimeZone").takeIf { it.isNotBlank() },
-            datasetTitle = obj.optString("datasetTitle").takeIf { it.isNotBlank() },
-            datasetVersion = obj.optString("datasetVersion").takeIf { it.isNotBlank() },
-            healthState = obj.optString("healthState").takeIf { it.isNotBlank() },
-            zoneIds = jsonArrayToStrings(obj.optJSONArray("zoneIds")),
-            zoneNames = jsonArrayToStrings(obj.optJSONArray("zoneNames")),
-            restriction = obj.optString("restriction").takeIf { it.isNotBlank() },
-            latitude = obj.optDoubleOrNull("latitude"),
-            longitude = obj.optDoubleOrNull("longitude"),
-            altitudeMeters = obj.optDoubleOrNull("altitudeMeters"),
-            speedMetersPerSecond = obj.optDoubleOrNull("speedMetersPerSecond"),
-            headingDegrees = obj.optDoubleOrNull("headingDegrees"),
-            batteryPercent = obj.optIntOrNull("batteryPercent"),
-            flightMode = obj.optString("flightMode").takeIf { it.isNotBlank() },
-            details = jsonObjectToMap(obj.optJSONObject("details"))
-        )
-    }
-
-    private fun jsonArrayToStrings(array: JSONArray?): List<String> {
-        if (array == null) return emptyList()
-        return buildList {
-            for (index in 0 until array.length()) {
-                array.optString(index).takeIf { it.isNotBlank() }?.let { add(it) }
-            }
-        }
-    }
-
-    private fun jsonObjectToMap(obj: JSONObject?): Map<String, String> {
-        if (obj == null) return emptyMap()
-        return buildMap {
-            val keys = obj.keys()
-            while (keys.hasNext()) {
-                val key = keys.next()
-                put(key, obj.optString(key))
-            }
-        }
-    }
-
-    private fun JSONObject.optDoubleOrNull(key: String): Double? {
-        if (!has(key) || isNull(key)) return null
-        return optDouble(key)
-    }
-
-    private fun JSONObject.optIntOrNull(key: String): Int? {
-        if (!has(key) || isNull(key)) return null
-        return optInt(key)
-    }
-
     private fun formatIsoUtc(timestampMillis: Long): String {
         return requireNotNull(ISO_UTC_FORMAT.get()).format(Date(timestampMillis))
     }
@@ -294,9 +169,9 @@ class GeoAwarenessEventLogger(private val context: Context) {
         private const val LOG_DIR = "geo_awareness/logs"
         private const val EXPORT_DIR = "geo_awareness_exports"
         private const val LOG_FILE_NAME = "geo_awareness_events.jsonl"
-        private const val ROTATED_LOG_FILE_NAME = "geo_awareness_events.1.jsonl"
-        private const val MAX_LOG_BYTES = 2 * 1024 * 1024L
-        private val FILE_LOCK = Any()
+        private const val MAX_IN_MEMORY_EVENTS = 200
+        private val EVENT_LOCK = Any()
+        private var memoryEvents = mutableListOf<GeoAwarenessEvent>()
         private val ISO_UTC_FORMAT = object : ThreadLocal<SimpleDateFormat>() {
             override fun initialValue(): SimpleDateFormat {
                 return SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {

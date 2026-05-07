@@ -45,6 +45,10 @@
     <string name="geo_awareness_view_detailed_logs">View all detailed logs</string>
     <string name="geo_awareness_flight_log_empty">No important flight/operator events recorded yet.</string>
     <string name="geo_awareness_clear_logs">Clear logs</string>
+    <string name="geo_awareness_internal_section">Internal</string>
+    <string name="geo_awareness_internal_logs_notice">Encrypted geo incident logs are available only for internal/debug export.</string>
+    <string name="geo_awareness_export_encrypted_incidents">Export encrypted geo incident logs</string>
+    <string name="geo_awareness_no_encrypted_incidents">No encrypted geo incident logs are stored on this device yet.</string>
     <string name="geo_awareness_run_tests">Run geo-awareness tests</string>
     <string name="geo_awareness_open_verification_checklist">Open verification checklist</string>
     <string name="geo_awareness_verification_checklist">Verification checklist</string>
