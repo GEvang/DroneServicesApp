@@ -26,6 +26,8 @@ import com.example.droneservicesapp.data.geoawareness.GeoZoneImportedFileDataSou
 import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
+import com.example.droneservicesapp.data.geoawareness.logging.OperatorFlightEventLogger
+import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessChecker
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
@@ -85,6 +87,7 @@ class MissionMapFragment : Fragment() {
     private lateinit var missionSaveController: MissionSaveController
     private lateinit var missionLoadController: MissionLoadController
     private lateinit var geoEventLogger: GeoAwarenessEventLogger
+    private lateinit var operatorEventLogger: OperatorFlightEventLogger
     private lateinit var homeMapChromeBinder: HomeMapChromeBinder
     private lateinit var homeMapPanelsBinder: HomeMapPanelsBinder
     private lateinit var homeMapModeEffectsBinder: HomeMapModeEffectsBinder
@@ -114,6 +117,7 @@ class MissionMapFragment : Fragment() {
     private var lastHealthLogSignature: String? = null
     private var lastHealthState: GeoAwarenessHealthState? = null
     private var lastLiveZoneSignature: String? = null
+    private var lastRtkStreamingActive: Boolean? = null
     private var isDrawingModeActive = false
     private var hasCenteredInitialViewport = false
     private var hasCenteredToDrone = false
@@ -147,6 +151,7 @@ class MissionMapFragment : Fragment() {
         mapViewModel = ViewModelProvider(this)[MissionMapViewModel::class.java]
         missionFileStore = MissionFileStore(requireContext())
         geoEventLogger = GeoAwarenessEventLogger(requireContext().applicationContext)
+        operatorEventLogger = OperatorFlightEventLogger(geoEventLogger)
 
         return binding.root
     }
@@ -454,6 +459,22 @@ class MissionMapFragment : Fragment() {
                 activityViewModel.surveyPath.postValue(surveyPath)
             }
         }
+
+        droneViewModel.rtkForwardingState.observe(viewLifecycleOwner) { state ->
+            val streaming = state is RtkForwardingState.Streaming
+            if (lastRtkStreamingActive == streaming) {
+                return@observe
+            }
+            lastRtkStreamingActive = streaming
+            geoEventLogger.logSimple(
+                type = if (streaming) GeoAwarenessEventType.RTK_CONNECTED else GeoAwarenessEventType.RTK_DISCONNECTED,
+                severity = if (streaming) "INFO" else "WARNING",
+                message = if (streaming) "RTK streaming active" else "RTK streaming inactive",
+                category = "RTK",
+                connectionState = if (streaming) "CONNECTED" else "DISCONNECTED",
+                details = mapOf("state" to (state?.javaClass?.simpleName ?: "Unknown"))
+            )
+        }
     }
 
     private fun observeMapState() {
@@ -541,10 +562,12 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
                 }
                 is MainActivityViewModel.MapAction.UploadMissionSuccess -> {
+                    operatorEventLogger.logMissionUploadSucceeded(activityViewModel.surveyPath.value?.size)
                     Snackbar.make(requireView(), getString(R.string.upload_complete), Snackbar.LENGTH_LONG).show()
                     activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
                 }
                 is MainActivityViewModel.MapAction.UploadMissionFailed -> {
+                    operatorEventLogger.logMissionUploadFailed(action.reason)
                     Toast.makeText(context, action.reason, Toast.LENGTH_LONG).show()
                     Snackbar.make(
                         requireView(),
@@ -1095,12 +1118,16 @@ class MissionMapFragment : Fragment() {
                     type = GeoAwarenessEventType.UPLOAD_BLOCKED,
                     severity = "BLOCKED",
                     message = "Geo upload blocked",
+                    category = "MISSION",
                     datasetTitle = geoZoneDatasetInfo?.title,
                     datasetVersion = geoZoneDatasetInfo?.version,
                     healthState = health.state.name,
                     zoneIds = result.conflicts.map { it.zone.id }.distinct(),
                     zoneNames = result.conflicts.map { it.zone.name }.distinct(),
-                    restriction = result.highestRestriction.name
+                    restriction = result.highestRestriction.name,
+                    latitude = latestRealDronePosition?.lat,
+                    longitude = latestRealDronePosition?.lon,
+                    altitudeMeters = latestRealDroneAltitudeMeters
                 )
                 showGeoAwarenessBlockedDialog(result, health)
             }
@@ -1110,12 +1137,16 @@ class MissionMapFragment : Fragment() {
                     type = GeoAwarenessEventType.UPLOAD_ACK_REQUIRED,
                     severity = "WARNING",
                     message = "Geo upload requires acknowledgement",
+                    category = "MISSION",
                     datasetTitle = geoZoneDatasetInfo?.title,
                     datasetVersion = geoZoneDatasetInfo?.version,
                     healthState = health.state.name,
                     zoneIds = result.conflicts.map { it.zone.id }.distinct(),
                     zoneNames = result.conflicts.map { it.zone.name }.distinct(),
-                    restriction = result.highestRestriction.name
+                    restriction = result.highestRestriction.name,
+                    latitude = latestRealDronePosition?.lat,
+                    longitude = latestRealDronePosition?.lon,
+                    altitudeMeters = latestRealDroneAltitudeMeters
                 )
                 showGeoAwarenessAcknowledgementDialog(result, health) {
                     Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after acknowledgement")
@@ -1123,9 +1154,13 @@ class MissionMapFragment : Fragment() {
                         type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
                         severity = "INFO",
                         message = "User acknowledged geo upload warning",
+                        category = "MISSION",
                         datasetTitle = geoZoneDatasetInfo?.title,
                         datasetVersion = geoZoneDatasetInfo?.version,
-                        healthState = health.state.name
+                        healthState = health.state.name,
+                        latitude = latestRealDronePosition?.lat,
+                        longitude = latestRealDronePosition?.lon,
+                        altitudeMeters = latestRealDroneAltitudeMeters
                     )
                     onAllowed()
                 }
@@ -1136,12 +1171,16 @@ class MissionMapFragment : Fragment() {
                     type = GeoAwarenessEventType.UPLOAD_CONTINUED_WITH_WARNING,
                     severity = "WARNING",
                     message = "Geo upload warning shown",
+                    category = "MISSION",
                     datasetTitle = geoZoneDatasetInfo?.title,
                     datasetVersion = geoZoneDatasetInfo?.version,
                     healthState = health.state.name,
                     zoneIds = result.conflicts.map { it.zone.id }.distinct(),
                     zoneNames = result.conflicts.map { it.zone.name }.distinct(),
-                    restriction = result.highestRestriction.name
+                    restriction = result.highestRestriction.name,
+                    latitude = latestRealDronePosition?.lat,
+                    longitude = latestRealDronePosition?.lon,
+                    altitudeMeters = latestRealDroneAltitudeMeters
                 )
                 showGeoAwarenessNoticeDialog(result, health) {
                     Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after notice")
@@ -1529,6 +1568,11 @@ class MissionMapFragment : Fragment() {
         val exitedIds = previousIds - currentIds
 
         if (entered.isNotEmpty()) {
+            operatorEventLogger.logGeoZoneEntered(
+                zones = entered,
+                position = latestLiveDronePosition,
+                altitudeMeters = altitudeMeters
+            )
             geoEventLogger.logSimple(
                 type = GeoAwarenessEventType.LIVE_ZONE_ENTERED,
                 severity = when (entered.first().restriction) {
@@ -1536,6 +1580,7 @@ class MissionMapFragment : Fragment() {
                     else -> "WARNING"
                 },
                 message = "Live position entered geo-zone(s)",
+                category = "GEO",
                 datasetTitle = geoZoneDatasetInfo?.title,
                 datasetVersion = geoZoneDatasetInfo?.version,
                 healthState = geoAwarenessHealth?.state?.name,
@@ -1549,10 +1594,16 @@ class MissionMapFragment : Fragment() {
         }
 
         if (exitedIds.isNotEmpty()) {
+            operatorEventLogger.logGeoZoneExited(
+                zones = latestLiveGeoZones.filter { it.id in exitedIds },
+                position = latestLiveDronePosition,
+                altitudeMeters = altitudeMeters
+            )
             geoEventLogger.logSimple(
                 type = GeoAwarenessEventType.LIVE_ZONE_EXITED,
                 severity = "INFO",
                 message = "Live position exited geo-zone(s)",
+                category = "GEO",
                 datasetTitle = geoZoneDatasetInfo?.title,
                 datasetVersion = geoZoneDatasetInfo?.version,
                 healthState = geoAwarenessHealth?.state?.name,
@@ -1568,6 +1619,7 @@ class MissionMapFragment : Fragment() {
             type = GeoAwarenessEventType.LIVE_STATUS_CHANGED,
             severity = if (zones.isEmpty()) "INFO" else "WARNING",
             message = if (zones.isEmpty()) "Live geo-awareness clear" else "Live geo-awareness status changed",
+            category = "GEO",
             datasetTitle = geoZoneDatasetInfo?.title,
             datasetVersion = geoZoneDatasetInfo?.version,
             healthState = geoAwarenessHealth?.state?.name,

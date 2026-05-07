@@ -5,6 +5,10 @@ import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 import java.util.UUID
 
 class GeoAwarenessEventLogger(private val context: Context) {
@@ -26,6 +30,11 @@ class GeoAwarenessEventLogger(private val context: Context) {
         type: GeoAwarenessEventType,
         severity: String = "INFO",
         message: String,
+        category: String? = null,
+        operatorAction: String? = null,
+        flightState: String? = null,
+        connectionState: String? = null,
+        missionId: String? = null,
         datasetTitle: String? = null,
         datasetVersion: String? = null,
         healthState: String? = null,
@@ -35,15 +44,27 @@ class GeoAwarenessEventLogger(private val context: Context) {
         latitude: Double? = null,
         longitude: Double? = null,
         altitudeMeters: Double? = null,
+        speedMetersPerSecond: Double? = null,
+        headingDegrees: Double? = null,
+        batteryPercent: Int? = null,
+        flightMode: String? = null,
         details: Map<String, String> = emptyMap()
     ) {
+        val timestampMillis = System.currentTimeMillis()
         log(
             GeoAwarenessEvent(
                 id = UUID.randomUUID().toString(),
-                timestampMillis = System.currentTimeMillis(),
+                timestampMillis = timestampMillis,
+                timestampIsoUtc = formatIsoUtc(timestampMillis),
                 type = type,
                 severity = severity,
                 message = message,
+                category = category,
+                operatorAction = operatorAction,
+                flightState = flightState,
+                connectionState = connectionState,
+                missionId = missionId,
+                deviceTimeZone = TimeZone.getDefault().id,
                 datasetTitle = datasetTitle,
                 datasetVersion = datasetVersion,
                 healthState = healthState,
@@ -53,6 +74,10 @@ class GeoAwarenessEventLogger(private val context: Context) {
                 latitude = latitude,
                 longitude = longitude,
                 altitudeMeters = altitudeMeters,
+                speedMetersPerSecond = speedMetersPerSecond,
+                headingDegrees = headingDegrees,
+                batteryPercent = batteryPercent,
+                flightMode = flightMode,
                 details = details
             )
         )
@@ -169,9 +194,16 @@ class GeoAwarenessEventLogger(private val context: Context) {
         return JSONObject().apply {
             put("id", event.id)
             put("timestampMillis", event.timestampMillis)
+            put("timestampIsoUtc", event.timestampIsoUtc)
             put("type", event.type.name)
             put("severity", event.severity)
             put("message", event.message)
+            put("category", event.category)
+            put("operatorAction", event.operatorAction)
+            put("flightState", event.flightState)
+            put("connectionState", event.connectionState)
+            put("missionId", event.missionId)
+            put("deviceTimeZone", event.deviceTimeZone)
             put("datasetTitle", event.datasetTitle)
             put("datasetVersion", event.datasetVersion)
             put("healthState", event.healthState)
@@ -181,6 +213,10 @@ class GeoAwarenessEventLogger(private val context: Context) {
             put("latitude", event.latitude)
             put("longitude", event.longitude)
             put("altitudeMeters", event.altitudeMeters)
+            put("speedMetersPerSecond", event.speedMetersPerSecond)
+            put("headingDegrees", event.headingDegrees)
+            put("batteryPercent", event.batteryPercent)
+            put("flightMode", event.flightMode)
             put("details", JSONObject(event.details))
         }
     }
@@ -191,9 +227,17 @@ class GeoAwarenessEventLogger(private val context: Context) {
         return GeoAwarenessEvent(
             id = obj.optString("id"),
             timestampMillis = obj.optLong("timestampMillis"),
+            timestampIsoUtc = obj.optString("timestampIsoUtc").takeIf { it.isNotBlank() }
+                ?: formatIsoUtc(obj.optLong("timestampMillis")),
             type = type,
             severity = obj.optString("severity"),
             message = obj.optString("message"),
+            category = obj.optString("category").takeIf { it.isNotBlank() },
+            operatorAction = obj.optString("operatorAction").takeIf { it.isNotBlank() },
+            flightState = obj.optString("flightState").takeIf { it.isNotBlank() },
+            connectionState = obj.optString("connectionState").takeIf { it.isNotBlank() },
+            missionId = obj.optString("missionId").takeIf { it.isNotBlank() },
+            deviceTimeZone = obj.optString("deviceTimeZone").takeIf { it.isNotBlank() },
             datasetTitle = obj.optString("datasetTitle").takeIf { it.isNotBlank() },
             datasetVersion = obj.optString("datasetVersion").takeIf { it.isNotBlank() },
             healthState = obj.optString("healthState").takeIf { it.isNotBlank() },
@@ -203,6 +247,10 @@ class GeoAwarenessEventLogger(private val context: Context) {
             latitude = obj.optDoubleOrNull("latitude"),
             longitude = obj.optDoubleOrNull("longitude"),
             altitudeMeters = obj.optDoubleOrNull("altitudeMeters"),
+            speedMetersPerSecond = obj.optDoubleOrNull("speedMetersPerSecond"),
+            headingDegrees = obj.optDoubleOrNull("headingDegrees"),
+            batteryPercent = obj.optIntOrNull("batteryPercent"),
+            flightMode = obj.optString("flightMode").takeIf { it.isNotBlank() },
             details = jsonObjectToMap(obj.optJSONObject("details"))
         )
     }
@@ -232,6 +280,15 @@ class GeoAwarenessEventLogger(private val context: Context) {
         return optDouble(key)
     }
 
+    private fun JSONObject.optIntOrNull(key: String): Int? {
+        if (!has(key) || isNull(key)) return null
+        return optInt(key)
+    }
+
+    private fun formatIsoUtc(timestampMillis: Long): String {
+        return requireNotNull(ISO_UTC_FORMAT.get()).format(Date(timestampMillis))
+    }
+
     companion object {
         private const val TAG = "GeoEventLogger"
         private const val LOG_DIR = "geo_awareness/logs"
@@ -240,5 +297,12 @@ class GeoAwarenessEventLogger(private val context: Context) {
         private const val ROTATED_LOG_FILE_NAME = "geo_awareness_events.1.jsonl"
         private const val MAX_LOG_BYTES = 2 * 1024 * 1024L
         private val FILE_LOCK = Any()
+        private val ISO_UTC_FORMAT = object : ThreadLocal<SimpleDateFormat>() {
+            override fun initialValue(): SimpleDateFormat {
+                return SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+                    timeZone = TimeZone.getTimeZone("UTC")
+                }
+            }
+        }
     }
 }

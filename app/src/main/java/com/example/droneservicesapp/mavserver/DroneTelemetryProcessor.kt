@@ -23,6 +23,12 @@ internal class DroneTelemetryProcessor(
     private val onAutopilotHeartbeatLocked: () -> Unit,
     private val onDroneLocationUpdated: () -> Unit,
     private val onGpsDebugMessage: (String, Int, Int, Int, Int) -> Unit,
+    private val onArmedStateChanged: (Boolean, Location?, Double?, String?) -> Unit,
+    private val onFlightModeChanged: (String?, String?) -> Unit,
+    private val onGpsFixChanged: (Boolean) -> Unit,
+    private val onBatteryLow: (Int) -> Unit,
+    private val onTakeoffDetected: (Location?, Double?) -> Unit,
+    private val onLandingDetected: (Location?, Double?) -> Unit
 ) {
     companion object {
         private const val TAG = "DroneViewModel"
@@ -45,6 +51,7 @@ internal class DroneTelemetryProcessor(
             is Heartbeat -> handleHeartbeat(message, payload)
             is GlobalPositionInt -> handleGlobalPosition(payload)
             is GpsRawInt -> {
+                handleGpsFix(payload.fixType().value().toInt())
                 onGpsDebugMessage(
                     "GPS_RAW_INT",
                     payload.fixType().value().toInt(),
@@ -54,6 +61,7 @@ internal class DroneTelemetryProcessor(
                 )
             }
             is Gps2Raw -> {
+                handleGpsFix(payload.fixType().value().toInt())
                 onGpsDebugMessage(
                     "GPS2_RAW",
                     payload.fixType().value().toInt(),
@@ -75,6 +83,7 @@ internal class DroneTelemetryProcessor(
                 stateStore.droneBatteryVoltage.postValue(payload.voltages()[0].toFloat() * 10.0f.pow(-3))
                 stateStore.droneBatteryPercentage.postValue(payload.batteryRemaining().toFloat() / 100.0F)
                 stateStore.liquidLevel.postValue(payload.voltages()[1].toFloat())
+                handleBatteryLevel(payload.batteryRemaining().toInt())
             }
             is RcChannels -> {
                 stateStore.rcRSSI.postValue(payload.rssi() * 100.0F / 255.0F)
@@ -120,8 +129,26 @@ internal class DroneTelemetryProcessor(
         }
 
         stateStore.droneFlightMode.postValue(heartbeat.customMode().toInt())
+        val previousMode = runtimeState.lastLoggedFlightMode
+        val currentMode = heartbeat.customMode().toInt()
+        if (previousMode != currentMode) {
+            onFlightModeChanged(previousMode?.toString(), currentMode.toString())
+            runtimeState.lastLoggedFlightMode = currentMode
+        }
         val isArmed = (heartbeat.baseMode().value() and 0x80) != 0
         stateStore.armedState.postValue(isArmed)
+        if (runtimeState.lastLoggedArmedState != isArmed) {
+            runtimeState.lastLoggedArmedState = isArmed
+            onArmedStateChanged(
+                isArmed,
+                runtimeState.lastDroneLocation,
+                runtimeState.lastDroneLocation?.altitude,
+                currentMode.toString()
+            )
+            if (!isArmed) {
+                runtimeState.lastInferredFlightState = "LANDED"
+            }
+        }
     }
 
     private fun handleGlobalPosition(position: GlobalPositionInt) {
@@ -133,6 +160,45 @@ internal class DroneTelemetryProcessor(
         runtimeState.lastDroneLocation = Location(location)
         stateStore.droneHeading.postValue(position.hdg().toDouble() / 100.0)
         stateStore.droneLocationLiveData.postValue(location)
+        inferFlightState(location)
         onDroneLocationUpdated()
+    }
+
+    private fun handleGpsFix(fixType: Int) {
+        val acquired = fixType >= 3
+        if (runtimeState.lastGpsFixAcquired != acquired) {
+            runtimeState.lastGpsFixAcquired = acquired
+            onGpsFixChanged(acquired)
+        }
+    }
+
+    private fun handleBatteryLevel(percentRaw: Int) {
+        if (percentRaw < 0) {
+            return
+        }
+        val percent = percentRaw.coerceIn(0, 100)
+        if (percent <= 20) {
+            if (!runtimeState.batteryLowLogged) {
+                runtimeState.batteryLowLogged = true
+                onBatteryLow(percent)
+            }
+        } else {
+            runtimeState.batteryLowLogged = false
+        }
+    }
+
+    private fun inferFlightState(location: Location) {
+        val altitudeMeters = location.altitude
+        val armed = stateStore.armedState.value == true
+        when {
+            armed && altitudeMeters > 2.0 && runtimeState.lastInferredFlightState != "AIRBORNE" -> {
+                runtimeState.lastInferredFlightState = "AIRBORNE"
+                onTakeoffDetected(location, altitudeMeters)
+            }
+            runtimeState.lastInferredFlightState == "AIRBORNE" && altitudeMeters < 1.0 -> {
+                runtimeState.lastInferredFlightState = "LANDED"
+                onLandingDetected(location, altitudeMeters)
+            }
+        }
     }
 }

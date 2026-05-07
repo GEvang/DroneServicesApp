@@ -6,6 +6,9 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.droneservicesapp.Application
+import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
+import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
+import com.example.droneservicesapp.data.geoawareness.logging.OperatorFlightEventLogger
 import com.example.droneservicesapp.data.mavlink.MavlinkClient
 import com.example.droneservicesapp.data.mavlink.MavlinkConfig
 import com.example.droneservicesapp.data.mavlink.MavlinkConnectionManager
@@ -34,6 +37,8 @@ class DroneViewModel : ViewModel() {
     private val repoDisposables = CompositeDisposable()
     private val runtimeState = DroneRuntimeState()
     private val stateStore = DroneUiStateStore(Application.getInstance().applicationContext)
+    private val eventLogger = GeoAwarenessEventLogger(Application.getInstance().applicationContext)
+    private val operatorEventLogger = OperatorFlightEventLogger(eventLogger)
 
     private val repo = MavlinkConnectionManager()
     val mavlinkClient: MavlinkClient = repo
@@ -80,6 +85,39 @@ class DroneViewModel : ViewModel() {
                     eph = eph,
                     epv = epv
                 )
+            },
+            onArmedStateChanged = { armed, location, altitude, flightMode ->
+                val position = location?.let { com.example.droneservicesapp.domain.model.LatLon(it.latitude, it.longitude) }
+                if (armed) {
+                    operatorEventLogger.logDroneArmed(position, altitude, flightMode)
+                } else {
+                    operatorEventLogger.logDroneDisarmed(position, altitude, flightMode)
+                }
+            },
+            onFlightModeChanged = { previous, current ->
+                operatorEventLogger.logFlightModeChanged(previous, current)
+                if (current == "6") {
+                    operatorEventLogger.logRtlDetected()
+                }
+            },
+            onGpsFixChanged = { acquired ->
+                eventLogger.logSimple(
+                    type = if (acquired) GeoAwarenessEventType.GPS_FIX_ACQUIRED else GeoAwarenessEventType.GPS_FIX_LOST,
+                    severity = if (acquired) "INFO" else "WARNING",
+                    message = if (acquired) "GPS fix acquired" else "GPS fix lost",
+                    category = "TELEMETRY"
+                )
+            },
+            onBatteryLow = { percent ->
+                operatorEventLogger.logBatteryLow(percent)
+            },
+            onTakeoffDetected = { location, altitude ->
+                val position = location?.let { com.example.droneservicesapp.domain.model.LatLon(it.latitude, it.longitude) }
+                operatorEventLogger.logTakeoffDetected(position, altitude)
+            },
+            onLandingDetected = { location, altitude ->
+                val position = location?.let { com.example.droneservicesapp.domain.model.LatLon(it.latitude, it.longitude) }
+                operatorEventLogger.logLandingDetected(position, altitude)
             }
         )
     }
@@ -180,6 +218,7 @@ class DroneViewModel : ViewModel() {
     }
 
     fun uploadMissionNew(items: ArrayList<MissionItemInt>, activityVm: MainActivityViewModel) {
+        operatorEventLogger.logMissionUploadStarted(items.size)
         missionController.uploadMission(
             items = items,
             activityVm = activityVm,
@@ -207,11 +246,13 @@ class DroneViewModel : ViewModel() {
                         if (runtimeState.lastLoggedConnectionState != connected) {
                             runtimeState.lastLoggedConnectionState = connected
                             if (connected) {
+                                operatorEventLogger.logDroneConnected()
                                 Log.i(
                                     TAG,
                                     "heartbeat healthy lastHeartbeatAgeMs=${System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs}"
                                 )
                             } else {
+                                operatorEventLogger.logDroneDisconnected("Heartbeat timed out")
                                 Log.w(
                                     TAG,
                                     "heartbeat lost lastHeartbeatAgeMs=${System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs}"
@@ -222,6 +263,18 @@ class DroneViewModel : ViewModel() {
                         val telemetryAlive =
                             (System.currentTimeMillis() - runtimeState.lastNonHeartbeatMs) < TELEMETRY_STALE_MS
                         stateStore.telemetryAliveLiveData.postValue(telemetryAlive)
+                        if (runtimeState.lastLoggedTelemetryAlive != telemetryAlive) {
+                            runtimeState.lastLoggedTelemetryAlive = telemetryAlive
+                            if (!telemetryAlive && connected) {
+                                eventLogger.logSimple(
+                                    type = GeoAwarenessEventType.TELEMETRY_STALE,
+                                    severity = "WARNING",
+                                    message = "Telemetry became stale",
+                                    category = "TELEMETRY",
+                                    connectionState = "STALE"
+                                )
+                            }
+                        }
 
                         if (!connected) {
                             stateStore.telemetryAliveLiveData.postValue(false)

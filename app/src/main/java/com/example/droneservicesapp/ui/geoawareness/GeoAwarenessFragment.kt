@@ -27,6 +27,8 @@ import com.example.droneservicesapp.data.geoawareness.GeoZoneAssetDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneDatasetValidationException
 import com.example.droneservicesapp.data.geoawareness.GeoZoneImportedFileDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
+import com.example.droneservicesapp.data.geoawareness.evidence.GeoAwarenessEvidencePackageExporter
+import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEvent
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
 import com.example.droneservicesapp.data.geoawareness.verification.GeoAwarenessVerificationStatusStore
@@ -154,6 +156,12 @@ class GeoAwarenessFragment : Fragment() {
         }
         binding.geoAwarenessClearLogsButton.setOnClickListener {
             confirmClearGeoAwarenessLogs()
+        }
+        binding.geoAwarenessViewDetailedLogsButton.setOnClickListener {
+            showDetailedLogsPreview()
+        }
+        binding.geoAwarenessExportEvidenceButton.setOnClickListener {
+            exportEvidencePackage()
         }
         binding.geoAwarenessRunTestsButton.setOnClickListener {
             runGeoAwarenessTests()
@@ -946,9 +954,137 @@ class GeoAwarenessFragment : Fragment() {
 
     private fun refreshEventLogCount() {
         if (_binding == null) return
-        val count = geoEventLogger.readEvents(maxLines = Int.MAX_VALUE).size
+        val events = geoEventLogger.readEvents(maxLines = Int.MAX_VALUE)
+        val count = events.size
         binding.geoAwarenessLogCount.text =
             getString(R.string.geo_awareness_event_count) + " " + count
+        renderFlightEventLog(events)
+    }
+
+    private fun renderFlightEventLog(events: List<GeoAwarenessEvent>) {
+        if (_binding == null) return
+        val container = binding.geoAwarenessFlightLogContainer
+        container.removeAllViews()
+        val importantEvents = events
+            .filter { it.type in GeoAwarenessEvidencePackageExporter.IMPORTANT_FLIGHT_EVENTS }
+            .sortedByDescending { it.timestampMillis }
+            .take(50)
+        if (importantEvents.isEmpty()) {
+            container.addView(createPanelText(getString(R.string.geo_awareness_flight_log_empty)))
+            return
+        }
+        importantEvents.forEachIndexed { index, event ->
+            if (index > 0) {
+                container.addView(View(requireContext()).apply {
+                    layoutParams = LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        (1 * resources.displayMetrics.density).toInt()
+                    ).apply {
+                        topMargin = (10 * resources.displayMetrics.density).toInt()
+                        bottomMargin = (10 * resources.displayMetrics.density).toInt()
+                    }
+                    setBackgroundColor(Color.parseColor("#1F2A44"))
+                })
+            }
+            container.addView(createFlightEventRow(event))
+        }
+    }
+
+    private fun createFlightEventRow(event: GeoAwarenessEvent): View {
+        val timeText = SimpleDateFormat("HH:mm:ss", Locale.getDefault()).format(Date(event.timestampMillis))
+        return LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            )
+            addView(createStatusValue("$timeText  ${friendlyEventLabel(event.type)}"))
+            addView(createPanelText(event.message, severityColor(event.severity)))
+            val metaLine = buildString {
+                event.zoneNames.firstOrNull()?.let { append("Zone: $it") }
+                event.restriction?.let {
+                    if (isNotEmpty()) append(" | ")
+                    append("Restriction: $it")
+                }
+                if (event.flightMode != null) {
+                    if (isNotEmpty()) append(" | ")
+                    append("Mode: ${event.flightMode}")
+                }
+            }
+            if (metaLine.isNotBlank()) {
+                addView(createPanelText(metaLine))
+            }
+        }
+    }
+
+    private fun showDetailedLogsPreview() {
+        val events = geoEventLogger.readEvents(maxLines = 50).sortedByDescending { it.timestampMillis }
+        val message = if (events.isEmpty()) {
+            "No detailed geo-awareness events recorded yet."
+        } else {
+            buildString {
+                events.forEach { event ->
+                    appendLine("${event.timestampIsoUtc} | ${event.type.name} | ${event.message}")
+                }
+            }.trim()
+        }
+        showReadableDialog("Detailed geo-awareness logs", message)
+    }
+
+    private fun exportEvidencePackage() {
+        try {
+            val exporter = GeoAwarenessEvidencePackageExporter(
+                context = requireContext().applicationContext,
+                eventLogger = geoEventLogger,
+                repository = buildRepository(),
+                verificationStatusStore = verificationStatusStore,
+                latestDiagnosticsResultProvider = { lastTestRunResult }
+            )
+            val zipFile = exporter.exportEvidencePackage()
+            val uri = FileProvider.getUriForFile(
+                requireContext(),
+                "${requireContext().packageName}.fileprovider",
+                zipFile
+            )
+            geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.EVIDENCE_PACKAGE_EXPORTED,
+                severity = "INFO",
+                message = "Geo-awareness evidence package exported",
+                category = "GEO",
+                datasetTitle = datasetInfo?.title,
+                datasetVersion = datasetInfo?.version,
+                healthState = geoAwarenessHealth?.state?.name,
+                details = mapOf(
+                    "fileName" to zipFile.name,
+                    "fileSizeBytes" to zipFile.length().toString()
+                )
+            )
+            val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "application/zip"
+                putExtra(Intent.EXTRA_STREAM, uri)
+                putExtra(Intent.EXTRA_SUBJECT, "Geo-awareness evidence package")
+                putExtra(Intent.EXTRA_TEXT, "Geo-awareness evidence package export")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            }
+            startActivity(Intent.createChooser(shareIntent, "Share geo-awareness evidence package"))
+            refreshEventLogCount()
+        } catch (error: Exception) {
+            geoEventLogger.logSimple(
+                type = GeoAwarenessEventType.EVIDENCE_PACKAGE_EXPORT_FAILED,
+                severity = "ERROR",
+                message = "Geo-awareness evidence package export failed",
+                category = "GEO",
+                datasetTitle = datasetInfo?.title,
+                datasetVersion = datasetInfo?.version,
+                healthState = geoAwarenessHealth?.state?.name,
+                details = mapOf("error" to (error.message ?: error::class.java.simpleName))
+            )
+            refreshEventLogCount()
+            showReadableDialog(
+                title = "Export evidence package",
+                message = "Failed to export evidence package.\n\n${error.message ?: "Unknown error"}"
+            )
+        }
     }
 
     private fun exportGeoAwarenessLogs() {
@@ -1561,6 +1697,20 @@ class GeoAwarenessFragment : Fragment() {
         }
         return kotlin.math.abs(location.latitude) > 1e-4 ||
             kotlin.math.abs(location.longitude) > 1e-4
+    }
+
+    private fun friendlyEventLabel(type: GeoAwarenessEventType): String {
+        return type.name.lowercase()
+            .split('_')
+            .joinToString(" ") { token -> token.replaceFirstChar { it.titlecase(Locale.getDefault()) } }
+    }
+
+    private fun severityColor(severity: String): Int {
+        return when (severity.uppercase(Locale.getDefault())) {
+            "ERROR", "BLOCKED" -> Color.parseColor("#FF8A80")
+            "WARNING" -> Color.parseColor("#FFB74D")
+            else -> Color.parseColor("#C5D0E6")
+        }
     }
 
     override fun onDestroyView() {

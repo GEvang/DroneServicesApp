@@ -10,6 +10,12 @@ internal class DroneRuntimeState {
     @Volatile var autopilotSysId: Int = -1
     @Volatile var autopilotCompId: Int = -1
     @Volatile var lastLoggedConnectionState: Boolean? = null
+    @Volatile var lastLoggedTelemetryAlive: Boolean? = null
+    @Volatile var lastLoggedArmedState: Boolean? = null
+    @Volatile var lastLoggedFlightMode: Int? = null
+    @Volatile var lastGpsFixAcquired: Boolean? = null
+    @Volatile var batteryLowLogged: Boolean = false
+    @Volatile var lastInferredFlightState: String = "UNKNOWN"
     @Volatile var mavlinkMessagesDisposable: Disposable? = null
 
     fun clearAutopilotTarget() {
