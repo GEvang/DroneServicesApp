@@ -68,6 +68,28 @@ object GeoAwarenessGeometryUtils {
         }
     }
 
+    fun distanceMetersToZone(position: LatLon, zone: GeoZone): Double? {
+        return zone.geometries
+            .mapNotNull { geometry -> distanceMetersToGeometry(position, geometry) }
+            .minOrNull()
+    }
+
+    fun distanceMetersToGeometry(position: LatLon, geometry: GeoZoneGeometry): Double? {
+        return when (geometry) {
+            is GeoZoneGeometry.Circle -> {
+                val centerDistance = distanceMeters(position, geometry.center)
+                max(0.0, centerDistance - geometry.radiusMeters)
+            }
+            is GeoZoneGeometry.Polygon -> {
+                if (pointInPolygonRings(position, geometry.rings)) {
+                    0.0
+                } else {
+                    distanceMetersToPolygonRings(position, geometry.rings)
+                }
+            }
+        }
+    }
+
     fun pointInPolygonRings(point: LatLon, rings: List<List<LatLon>>): Boolean {
         val outerRing = rings.firstOrNull()?.let(::normalizeRing)?.takeIf { distinctPointCount(it) >= 3 } ?: return false
         if (!pointInRing(point, outerRing)) {
@@ -259,6 +281,68 @@ object GeoAwarenessGeometryUtils {
         val closestY = startXY.second + clampedProjection * dy
         val deltaX = pointXY.first - closestX
         val deltaY = pointXY.second - closestY
+        return sqrt(deltaX * deltaX + deltaY * deltaY)
+    }
+
+    private fun distanceMetersToPolygonRings(point: LatLon, rings: List<List<LatLon>>): Double? {
+        var minimumDistance: Double? = null
+        rings.forEach { ring ->
+            val normalized = normalizeRing(ring)
+            if (normalized.size < 2) {
+                return@forEach
+            }
+            val closed = closeRing(normalized)
+            for (index in 0 until closed.lastIndex) {
+                val distance = pointToSegmentDistanceMeters(
+                    point = point,
+                    segmentStart = closed[index],
+                    segmentEnd = closed[index + 1]
+                )
+                minimumDistance = if (minimumDistance == null) {
+                    distance
+                } else {
+                    min(minimumDistance!!, distance)
+                }
+            }
+        }
+        return minimumDistance
+    }
+
+    private fun pointToSegmentDistanceMeters(
+        point: LatLon,
+        segmentStart: LatLon,
+        segmentEnd: LatLon
+    ): Double {
+        val referenceLatRadians = Math.toRadians(point.lat)
+        val (px, py) = toLocalMeters(point, point, referenceLatRadians)
+        val (ax, ay) = toLocalMeters(segmentStart, point, referenceLatRadians)
+        val (bx, by) = toLocalMeters(segmentEnd, point, referenceLatRadians)
+        return pointToSegmentDistanceMeters(px, py, ax, ay, bx, by)
+    }
+
+    private fun pointToSegmentDistanceMeters(
+        px: Double,
+        py: Double,
+        ax: Double,
+        ay: Double,
+        bx: Double,
+        by: Double
+    ): Double {
+        val dx = bx - ax
+        val dy = by - ay
+        val segmentLengthSquared = dx * dx + dy * dy
+        if (segmentLengthSquared <= SEGMENT_EPSILON) {
+            val deltaX = px - ax
+            val deltaY = py - ay
+            return sqrt(deltaX * deltaX + deltaY * deltaY)
+        }
+
+        val projection = ((px - ax) * dx + (py - ay) * dy) / segmentLengthSquared
+        val clampedProjection = projection.coerceIn(0.0, 1.0)
+        val closestX = ax + clampedProjection * dx
+        val closestY = ay + clampedProjection * dy
+        val deltaX = px - closestX
+        val deltaY = py - closestY
         return sqrt(deltaX * deltaX + deltaY * deltaY)
     }
 

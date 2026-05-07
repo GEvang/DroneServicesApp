@@ -52,6 +52,33 @@ class LiveGeoAwarenessStatusViewBinder(
         }
     }
 
+    fun bindNear(zone: GeoZone, distanceMeters: Double) {
+        val roundedMeters = distanceMeters.toInt().coerceAtLeast(0)
+        when (zone.restriction) {
+            GeoZoneRestriction.PROHIBITED -> applyStyle(
+                text = "LIVE GEO: NEAR PROHIBITED — ${roundedMeters} m",
+                backgroundColor = Color.parseColor("#E65100"),
+                textColor = Color.WHITE
+            )
+            GeoZoneRestriction.REQ_AUTHORISATION -> applyStyle(
+                text = "LIVE GEO: NEAR AUTH ZONE — ${roundedMeters} m",
+                backgroundColor = Color.parseColor("#EF6C00"),
+                textColor = Color.WHITE
+            )
+            GeoZoneRestriction.CONDITIONAL -> applyStyle(
+                text = "LIVE GEO: NEAR CONDITIONAL — ${roundedMeters} m",
+                backgroundColor = Color.parseColor("#F9A825"),
+                textColor = Color.parseColor("#212121")
+            )
+            GeoZoneRestriction.UNKNOWN -> applyStyle(
+                text = "LIVE GEO: NEAR UNKNOWN — ${roundedMeters} m",
+                backgroundColor = Color.parseColor("#8D6E63"),
+                textColor = Color.WHITE
+            )
+            GeoZoneRestriction.INFORMATION -> bindClear()
+        }
+    }
+
     fun bindUnknown(message: String) {
         applyStyle(
             text = "LIVE GEO: NO POS",

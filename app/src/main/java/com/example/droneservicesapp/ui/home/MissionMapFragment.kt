@@ -42,6 +42,7 @@ import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneConflict
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
 import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessChecker
+import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessProximityResult
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
@@ -109,6 +110,7 @@ class MissionMapFragment : Fragment() {
     private var geoAwarenessStatusBinder: GeoAwarenessStatusViewBinder? = null
     private var liveGeoAwarenessChecker: LiveGeoAwarenessChecker? = null
     private var latestLiveGeoZones: List<GeoZone> = emptyList()
+    private var latestLiveGeoProximity: LiveGeoAwarenessProximityResult? = null
     private var liveGeoAwarenessStatusBinder: LiveGeoAwarenessStatusViewBinder? = null
     private var latestLiveDronePosition: LatLon? = null
     private var latestRealDronePosition: LatLon? = null
@@ -139,6 +141,7 @@ class MissionMapFragment : Fragment() {
         private const val LIVE_GEO_AWARENESS_TAG = "LiveGeoAwareness"
         private const val GEO_TEST_MODE_TAG = "GeoTestMode"
         private const val MIN_VALID_ABS_COORDINATE = 1e-4
+        private const val DEFAULT_NEAR_ZONE_THRESHOLD_METERS = 100.0
     }
 
     override fun onCreateView(
@@ -1629,12 +1632,14 @@ class MissionMapFragment : Fragment() {
 
         if (dronePosition == null) {
             latestLiveGeoZones = emptyList()
+            latestLiveGeoProximity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("No drone position")
             return
         }
 
         if (!loadGeoAwarenessZonesIfNeeded()) {
             latestLiveGeoZones = emptyList()
+            latestLiveGeoProximity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
             return
         }
@@ -1653,8 +1658,29 @@ class MissionMapFragment : Fragment() {
         )
         latestLiveGeoZones = insideZones
         if (insideZones.isEmpty()) {
-            liveGeoAwarenessStatusBinder?.bindClear()
+            val nearestZone = liveGeoAwarenessChecker?.findNearestZoneWithinThreshold(
+                position = dronePosition,
+                zones = geoAwarenessZones,
+                thresholdMeters = DEFAULT_NEAR_ZONE_THRESHOLD_METERS,
+                altitudeMeters = droneAltitudeMeters
+            )
+            latestLiveGeoProximity = nearestZone
+            if (nearestZone == null) {
+                liveGeoAwarenessStatusBinder?.bindClear()
+            } else {
+                liveGeoAwarenessStatusBinder?.bindNear(
+                    zone = nearestZone.nearestZone,
+                    distanceMeters = nearestZone.distanceMeters
+                )
+                if (BuildConfig.DEBUG) {
+                    Log.d(
+                        LIVE_GEO_AWARENESS_TAG,
+                        "Near-zone warning: zone=${nearestZone.nearestZone.id} distance=${nearestZone.distanceMeters.toInt()}m"
+                    )
+                }
+            }
         } else {
+            latestLiveGeoProximity = null
             liveGeoAwarenessStatusBinder?.bindInsideMultiple(insideZones)
         }
 
@@ -1673,14 +1699,7 @@ class MissionMapFragment : Fragment() {
                 title = "Live geo-awareness"
                 message = "No drone position available yet."
             }
-            latestLiveGeoZones.isEmpty() -> {
-                title = "Live geo-awareness"
-                message = buildString {
-                    appendLine("Drone is not inside any loaded dummy geo-zone.")
-                    append("Development-only dummy data. Verify official restrictions in DAGR before flight.")
-                }
-            }
-            else -> {
+            latestLiveGeoZones.isNotEmpty() -> {
                 val visibleZones = latestLiveGeoZones.take(5)
                 val remainingCount = latestLiveGeoZones.size - visibleZones.size
                 title = "Live geo-awareness warning"
@@ -1698,6 +1717,32 @@ class MissionMapFragment : Fragment() {
                     append("Development-only dummy data. Verify official restrictions in DAGR before flight.")
                 }
             }
+            latestLiveGeoProximity != null -> {
+                val proximity = latestLiveGeoProximity!!
+                title = "Nearby geo-zone"
+                message = buildString {
+                    appendLine("Nearest zone: ${proximity.nearestZone.name}")
+                    appendLine("Restriction: ${proximity.restriction}")
+                    appendLine("Distance: ${proximity.distanceMeters.toInt().coerceAtLeast(0)} m")
+                    appendLine("Warning threshold: ${DEFAULT_NEAR_ZONE_THRESHOLD_METERS.toInt()} m")
+                    if (!geoZoneDatasetInfo?.title.isNullOrBlank()) {
+                        appendLine("Dataset: ${geoZoneDatasetInfo?.title} (${geoZoneDatasetInfo?.version ?: "N/A"})")
+                    }
+                    if (!proximity.nearestZone.message.isNullOrBlank()) {
+                        appendLine("Message: ${proximity.nearestZone.message}")
+                    }
+                    appendLine()
+                    append("The drone is outside this zone but within the near-zone warning threshold.")
+                }
+            }
+            latestLiveGeoZones.isEmpty() -> {
+                title = "Live geo-awareness"
+                message = buildString {
+                    appendLine("Drone is not inside any loaded dummy geo-zone.")
+                    append("Development-only dummy data. Verify official restrictions in DAGR before flight.")
+                }
+            }
+            else -> error("Unhandled live geo-awareness detail state")
         }
 
         showGeoAwarenessDialog(title, message)

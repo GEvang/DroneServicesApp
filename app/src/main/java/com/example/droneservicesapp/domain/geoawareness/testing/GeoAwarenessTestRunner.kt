@@ -39,7 +39,8 @@ class GeoAwarenessTestRunner(
                 testLiveCheckerInsideClear(loadResult),
                 testImportSourceState(loadResult),
                 testEventLoggerWriteRead(),
-                testUploadGuardPolicy(loadResult)
+                testUploadGuardPolicy(loadResult),
+                testNearZoneWarning()
             )
             GeoAwarenessTestRunResult(runAtMillis = runAtMillis, results = results).also(::logRunSummary)
         } catch (error: Exception) {
@@ -338,6 +339,72 @@ class GeoAwarenessTestRunner(
             name = "Upload guard policy simulation",
             status = if (pass) GeoAwarenessTestStatus.PASS else GeoAwarenessTestStatus.FAIL,
             message = if (pass) "Upload policy simulation matched expected behavior." else "Upload policy simulation did not match expected behavior."
+        )
+    }
+
+    private fun testNearZoneWarning(): GeoAwarenessTestResult {
+        val checker = LiveGeoAwarenessChecker()
+        val syntheticCircleZone = GeoZone(
+            id = "GA-TEST-013-CIRCLE",
+            country = "GRC",
+            name = "Synthetic near prohibited circle",
+            type = "TEST",
+            restriction = GeoZoneRestriction.PROHIBITED,
+            reason = emptyList(),
+            otherReasonInfo = null,
+            message = "Synthetic near-zone test",
+            applicability = emptyList(),
+            authorities = emptyList(),
+            geometries = listOf(
+                GeoZoneGeometry.Circle(
+                    center = LatLon(35.0, 24.0),
+                    radiusMeters = 100.0,
+                    lowerLimitMeters = 0.0,
+                    upperLimitMeters = 120.0
+                )
+            ),
+            colorHex = null,
+            arc = null,
+            isDummy = false
+        )
+
+        val nearPoint = LatLon(35.0, 24.001648)
+        val nearResult = checker.findNearestZoneWithinThreshold(
+            position = nearPoint,
+            zones = listOf(syntheticCircleZone),
+            thresholdMeters = 100.0,
+            altitudeMeters = 50.0
+        )
+        val farResult = checker.findNearestZoneWithinThreshold(
+            position = LatLon(35.0, 24.01),
+            zones = listOf(syntheticCircleZone),
+            thresholdMeters = 100.0,
+            altitudeMeters = 50.0
+        )
+        val insideResult = checker.findNearestZoneWithinThreshold(
+            position = LatLon(35.0, 24.0005),
+            zones = listOf(syntheticCircleZone),
+            thresholdMeters = 100.0,
+            altitudeMeters = 50.0
+        )
+        val pass = nearResult != null &&
+            nearResult.distanceMeters in 40.0..70.0 &&
+            farResult == null &&
+            insideResult == null
+        return GeoAwarenessTestResult(
+            id = "GA-TEST-013",
+            name = "Near-zone warning",
+            status = if (pass) GeoAwarenessTestStatus.PASS else GeoAwarenessTestStatus.FAIL,
+            message = if (pass) {
+                "Near-zone proximity warning behaved as expected."
+            } else {
+                "Near-zone proximity warning did not match expected behavior."
+            },
+            details = mapOf(
+                "nearDistanceMeters" to (nearResult?.distanceMeters?.toInt()?.toString() ?: "null"),
+                "farDetected" to (farResult != null).toString(),
+                "insideReturnedNear" to (insideResult != null).toString()
+            )
         )
     }
 
