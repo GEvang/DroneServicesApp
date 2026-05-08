@@ -79,7 +79,7 @@
 
     <dimen name="phone_map_overlay_card_width">320dp</dimen>
     <dimen name="phone_map_overlay_card_margin">12dp</dimen>
-    <dimen name="phone_map_live_geo_text_size">11sp</dimen>
+    <dimen name="phone_map_live_geo_text_size">13sp</dimen>
 
     <!-- Overriding sizes of the FAB -->
 

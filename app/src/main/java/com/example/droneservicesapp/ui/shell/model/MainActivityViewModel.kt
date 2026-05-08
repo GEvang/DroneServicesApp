@@ -8,7 +8,6 @@ import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
-import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.MissionArea
 import com.example.droneservicesapp.domain.model.MissionParams
 import com.google.android.gms.maps.model.LatLng
@@ -120,14 +119,6 @@ class MainActivityViewModel : ViewModel() {
 
     val geoZoneReloadToken: MutableLiveData<Long> by lazy {
         MutableLiveData(0L)
-    }
-
-    val geoTestModeEnabled: MutableLiveData<Boolean> by lazy {
-        MutableLiveData(false)
-    }
-
-    val virtualGeoTestPosition: MutableLiveData<LatLon?> by lazy {
-        MutableLiveData(null)
     }
 
     fun setPolygonVertices(vertices: List<LatLng>) {

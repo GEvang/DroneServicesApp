@@ -321,7 +321,7 @@ class GeoZoneJsonParser {
         return when {
             countries.isEmpty() -> null
             countries.size == 1 -> countries.first()
-            else -> "Multiple"
+            else -> countries.joinToString(", ")
         }
     }
 

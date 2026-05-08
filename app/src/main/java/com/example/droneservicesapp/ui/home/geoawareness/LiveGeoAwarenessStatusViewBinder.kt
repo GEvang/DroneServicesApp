@@ -102,8 +102,8 @@ class LiveGeoAwarenessStatusViewBinder(
         statusView.visibility = View.VISIBLE
         statusView.contentDescription = text
 
-        val horizontalPadding = dpToPx(14)
-        val verticalPadding = dpToPx(8)
+        val horizontalPadding = dpToPx(16)
+        val verticalPadding = dpToPx(10)
         statusView.setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
 
         statusView.background = GradientDrawable().apply {

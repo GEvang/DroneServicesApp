@@ -28,7 +28,7 @@ object GeoAwarenessHealthEvaluator {
         if (datasetInfo == null) {
             return GeoAwarenessHealth(
                 state = GeoAwarenessHealthState.UNAVAILABLE,
-                message = "Geo-awareness data is unavailable.",
+                message = "Import a geo-zone JSON file to enable geo-awareness.",
                 canPlan = false,
                 canUploadWithoutAcknowledgement = false,
                 requiresAcknowledgementBeforeUpload = true,
@@ -39,7 +39,7 @@ object GeoAwarenessHealthEvaluator {
         if (zones.isEmpty()) {
             return GeoAwarenessHealth(
                 state = GeoAwarenessHealthState.UNAVAILABLE,
-                message = "Geo-awareness dataset contains no loaded zones.",
+                message = "Import a geo-zone JSON file to enable geo-awareness.",
                 canPlan = false,
                 canUploadWithoutAcknowledgement = false,
                 requiresAcknowledgementBeforeUpload = true,
@@ -52,17 +52,6 @@ object GeoAwarenessHealthEvaluator {
                 state = if (zones.isEmpty()) GeoAwarenessHealthState.UNAVAILABLE else GeoAwarenessHealthState.DEGRADED,
                 message = "Geo-awareness dataset validation failed.",
                 canPlan = zones.isNotEmpty(),
-                canUploadWithoutAcknowledgement = false,
-                requiresAcknowledgementBeforeUpload = true,
-                checkedAtMillis = nowMillis
-            )
-        }
-
-        if (datasetInfo.isDummy) {
-            return GeoAwarenessHealth(
-                state = GeoAwarenessHealthState.DUMMY_DATA,
-                message = "Using development-only dummy geo-awareness data.",
-                canPlan = true,
                 canUploadWithoutAcknowledgement = false,
                 requiresAcknowledgementBeforeUpload = true,
                 checkedAtMillis = nowMillis

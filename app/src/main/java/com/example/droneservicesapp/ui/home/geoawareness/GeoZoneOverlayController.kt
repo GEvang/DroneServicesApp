@@ -268,8 +268,7 @@ class GeoZoneOverlayController(
             appendLine("Restriction: ${zone.restriction}")
             appendLine("Message: ${zone.message ?: "No message"}")
             appendLine("Authority: ${zone.authorities.firstOrNull()?.name ?: "N/A"}")
-            appendLine("Altitude: ${formatAltitude(geometry)}")
-            append("Dummy data notice: Development-only dummy data. Verify official restrictions in DAGR before flight.")
+            append("Altitude: ${formatAltitude(geometry)}")
         }
 
         val dialog = AlertDialog.Builder(context, R.style.Theme_DroneServicesApp_AlertDialog)

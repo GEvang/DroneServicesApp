@@ -19,9 +19,7 @@ import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
 import androidx.appcompat.widget.Toolbar
 import androidx.drawerlayout.widget.DrawerLayout
-import com.example.droneservicesapp.BuildConfig
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.data.geoawareness.GeoZoneAssetDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneImportedFileDataSource
 import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
 import com.example.droneservicesapp.data.geoawareness.incident.GeoIncidentEncryptedLogStore
@@ -69,11 +67,9 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.snackbar.Snackbar
 import com.google.maps.android.SphericalUtil
 import io.dronefleet.mavlink.common.MavCmd
-import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.tileprovider.cachemanager.CacheManager
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
-import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -119,8 +115,6 @@ class MissionMapFragment : Fragment() {
     private var latestLiveDronePosition: LatLon? = null
     private var latestRealDronePosition: LatLon? = null
     private var latestRealDroneAltitudeMeters: Double? = null
-    private var virtualGeoTestMarker: Marker? = null
-    private var virtualGeoTestEventsOverlay: MapEventsOverlay? = null
     private var lastPlanningLogSignature: String? = null
     private var lastConflictLogSignature: String? = null
     private var lastHealthLogSignature: String? = null
@@ -148,7 +142,6 @@ class MissionMapFragment : Fragment() {
         private const val GEO_PLANNING_STATUS_TAG = "GeoPlanningStatus"
         private const val GEO_UPLOAD_GUARD_TAG = "GeoUploadGuard"
         private const val LIVE_GEO_AWARENESS_TAG = "LiveGeoAwareness"
-        private const val GEO_TEST_MODE_TAG = "GeoTestMode"
         private const val MAP_FLIGHT_TRACE_TAG = "MapFlightTrace"
         private const val MIN_VALID_ABS_COORDINATE = 1e-4
         private const val MIN_TRACE_POINT_DISTANCE_METERS = 2.0
@@ -229,7 +222,6 @@ class MissionMapFragment : Fragment() {
         liveGeoAwarenessStatusBinder?.setOnClickListener(View.OnClickListener {
             showLiveGeoAwarenessDetails()
         })
-        initializeVirtualGeoTestMode()
         updateGeoAwarenessPlanningStatus()
     }
 
@@ -622,7 +614,6 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun renderHomeMapUiState(state: HomeMapUiState) {
-        val wasDrawingModeActive = isDrawingModeActive
         isDrawingModeActive = state.interactionState.isDrawingEnabled
         osmdroidPolygonEditor.setEnabled(state.interactionState.isDrawingEnabled)
         homeMapChromeBinder.renderShell(state.shellState)
@@ -632,16 +623,6 @@ class MissionMapFragment : Fragment() {
         homeMapPanelsBinder.renderOverlays(state.panelState)
         homeMapModeEffectsBinder.render(state.screenMode)
 
-        if (!wasDrawingModeActive && isDrawingModeActive && activityViewModel.geoTestModeEnabled.value == true) {
-            setVirtualGeoTestModeEnabled(false)
-            Toast.makeText(
-                requireContext(),
-                "Geo Test disabled while drawing",
-                Toast.LENGTH_SHORT
-            ).show()
-        } else {
-            updateVirtualGeoTestTapOverlay()
-        }
         updatePlanningGeoAwarenessVisibility()
     }
 
@@ -735,8 +716,6 @@ class MissionMapFragment : Fragment() {
         liveGeoAwarenessStatusBinder = null
         liveGeoAwarenessChecker = null
         clearFlightTrace()
-        removeVirtualGeoTestMarker()
-        removeVirtualGeoTestTapOverlay()
         super.onDestroyView()
         _binding = null
     }
@@ -891,7 +870,7 @@ class MissionMapFragment : Fragment() {
             geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
             return true
         } catch (error: Exception) {
-            Log.e(GEO_ZONE_TOGGLE_TAG, "Failed to load geo-awareness dummy zones", error)
+            Log.e(GEO_ZONE_TOGGLE_TAG, "Failed to load geo-awareness zones", error)
             geoAwarenessZones = emptyList()
             geoZoneDatasetInfo = null
             geoAwarenessLoadError = error
@@ -955,7 +934,6 @@ class MissionMapFragment : Fragment() {
     private fun buildGeoZoneRepository(): GeoZoneRepository {
         val appContext = requireContext().applicationContext
         return GeoZoneRepository(
-            assetDataSource = GeoZoneAssetDataSource(appContext),
             importedFileDataSource = GeoZoneImportedFileDataSource(appContext)
         )
     }
@@ -1095,8 +1073,8 @@ class MissionMapFragment : Fragment() {
         if (!result.hasConflicts) {
             title = "Geo-awareness"
             message = buildString {
-                appendLine("No dummy geo-zone conflicts detected for the current mission plan.")
-                append("Development-only dummy data. Verify official restrictions in DAGR before flight.")
+                appendLine("No geo-zone conflicts detected for the current mission plan.")
+                append("Verify dataset validity and operational restrictions before flight.")
             }
         } else {
             val orderedConflicts = result.conflicts.sortedWith(
@@ -1122,7 +1100,7 @@ class MissionMapFragment : Fragment() {
                 if (remainingCount > 0) {
                     appendLine("...and $remainingCount more.")
                 }
-                append("Development-only dummy data. Verify official restrictions in DAGR before flight.")
+                append("Verify dataset validity and operational restrictions before flight.")
             }
         }
 
@@ -1181,7 +1159,7 @@ class MissionMapFragment : Fragment() {
         val result = try {
             calculateGeoAwarenessPlanningResult().also { latestGeoAwarenessResult = it }
         } catch (error: Exception) {
-            Log.w(GEO_UPLOAD_GUARD_TAG, "Geo-awareness result unavailable; proceeding in dummy mode", error)
+            Log.w(GEO_UPLOAD_GUARD_TAG, "Geo-awareness result unavailable; proceeding with existing unavailable policy", error)
             onAllowed()
             return
         }
@@ -1299,8 +1277,8 @@ class MissionMapFragment : Fragment() {
 
     private fun showGeoAwarenessBlockedDialog(result: GeoAwarenessResult, health: GeoAwarenessHealth) {
         val message = buildString {
-            appendLine("This mission intersects a prohibited dummy geo-zone.")
-            appendLine("Upload is blocked in this development build to validate the geo-awareness guard.")
+            appendLine("This mission intersects a prohibited geo-zone.")
+            appendLine("Upload is blocked by the geo-awareness guard.")
             appendLine(health.message)
             appendLine(buildGeoHealthNotice(health))
             appendLine("Verify official restrictions in DAGR before flight.")
@@ -1319,7 +1297,7 @@ class MissionMapFragment : Fragment() {
         onAcknowledged: () -> Unit
     ) {
         val message = buildString {
-            appendLine("This mission intersects a dummy authorization-required geo-zone.")
+            appendLine("This mission intersects an authorization-required geo-zone.")
             appendLine("Proceed only if you have verified the required authorization.")
             appendLine(health.message)
             appendLine(buildGeoHealthNotice(health))
@@ -1354,7 +1332,7 @@ class MissionMapFragment : Fragment() {
         onContinue: () -> Unit
     ) {
         val message = buildString {
-            appendLine("This mission intersects dummy conditional/information geo-zones.")
+            appendLine("This mission intersects conditional/information geo-zones.")
             appendLine()
             appendLine(buildGeoConflictSummary(result, health))
             appendLine()
@@ -1672,14 +1650,6 @@ class MissionMapFragment : Fragment() {
             .filterKeys { it !in currentZoneMap }
             .values
             .toList()
-        val source = if (activityViewModel.geoTestModeEnabled.value == true &&
-            activityViewModel.virtualGeoTestPosition.value != null
-        ) {
-            "geo_test"
-        } else {
-            "live_drone"
-        }
-
         if (entered.isNotEmpty()) {
             geoIncidentLogger.logZoneEntered(
                 zones = entered,
@@ -1689,7 +1659,7 @@ class MissionMapFragment : Fragment() {
                 datasetTitle = geoZoneDatasetInfo?.title,
                 datasetVersion = geoZoneDatasetInfo?.version,
                 healthState = geoAwarenessHealth?.state?.name,
-                source = source
+                source = "live_drone"
             )
         }
 
@@ -1702,7 +1672,7 @@ class MissionMapFragment : Fragment() {
                 datasetTitle = geoZoneDatasetInfo?.title,
                 datasetVersion = geoZoneDatasetInfo?.version,
                 healthState = geoAwarenessHealth?.state?.name,
-                source = source
+                source = "live_drone"
             )
         }
 
@@ -1741,6 +1711,12 @@ class MissionMapFragment : Fragment() {
             liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
             return
         }
+        if (geoAwarenessZones.isEmpty()) {
+            latestLiveGeoZones = emptyList()
+            latestLiveGeoProximity = null
+            liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
+            return
+        }
 
         val insideZones = liveGeoAwarenessChecker?.checkDronePosition(
             dronePosition = dronePosition,
@@ -1770,12 +1746,6 @@ class MissionMapFragment : Fragment() {
                     zone = nearestZone.nearestZone,
                     distanceMeters = nearestZone.distanceMeters
                 )
-                if (BuildConfig.DEBUG) {
-                    Log.d(
-                        LIVE_GEO_AWARENESS_TAG,
-                        "Near-zone warning: zone=${nearestZone.nearestZone.id} distance=${nearestZone.distanceMeters.toInt()}m"
-                    )
-                }
             }
         } else {
             latestLiveGeoProximity = null
@@ -1802,7 +1772,7 @@ class MissionMapFragment : Fragment() {
                 val remainingCount = latestLiveGeoZones.size - visibleZones.size
                 title = "Live geo-awareness warning"
                 message = buildString {
-                    appendLine("Drone is inside loaded dummy geo-zone(s):")
+                    appendLine("Drone is inside loaded geo-zone(s):")
                     appendLine()
                     visibleZones.forEach { zone ->
                         appendLine("- ${zone.name}")
@@ -1812,7 +1782,7 @@ class MissionMapFragment : Fragment() {
                     if (remainingCount > 0) {
                         appendLine("...and $remainingCount more.")
                     }
-                    append("Development-only dummy data. Verify official restrictions in DAGR before flight.")
+                    append("Verify restrictions with the responsible authority before flight.")
                 }
             }
             latestLiveGeoProximity != null -> {
@@ -1836,8 +1806,8 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoZones.isEmpty() -> {
                 title = "Live geo-awareness"
                 message = buildString {
-                    appendLine("Drone is not inside any loaded dummy geo-zone.")
-                    append("Development-only dummy data. Verify official restrictions in DAGR before flight.")
+                    appendLine("Drone is not inside any loaded geo-zone.")
+                    append("Verify dataset validity and operational restrictions before flight.")
                 }
             }
             else -> error("Unhandled live geo-awareness detail state")
@@ -1857,175 +1827,7 @@ class MissionMapFragment : Fragment() {
             kotlin.math.abs(location.longitude) > MIN_VALID_ABS_COORDINATE
     }
 
-    private fun initializeVirtualGeoTestMode() {
-        if (!BuildConfig.DEBUG) {
-            removeVirtualGeoTestMarker()
-            removeVirtualGeoTestTapOverlay()
-            return
-        }
-
-        activityViewModel.geoTestModeEnabled.observe(viewLifecycleOwner) { enabled ->
-            if (enabled == true && isDrawingModeActive) {
-                activityViewModel.geoTestModeEnabled.value = false
-                Toast.makeText(
-                    requireContext(),
-                    "Finish drawing before using Geo Test",
-                    Toast.LENGTH_SHORT
-                ).show()
-                return@observe
-            }
-
-            if (enabled != true && activityViewModel.virtualGeoTestPosition.value != null) {
-                activityViewModel.virtualGeoTestPosition.value = null
-                return@observe
-            }
-
-            updateVirtualGeoTestTapOverlay()
-            updateLiveGeoAwarenessFromActiveSource()
-        }
-
-        activityViewModel.virtualGeoTestPosition.observe(viewLifecycleOwner) { position: LatLon? ->
-            if (position == null) {
-                removeVirtualGeoTestMarker()
-            } else {
-                ensureVirtualGeoTestMarker()
-                updateVirtualGeoTestMarker(position)
-            }
-            updateVirtualGeoTestTapOverlay()
-            updateLiveGeoAwarenessFromActiveSource()
-        }
-    }
-
-    private fun setVirtualGeoTestModeEnabled(enabled: Boolean) {
-        val currentEnabled = activityViewModel.geoTestModeEnabled.value == true
-        val currentPosition = activityViewModel.virtualGeoTestPosition.value
-        if (currentEnabled == enabled && !(enabled && currentPosition == null)) {
-            return
-        }
-
-        if (!enabled) {
-            activityViewModel.virtualGeoTestPosition.value = null
-        }
-        activityViewModel.geoTestModeEnabled.value = enabled
-    }
-
-    private fun clearVirtualGeoTestPosition() {
-        activityViewModel.virtualGeoTestPosition.value = null
-        geoEventLogger.logSimple(
-            type = GeoAwarenessEventType.GEO_TEST_POSITION_CLEARED,
-            severity = "INFO",
-            message = "Virtual geo test position cleared",
-            datasetTitle = geoZoneDatasetInfo?.title,
-            datasetVersion = geoZoneDatasetInfo?.version,
-            healthState = geoAwarenessHealth?.state?.name
-        )
-        Log.d(GEO_TEST_MODE_TAG, "Virtual geo test position cleared")
-    }
-
-    private fun updateVirtualGeoTestTapOverlay() {
-        if (!BuildConfig.DEBUG || _binding == null) {
-            removeVirtualGeoTestTapOverlay()
-            return
-        }
-
-        val shouldInterceptTaps = activityViewModel.geoTestModeEnabled.value == true && !isDrawingModeActive
-        if (!shouldInterceptTaps) {
-            removeVirtualGeoTestTapOverlay()
-            return
-        }
-
-        if (virtualGeoTestEventsOverlay != null) {
-            return
-        }
-
-        val receiver = object : MapEventsReceiver {
-            override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
-                if (activityViewModel.geoTestModeEnabled.value != true || isDrawingModeActive) {
-                    return false
-                }
-
-                setVirtualGeoTestPosition(LatLon(lat = p.latitude, lon = p.longitude))
-                return true
-            }
-
-            override fun longPressHelper(p: GeoPoint): Boolean = false
-        }
-
-        virtualGeoTestEventsOverlay = MapEventsOverlay(receiver)
-        mapView.overlays.add(virtualGeoTestEventsOverlay)
-        mapView.invalidate()
-    }
-
-    private fun removeVirtualGeoTestTapOverlay() {
-        val overlay = virtualGeoTestEventsOverlay ?: return
-        mapView.overlays.remove(overlay)
-        virtualGeoTestEventsOverlay = null
-        mapView.invalidate()
-    }
-
-    private fun setVirtualGeoTestPosition(position: LatLon) {
-        activityViewModel.virtualGeoTestPosition.value = position
-        geoEventLogger.logSimple(
-            type = GeoAwarenessEventType.GEO_TEST_POSITION_SET,
-            severity = "INFO",
-            message = "Virtual geo test position set",
-            datasetTitle = geoZoneDatasetInfo?.title,
-            datasetVersion = geoZoneDatasetInfo?.version,
-            healthState = geoAwarenessHealth?.state?.name,
-            latitude = position.lat,
-            longitude = position.lon
-        )
-        Log.d(
-            GEO_TEST_MODE_TAG,
-            "Virtual geo test position set: lat=${position.lat} lon=${position.lon}"
-        )
-    }
-
-    private fun ensureVirtualGeoTestMarker() {
-        if (virtualGeoTestMarker != null) {
-            return
-        }
-
-        virtualGeoTestMarker = Marker(mapView).apply {
-            title = "Geo Test Drone"
-            subDescription = "Debug-only virtual test position"
-            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-            icon = ContextCompat.getDrawable(requireContext(), R.drawable.drone_marker_36)
-            isEnabled = true
-            setVisible(true)
-        }
-        mapView.overlays.add(virtualGeoTestMarker)
-        mapView.invalidate()
-    }
-
-    private fun updateVirtualGeoTestMarker(position: LatLon) {
-        val marker = virtualGeoTestMarker ?: return
-        marker.position = GeoPoint(position.lat, position.lon)
-        marker.isEnabled = true
-        marker.setVisible(true)
-        mapView.invalidate()
-    }
-
-    private fun removeVirtualGeoTestMarker() {
-        val marker = virtualGeoTestMarker ?: return
-        mapView.overlays.remove(marker)
-        virtualGeoTestMarker = null
-        mapView.invalidate()
-    }
-
     private fun updateLiveGeoAwarenessFromActiveSource() {
-        val virtualPosition = activityViewModel.virtualGeoTestPosition.value
-        val useVirtualPosition = activityViewModel.geoTestModeEnabled.value == true && virtualPosition != null
-        val positionToUse = if (useVirtualPosition) {
-            virtualPosition
-        } else {
-            latestRealDronePosition
-        }
-        val altitudeToUse = if (useVirtualPosition) {
-            null
-        } else {
-            latestRealDroneAltitudeMeters
-        }
-        updateLiveGeoAwarenessStatus(positionToUse, altitudeToUse)
+        updateLiveGeoAwarenessStatus(latestRealDronePosition, latestRealDroneAltitudeMeters)
     }
 }

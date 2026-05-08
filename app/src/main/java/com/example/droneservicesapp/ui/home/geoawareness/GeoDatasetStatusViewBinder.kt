@@ -14,12 +14,7 @@ class GeoDatasetStatusViewBinder(
 
     fun bind(info: GeoZoneDatasetInfo?) {
         when {
-            info == null -> bindUnavailable("Geo Data: Unknown")
-            info.isDummy -> applyStyle(
-                text = "Geo Data: DUMMY",
-                backgroundColor = Color.parseColor("#6A1B9A"),
-                textColor = Color.WHITE
-            )
+            info == null || info.zoneCount == 0 -> bindUnavailable("Geo Data: Unavailable")
             info.isOfficial -> applyStyle(
                 text = "Geo Data: Official",
                 backgroundColor = Color.parseColor("#2E7D32"),

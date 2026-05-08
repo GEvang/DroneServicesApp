@@ -1,7 +1,6 @@
 package com.example.droneservicesapp.data.geoawareness
 
 import android.util.Log
-import com.example.droneservicesapp.data.geoawareness.source.BundledGeoZoneDataSource
 import com.example.droneservicesapp.data.geoawareness.source.GeoZoneRawDataset
 import com.example.droneservicesapp.data.geoawareness.source.ImportedGeoZoneDataSource
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
@@ -9,28 +8,14 @@ import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetStalenessP
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetSourceType
-import com.example.droneservicesapp.domain.geoawareness.GeoZoneGeometry
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneLoadResult
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneDatasetValidator
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 class GeoZoneRepository(
-    private val assetDataSource: GeoZoneAssetDataSource,
     private val importedFileDataSource: GeoZoneImportedFileDataSource? = null
 ) {
     private val parser = GeoZoneJsonParser()
-    private val bundledSource = BundledGeoZoneDataSource(assetDataSource)
     private val importedSource = importedFileDataSource?.let { ImportedGeoZoneDataSource(it) }
-
-    fun loadDummyRethymnoZones(): List<GeoZone> {
-        val rawJson = bundledSource.loadDatasets().first().rawJson
-        val zones = parser.parse(rawJson)
-        Log.d(TAG, "Loaded ${zones.size} dummy geo-awareness zones")
-        return zones
-    }
-
-    fun loadDummyRethymnoDataset(): GeoZoneLoadResult {
-        return buildLoadResultFromRawDatasets(bundledSource.loadDatasets())
-    }
 
     fun loadCurrentDataset(): GeoZoneLoadResult {
         val source = importedSource
@@ -40,7 +25,7 @@ class GeoZoneRepository(
                 combinedTitle = "Combined geo-awareness datasets"
             )
         } else {
-            loadDummyRethymnoDataset()
+            emptyLoadResult()
         }
     }
 
@@ -117,12 +102,34 @@ class GeoZoneRepository(
         return loadCurrentDataset()
     }
 
-    fun resetToBundledDataset(): GeoZoneLoadResult {
+    fun removeAllImportedDatasets(): GeoZoneLoadResult {
         importedFileDataSource?.deleteAllImportedDatasets()
-        return loadDummyRethymnoDataset()
+        return emptyLoadResult()
     }
 
     fun hasImportedDatasets(): Boolean = importedFileDataSource?.hasImportedDatasets() == true
+
+    private fun emptyLoadResult(): GeoZoneLoadResult {
+        return GeoZoneLoadResult(
+            datasetInfo = GeoZoneDatasetInfo(
+                title = "No dataset loaded",
+                description = "Import a geo-zone JSON file to enable geo-awareness.",
+                version = null,
+                source = null,
+                sourceUrl = null,
+                country = null,
+                isOfficial = false,
+                isDummy = false,
+                loadedAtMillis = System.currentTimeMillis(),
+                zoneCount = 0,
+                circleGeometryCount = 0,
+                polygonGeometryCount = 0
+            ),
+            zones = emptyList(),
+            validationResult = GeoZoneValidationResult.ok(),
+            datasetRecords = emptyList()
+        )
+    }
 
     private fun buildLoadResultFromRawDatasets(
         rawDatasets: List<GeoZoneRawDataset>,
@@ -236,7 +243,7 @@ class GeoZoneRepository(
             country = when {
                 countries.isEmpty() -> null
                 countries.size == 1 -> countries.first()
-                else -> "Multiple"
+                else -> countries.joinToString(", ")
             },
             isOfficial = results.all { it.datasetInfo.isOfficial } && results.none { it.datasetInfo.isDummy },
             isDummy = results.all { it.datasetInfo.isDummy },
