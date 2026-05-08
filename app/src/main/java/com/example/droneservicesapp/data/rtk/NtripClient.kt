@@ -436,9 +436,15 @@ class NtripClient {
             .filter { it.startsWith("STR;") }
             .mapNotNull { line ->
                 val fields = line.split(';')
-                fields.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() }
+                val name = fields.getOrNull(1)?.trim()?.takeIf { it.isNotEmpty() }
+                    ?: return@mapNotNull null
+                RtkMountpoint(
+                    name = name,
+                    latitude = fields.getOrNull(9)?.trim()?.toDoubleOrNull(),
+                    longitude = fields.getOrNull(10)?.trim()?.toDoubleOrNull()
+                )
             }
-            .distinct()
+            .distinctBy { it.name }
             .toList()
 
         return NtripResult.SourceTableSuccess(mountpoints)

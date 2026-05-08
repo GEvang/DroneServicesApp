@@ -3,11 +3,14 @@ package com.example.droneservicesapp.ui.home.model
 import androidx.annotation.DrawableRes
 import androidx.annotation.ColorRes
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.mavserver.GpsFixQuality
 
 data class HomeTelemetryUiState(
     val isConnected: Boolean = false,
     val connectionText: String = "",
     val gpsStatusText: String = "No GPS",
+    val gpsFixQuality: GpsFixQuality = GpsFixQuality.DISCONNECTED,
+    val rtkMountpointText: String = "RTK Mountpoint: Not connected",
     val batteryText: String = "--%",
     @DrawableRes val batteryIconRes: Int = R.drawable.ic_baseline_battery_full_24,
     @ColorRes val batteryColorRes: Int = R.color.ds_color_shell_unselected,

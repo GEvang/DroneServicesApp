@@ -1,19 +1,32 @@
 package com.example.droneservicesapp.ui.home.binders
 
 import androidx.appcompat.app.AppCompatActivity
+import android.location.Location
+import android.util.Log
 import androidx.lifecycle.LifecycleOwner
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.data.rtk.RtkForwardingState
+import com.example.droneservicesapp.data.rtk.RtkMountpoint
+import com.example.droneservicesapp.mavserver.GpsFixQuality
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.mavserver.TelemetryMapping
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryUiState
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import java.util.Locale
+import kotlin.math.roundToInt
 
 class HomeTelemetryCoordinator(
     private val activity: AppCompatActivity,
     private val droneViewModel: DroneViewModel,
     private val homeTelemetryViewModel: HomeTelemetryViewModel,
 ) {
+    companion object {
+        private const val TAG = "RtkTelemetryUi"
+    }
+
+    private var lastLoggedGpsQuality: GpsFixQuality? = null
+    private var lastLoggedMountpointSummary: String? = null
+
     fun bind(lifecycleOwner: LifecycleOwner) {
         renderCurrent()
 
@@ -22,7 +35,10 @@ class HomeTelemetryCoordinator(
                 if (connState) {
                     state.copy(
                         isConnected = true,
-                        connectionText = activity.getString(R.string.shell_status_connected)
+                        connectionText = activity.getString(R.string.shell_status_connected),
+                        gpsStatusText = formatGpsStatus(isConnected = true),
+                        gpsFixQuality = formatGpsQuality(isConnected = true),
+                        rtkMountpointText = formatRtkMountpointText()
                     )
                 } else {
                     disconnectedState(state)
@@ -55,7 +71,9 @@ class HomeTelemetryCoordinator(
             update { state ->
                 state.copy(
                     altitudeText = "${location.altitude.toInt()}m",
-                    gpsStatusText = formatGpsStatus(isConnected = true)
+                    gpsStatusText = formatGpsStatus(isConnected = true),
+                    gpsFixQuality = formatGpsQuality(isConnected = true),
+                    rtkMountpointText = formatRtkMountpointText()
                 )
             }
         }
@@ -69,7 +87,10 @@ class HomeTelemetryCoordinator(
 
         droneViewModel.gpsFixType.observe(lifecycleOwner) {
             update { state ->
-                state.copy(gpsStatusText = formatGpsStatus(isConnected = state.isConnected))
+                state.copy(
+                    gpsStatusText = formatGpsStatus(isConnected = state.isConnected),
+                    gpsFixQuality = formatGpsQuality(isConnected = state.isConnected)
+                )
             }
         }
 
@@ -114,7 +135,17 @@ class HomeTelemetryCoordinator(
 
         droneViewModel.rtkForwardingState.observe(lifecycleOwner) {
             update { state ->
-                state.copy(gpsStatusText = formatGpsStatus(isConnected = state.isConnected))
+                state.copy(
+                    gpsStatusText = formatGpsStatus(isConnected = state.isConnected),
+                    gpsFixQuality = formatGpsQuality(isConnected = state.isConnected),
+                    rtkMountpointText = formatRtkMountpointText()
+                )
+            }
+        }
+
+        droneViewModel.selectedRtkMountpoint.observe(lifecycleOwner) {
+            update { state ->
+                state.copy(rtkMountpointText = formatRtkMountpointText())
             }
         }
     }
@@ -142,6 +173,8 @@ class HomeTelemetryCoordinator(
                 if (isConnected) R.string.shell_status_connected else R.string.shell_status_disconnected
             ),
             gpsStatusText = formatGpsStatus(isConnected = isConnected),
+            gpsFixQuality = formatGpsQuality(isConnected = isConnected),
+            rtkMountpointText = formatRtkMountpointText(),
             batteryText = batteryText,
             batteryIconRes = batteryIconRes,
             batteryColorRes = batteryColorRes,
@@ -171,6 +204,8 @@ class HomeTelemetryCoordinator(
             isConnected = false,
             connectionText = activity.getString(R.string.shell_status_disconnected),
             gpsStatusText = "No GPS",
+            gpsFixQuality = GpsFixQuality.DISCONNECTED,
+            rtkMountpointText = "RTK Mountpoint: Not connected",
             batteryText = "--%",
             batteryIconRes = R.drawable.ic_baseline_battery_alert_24,
             batteryColorRes = R.color.ds_color_shell_unselected,
@@ -199,6 +234,73 @@ class HomeTelemetryCoordinator(
     private fun formatGpsStatus(isConnected: Boolean): String {
         if (!isConnected) return "No GPS"
         return TelemetryMapping.gpsFixLabel(droneViewModel.gpsFixType.value)
+    }
+
+    private fun formatGpsQuality(isConnected: Boolean): GpsFixQuality {
+        val quality = TelemetryMapping.gpsFixQuality(droneViewModel.gpsFixType.value, isConnected)
+        if (lastLoggedGpsQuality != quality) {
+            lastLoggedGpsQuality = quality
+            Log.d(TAG, "gps quality changed quality=$quality label=${TelemetryMapping.gpsFixLabel(droneViewModel.gpsFixType.value)}")
+        }
+        return quality
+    }
+
+    private fun formatRtkMountpointText(): String {
+        val rtkState = droneViewModel.rtkForwardingState.value
+        val mountpoint = droneViewModel.selectedRtkMountpoint.value
+        val text = when {
+            rtkState !is RtkForwardingState.Streaming || mountpoint == null -> {
+                "RTK Mountpoint: Not connected"
+            }
+            !mountpoint.hasCoordinates -> {
+                "RTK Mountpoint: Distance: N/A"
+            }
+            else -> {
+                val distanceMeters = currentDistanceToMountpoint(mountpoint)
+                if (distanceMeters == null) {
+                    "RTK Mountpoint: Distance: N/A"
+                } else {
+                    "RTK Mountpoint: Distance: ${formatDistance(distanceMeters)}"
+                }
+            }
+        }
+        logMountpointTextIfChanged(text, mountpoint)
+        return text
+    }
+
+    private fun currentDistanceToMountpoint(mountpoint: RtkMountpoint): Double? {
+        val location = droneViewModel.droneLocationLiveData.value?.takeIf(::isUsableLocation) ?: return null
+        val latitude = mountpoint.latitude ?: return null
+        val longitude = mountpoint.longitude ?: return null
+        return TelemetryMapping.haversineDistanceMeters(
+            location.latitude,
+            location.longitude,
+            latitude,
+            longitude
+        )
+    }
+
+    private fun formatDistance(distanceMeters: Double): String {
+        return if (distanceMeters < 1000.0) {
+            "${distanceMeters.roundToInt()} m"
+        } else {
+            "${String.format(Locale.US, "%.1f", distanceMeters / 1000.0)} km"
+        }
+    }
+
+    private fun isUsableLocation(location: Location): Boolean {
+        return !location.latitude.isNaN() &&
+            !location.longitude.isNaN() &&
+            location.latitude in -90.0..90.0 &&
+            location.longitude in -180.0..180.0 &&
+            !(location.latitude == 0.0 && location.longitude == 0.0)
+    }
+
+    private fun logMountpointTextIfChanged(text: String, mountpoint: RtkMountpoint?) {
+        val summary = "mountpoint=${mountpoint?.name ?: "--"} text=$text"
+        if (lastLoggedMountpointSummary == summary) return
+        lastLoggedMountpointSummary = summary
+        Log.d(TAG, summary)
     }
 
     private fun formatBatteryText(batteryPercentage: Float?): String {

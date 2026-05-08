@@ -81,7 +81,7 @@
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_weight="1.55"
                     android:gravity="center"
                     android:orientation="horizontal">
 
@@ -93,16 +93,37 @@
                         android:src="@drawable/ic_hud_gps"
                         app:tint="@android:color/white" />
 
-                    <TextView
-                        android:id="@+id/gps_status_text"
-                        android:layout_width="wrap_content"
+                    <LinearLayout
+                        android:layout_width="0dp"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="6dp"
-                        android:fontFamily="@font/inter"
-                        android:text="@string/shell_status_gps_placeholder"
-                        android:textColor="@android:color/white"
-                        android:textSize="15sp"
-                        android:textStyle="bold" />
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:id="@+id/gps_status_text"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:fontFamily="@font/inter"
+                            android:maxLines="1"
+                            android:text="@string/shell_status_gps_placeholder"
+                            android:textColor="@android:color/white"
+                            android:textSize="15sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:id="@+id/rtk_mountpoint_text"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:ellipsize="end"
+                            android:fontFamily="@font/inter"
+                            android:maxLines="1"
+                            android:text="RTK Mountpoint: Not connected"
+                            android:textColor="@color/text_secondary"
+                            android:textSize="11sp"
+                            android:textStyle="bold" />
+                    </LinearLayout>
                 </LinearLayout>
 
                 <View
@@ -115,7 +136,7 @@
                 <LinearLayout
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_weight="1"
+                    android:layout_weight="0.65"
                     android:gravity="center"
                     android:orientation="horizontal">
 

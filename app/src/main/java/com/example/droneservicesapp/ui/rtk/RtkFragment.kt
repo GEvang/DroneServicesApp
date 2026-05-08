@@ -18,6 +18,7 @@ import com.example.droneservicesapp.data.rtk.NtripClient
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.rtk.NtripResult
 import com.example.droneservicesapp.data.rtk.RtkConfig
+import com.example.droneservicesapp.data.rtk.RtkMountpoint
 import com.example.droneservicesapp.data.rtk.RtkPreferences
 import com.example.droneservicesapp.data.rtk.RtkValidator
 import com.example.droneservicesapp.databinding.FragmentRtkBinding
@@ -160,7 +161,7 @@ class RtkFragment : Fragment() {
         }
     }
 
-    private fun handleMountpoints(mountpoints: List<String>) {
+    private fun handleMountpoints(mountpoints: List<RtkMountpoint>) {
         if (mountpoints.isEmpty()) {
             val message = getString(R.string.rtk_status_no_mountpoints)
             updateStatus(message, false)
@@ -174,11 +175,11 @@ class RtkFragment : Fragment() {
         }
 
         val currentMountpoint = binding.rtkMountpointInput.text?.toString().orEmpty()
-        val selectedIndex = mountpoints.indexOf(currentMountpoint).takeIf { it >= 0 } ?: 0
+        val selectedIndex = mountpoints.indexOfFirst { it.name == currentMountpoint }.takeIf { it >= 0 } ?: 0
 
         AlertDialog.Builder(requireContext())
             .setTitle(R.string.rtk_select_mountpoint)
-            .setSingleChoiceItems(mountpoints.toTypedArray(), selectedIndex) { dialog, which ->
+            .setSingleChoiceItems(mountpoints.map { it.name }.toTypedArray(), selectedIndex) { dialog, which ->
                 selectMountpoint(mountpoints[which])
                 dialog.dismiss()
             }
@@ -186,14 +187,14 @@ class RtkFragment : Fragment() {
             .show()
     }
 
-    private fun selectMountpoint(mountpoint: String) {
+    private fun selectMountpoint(mountpoint: RtkMountpoint) {
         isPopulatingForm = true
-        binding.rtkMountpointInput.setText(mountpoint)
+        binding.rtkMountpointInput.setText(mountpoint.name)
         isPopulatingForm = false
         rtkPreferences.saveMountpoint(mountpoint)
-        val message = getString(R.string.rtk_mountpoint_selected, mountpoint)
+        val message = getString(R.string.rtk_mountpoint_selected, mountpoint.name)
         updateStatus(message, false)
-        Log.i(TAG, "mountpoint selected auto-managing RTK mountpoint=$mountpoint")
+        Log.i(TAG, "mountpoint selected auto-managing RTK mountpoint=${mountpoint.name} hasCoordinates=${mountpoint.hasCoordinates}")
         droneViewModel.onRtkConfigurationChanged(forceStart = true)
         Toast.makeText(requireContext(), message, Toast.LENGTH_SHORT).show()
     }

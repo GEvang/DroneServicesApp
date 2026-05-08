@@ -5,6 +5,7 @@ import com.example.droneservicesapp.R
 import android.location.Location
 import androidx.lifecycle.MutableLiveData
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
+import com.example.droneservicesapp.data.rtk.RtkMountpoint
 import io.dronefleet.mavlink.common.GpsFixType
 import io.dronefleet.mavlink.common.MissionItemInt
 
@@ -43,6 +44,8 @@ internal class DroneUiStateStore(
         MutableLiveData<Int>().default(0)
     val rtkForwardingState: MutableLiveData<RtkForwardingState> =
         MutableLiveData<RtkForwardingState>().default(RtkForwardingState.Idle)
+    val selectedRtkMountpoint: MutableLiveData<RtkMountpoint?> =
+        MutableLiveData<RtkMountpoint?>().default(null)
     val rtkGpsDebugStatus: MutableLiveData<String> =
         MutableLiveData<String>().default(context.getString(R.string.rtk_gps_debug_default))
 

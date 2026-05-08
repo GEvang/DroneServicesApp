@@ -18,6 +18,26 @@ class TelemetryMappingTest {
     }
 
     @Test
+    fun mapsGpsFixQualityForColors() {
+        assertEquals(
+            GpsFixQuality.DISCONNECTED,
+            TelemetryMapping.gpsFixQuality(GpsFixType.GPS_FIX_TYPE_RTK_FIXED, isConnected = false)
+        )
+        assertEquals(
+            GpsFixQuality.FIX_3D,
+            TelemetryMapping.gpsFixQuality(GpsFixType.GPS_FIX_TYPE_3D_FIX, isConnected = true)
+        )
+        assertEquals(
+            GpsFixQuality.RTK_FLOAT,
+            TelemetryMapping.gpsFixQuality(GpsFixType.GPS_FIX_TYPE_RTK_FLOAT, isConnected = true)
+        )
+        assertEquals(
+            GpsFixQuality.RTK_FIXED,
+            TelemetryMapping.gpsFixQuality(GpsFixType.GPS_FIX_TYPE_RTK_FIXED, isConnected = true)
+        )
+    }
+
+    @Test
     fun formatsBatteryPercentAsClampedInteger() {
         assertEquals(56, TelemetryMapping.displayPercentFromFraction(0.5599f))
         assertEquals(55, TelemetryMapping.displayPercentFromFraction(0.552f))
@@ -42,5 +62,16 @@ class TelemetryMappingTest {
         assertNull(TelemetryMapping.displayPercentFromRaw(-1f))
         assertNull(TelemetryMapping.displayPercentFromRaw(12000f))
         assertNull(TelemetryMapping.displayPercentFromRaw(Float.NaN))
+    }
+
+    @Test
+    fun calculatesHaversineDistance() {
+        val distance = TelemetryMapping.haversineDistanceMeters(
+            35.3387,
+            25.1442,
+            35.3397,
+            25.1442
+        )
+        assertEquals(111.0, distance, 2.0)
     }
 }

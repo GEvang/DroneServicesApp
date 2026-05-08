@@ -14,6 +14,7 @@ import com.example.droneservicesapp.data.mavlink.MavlinkConfig
 import com.example.droneservicesapp.data.mavlink.MavlinkConnectionManager
 import com.example.droneservicesapp.data.mavlink.MissionService
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
+import com.example.droneservicesapp.data.rtk.RtkMountpoint
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.GpsFixType
@@ -59,6 +60,7 @@ class DroneViewModel : ViewModel() {
             context = Application.getInstance().applicationContext,
             mavlinkClient = mavlinkClient,
             rtkForwardingState = stateStore.rtkForwardingState,
+            selectedRtkMountpoint = stateStore.selectedRtkMountpoint,
             rtkGpsDebugStatus = stateStore.rtkGpsDebugStatus,
             isConnected = { stateStore.conStateLiveData.value == true },
             targetSystemId = { runtimeState.autopilotSysId },
@@ -141,6 +143,7 @@ class DroneViewModel : ViewModel() {
     val liquidLevel: MutableLiveData<Float> = stateStore.liquidLevel
     val uploadProgressPercent: MutableLiveData<Int> = stateStore.uploadProgressPercent
     val rtkForwardingState: MutableLiveData<RtkForwardingState> = stateStore.rtkForwardingState
+    val selectedRtkMountpoint: MutableLiveData<RtkMountpoint?> = stateStore.selectedRtkMountpoint
     val rtkGpsDebugStatus: MutableLiveData<String> = stateStore.rtkGpsDebugStatus
 
     init {
