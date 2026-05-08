@@ -177,7 +177,7 @@ class OsmdroidMapController(
             title = "Home / Takeoff"
             snippet = "Drone takeoff position"
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
-            icon = ContextCompat.getDrawable(context, R.drawable.ic_baseline_my_location_48)
+            icon = ContextCompat.getDrawable(context, R.drawable.ic_home_takeoff_marker)
         }
         addOverlayBelowDrone(homeMarker!!)
         requestMapRedraw()
