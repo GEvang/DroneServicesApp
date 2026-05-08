@@ -5,6 +5,7 @@ import com.example.droneservicesapp.R
 import android.location.Location
 import androidx.lifecycle.MutableLiveData
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
+import io.dronefleet.mavlink.common.GpsFixType
 import io.dronefleet.mavlink.common.MissionItemInt
 
 internal class DroneUiStateStore(
@@ -23,6 +24,10 @@ internal class DroneUiStateStore(
     val droneBatteryVoltage: MutableLiveData<Float> =
         MutableLiveData<Float>().default(0.0F)
     val droneBatteryPercentage: MutableLiveData<Float> =
+        MutableLiveData<Float>().default(-1.0F)
+    val gpsFixType: MutableLiveData<GpsFixType?> =
+        MutableLiveData<GpsFixType?>().default(null)
+    val droneGroundSpeedMetersPerSecond: MutableLiveData<Float> =
         MutableLiveData<Float>().default(0.0F)
     val droneFrontDistance: MutableLiveData<Int> = MutableLiveData()
     val droneBackDistance: MutableLiveData<Int> = MutableLiveData()
@@ -33,7 +38,7 @@ internal class DroneUiStateStore(
     val missionItems: MutableLiveData<ArrayList<MissionItemInt>> =
         MutableLiveData<ArrayList<MissionItemInt>>().default(ArrayList())
     val liquidLevel: MutableLiveData<Float> =
-        MutableLiveData<Float>().default(0.0F)
+        MutableLiveData<Float>().default(TelemetryMapping.UNKNOWN_PERCENT.toFloat())
     val uploadProgressPercent: MutableLiveData<Int> =
         MutableLiveData<Int>().default(0)
     val rtkForwardingState: MutableLiveData<RtkForwardingState> =

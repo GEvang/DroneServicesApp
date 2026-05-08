@@ -6,11 +6,14 @@ import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.BatteryStatus
 import io.dronefleet.mavlink.common.DistanceSensor
 import io.dronefleet.mavlink.common.GlobalPositionInt
+import io.dronefleet.mavlink.common.GpsFixType
 import io.dronefleet.mavlink.common.Gps2Raw
 import io.dronefleet.mavlink.common.GpsRawInt
+import io.dronefleet.mavlink.common.LocalPositionNed
 import io.dronefleet.mavlink.common.MavSensorOrientation
 import io.dronefleet.mavlink.common.RcChannels
 import io.dronefleet.mavlink.common.Statustext
+import io.dronefleet.mavlink.common.VfrHud
 import io.dronefleet.mavlink.minimal.Heartbeat
 import io.dronefleet.mavlink.minimal.MavAutopilot
 import io.dronefleet.mavlink.minimal.MavType
@@ -33,6 +36,12 @@ internal class DroneTelemetryProcessor(
     companion object {
         private const val TAG = "DroneViewModel"
         private const val GPS_TAG = "ArduPilotGps"
+        private const val MAPPING_TAG = "TelemetryMapping"
+        private const val SPEED_SOURCE_STALE_MS = 1500L
+        private const val SPEED_SOURCE_VFR_HUD = 1
+        private const val SPEED_SOURCE_GLOBAL_POSITION = 2
+        private const val SPEED_SOURCE_GPS_RAW = 3
+        private const val SPEED_SOURCE_LOCAL_POSITION = 4
     }
 
     fun handle(message: MavlinkMessage<*>) {
@@ -50,8 +59,26 @@ internal class DroneTelemetryProcessor(
         when (val payload = message.payload) {
             is Heartbeat -> handleHeartbeat(message, payload)
             is GlobalPositionInt -> handleGlobalPosition(payload)
+            is VfrHud -> updateGroundSpeed(
+                source = "VFR_HUD.groundspeed",
+                sourceRank = SPEED_SOURCE_VFR_HUD,
+                speedMetersPerSecond = payload.groundspeed()
+            )
+            is LocalPositionNed -> updateGroundSpeed(
+                source = "LOCAL_POSITION_NED.vx/vy",
+                sourceRank = SPEED_SOURCE_LOCAL_POSITION,
+                speedMetersPerSecond = TelemetryMapping.globalHorizontalSpeedMetersPerSecond(
+                    (payload.vx() * 100f).toInt(),
+                    (payload.vy() * 100f).toInt()
+                )
+            )
             is GpsRawInt -> {
-                handleGpsFix(payload.fixType().value().toInt())
+                handleGpsFix(payload.fixType().entry(), payload.fixType().value())
+                updateGroundSpeed(
+                    source = "GPS_RAW_INT.vel",
+                    sourceRank = SPEED_SOURCE_GPS_RAW,
+                    speedMetersPerSecond = TelemetryMapping.gpsRawSpeedMetersPerSecond(payload.vel())
+                )
                 onGpsDebugMessage(
                     "GPS_RAW_INT",
                     payload.fixType().value().toInt(),
@@ -61,7 +88,7 @@ internal class DroneTelemetryProcessor(
                 )
             }
             is Gps2Raw -> {
-                handleGpsFix(payload.fixType().value().toInt())
+                handleGpsFix(payload.fixType().entry(), payload.fixType().value())
                 onGpsDebugMessage(
                     "GPS2_RAW",
                     payload.fixType().value().toInt(),
@@ -80,9 +107,23 @@ internal class DroneTelemetryProcessor(
                 }
             }
             is BatteryStatus -> {
-                stateStore.droneBatteryVoltage.postValue(payload.voltages()[0].toFloat() * 10.0f.pow(-3))
-                stateStore.droneBatteryPercentage.postValue(payload.batteryRemaining().toFloat() / 100.0F)
-                stateStore.liquidLevel.postValue(payload.voltages()[1].toFloat())
+                val voltages = payload.voltages()
+                val batteryVoltage = voltages.getOrNull(0)
+                    ?.takeIf { it in 0 until TelemetryMapping.UINT16_MAX }
+                    ?.toFloat()
+                    ?.times(10.0f.pow(-3))
+                    ?: 0.0f
+                val batteryFraction = TelemetryMapping.batteryFractionFromRaw(payload.batteryRemaining())
+                val sprayerPercent = TelemetryMapping.displayPercentFromRaw(voltages.getOrNull(1)?.toFloat())
+                    ?: TelemetryMapping.UNKNOWN_PERCENT
+                stateStore.droneBatteryVoltage.postValue(batteryVoltage)
+                stateStore.droneBatteryPercentage.postValue(batteryFraction)
+                stateStore.liquidLevel.postValue(sprayerPercent.toFloat())
+                logMappingSummary(
+                    key = "battery-sprayer",
+                    "batteryRaw=${payload.batteryRemaining()} batteryDisplay=${TelemetryMapping.displayPercentFromFraction(batteryFraction)?.let { "$it%" } ?: "--%"} " +
+                        "sprayerRaw=${voltages.getOrNull(1)} sprayerDisplay=${TelemetryMapping.displayPercentFromRaw(voltages.getOrNull(1)?.toFloat())?.let { "$it%" } ?: "--%"}"
+                )
                 handleBatteryLevel(payload.batteryRemaining().toInt())
             }
             is RcChannels -> {
@@ -160,16 +201,42 @@ internal class DroneTelemetryProcessor(
         runtimeState.lastDroneLocation = Location(location)
         stateStore.droneHeading.postValue(position.hdg().toDouble() / 100.0)
         stateStore.droneLocationLiveData.postValue(location)
+        updateGroundSpeed(
+            source = "GLOBAL_POSITION_INT.vx/vy",
+            sourceRank = SPEED_SOURCE_GLOBAL_POSITION,
+            speedMetersPerSecond = TelemetryMapping.globalHorizontalSpeedMetersPerSecond(position.vx(), position.vy())
+        )
         inferFlightState(location)
         onDroneLocationUpdated()
     }
 
-    private fun handleGpsFix(fixType: Int) {
-        val acquired = fixType >= 3
+    private fun handleGpsFix(fixType: GpsFixType?, rawFixType: Int) {
+        stateStore.gpsFixType.postValue(fixType)
+        logMappingSummary("gps", "gpsFixTypeRaw=$rawFixType gpsDisplay=${TelemetryMapping.gpsFixLabel(fixType)}")
+        val acquired = rawFixType >= 3
         if (runtimeState.lastGpsFixAcquired != acquired) {
             runtimeState.lastGpsFixAcquired = acquired
             onGpsFixChanged(acquired)
         }
+    }
+
+    private fun updateGroundSpeed(source: String, sourceRank: Int, speedMetersPerSecond: Float?) {
+        val speed = speedMetersPerSecond?.takeIf { TelemetryMapping.isValidGroundSpeedMetersPerSecond(it) }
+            ?: return
+        val now = System.currentTimeMillis()
+        val currentStale = now - runtimeState.lastSpeedSourceUpdatedMs > SPEED_SOURCE_STALE_MS
+        if (sourceRank <= runtimeState.lastSpeedSourceRank || currentStale) {
+            runtimeState.lastSpeedSourceRank = sourceRank
+            runtimeState.lastSpeedSourceUpdatedMs = now
+            stateStore.droneGroundSpeedMetersPerSecond.postValue(speed)
+            logMappingSummary("speed", "speedSource=$source speedDisplay=${"%.1f".format(speed)}")
+        }
+    }
+
+    private fun logMappingSummary(key: String, summary: String) {
+        if (runtimeState.lastTelemetryMappingSummaries[key] == summary) return
+        runtimeState.lastTelemetryMappingSummaries[key] = summary
+        Log.d(MAPPING_TAG, summary)
     }
 
     private fun handleBatteryLevel(percentRaw: Int) {

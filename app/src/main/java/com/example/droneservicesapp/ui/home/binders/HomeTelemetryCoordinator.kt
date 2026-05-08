@@ -1,15 +1,13 @@
 package com.example.droneservicesapp.ui.home.binders
 
 import androidx.appcompat.app.AppCompatActivity
-import android.location.Location
 import androidx.lifecycle.LifecycleOwner
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.mavserver.DroneViewModel
+import com.example.droneservicesapp.mavserver.TelemetryMapping
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryUiState
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
-import java.math.RoundingMode
-import java.text.DecimalFormat
+import java.util.Locale
 
 class HomeTelemetryCoordinator(
     private val activity: AppCompatActivity,
@@ -35,9 +33,8 @@ class HomeTelemetryCoordinator(
         droneViewModel.droneBatteryPercentage.observe(lifecycleOwner) { batteryPercentage ->
             if (droneViewModel.conStateLiveData.value != true) return@observe
 
-            val df = DecimalFormat("#.##").apply { roundingMode = RoundingMode.DOWN }
             val iconRes = when {
-                batteryPercentage == -1.0F -> R.drawable.ic_baseline_battery_alert_24
+                batteryPercentage < 0.0F -> R.drawable.ic_baseline_battery_alert_24
                 batteryPercentage >= 1.0F -> R.drawable.ic_baseline_battery_full_24
                 batteryPercentage >= 0.7F -> R.drawable.ic_baseline_battery_6_bar_24
                 batteryPercentage >= 0.4F -> R.drawable.ic_baseline_battery_4_bar_24
@@ -46,7 +43,7 @@ class HomeTelemetryCoordinator(
             }
             update { state ->
                 state.copy(
-                    batteryText = "${df.format(batteryPercentage * 100.0F)}%",
+                    batteryText = formatBatteryText(batteryPercentage),
                     batteryIconRes = iconRes,
                     batteryColorRes = resolveBatteryColorRes(batteryPercentage)
                 )
@@ -58,19 +55,27 @@ class HomeTelemetryCoordinator(
             update { state ->
                 state.copy(
                     altitudeText = "${location.altitude.toInt()}m",
-                    speedText = formatSpeedText(location),
-                    gpsStatusText = formatGpsStatus(
-                        isConnected = true,
-                        hasLocation = true,
-                        rtkState = droneViewModel.rtkForwardingState.value
-                    )
+                    gpsStatusText = formatGpsStatus(isConnected = true)
                 )
+            }
+        }
+
+        droneViewModel.droneGroundSpeedMetersPerSecond.observe(lifecycleOwner) { speed ->
+            if (droneViewModel.conStateLiveData.value != true) return@observe
+            update { state ->
+                state.copy(speedText = formatSpeedText(speed))
+            }
+        }
+
+        droneViewModel.gpsFixType.observe(lifecycleOwner) {
+            update { state ->
+                state.copy(gpsStatusText = formatGpsStatus(isConnected = state.isConnected))
             }
         }
 
         droneViewModel.liquidLevel.observe(lifecycleOwner) { liquidLevel ->
             update { state ->
-                state.copy(sprayerText = "$liquidLevel%")
+                state.copy(sprayerText = formatSprayerText(liquidLevel))
             }
         }
 
@@ -107,15 +112,9 @@ class HomeTelemetryCoordinator(
             }
         }
 
-        droneViewModel.rtkForwardingState.observe(lifecycleOwner) { rtkState ->
+        droneViewModel.rtkForwardingState.observe(lifecycleOwner) {
             update { state ->
-                state.copy(
-                    gpsStatusText = formatGpsStatus(
-                        isConnected = state.isConnected,
-                        hasLocation = droneViewModel.droneLocationLiveData.value != null,
-                        rtkState = rtkState
-                    )
-                )
+                state.copy(gpsStatusText = formatGpsStatus(isConnected = state.isConnected))
             }
         }
     }
@@ -125,19 +124,14 @@ class HomeTelemetryCoordinator(
         val armed = droneViewModel.armedState.value == true
         val batteryPercentage = droneViewModel.droneBatteryPercentage.value
         val batteryIconRes = when {
-            batteryPercentage == null || batteryPercentage == -1.0F -> R.drawable.ic_baseline_battery_alert_24
+            batteryPercentage == null || batteryPercentage < 0.0F -> R.drawable.ic_baseline_battery_alert_24
             batteryPercentage >= 1.0F -> R.drawable.ic_baseline_battery_full_24
             batteryPercentage >= 0.7F -> R.drawable.ic_baseline_battery_6_bar_24
             batteryPercentage >= 0.4F -> R.drawable.ic_baseline_battery_4_bar_24
             batteryPercentage >= 0.25F -> R.drawable.ic_baseline_battery_3_bar_24
             else -> R.drawable.ic_baseline_battery_2_bar_24
         }
-        val batteryText = if (batteryPercentage == null) {
-            "--%"
-        } else {
-            val df = DecimalFormat("#.##").apply { roundingMode = RoundingMode.DOWN }
-            "${df.format(batteryPercentage * 100.0F)}%"
-        }
+        val batteryText = formatBatteryText(batteryPercentage)
         val uploadProgress = droneViewModel.uploadProgressPercent.value ?: 0
         val batteryColorRes = resolveBatteryColorRes(batteryPercentage)
         val currentLocation = droneViewModel.droneLocationLiveData.value
@@ -147,17 +141,13 @@ class HomeTelemetryCoordinator(
             connectionText = activity.getString(
                 if (isConnected) R.string.shell_status_connected else R.string.shell_status_disconnected
             ),
-            gpsStatusText = formatGpsStatus(
-                isConnected = isConnected,
-                hasLocation = currentLocation != null,
-                rtkState = droneViewModel.rtkForwardingState.value
-            ),
+            gpsStatusText = formatGpsStatus(isConnected = isConnected),
             batteryText = batteryText,
             batteryIconRes = batteryIconRes,
             batteryColorRes = batteryColorRes,
             altitudeText = currentLocation?.altitude?.toInt()?.let { "${it}m" } ?: "--",
-            speedText = formatSpeedText(currentLocation),
-            sprayerText = "${droneViewModel.liquidLevel.value ?: 0}%",
+            speedText = formatSpeedText(droneViewModel.droneGroundSpeedMetersPerSecond.value),
+            sprayerText = formatSprayerText(droneViewModel.liquidLevel.value),
             armedText = activity.getString(if (armed) R.string.armed else R.string.disarmed),
             isArmed = armed,
             uploadProgressText = "Uploading ${uploadProgress}%",
@@ -180,7 +170,7 @@ class HomeTelemetryCoordinator(
         return current.copy(
             isConnected = false,
             connectionText = activity.getString(R.string.shell_status_disconnected),
-            gpsStatusText = "NO GPS",
+            gpsStatusText = "No GPS",
             batteryText = "--%",
             batteryIconRes = R.drawable.ic_baseline_battery_alert_24,
             batteryColorRes = R.color.ds_color_shell_unselected,
@@ -206,23 +196,23 @@ class HomeTelemetryCoordinator(
         }
     }
 
-    private fun formatGpsStatus(
-        isConnected: Boolean,
-        hasLocation: Boolean,
-        rtkState: RtkForwardingState?,
-    ): String {
-        if (!isConnected) return "NO GPS"
-        return when (rtkState) {
-            is RtkForwardingState.Streaming -> "RTK FIX"
-            is RtkForwardingState.ConnectingToCaster,
-            is RtkForwardingState.Reconnecting -> "RTK FLOAT"
-            is RtkForwardingState.WaitingForGps -> "NO GPS"
-            else -> if (hasLocation) "3D LOCK" else "NO GPS"
-        }
+    private fun formatGpsStatus(isConnected: Boolean): String {
+        if (!isConnected) return "No GPS"
+        return TelemetryMapping.gpsFixLabel(droneViewModel.gpsFixType.value)
     }
 
-    private fun formatSpeedText(location: Location?): String {
-        val speedMetersPerSecond = location?.takeIf { it.hasSpeed() }?.speed ?: 0f
-        return "SPD: ${"%.1f".format(speedMetersPerSecond)}"
+    private fun formatBatteryText(batteryPercentage: Float?): String {
+        return TelemetryMapping.displayPercentFromFraction(batteryPercentage)?.let { "$it%" } ?: "--%"
+    }
+
+    private fun formatSprayerText(sprayerPercentage: Float?): String {
+        return TelemetryMapping.displayPercentFromRaw(sprayerPercentage)?.let { "$it%" } ?: "--%"
+    }
+
+    private fun formatSpeedText(speedMetersPerSecond: Float?): String {
+        val speed = speedMetersPerSecond
+            ?.takeIf { TelemetryMapping.isValidGroundSpeedMetersPerSecond(it) }
+            ?: 0f
+        return "SPD: ${String.format(Locale.US, "%.1f", speed)}"
     }
 }

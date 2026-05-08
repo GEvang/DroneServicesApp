@@ -16,6 +16,7 @@ import com.example.droneservicesapp.data.mavlink.MissionService
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import io.dronefleet.mavlink.MavlinkMessage
+import io.dronefleet.mavlink.common.GpsFixType
 import io.dronefleet.mavlink.common.MissionItemInt
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
@@ -27,8 +28,9 @@ class DroneViewModel : ViewModel() {
 
     companion object {
         private const val TAG = "DroneViewModel"
+        private const val MAPPING_TAG = "TelemetryMapping"
         private const val CONNECTION_TICK_MS = 500L
-        private const val HEARTBEAT_STALE_MS = 5500L
+        private const val HEARTBEAT_STALE_MS = 2500L
         private const val TELEMETRY_STALE_MS = 2500L
         private const val MISSION_DEBOUNCE_MS = 1500L
         private const val UPLOAD_TIMEOUT_MS = 2000L
@@ -129,6 +131,8 @@ class DroneViewModel : ViewModel() {
     val droneHeading: MutableLiveData<Double> = stateStore.droneHeading
     val droneBatteryVoltage: MutableLiveData<Float> = stateStore.droneBatteryVoltage
     val droneBatteryPercentage: MutableLiveData<Float> = stateStore.droneBatteryPercentage
+    val gpsFixType: MutableLiveData<GpsFixType?> = stateStore.gpsFixType
+    val droneGroundSpeedMetersPerSecond: MutableLiveData<Float> = stateStore.droneGroundSpeedMetersPerSecond
     val droneFrontDistance: MutableLiveData<Int> = stateStore.droneFrontDistance
     val droneBackDistance: MutableLiveData<Int> = stateStore.droneBackDistance
     val droneFlightMode: MutableLiveData<Int> = stateStore.droneFlightMode
@@ -247,12 +251,14 @@ class DroneViewModel : ViewModel() {
                             runtimeState.lastLoggedConnectionState = connected
                             if (connected) {
                                 operatorEventLogger.logDroneConnected()
+                                Log.d(MAPPING_TAG, "connection=connected")
                                 Log.i(
                                     TAG,
                                     "heartbeat healthy lastHeartbeatAgeMs=${System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs}"
                                 )
                             } else {
                                 operatorEventLogger.logDroneDisconnected("Heartbeat timed out")
+                                Log.d(MAPPING_TAG, "connection=disconnected")
                                 Log.w(
                                     TAG,
                                     "heartbeat lost lastHeartbeatAgeMs=${System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs}"
@@ -278,6 +284,10 @@ class DroneViewModel : ViewModel() {
 
                         if (!connected) {
                             stateStore.telemetryAliveLiveData.postValue(false)
+                            stateStore.gpsFixType.postValue(null)
+                            stateStore.droneBatteryPercentage.postValue(-1.0f)
+                            stateStore.droneGroundSpeedMetersPerSecond.postValue(0.0f)
+                            stateStore.liquidLevel.postValue(TelemetryMapping.UNKNOWN_PERCENT.toFloat())
                             if (runtimeState.autopilotSysId != -1) {
                                 runtimeState.clearAutopilotTarget()
                             }

@@ -7,7 +7,7 @@ import com.example.droneservicesapp.R
 data class HomeTelemetryUiState(
     val isConnected: Boolean = false,
     val connectionText: String = "",
-    val gpsStatusText: String = "NO GPS",
+    val gpsStatusText: String = "No GPS",
     val batteryText: String = "--%",
     @DrawableRes val batteryIconRes: Int = R.drawable.ic_baseline_battery_full_24,
     @ColorRes val batteryColorRes: Int = R.color.ds_color_shell_unselected,
