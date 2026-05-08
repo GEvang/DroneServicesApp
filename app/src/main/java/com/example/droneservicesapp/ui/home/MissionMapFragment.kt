@@ -75,6 +75,10 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 class MissionMapFragment : Fragment() {
     private var _binding: FragmentHomeMapsBinding? = null
@@ -126,6 +130,11 @@ class MissionMapFragment : Fragment() {
     private var isDrawingModeActive = false
     private var hasCenteredInitialViewport = false
     private var hasCenteredToDrone = false
+    private var homePosition: LatLon? = null
+    private var wasDroneArmed: Boolean = false
+    private var pendingHomeMarkerAfterArm: Boolean = false
+    private var lastTracePosition: LatLon? = null
+    private var flightTracePointCount: Int = 0
     private var initialCenterAttemptCount = 0
     private var lastGeoZoneReloadToken: Long = 0L
 
@@ -140,7 +149,9 @@ class MissionMapFragment : Fragment() {
         private const val GEO_UPLOAD_GUARD_TAG = "GeoUploadGuard"
         private const val LIVE_GEO_AWARENESS_TAG = "LiveGeoAwareness"
         private const val GEO_TEST_MODE_TAG = "GeoTestMode"
+        private const val MAP_FLIGHT_TRACE_TAG = "MapFlightTrace"
         private const val MIN_VALID_ABS_COORDINATE = 1e-4
+        private const val MIN_TRACE_POINT_DISTANCE_METERS = 2.0
         private const val DEFAULT_NEAR_ZONE_THRESHOLD_METERS = 100.0
     }
 
@@ -183,6 +194,7 @@ class MissionMapFragment : Fragment() {
 
     private fun initializeMapView(view: View) {
         mapView = view.findViewById(R.id.osmMap)
+        mapView.setBuiltInZoomControls(false)
         mapView.setMultiTouchControls(true)
         mapView.setTileSource(EsriWorldImageryTileSource)
         mapView.isTilesScaledToDpi = true
@@ -427,6 +439,8 @@ class MissionMapFragment : Fragment() {
                     livePosition.lat,
                     livePosition.lon
                 )
+                maybeSetPendingHomeMarker(livePosition)
+                maybeAppendFlightTrace(livePosition)
                 centerOnDroneIfNeeded()
             } else {
                 osmdroidMapController.setDroneVisible(false)
@@ -440,6 +454,10 @@ class MissionMapFragment : Fragment() {
             droneHeading?.let { heading ->
                 osmdroidMapController.updateDroneHeadingDegrees(heading.toFloat())
             }
+        }
+
+        droneViewModel.armedState.observe(viewLifecycleOwner) { armed ->
+            handleArmedStateChanged(armed == true)
         }
 
         activityViewModel.missionArea.observe(viewLifecycleOwner) { missionArea ->
@@ -716,6 +734,7 @@ class MissionMapFragment : Fragment() {
         geoAwarenessChecker = null
         liveGeoAwarenessStatusBinder = null
         liveGeoAwarenessChecker = null
+        clearFlightTrace()
         removeVirtualGeoTestMarker()
         removeVirtualGeoTestTapOverlay()
         super.onDestroyView()
@@ -765,6 +784,85 @@ class MissionMapFragment : Fragment() {
         } else {
             centerInitialViewportIfNeeded()
         }
+    }
+
+    private fun handleArmedStateChanged(isArmed: Boolean) {
+        if (!wasDroneArmed && isArmed) {
+            val currentPosition = latestRealDronePosition
+            if (currentPosition != null && isValidDronePosition(currentPosition)) {
+                setHomeMarker(currentPosition)
+            } else {
+                pendingHomeMarkerAfterArm = true
+            }
+        }
+        wasDroneArmed = isArmed
+    }
+
+    private fun maybeSetPendingHomeMarker(position: LatLon) {
+        if (!pendingHomeMarkerAfterArm) return
+        if (!isValidDronePosition(position)) return
+        setHomeMarker(position)
+        pendingHomeMarkerAfterArm = false
+    }
+
+    private fun setHomeMarker(position: LatLon) {
+        if (homePosition != null) return
+        if (!isValidDronePosition(position)) return
+        if (osmdroidMapController.setHomeMarker(position.lat, position.lon)) {
+            homePosition = position
+            Log.d(MAP_FLIGHT_TRACE_TAG, "home marker set lat=${position.lat} lon=${position.lon}")
+        }
+    }
+
+    private fun maybeAppendFlightTrace(position: LatLon) {
+        if (droneViewModel.conStateLiveData.value != true) return
+        if (droneViewModel.armedState.value != true) return
+        appendFlightTracePoint(position)
+    }
+
+    private fun appendFlightTracePoint(position: LatLon) {
+        if (!shouldAppendTracePoint(position)) return
+        osmdroidMapController.appendFlightTracePoint(position.lat, position.lon)
+        lastTracePosition = position
+        flightTracePointCount += 1
+        when {
+            flightTracePointCount == 1 -> Log.d(MAP_FLIGHT_TRACE_TAG, "trace started")
+            flightTracePointCount % 50 == 0 -> Log.d(MAP_FLIGHT_TRACE_TAG, "trace point count=$flightTracePointCount")
+        }
+    }
+
+    private fun clearFlightTrace() {
+        osmdroidMapController.clearFlightTraceAndHome()
+        homePosition = null
+        pendingHomeMarkerAfterArm = false
+        lastTracePosition = null
+        flightTracePointCount = 0
+    }
+
+    private fun shouldAppendTracePoint(position: LatLon): Boolean {
+        if (!isValidDronePosition(position)) return false
+        val lastPosition = lastTracePosition ?: return true
+        return distanceMeters(lastPosition, position) >= MIN_TRACE_POINT_DISTANCE_METERS
+    }
+
+    private fun isValidDronePosition(position: LatLon): Boolean {
+        return position.lat.isFinite() &&
+            position.lon.isFinite() &&
+            position.lat in -90.0..90.0 &&
+            position.lon in -180.0..180.0 &&
+            (kotlin.math.abs(position.lat) > MIN_VALID_ABS_COORDINATE ||
+                kotlin.math.abs(position.lon) > MIN_VALID_ABS_COORDINATE)
+    }
+
+    private fun distanceMeters(start: LatLon, end: LatLon): Double {
+        val earthRadiusMeters = 6_371_000.0
+        val dLat = Math.toRadians(end.lat - start.lat)
+        val dLon = Math.toRadians(end.lon - start.lon)
+        val startLat = Math.toRadians(start.lat)
+        val endLat = Math.toRadians(end.lat)
+        val a = sin(dLat / 2.0) * sin(dLat / 2.0) +
+            cos(startLat) * cos(endLat) * sin(dLon / 2.0) * sin(dLon / 2.0)
+        return earthRadiusMeters * 2.0 * atan2(sqrt(a), sqrt(1.0 - a))
     }
 
     private fun loadGeoAwarenessZonesIfNeeded(): Boolean {
