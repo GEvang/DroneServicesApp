@@ -2,14 +2,18 @@ package com.example.droneservicesapp.ui.settings
 
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.EditText
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.recyclerview.widget.RecyclerView
 import androidx.preference.Preference
+import androidx.preference.EditTextPreference
 import androidx.preference.PreferenceFragmentCompat
 import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.R
@@ -24,12 +28,18 @@ class SettingsFragment : PreferenceFragmentCompat(),
 
     private var cacheSizePref: Preference? = null
     private var clearCachePref: Preference? = null
+    private var mavTargetHostPref: EditTextPreference? = null
 
     override fun onCreatePreferences(savedInstanceState: Bundle?, rootKey: String?) {
         setPreferencesFromResource(R.xml.root_preferences, rootKey)
 
         cacheSizePref = findPreference("offline_cache_size")
         clearCachePref = findPreference("offline_clear_cache")
+        mavTargetHostPref = findPreference(getString(R.string.mavlink_target_host_pref))
+        mavTargetHostPref?.setOnPreferenceClickListener {
+            showMavTargetHostDialog()
+            true
+        }
 
         clearCachePref?.setOnPreferenceClickListener {
             val cacheDir = getOsmdroidTileCacheDir()
@@ -102,12 +112,39 @@ class SettingsFragment : PreferenceFragmentCompat(),
         if (mavInterface == "Serial") {
             findPreference<Preference?>(getString(R.string.mavlink_lan_port_pref))?.isVisible =
                 false
+            mavTargetHostPref?.isVisible = false
             findPreference<Preference?>("mavSerialBaud")?.isVisible = true
         } else if (mavInterface == "TCP" || mavInterface == "UDP") {
             findPreference<Preference?>(getString(R.string.mavlink_lan_port_pref))?.isVisible =
                 true
+            mavTargetHostPref?.isVisible = true
             findPreference<Preference?>("mavSerialBaud")?.isVisible = false
         }
+    }
+
+    private fun showMavTargetHostDialog() {
+        val key = getString(R.string.mavlink_target_host_pref)
+        val sharedPreferences = preferenceManager.sharedPreferences
+        val current = sharedPreferences?.getString(key, "192.168.199.33") ?: "192.168.199.33"
+
+        val input = EditText(requireContext()).apply {
+            inputType = InputType.TYPE_CLASS_PHONE
+            setSingleLine(true)
+            hint = "blank = auto"
+            setText(current)
+            selectAll()
+        }
+
+        AlertDialog.Builder(requireContext())
+            .setTitle(getString(R.string.mavlink_target_host_title))
+            .setView(input)
+            .setPositiveButton(android.R.string.ok) { _, _ ->
+                sharedPreferences?.edit()
+                    ?.putString(key, input.text.toString().trim())
+                    ?.apply()
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
     }
 
     private fun updateCacheSizeSummary() {

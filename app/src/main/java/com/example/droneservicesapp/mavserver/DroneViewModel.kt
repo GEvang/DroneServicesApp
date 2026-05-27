@@ -17,8 +17,15 @@ import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.rtk.RtkMountpoint
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import io.dronefleet.mavlink.MavlinkMessage
+import io.dronefleet.mavlink.common.CommandLong
 import io.dronefleet.mavlink.common.GpsFixType
+import io.dronefleet.mavlink.common.MavCmd
 import io.dronefleet.mavlink.common.MissionItemInt
+import io.dronefleet.mavlink.minimal.Heartbeat
+import io.dronefleet.mavlink.minimal.MavAutopilot
+import io.dronefleet.mavlink.minimal.MavModeFlag
+import io.dronefleet.mavlink.minimal.MavState
+import io.dronefleet.mavlink.minimal.MavType
 import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
@@ -35,6 +42,12 @@ class DroneViewModel : ViewModel() {
         private const val TELEMETRY_STALE_MS = 2500L
         private const val MISSION_DEBOUNCE_MS = 1500L
         private const val UPLOAD_TIMEOUT_MS = 2000L
+        private const val GCS_SYSTEM_ID = 255
+        private const val GCS_COMPONENT_ID = 190
+        private const val MAVLINK_SYSTEM_ALL = 0
+        private const val MAVLINK_COMPONENT_ALL = 0
+        private const val SERVO_OUTPUT_RAW_MESSAGE_ID = 36
+        private const val SERVO_OUTPUT_RAW_INTERVAL_US = 200_000f
     }
 
     private val repoDisposables = CompositeDisposable()
@@ -76,6 +89,7 @@ class DroneViewModel : ViewModel() {
                 missionController.updateTargetIds(systemId, componentId)
             },
             onAutopilotHeartbeatLocked = {
+                requestServoOutputRawStream()
                 rtkController.onAutopilotHeartbeatLocked()
             },
             onDroneLocationUpdated = {
@@ -141,6 +155,7 @@ class DroneViewModel : ViewModel() {
     val rcRSSI: MutableLiveData<Float> = stateStore.rcRSSI
     val missionItems: MutableLiveData<ArrayList<MissionItemInt>> = stateStore.missionItems
     val liquidLevel: MutableLiveData<Float> = stateStore.liquidLevel
+    val servo5OutputRaw: MutableLiveData<Int?> = stateStore.servo5OutputRaw
     val uploadProgressPercent: MutableLiveData<Int> = stateStore.uploadProgressPercent
     val rtkForwardingState: MutableLiveData<RtkForwardingState> = stateStore.rtkForwardingState
     val selectedRtkMountpoint: MutableLiveData<RtkMountpoint?> = stateStore.selectedRtkMountpoint
@@ -153,6 +168,77 @@ class DroneViewModel : ViewModel() {
     fun getTargetSystemId(): Int = runtimeState.autopilotSysId
 
     fun getTargetComponentId(): Int = runtimeState.autopilotCompId
+
+    fun sendDebugSprayerServoPwm(pwm: Int): Boolean {
+        if (stateStore.conStateLiveData.value != true || runtimeState.autopilotSysId == -1) {
+            Log.w(TAG, "debug sprayer command skipped: no active MAVLink target")
+            return false
+        }
+
+        val targetSystemId = runtimeState.autopilotSysId
+        val targetComponentId = runtimeState.autopilotCompId.takeIf { it >= 0 } ?: MAVLINK_COMPONENT_ALL
+        val command = CommandLong.builder()
+            .targetSystem(targetSystemId)
+            .targetComponent(targetComponentId)
+            .command(MavCmd.MAV_CMD_DO_SET_SERVO)
+            .confirmation(0)
+            .param1(5.0f)
+            .param2(pwm.coerceIn(0, 3000).toFloat())
+            .param3(0.0f)
+            .param4(0.0f)
+            .param5(0.0f)
+            .param6(0.0f)
+            .param7(0.0f)
+            .build()
+
+        mavlinkClient.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, command)
+        Log.i(
+            "SprayerDebug",
+            "TX COMMAND_LONG DO_SET_SERVO targetSys=$targetSystemId targetComp=$targetComponentId senderSys=$GCS_SYSTEM_ID senderComp=$GCS_COMPONENT_ID channel=5 pwm=${command.param2()}"
+        )
+        return true
+    }
+
+    private fun sendGcsHeartbeat() {
+        val heartbeat = Heartbeat.builder()
+            .type(MavType.MAV_TYPE_GCS)
+            .autopilot(MavAutopilot.MAV_AUTOPILOT_INVALID)
+            .baseMode(MavModeFlag.MAV_MODE_FLAG_CUSTOM_MODE_ENABLED)
+            .customMode(0)
+            .systemStatus(MavState.MAV_STATE_ACTIVE)
+            .mavlinkVersion(3)
+            .build()
+
+        mavlinkClient.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, heartbeat)
+        Log.i("SprayerDebug", "TX GCS HEARTBEAT senderSys=$GCS_SYSTEM_ID senderComp=$GCS_COMPONENT_ID")
+    }
+
+    fun requestServoOutputRawStream(): Boolean {
+        val targetSystemId = runtimeState.autopilotSysId
+        val targetComponentId = runtimeState.autopilotCompId
+        if (stateStore.conStateLiveData.value != true || targetSystemId == -1 || targetComponentId == -1) {
+            Log.w(TAG, "servo output stream request skipped: no active MAVLink target")
+            return false
+        }
+
+        val command = CommandLong.builder()
+            .targetSystem(targetSystemId)
+            .targetComponent(MAVLINK_COMPONENT_ALL)
+            .command(MavCmd.MAV_CMD_SET_MESSAGE_INTERVAL)
+            .confirmation(0)
+            .param1(SERVO_OUTPUT_RAW_MESSAGE_ID.toFloat())
+            .param2(SERVO_OUTPUT_RAW_INTERVAL_US)
+            .param3(0.0f)
+            .param4(0.0f)
+            .param5(0.0f)
+            .param6(0.0f)
+            .param7(0.0f)
+            .build()
+
+        mavlinkClient.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, command)
+        Log.i("SprayerDebug", "TX request SERVO_OUTPUT_RAW intervalUs=$SERVO_OUTPUT_RAW_INTERVAL_US")
+        return true
+    }
 
     fun startMavlink(config: MavlinkConfig) {
         Log.i(TAG, "connect requested via startMavlink config=$config")

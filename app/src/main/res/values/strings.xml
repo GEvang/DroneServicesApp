@@ -6,6 +6,8 @@
     <string name="menu_settings">Settings</string>
     <string name="menu_rtk">RTK</string>
     <string name="menu_geo_awareness">Geo-awareness</string>
+    <string name="menu_debug">Debug</string>
+    <string name="debug_title">Debug</string>
     <string name="geo_awareness_title">Geo-awareness</string>
     <string name="geo_awareness_subtitle">Airspace and zone awareness</string>
     <string name="geo_awareness_live_status">Live status</string>
@@ -140,6 +142,8 @@
     <!-- Shared Preferences -->
     <string name="mavlink_lan_port_pref" translatable="false">mavLANport</string>
     <string name="mavlink_interface_pref" translatable="false">mavInterface</string>
+    <string name="mavlink_target_host_pref" translatable="false">mavTargetHost</string>
+    <string name="mavlink_target_host_title">MAVLink Target IP (blank for auto)</string>
     <string name="survey_line_distance_pref" translatable="false">surveyLineDist</string>
     <string name="survey_angle_pref" translatable="false">surveyAngle</string>
     <string name="survey_altitude_pref" translatable="false">missionAlt</string>
@@ -218,6 +222,15 @@
     <string name="unknown_percentage" translatable="false">\?%</string>
     <string name="unknown_value" translatable="false">\?</string>
     <string name="sprayer_intensity">Sprayer Intensity</string>
+    <string name="debug_sprayer">Debug Sprayer</string>
+    <string name="debug_sprayer_pwm">Servo 5 PWM</string>
+    <string name="debug_sprayer_pwm_1000">1000</string>
+    <string name="debug_sprayer_pwm_1500">1500</string>
+    <string name="debug_sprayer_pwm_2000">2000</string>
+    <string name="debug_sprayer_pwm_2200">2200</string>
+    <string name="debug_sprayer_command_sent">Servo 5 set to %1$d</string>
+    <string name="debug_sprayer_drone_value">Drone servo 5: %1$d</string>
+    <string name="debug_sprayer_drone_value_unknown">Drone servo 5: --</string>
     <string name="unknown_value_three_questionmarks" translatable="false">\???</string>
     <string name="percentage_symbol" translatable="false">%</string>
     <string name="m" translatable="false">m</string>

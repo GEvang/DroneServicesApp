@@ -27,4 +27,10 @@
         android:label="@string/geo_awareness_title"
         tools:layout="@layout/fragment_geo_awareness" />
 
+    <fragment
+        android:id="@+id/nav_debug"
+        android:name="com.example.droneservicesapp.ui.debug.DebugFragment"
+        android:label="@string/debug_title"
+        tools:layout="@layout/fragment_debug" />
+
 </navigation>

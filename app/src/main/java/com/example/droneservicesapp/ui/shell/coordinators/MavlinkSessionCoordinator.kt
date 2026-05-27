@@ -30,9 +30,14 @@ class MavlinkSessionCoordinator(
             "14550"
         )?.toIntOrNull() ?: 14550
 
+        val targetHost = sharedPreferences.getString(
+            context.getString(R.string.mavlink_target_host_pref),
+            "192.168.199.33"
+        )?.trim()?.takeIf { it.isNotEmpty() }
+
         val iface = runCatching { MavlinkConfig.InterfaceType.valueOf(ifaceStr.uppercase()) }
             .getOrDefault(MavlinkConfig.InterfaceType.UDP)
 
-        return MavlinkConfig(interfaceType = iface, port = port)
+        return MavlinkConfig(interfaceType = iface, port = port, targetHost = targetHost)
     }
 }

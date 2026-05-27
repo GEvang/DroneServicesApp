@@ -25,5 +25,10 @@
             android:icon="@drawable/ic_baseline_layers_clear_24"
             android:title="@string/menu_geo_awareness" />
 
+        <item
+            android:id="@+id/nav_debug"
+            android:icon="@drawable/ic_menu_settings"
+            android:title="@string/menu_debug" />
+
     </group>
 </menu>

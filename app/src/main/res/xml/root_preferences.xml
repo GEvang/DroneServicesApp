@@ -20,6 +20,12 @@
             app:title="@string/drone_tcpudp_port_pref"
             app:useSimpleSummaryProvider="true" />
 
+        <EditTextPreference
+            app:defaultValue="192.168.199.33"
+            app:key="@string/mavlink_target_host_pref"
+            app:title="@string/mavlink_target_host_title"
+            app:useSimpleSummaryProvider="true" />
+
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/locales_categ_pref"

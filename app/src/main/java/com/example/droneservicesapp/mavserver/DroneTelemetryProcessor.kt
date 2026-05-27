@@ -4,6 +4,7 @@ import android.location.Location
 import android.util.Log
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.BatteryStatus
+import io.dronefleet.mavlink.common.CommandAck
 import io.dronefleet.mavlink.common.DistanceSensor
 import io.dronefleet.mavlink.common.GlobalPositionInt
 import io.dronefleet.mavlink.common.GpsFixType
@@ -12,6 +13,7 @@ import io.dronefleet.mavlink.common.GpsRawInt
 import io.dronefleet.mavlink.common.LocalPositionNed
 import io.dronefleet.mavlink.common.MavSensorOrientation
 import io.dronefleet.mavlink.common.RcChannels
+import io.dronefleet.mavlink.common.ServoOutputRaw
 import io.dronefleet.mavlink.common.Statustext
 import io.dronefleet.mavlink.common.VfrHud
 import io.dronefleet.mavlink.minimal.Heartbeat
@@ -49,11 +51,15 @@ internal class DroneTelemetryProcessor(
             runtimeState.lastNonHeartbeatMs = System.currentTimeMillis()
         }
 
+        if (message.payload is CommandAck) {
+            handleCommandAck(message.payload as CommandAck)
+        }
+
         if (runtimeState.autopilotSysId != -1 &&
             (message.originSystemId != runtimeState.autopilotSysId ||
                 message.originComponentId != runtimeState.autopilotCompId)
         ) {
-            if (message.payload !is Heartbeat) return
+            if (message.payload !is Heartbeat && message.payload !is CommandAck) return
         }
 
         when (val payload = message.payload) {
@@ -129,6 +135,14 @@ internal class DroneTelemetryProcessor(
             is RcChannels -> {
                 stateStore.rcRSSI.postValue(payload.rssi() * 100.0F / 255.0F)
             }
+            is ServoOutputRaw -> {
+                stateStore.servo5OutputRaw.postValue(payload.servo5Raw())
+                Log.i("SprayerDebug", "RX SERVO_OUTPUT_RAW port=${payload.port()} servo5=${payload.servo5Raw()}")
+                logMappingSummary(
+                    "servo5",
+                    "servoOutputRaw port=${payload.port()} servo5=${payload.servo5Raw()}"
+                )
+            }
             is DistanceSensor -> {
                 val meters = payload.currentDistance() / 100
                 val orientation = payload.orientation().entry()
@@ -147,6 +161,15 @@ internal class DroneTelemetryProcessor(
                 }
             }
         }
+    }
+
+    private fun handleCommandAck(payload: CommandAck) {
+        val commandName = payload.command().entry()?.name ?: payload.command().value().toString()
+        val resultName = payload.result().entry()?.name ?: payload.result().value().toString()
+        Log.i(
+            "SprayerDebug",
+            "RX COMMAND_ACK command=$commandName rawCommand=${payload.command().value()} result=$resultName rawResult=${payload.result().value()} progress=${payload.progress()} resultParam2=${payload.resultParam2()} targetSys=${payload.targetSystem()} targetComp=${payload.targetComponent()}"
+        )
     }
 
     private fun handleHeartbeat(message: MavlinkMessage<*>, heartbeat: Heartbeat) {

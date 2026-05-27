@@ -40,6 +40,8 @@ internal class DroneUiStateStore(
         MutableLiveData<ArrayList<MissionItemInt>>().default(ArrayList())
     val liquidLevel: MutableLiveData<Float> =
         MutableLiveData<Float>().default(TelemetryMapping.UNKNOWN_PERCENT.toFloat())
+    val servo5OutputRaw: MutableLiveData<Int?> =
+        MutableLiveData<Int?>().default(null)
     val uploadProgressPercent: MutableLiveData<Int> =
         MutableLiveData<Int>().default(0)
     val rtkForwardingState: MutableLiveData<RtkForwardingState> =
