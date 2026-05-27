@@ -1,6 +1,10 @@
 package com.example.droneservicesapp.ui.shell.coordinators
 
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.util.Log
 import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.mavlink.MavlinkConfig
@@ -10,6 +14,13 @@ class MavlinkSessionCoordinator(
     private val context: Context,
     private val droneViewModel: DroneViewModel,
 ) {
+    private companion object {
+        private const val TAG = "MavlinkSessionCoordinator"
+    }
+
+    private val connectivityManager: ConnectivityManager? =
+        context.applicationContext.getSystemService(ConnectivityManager::class.java)
+
     fun onResume() {
         droneViewModel.onAppForegrounded(readMavlinkConfig())
     }
@@ -38,6 +49,34 @@ class MavlinkSessionCoordinator(
         val iface = runCatching { MavlinkConfig.InterfaceType.valueOf(ifaceStr.uppercase()) }
             .getOrDefault(MavlinkConfig.InterfaceType.UDP)
 
-        return MavlinkConfig(interfaceType = iface, port = port, targetHost = targetHost)
+        val network = selectWifiNetwork()
+        Log.i(
+            TAG,
+            "MAVLink config iface=$iface port=$port targetHost=${targetHost ?: "<auto>"} network=${network?.networkHandle ?: "<default>"}"
+        )
+        return MavlinkConfig(interfaceType = iface, port = port, targetHost = targetHost, network = network)
+    }
+
+    private fun selectWifiNetwork(): Network? {
+        val manager = connectivityManager ?: return null
+        val networks = manager.allNetworks.mapNotNull { network ->
+            val capabilities = manager.getNetworkCapabilities(network) ?: return@mapNotNull null
+            network to capabilities
+        }
+
+        val wifi = networks.firstOrNull { (_, capabilities) ->
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
+        }
+
+        if (wifi != null) {
+            Log.i(
+                TAG,
+                "selected Wi-Fi network for MAVLink network=${wifi.first.networkHandle} validated=${wifi.second.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)} internet=${wifi.second.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)}"
+            )
+            return wifi.first
+        }
+
+        Log.w(TAG, "no Wi-Fi network available for MAVLink; using default network")
+        return null
     }
 }

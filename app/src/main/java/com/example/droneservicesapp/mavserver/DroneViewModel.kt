@@ -58,6 +58,7 @@ class DroneViewModel : ViewModel() {
 
     private val repo = MavlinkConnectionManager()
     val mavlinkClient: MavlinkClient = repo
+    private var activeMavlinkConfigKey: String? = null
 
     private val missionService: MissionService by lazy { MissionService(mavlinkClient) }
     private val missionController: DroneMissionController by lazy {
@@ -243,15 +244,18 @@ class DroneViewModel : ViewModel() {
     fun startMavlink(config: MavlinkConfig) {
         Log.i(TAG, "connect requested via startMavlink config=$config")
         mavlinkClient.restart(config)
+        activeMavlinkConfigKey = config.toConnectionKey()
         attachRepositoryBridge()
     }
 
     fun onAppForegrounded(config: MavlinkConfig) {
+        val newConfigKey = config.toConnectionKey()
+        val configChanged = activeMavlinkConfigKey != newConfigKey
         Log.i(
             TAG,
-            "foreground transition keepAlive=${shouldKeepRtkAliveInBackground()} healthy=${isMavlinkSessionHealthy()} lastHeartbeatMs=${mavlinkClient.lastHeartbeatMs}"
+            "foreground transition keepAlive=${shouldKeepRtkAliveInBackground()} healthy=${isMavlinkSessionHealthy()} configChanged=$configChanged lastConfig=$activeMavlinkConfigKey newConfig=$newConfigKey lastHeartbeatMs=${mavlinkClient.lastHeartbeatMs}"
         )
-        if (isMavlinkSessionHealthy()) {
+        if (isMavlinkSessionHealthy() && !configChanged) {
             Log.i(TAG, "restart skipped: reusing healthy MAVLink session on foreground")
             attachRepositoryBridge()
             rtkController.onRtkConfigurationChanged()
@@ -263,6 +267,7 @@ class DroneViewModel : ViewModel() {
                 rtkController.stopStreamingForMavlinkRestart()
             }
             mavlinkClient.restart(config)
+            activeMavlinkConfigKey = newConfigKey
             attachRepositoryBridge()
             rtkController.onRtkConfigurationChanged()
         } catch (error: Exception) {
@@ -283,6 +288,11 @@ class DroneViewModel : ViewModel() {
         }
         stopRtkForwarding(clearRequest = true)
         mavlinkClient.stop()
+        activeMavlinkConfigKey = null
+    }
+
+    private fun MavlinkConfig.toConnectionKey(): String {
+        return "${interfaceType.name}|$port|${targetHost.orEmpty()}|${network?.networkHandle ?: "default"}"
     }
 
     fun onRtkConfigurationChanged(forceStart: Boolean = false) {
@@ -290,6 +300,8 @@ class DroneViewModel : ViewModel() {
     }
 
     fun currentRtkSocketFactory() = rtkController.currentRtkSocketFactory()
+
+    fun currentRtkInternetNetwork() = rtkController.currentRtkInternetNetwork()
 
     fun reportRtkStartBlocked(message: String) {
         rtkController.reportRtkStartBlocked(message)

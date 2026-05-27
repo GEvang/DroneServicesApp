@@ -43,7 +43,8 @@ internal class DroneRtkController(
         RtkForwardingService(
             context,
             mavlinkClient,
-            socketFactoryProvider = { rtkInternetMonitor.currentInternetSocketFactory() }
+            socketFactoryProvider = { rtkInternetMonitor.currentInternetSocketFactory() },
+            networkProvider = { rtkInternetMonitor.currentInternetNetwork() }
         )
     }
 
@@ -98,6 +99,8 @@ internal class DroneRtkController(
     }
 
     fun currentRtkSocketFactory() = rtkInternetMonitor.currentInternetSocketFactory()
+
+    fun currentRtkInternetNetwork() = rtkInternetMonitor.currentInternetNetwork()
 
     fun reportRtkStartBlocked(message: String) {
         Log.w(TAG, "startRtkForwarding blocked: $message")

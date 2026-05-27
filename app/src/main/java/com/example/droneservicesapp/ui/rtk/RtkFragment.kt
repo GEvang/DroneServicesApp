@@ -127,7 +127,8 @@ class RtkFragment : Fragment() {
             val result = try {
                 ntripClient.fetchSourceTable(
                     config,
-                    socketFactory = droneViewModel.currentRtkSocketFactory()
+                    socketFactory = droneViewModel.currentRtkSocketFactory(),
+                    network = droneViewModel.currentRtkInternetNetwork()
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "fetchMountpoints failed unexpectedly", e)
@@ -150,7 +151,8 @@ class RtkFragment : Fragment() {
             val result = try {
                 ntripClient.testConnection(
                     config,
-                    socketFactory = droneViewModel.currentRtkSocketFactory()
+                    socketFactory = droneViewModel.currentRtkSocketFactory(),
+                    network = droneViewModel.currentRtkInternetNetwork()
                 )
             } catch (e: Exception) {
                 Log.e(TAG, "testConnection failed unexpectedly", e)

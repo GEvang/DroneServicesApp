@@ -9,7 +9,11 @@ interface MavTransportFactory {
 class DefaultMavTransportFactory : MavTransportFactory {
     override fun create(config: MavlinkConfig): MavTransport {
         return when (config.interfaceType) {
-            MavlinkConfig.InterfaceType.UDP -> UdpTransport(config.port, config.targetHost)
+            MavlinkConfig.InterfaceType.UDP -> UdpTransport(
+                listenPort = config.port,
+                targetHost = config.targetHost,
+                network = config.network
+            )
             else -> throw IllegalArgumentException("Not implemented yet: ${config.interfaceType}")
         }
     }

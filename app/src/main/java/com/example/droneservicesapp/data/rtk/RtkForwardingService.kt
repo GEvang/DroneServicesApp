@@ -2,6 +2,7 @@ package com.example.droneservicesapp.data.rtk
 
 import android.location.Location
 import android.content.Context
+import android.net.Network
 import android.os.PowerManager
 import android.util.Log
 import com.example.droneservicesapp.data.mavlink.MavlinkClient
@@ -24,7 +25,8 @@ class RtkForwardingService(
     context: Context,
     private val mavlinkClient: MavlinkClient,
     private val ntripClientFactory: () -> NtripClient = { NtripClient() },
-    private val socketFactoryProvider: () -> SocketFactory? = { null }
+    private val socketFactoryProvider: () -> SocketFactory? = { null },
+    private val networkProvider: () -> Network? = { null }
 ) {
     companion object {
         private const val TAG = "RtkForwarding"
@@ -175,6 +177,7 @@ class RtkForwardingService(
                                 updateState(RtkForwardingState.Streaming)
                             },
                             socketFactory = socketFactoryProvider(),
+                            network = networkProvider(),
                             onBytesReceived = { bytes ->
                                 lastRtcmByteAtMs = System.currentTimeMillis()
                                 totalRawChunksReceived++

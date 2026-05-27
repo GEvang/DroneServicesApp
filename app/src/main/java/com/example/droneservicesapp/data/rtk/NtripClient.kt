@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.data.rtk
 
 import android.location.Location
+import android.net.Network
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
@@ -38,19 +39,21 @@ class NtripClient {
 
     suspend fun fetchSourceTable(
         config: RtkConfig,
-        socketFactory: SocketFactory? = null
+        socketFactory: SocketFactory? = null,
+        network: Network? = null
     ): NtripResult = withContext(Dispatchers.IO) {
         if (!RtkValidator.isValidBaseConfig(config)) {
             return@withContext NtripResult.InvalidConfig("Base RTK settings are incomplete.")
         }
 
-        val response = executeRequest(path = "", config = config, readToEnd = true, socketFactory = socketFactory)
+        val response = executeRequest(path = "", config = config, readToEnd = true, socketFactory = socketFactory, network = network)
         mapSourceTableResponse(response)
     }
 
     suspend fun testConnection(
         config: RtkConfig,
-        socketFactory: SocketFactory? = null
+        socketFactory: SocketFactory? = null,
+        network: Network? = null
     ): NtripResult = withContext(Dispatchers.IO) {
         if (!RtkValidator.isValidConfig(config)) {
             return@withContext NtripResult.InvalidConfig("RTK settings are incomplete.")
@@ -60,7 +63,8 @@ class NtripClient {
             path = config.mountpoint.trim().trimStart('/'),
             config = config,
             readToEnd = false,
-            socketFactory = socketFactory
+            socketFactory = socketFactory,
+            network = network
         )
         mapConnectionResponse(response)
     }
@@ -71,6 +75,7 @@ class NtripClient {
         ggaDataProvider: () -> NmeaGgaBuilder.GgaData? = { null },
         onStreamStarted: () -> Unit = {},
         socketFactory: SocketFactory? = null,
+        network: Network? = null,
         onBytesReceived: (ByteArray) -> Unit
     ): NtripResult = withContext(Dispatchers.IO) {
         coroutineScope {
@@ -98,11 +103,11 @@ class NtripClient {
             try {
                 socket = createSocketWithFallback(socketFactory, "streamCorrections")
                 val host = config.ip.trim()
-                Log.i(TAG, "ntrip: dns resolve start host=$host attempt=$attemptNumber")
-                val addresses = InetAddress.getAllByName(host)
-                Log.i(TAG, "ntrip: dns resolved host=$host addresses=${addresses.joinToString(prefix = "[", postfix = "]") { it.hostAddress.orEmpty() }}")
+                Log.i(TAG, "ntrip: dns resolve start host=$host attempt=$attemptNumber network=${network?.networkHandle ?: "<default>"}")
+                val addresses = resolveHost(host, network)
+                Log.i(TAG, "ntrip: dns resolved host=$host network=${network?.networkHandle ?: "<default>"} addresses=${addresses.joinToString(prefix = "[", postfix = "]") { it.hostAddress.orEmpty() }}")
                 Log.i(TAG, "ntrip: socket create attempt=$attemptNumber")
-                Log.i(TAG, "ntrip: socket connect start host=$host port=${config.port} timeoutConnectMs=$CONNECT_TIMEOUT_MS")
+                Log.i(TAG, "ntrip: socket connect start host=$host port=${config.port} timeoutConnectMs=$CONNECT_TIMEOUT_MS network=${network?.networkHandle ?: "<default>"}")
                 socket.connect(InetSocketAddress(addresses.first(), config.port), CONNECT_TIMEOUT_MS)
                 socket.soTimeout = STREAM_READ_TIMEOUT_MS
                 Log.i(TAG, "ntrip: socket connected timeoutReadMs=$STREAM_READ_TIMEOUT_MS")
@@ -245,16 +250,19 @@ class NtripClient {
         path: String,
         config: RtkConfig,
         readToEnd: Boolean,
-        socketFactory: SocketFactory? = null
+        socketFactory: SocketFactory? = null,
+        network: Network? = null
     ): RawResponse {
         var socket: Socket? = null
         return try {
             socket = createSocketWithFallback(socketFactory, "executeRequest")
             Log.i(
                 TAG,
-                "request open host=${config.ip.trim()} port=${config.port} path=/${path.trimStart('/')} usernamePresent=${config.username.isNotBlank()} passwordPresent=${config.password.isNotBlank()}"
+                "request open host=${config.ip.trim()} port=${config.port} path=/${path.trimStart('/')} usernamePresent=${config.username.isNotBlank()} passwordPresent=${config.password.isNotBlank()} network=${network?.networkHandle ?: "<default>"}"
             )
-            socket.connect(InetSocketAddress(config.ip.trim(), config.port), CONNECT_TIMEOUT_MS)
+            val host = config.ip.trim()
+            val addresses = resolveHost(host, network)
+            socket.connect(InetSocketAddress(addresses.first(), config.port), CONNECT_TIMEOUT_MS)
             socket.soTimeout = READ_TIMEOUT_MS
 
             val requestPath = if (path.isBlank()) "/" else "/$path"
@@ -287,6 +295,11 @@ class NtripClient {
         }
     }
 
+    private fun resolveHost(host: String, network: Network?): Array<InetAddress> {
+        return network?.getAllByName(host)?.takeIf { it.isNotEmpty() }
+            ?: InetAddress.getAllByName(host)
+    }
+
     private fun createSocketWithFallback(
         socketFactory: SocketFactory?,
         operation: String
@@ -294,7 +307,7 @@ class NtripClient {
         if (socketFactory == null) return Socket()
 
         return try {
-            (socketFactory.createSocket() as? Socket) ?: Socket()
+            socketFactory.createSocket()
         } catch (e: Exception) {
             Log.w(
                 TAG,
