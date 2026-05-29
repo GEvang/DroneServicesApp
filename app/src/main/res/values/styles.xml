@@ -81,7 +81,10 @@
         <item name="android:textSize">14sp</item>
     </style>
 
-    <style name="TextAppearance.DroneServices.NavItem" parent="TextAppearance.DroneServices.Caption">
+    <style name="TextAppearance.DroneServices.NavItem" parent="">
+        <item name="android:fontFamily">@font/inter</item>
+        <item name="fontFamily">@font/inter</item>
+        <item name="android:textColor">@color/drawer_nav_item_text</item>
         <item name="android:textSize">13sp</item>
     </style>
 

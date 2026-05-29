@@ -50,7 +50,7 @@ public class LocaleUtils {
 
     public static String getSelectedLanguageId() {
         return Objects.requireNonNull(getDefaultSharedPreference())
-                .getString(Application.getInstance().getApplicationContext().getString(R.string.language_pref), "en");
+                .getString(Application.getInstance().getApplicationContext().getString(R.string.language_pref), GREEK);
     }
 
     public static void setSelectedLanguageId(String id) {

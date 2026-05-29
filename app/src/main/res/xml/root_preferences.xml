@@ -32,7 +32,7 @@
         app:key="languageCategory">
 
         <ListPreference
-            app:defaultValue="el-rGR"
+            app:defaultValue="el"
             app:entries="@array/language_entries"
             app:entryValues="@array/language_values"
             app:key="@string/language_pref"
