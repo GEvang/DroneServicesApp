@@ -38,6 +38,49 @@
     <dimen name="ds_shell_floating_nav_margin">24dp</dimen>
     <dimen name="ds_overlay_horizontal_margin">24dp</dimen>
 
+    <!-- Phone map screen only -->
+    <dimen name="phone_map_hud_margin_horizontal">8dp</dimen>
+    <dimen name="phone_map_hud_margin_top">8dp</dimen>
+    <dimen name="phone_map_hud_margin_bottom">4dp</dimen>
+    <dimen name="phone_map_hud_padding_horizontal">10dp</dimen>
+    <dimen name="phone_map_hud_padding_vertical">8dp</dimen>
+    <dimen name="phone_map_hud_icon_size">18dp</dimen>
+    <dimen name="phone_map_hud_status_badge_padding_horizontal">10dp</dimen>
+    <dimen name="phone_map_hud_text_size">11sp</dimen>
+    <dimen name="phone_map_hud_text_size_small">10sp</dimen>
+    <dimen name="phone_map_hud_status_text_size">13sp</dimen>
+
+    <dimen name="phone_map_panel_left_width">264dp</dimen>
+    <dimen name="phone_map_panel_right_width">252dp</dimen>
+    <dimen name="phone_map_panel_max_height">300dp</dimen>
+    <dimen name="phone_map_panel_label_text_size">11sp</dimen>
+    <dimen name="phone_map_panel_value_text_size">11sp</dimen>
+    <dimen name="phone_map_panel_title_text_size">13sp</dimen>
+    <dimen name="phone_map_panel_tab_height">36dp</dimen>
+    <dimen name="phone_map_panel_button_height">36dp</dimen>
+    <dimen name="phone_map_panel_button_height_tall">40dp</dimen>
+    <dimen name="phone_map_panel_slider_row_height">38dp</dimen>
+    <dimen name="phone_map_panel_slider_frame_small">34dp</dimen>
+    <dimen name="phone_map_panel_slider_frame_large">40dp</dimen>
+
+    <dimen name="phone_map_bottom_dock_icon_size">36dp</dimen>
+    <dimen name="phone_map_bottom_dock_icon_padding">8dp</dimen>
+    <dimen name="phone_map_bottom_dock_button_height">40dp</dimen>
+    <dimen name="phone_map_bottom_dock_primary_min_width">104dp</dimen>
+    <dimen name="phone_map_bottom_dock_padding_horizontal">6dp</dimen>
+    <dimen name="phone_map_bottom_dock_padding_vertical">4dp</dimen>
+    <dimen name="phone_map_bottom_dock_item_spacing">4dp</dimen>
+    <dimen name="phone_map_bottom_dock_margin_bottom">8dp</dimen>
+    <dimen name="phone_map_bottom_dock_text_size">13sp</dimen>
+
+    <dimen name="phone_map_draw_button_height">42dp</dimen>
+    <dimen name="phone_map_draw_button_min_width">112dp</dimen>
+    <dimen name="phone_map_draw_button_text_size">14sp</dimen>
+
+    <dimen name="phone_map_overlay_card_width">320dp</dimen>
+    <dimen name="phone_map_overlay_card_margin">12dp</dimen>
+    <dimen name="phone_map_live_geo_text_size">13sp</dimen>
+
     <!-- Overriding sizes of the FAB -->
 
 

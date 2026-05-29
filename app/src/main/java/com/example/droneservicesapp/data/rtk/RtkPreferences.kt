@@ -34,6 +34,12 @@ class RtkPreferences(
             username = preferences.getString(KEY_USERNAME, "").orEmpty(),
             password = preferences.getString(KEY_PASSWORD, "").orEmpty(),
             mountpoint = preferences.getString(KEY_MOUNTPOINT, "").orEmpty(),
+            mountpointLatitude = preferences.getFloat(KEY_MOUNTPOINT_LATITUDE, INVALID_COORDINATE_FLOAT)
+                .takeIf { !it.isNaN() }
+                ?.toDouble(),
+            mountpointLongitude = preferences.getFloat(KEY_MOUNTPOINT_LONGITUDE, INVALID_COORDINATE_FLOAT)
+                .takeIf { !it.isNaN() }
+                ?.toDouble(),
             lastFetchSucceeded = preferences.getBoolean(KEY_LAST_FETCH_SUCCEEDED, false),
             lastStatusMessage = preferences.getString(KEY_LAST_STATUS_MESSAGE, "").orEmpty()
         )
@@ -51,7 +57,26 @@ class RtkPreferences(
     }
 
     fun saveMountpoint(mountpoint: String) {
-        preferences.edit().putString(KEY_MOUNTPOINT, mountpoint.trim()).apply()
+        preferences.edit()
+            .putString(KEY_MOUNTPOINT, mountpoint.trim())
+            .remove(KEY_MOUNTPOINT_LATITUDE)
+            .remove(KEY_MOUNTPOINT_LONGITUDE)
+            .apply()
+    }
+
+    fun saveMountpoint(mountpoint: RtkMountpoint) {
+        preferences.edit()
+            .putString(KEY_MOUNTPOINT, mountpoint.name.trim())
+            .apply {
+                if (mountpoint.hasCoordinates) {
+                    putFloat(KEY_MOUNTPOINT_LATITUDE, mountpoint.latitude!!.toFloat())
+                    putFloat(KEY_MOUNTPOINT_LONGITUDE, mountpoint.longitude!!.toFloat())
+                } else {
+                    remove(KEY_MOUNTPOINT_LATITUDE)
+                    remove(KEY_MOUNTPOINT_LONGITUDE)
+                }
+            }
+            .apply()
     }
 
     fun saveUsername(username: String) {
@@ -108,6 +133,8 @@ class RtkPreferences(
         private const val KEY_ENABLED_LEGACY = "rtk_enabled"
         private const val KEY_PORT = "rtk_port"
         private const val KEY_MOUNTPOINT = "rtk_mountpoint"
+        private const val KEY_MOUNTPOINT_LATITUDE = "rtk_mountpoint_latitude"
+        private const val KEY_MOUNTPOINT_LONGITUDE = "rtk_mountpoint_longitude"
         private const val KEY_USERNAME = "rtk_username"
         private const val KEY_PASSWORD = "rtk_password"
         private const val KEY_TLS_LEGACY = "rtk_tls"
@@ -116,6 +143,7 @@ class RtkPreferences(
         private const val KEY_GPS_FIX_TYPE = "rtk_gps_fix_type"
         private const val KEY_GPS_SATELLITES_VISIBLE = "rtk_gps_satellites_visible"
         private const val KEY_GPS_HDOP = "rtk_gps_hdop"
+        private const val INVALID_COORDINATE_FLOAT = Float.NaN
     }
 
     data class GpsStatus(

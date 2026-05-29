@@ -35,14 +35,24 @@ class MavlinkConnectionManager(
                 return
             }
 
-            transport = transportFactory.create(config).also { it.start() }
+            try {
+                transport = transportFactory.create(config).also { it.start() }
 
-            val t = transport!!
-            Log.i(TAG, "session recreated via start transport=${t.javaClass.simpleName}")
-            session = MavlinkSession(t.input, t.output)
-            session?.start()
+                val t = transport!!
+                Log.i(TAG, "session recreated via start transport=${t.javaClass.simpleName}")
+                session = MavlinkSession(t.input, t.output)
+                session?.start()
 
-            Log.i(TAG, "Started with $config")
+                Log.i(TAG, "Started with $config")
+            } catch (error: Exception) {
+                Log.e(TAG, "start failed; cleaning up partial MAVLink session", error)
+                session?.stop()
+                session = null
+                transport?.stop()
+                transport = null
+                running.set(false)
+                throw error
+            }
         }
     }
 
@@ -86,14 +96,24 @@ class MavlinkConnectionManager(
                 return
             }
 
-            transport = transportFactory.create(config).also { it.start() }
+            try {
+                transport = transportFactory.create(config).also { it.start() }
 
-            val t = transport!!
-            Log.i(TAG, "session recreated via restart transport=${t.javaClass.simpleName}")
-            session = MavlinkSession(t.input, t.output)
-            session?.start()
+                val t = transport!!
+                Log.i(TAG, "session recreated via restart transport=${t.javaClass.simpleName}")
+                session = MavlinkSession(t.input, t.output)
+                session?.start()
 
-            Log.i(TAG, "Started with $config")
+                Log.i(TAG, "Started with $config")
+            } catch (error: Exception) {
+                Log.e(TAG, "restart failed; cleaning up partial MAVLink session", error)
+                session?.stop()
+                session = null
+                transport?.stop()
+                transport = null
+                running.set(false)
+                throw error
+            }
         }
     }
 

@@ -11,6 +11,7 @@ import com.example.droneservicesapp.data.rtk.RtkForwardingService
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.rtk.RtkInternetMonitor
 import com.example.droneservicesapp.data.rtk.RtkKeepAliveForegroundService
+import com.example.droneservicesapp.data.rtk.RtkMountpoint
 import com.example.droneservicesapp.data.rtk.RtkPreferences
 import com.example.droneservicesapp.data.rtk.RtkValidator
 import kotlinx.coroutines.CoroutineScope
@@ -22,6 +23,7 @@ internal class DroneRtkController(
     private val context: Context,
     private val mavlinkClient: MavlinkClient,
     private val rtkForwardingState: MutableLiveData<RtkForwardingState>,
+    private val selectedRtkMountpoint: MutableLiveData<RtkMountpoint?>,
     private val rtkGpsDebugStatus: MutableLiveData<String>,
     private val isConnected: () -> Boolean,
     private val targetSystemId: () -> Int,
@@ -41,7 +43,8 @@ internal class DroneRtkController(
         RtkForwardingService(
             context,
             mavlinkClient,
-            socketFactoryProvider = { rtkInternetMonitor.currentInternetSocketFactory() }
+            socketFactoryProvider = { rtkInternetMonitor.currentInternetSocketFactory() },
+            networkProvider = { rtkInternetMonitor.currentInternetNetwork() }
         )
     }
 
@@ -58,6 +61,7 @@ internal class DroneRtkController(
 
     fun bind(scope: CoroutineScope) {
         internetAvailable = rtkInternetMonitor.isInternetAvailable.value
+        selectedRtkMountpoint.postValue(currentRtkConfig().selectedMountpoint)
 
         scope.launch {
             rtkForwardingService.state.collect { state ->
@@ -86,6 +90,7 @@ internal class DroneRtkController(
 
     fun onRtkConfigurationChanged(forceStart: Boolean = false) {
         val config = currentRtkConfig()
+        selectedRtkMountpoint.postValue(config.selectedMountpoint)
         Log.i(
             TAG,
             "onRtkConfigurationChanged mountpoint=${config.mountpoint.trim()} desired=${isRtkDesired(config)} baseValid=${RtkValidator.isValidBaseConfig(config)}"
@@ -94,6 +99,8 @@ internal class DroneRtkController(
     }
 
     fun currentRtkSocketFactory() = rtkInternetMonitor.currentInternetSocketFactory()
+
+    fun currentRtkInternetNetwork() = rtkInternetMonitor.currentInternetNetwork()
 
     fun reportRtkStartBlocked(message: String) {
         Log.w(TAG, "startRtkForwarding blocked: $message")
@@ -207,6 +214,7 @@ internal class DroneRtkController(
 
     private fun ensureRtkForwardingState(forceStart: Boolean = false) {
         val config = currentRtkConfig()
+        selectedRtkMountpoint.postValue(config.selectedMountpoint)
         val desired = isRtkDesired(config)
         val connected = isConnected()
         val targetReady = targetSystemId() >= 0 && targetComponentId() >= 0

@@ -1,5 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <color name="app_light_primary">#111111</color>
+    <color name="app_light_primary_dark">#000000</color>
+    <color name="app_light_accent">#00A86B</color>
+    <color name="app_light_background">#FFFFFF</color>
+    <color name="app_light_surface">#FFFFFF</color>
+    <color name="app_light_text_primary">#212121</color>
+    <color name="app_light_text_secondary">#555555</color>
+
     <!-- Base dark -->
     <color name="bg">#0B0B0D</color>
     <color name="surface">#121216</color>
@@ -53,4 +61,12 @@
     <color name="ds_color_shell_selected_surface">#F2F2F3</color>
     <color name="ds_color_shell_selected_content">#111315</color>
     <color name="ds_color_shell_unselected">#C9D0D6</color>
+
+    <color name="gps_no_fix_red">#FF5B5B</color>
+    <color name="gps_2d_orange">#F2994A</color>
+    <color name="gps_3d_neutral">#F2F2F3</color>
+    <color name="gps_dgps_blue">#4DD4FF</color>
+    <color name="gps_rtk_float_amber">#FFD166</color>
+    <color name="gps_rtk_fixed_green">#46F29C</color>
+    <color name="gps_unknown_gray">#9EA4AA</color>
 </resources>

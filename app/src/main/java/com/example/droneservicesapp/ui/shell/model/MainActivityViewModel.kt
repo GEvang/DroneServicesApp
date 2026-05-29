@@ -4,6 +4,10 @@ import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.core.util.Event
+import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
+import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 import com.example.droneservicesapp.domain.model.MissionArea
 import com.example.droneservicesapp.domain.model.MissionParams
 import com.google.android.gms.maps.model.LatLng
@@ -89,6 +93,34 @@ class MainActivityViewModel : ViewModel() {
         MutableLiveData(emptyList())
     }
 
+    val geoAwarenessLayerVisible: MutableLiveData<Boolean> by lazy {
+        MutableLiveData(true)
+    }
+
+    val geoZoneDatasetInfo: MutableLiveData<GeoZoneDatasetInfo?> by lazy {
+        MutableLiveData(null)
+    }
+
+    val geoAwarenessHealth: MutableLiveData<GeoAwarenessHealth?> by lazy {
+        MutableLiveData(null)
+    }
+
+    val geoZoneValidationResult: MutableLiveData<GeoZoneValidationResult?> by lazy {
+        MutableLiveData(null)
+    }
+
+    val geoZoneDatasetRecords: MutableLiveData<List<GeoZoneDatasetRecord>> by lazy {
+        MutableLiveData(emptyList())
+    }
+
+    val geoZoneImportedActive: MutableLiveData<Boolean> by lazy {
+        MutableLiveData(false)
+    }
+
+    val geoZoneReloadToken: MutableLiveData<Long> by lazy {
+        MutableLiveData(0L)
+    }
+
     fun setPolygonVertices(vertices: List<LatLng>) {
         val a = missionArea.value ?: return
         a.vertices.clear()
@@ -104,5 +136,9 @@ class MainActivityViewModel : ViewModel() {
 
     fun sendAction(action: MapAction) {
         mapAction.postValue(Event(action))
+    }
+
+    fun notifyGeoZoneDatasetReloaded() {
+        geoZoneReloadToken.postValue(System.currentTimeMillis())
     }
 }

@@ -1,0 +1,407 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ds_color_background"
+    android:fillViewport="true"
+    android:scrollbars="none"
+    tools:context=".ui.geoawareness.GeoAwarenessFragment">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/ds_space_lg"
+        android:paddingTop="@dimen/ds_space_lg"
+        android:paddingEnd="@dimen/ds_space_lg"
+        android:paddingBottom="@dimen/ds_space_xl">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_ds_overlay_card"
+            android:orientation="vertical"
+            android:padding="@dimen/ds_space_lg">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/geo_awareness_title"
+                style="@style/TextAppearance.DroneServices.SectionTitle" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_xs"
+                android:text="@string/geo_awareness_subtitle"
+                style="@style/TextAppearance.DroneServices.MapPanelSubtitle" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_health_section"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:orientation="vertical"
+                android:padding="@dimen/ds_space_md">
+
+                <TextView
+                    android:id="@+id/geo_awareness_health_chip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/inter"
+                    android:paddingLeft="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingRight="14dp"
+                    android:paddingBottom="8dp"
+                    android:text="Geo-awareness status: UNKNOWN"
+                    android:textColor="@android:color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/geo_awareness_health_message"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_sm"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_live_status"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <TextView
+                android:id="@+id/geo_awareness_live_status_chip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:fontFamily="@font/inter"
+                android:paddingLeft="14dp"
+                android:paddingTop="8dp"
+                android:paddingRight="14dp"
+                android:paddingBottom="8dp"
+                android:text="LIVE GEO: NO POS"
+                android:textColor="@android:color/white"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_overlay_section"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:padding="@dimen/ds_space_md">
+
+                <TextView
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/geo_awareness_show_zones"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <androidx.appcompat.widget.SwitchCompat
+                    android:id="@+id/geo_awareness_overlay_switch"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_dataset_source_section"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:orientation="vertical"
+                android:padding="@dimen/ds_space_md">
+
+                <TextView
+                    android:id="@+id/geo_awareness_current_source"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Current source: No dataset loaded"
+                    style="@style/TextAppearance.DroneServices.StatusValue" />
+
+                <TextView
+                    android:id="@+id/geo_awareness_loaded_datasets_summary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_xs"
+                    android:text="Loaded datasets: 0"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <TextView
+                    android:id="@+id/geo_awareness_total_zones_summary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_xs"
+                    android:text="Total zones: 0"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <TextView
+                    android:id="@+id/geo_awareness_total_validation_summary"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_xs"
+                    android:text="Total validation: Errors 0 | Warnings 0"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_md"
+                    android:orientation="vertical">
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal">
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/geo_awareness_import_dataset_button"
+                            style="@style/Widget.DroneServices.Button.MapLight"
+                            android:layout_width="wrap_content"
+                            android:layout_height="44dp"
+                            android:text="@string/geo_awareness_import_dataset" />
+
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/geo_awareness_reset_dataset_button"
+                            style="@style/Widget.DroneServices.Button.MapDark"
+                            android:layout_width="wrap_content"
+                            android:layout_height="44dp"
+                            android:layout_marginStart="@dimen/ds_space_sm"
+                            android:text="@string/geo_awareness_reset_dataset" />
+                    </LinearLayout>
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/geo_awareness_refresh_status_button"
+                        style="@style/Widget.DroneServices.Button.MapLight"
+                        android:layout_width="wrap_content"
+                        android:layout_height="44dp"
+                        android:layout_marginTop="@dimen/ds_space_sm"
+                        android:text="@string/geo_awareness_refresh_status" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_loaded_datasets_section"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:id="@+id/geo_awareness_dataset_records_container"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:orientation="vertical"
+                android:padding="@dimen/ds_space_md" />
+
+            <TextView
+                android:id="@+id/geo_awareness_notice_section_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_validation_section"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:orientation="vertical"
+                android:padding="@dimen/ds_space_md">
+
+                <TextView
+                    android:id="@+id/geo_awareness_validation_chip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:fontFamily="@font/inter"
+                    android:paddingLeft="14dp"
+                    android:paddingTop="8dp"
+                    android:paddingRight="14dp"
+                    android:paddingBottom="8dp"
+                    android:text="Validation: OK"
+                    android:textColor="@android:color/white"
+                    android:textSize="13sp"
+                    android:textStyle="bold" />
+
+                <TextView
+                    android:id="@+id/geo_awareness_validation_counts"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_sm"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/geo_awareness_validation_details_button"
+                    style="@style/Widget.DroneServices.Button.MapLight"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="@dimen/ds_space_md"
+                    android:text="@string/geo_awareness_view_validation_details" />
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/geo_awareness_flight_logs_section_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_flight_logs_section"
+                android:visibility="gone"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:id="@+id/geo_awareness_flight_logs_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:orientation="vertical"
+                android:padding="@dimen/ds_space_md"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:id="@+id/geo_awareness_flight_log_container"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:orientation="vertical" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_md"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/geo_awareness_view_detailed_logs_button"
+                        style="@style/Widget.DroneServices.Button.MapLight"
+                        android:layout_width="wrap_content"
+                        android:layout_height="44dp"
+                        android:text="@string/geo_awareness_view_detailed_logs" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/geo_awareness_export_evidence_button"
+                        style="@style/Widget.DroneServices.Button.MapDark"
+                        android:layout_width="wrap_content"
+                        android:layout_height="44dp"
+                        android:layout_marginStart="@dimen/ds_space_sm"
+                        android:text="@string/geo_awareness_export_evidence_package" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/geo_awareness_logs_section_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_logs_section"
+                android:visibility="gone"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:id="@+id/geo_awareness_logs_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:orientation="vertical"
+                android:padding="@dimen/ds_space_md"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/geo_awareness_log_count"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Geo-awareness events recorded: 0"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_md"
+                    android:orientation="horizontal">
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/geo_awareness_export_logs_button"
+                        style="@style/Widget.DroneServices.Button.MapLight"
+                        android:layout_width="wrap_content"
+                        android:layout_height="44dp"
+                        android:text="@string/geo_awareness_export_logs" />
+
+                    <com.google.android.material.button.MaterialButton
+                        android:id="@+id/geo_awareness_clear_logs_button"
+                        style="@style/Widget.DroneServices.Button.MapDark"
+                        android:layout_width="wrap_content"
+                        android:layout_height="44dp"
+                        android:layout_marginStart="@dimen/ds_space_sm"
+                        android:text="@string/geo_awareness_clear_logs" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <TextView
+                android:id="@+id/geo_awareness_internal_section_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:text="@string/geo_awareness_internal_section"
+                android:visibility="gone"
+                style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+            <LinearLayout
+                android:id="@+id/geo_awareness_internal_section"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:orientation="vertical"
+                android:padding="@dimen/ds_space_md"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/geo_awareness_internal_logs_notice"
+                    style="@style/TextAppearance.DroneServices.PanelLabel" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/geo_awareness_export_encrypted_incidents_button"
+                    style="@style/Widget.DroneServices.Button.MapLight"
+                    android:layout_width="wrap_content"
+                    android:layout_height="44dp"
+                    android:layout_marginTop="@dimen/ds_space_md"
+                    android:text="@string/geo_awareness_export_encrypted_incidents" />
+            </LinearLayout>
+
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

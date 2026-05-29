@@ -20,13 +20,19 @@
             app:title="@string/drone_tcpudp_port_pref"
             app:useSimpleSummaryProvider="true" />
 
+        <EditTextPreference
+            app:defaultValue=""
+            app:key="@string/mavlink_target_host_pref"
+            app:title="@string/mavlink_target_host_title"
+            app:useSimpleSummaryProvider="true" />
+
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/locales_categ_pref"
         app:key="languageCategory">
 
         <ListPreference
-            app:defaultValue="el-rGR"
+            app:defaultValue="el"
             app:entries="@array/language_entries"
             app:entryValues="@array/language_values"
             app:key="@string/language_pref"

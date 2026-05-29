@@ -1,7 +1,7 @@
 package com.example.droneservicesapp.data.rtk
 
 sealed class NtripResult {
-    data class SourceTableSuccess(val mountpoints: List<String>) : NtripResult()
+    data class SourceTableSuccess(val mountpoints: List<RtkMountpoint>) : NtripResult()
     object ConnectionSuccess : NtripResult()
     object AuthFailure : NtripResult()
     object MountpointNotFound : NtripResult()

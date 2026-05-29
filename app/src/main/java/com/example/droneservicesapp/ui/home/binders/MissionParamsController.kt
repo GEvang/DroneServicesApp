@@ -12,6 +12,7 @@ class MissionParamsController(
     lifecycleOwner: LifecycleOwner,
     activityViewModel: MainActivityViewModel,
     droneViewModel: DroneViewModel,
+    beforeUploadGuard: (((onAllowed: () -> Unit) -> Unit))? = null,
 ) {
     private var isBound = false
 
@@ -33,7 +34,8 @@ class MissionParamsController(
         views = views,
         activityViewModel = activityViewModel,
         droneViewModel = droneViewModel,
-        preferencesBridge = preferencesBridge
+        preferencesBridge = preferencesBridge,
+        beforeUploadGuard = beforeUploadGuard
     )
 
     fun show() {

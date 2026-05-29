@@ -5,12 +5,16 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
+import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import javax.net.SocketFactory
 
 class RtkInternetMonitor(context: Context) {
+    private companion object {
+        private const val TAG = "RtkInternetMonitor"
+    }
 
     private val connectivityManager =
         context.applicationContext.getSystemService(ConnectivityManager::class.java)
@@ -44,7 +48,16 @@ class RtkInternetMonitor(context: Context) {
     }
 
     fun currentInternetSocketFactory(): SocketFactory? {
-        return preferredInternetNetwork()?.socketFactory
+        return preferredInternetNetwork()?.let { network ->
+            Log.i(TAG, "selected internet socket factory network=${network.networkHandle}")
+            network.socketFactory
+        }
+    }
+
+    fun currentInternetNetwork(): Network? {
+        return preferredInternetNetwork()?.also { network ->
+            Log.i(TAG, "selected internet network=${network.networkHandle}")
+        }
     }
 
     private fun currentInternetAvailable(): Boolean {

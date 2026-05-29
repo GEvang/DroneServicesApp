@@ -3,6 +3,7 @@ package com.example.droneservicesapp.ui.home.components
 import android.Manifest
 import android.content.Context
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.example.droneservicesapp.R
@@ -28,11 +29,16 @@ class OsmdroidMapController(
     companion object {
         private const val POSITION_EPSILON = 1e-7
         private const val HEADING_EPSILON_DEGREES = 0.5f
+        private const val MIN_VALID_ABS_COORDINATE = 1e-4
+        private const val MAX_FLIGHT_TRACE_POINTS = 5000
     }
 
     private var myLocationOverlay: MyLocationNewOverlay? = null
     private var droneMarker: Marker? = null
     private var surveyPolyline: Polyline? = null
+    private var homeMarker: Marker? = null
+    private var flightTracePolyline: Polyline? = null
+    private val flightTracePoints = mutableListOf<GeoPoint>()
 
     fun initOverlays() {
         myLocationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(context), mapView).apply {
@@ -86,7 +92,7 @@ class OsmdroidMapController(
         }
 
         val point = myLocationOverlay?.myLocation
-        return if (point != null) {
+        return if (point != null && isValidMapPoint(point.latitude, point.longitude)) {
             mapView.controller.animateTo(point)
             true
         } else {
@@ -110,6 +116,10 @@ class OsmdroidMapController(
     }
 
     fun updateDronePosition(latitude: Double, longitude: Double) {
+        if (!isValidMapPoint(latitude, longitude)) {
+            return
+        }
+
         val changed = droneMarker?.let { marker ->
             val current = marker.position
             val positionChanged =
@@ -146,7 +156,7 @@ class OsmdroidMapController(
 
     fun centerOnDrone(): Boolean {
         val marker = droneMarker
-        return if (marker != null && marker.isEnabled) {
+        return if (marker != null && marker.isEnabled && isValidMapPoint(marker.position.latitude, marker.position.longitude)) {
             mapView.controller.animateTo(marker.position)
             true
         } else {
@@ -156,6 +166,45 @@ class OsmdroidMapController(
     }
 
     fun hasDronePosition(): Boolean = droneMarker?.isEnabled == true
+
+    fun setHomeMarker(latitude: Double, longitude: Double): Boolean {
+        if (homeMarker != null || !isValidMapPoint(latitude, longitude)) {
+            return false
+        }
+
+        homeMarker = Marker(mapView).apply {
+            position = GeoPoint(latitude, longitude)
+            title = "Home / Takeoff"
+            snippet = "Drone takeoff position"
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+            icon = ContextCompat.getDrawable(context, R.drawable.ic_home_takeoff_marker)
+        }
+        addOverlayBelowDrone(homeMarker!!)
+        requestMapRedraw()
+        return true
+    }
+
+    fun appendFlightTracePoint(latitude: Double, longitude: Double) {
+        if (!isValidMapPoint(latitude, longitude)) {
+            return
+        }
+        ensureFlightTracePolyline()
+        flightTracePoints += GeoPoint(latitude, longitude)
+        if (flightTracePoints.size > MAX_FLIGHT_TRACE_POINTS) {
+            flightTracePoints.removeAt(0)
+        }
+        flightTracePolyline?.setPoints(flightTracePoints)
+        requestMapRedraw()
+    }
+
+    fun clearFlightTraceAndHome() {
+        homeMarker?.let { mapView.overlays.remove(it) }
+        homeMarker = null
+        flightTracePolyline?.let { mapView.overlays.remove(it) }
+        flightTracePolyline = null
+        flightTracePoints.clear()
+        requestMapRedraw()
+    }
 
     fun setSurveyPath(path: List<LatLng>) {
         if (surveyPolyline == null) {
@@ -178,5 +227,36 @@ class OsmdroidMapController(
 
     private fun requestMapRedraw() {
         mapView.postInvalidateOnAnimation()
+    }
+
+    private fun ensureFlightTracePolyline() {
+        if (flightTracePolyline != null) return
+        flightTracePolyline = Polyline(mapView).apply {
+            outlinePaint.color = Color.RED
+            outlinePaint.strokeWidth = 5f
+        }
+        addOverlayBelowDrone(flightTracePolyline!!)
+    }
+
+    private fun addOverlayBelowDrone(overlay: org.osmdroid.views.overlay.Overlay) {
+        val droneIndex = droneMarker?.let { mapView.overlays.indexOf(it) } ?: -1
+        if (droneIndex >= 0) {
+            mapView.overlays.add(droneIndex, overlay)
+        } else {
+            mapView.overlays.add(overlay)
+        }
+    }
+
+    private fun isValidMapPoint(latitude: Double, longitude: Double): Boolean {
+        if (!latitude.isFinite() || !longitude.isFinite()) {
+            return false
+        }
+
+        if (latitude !in -90.0..90.0 || longitude !in -180.0..180.0) {
+            return false
+        }
+
+        return kotlin.math.abs(latitude) > MIN_VALID_ABS_COORDINATE ||
+            kotlin.math.abs(longitude) > MIN_VALID_ABS_COORDINATE
     }
 }

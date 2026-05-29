@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <cache-path
+        name="geo_awareness_exports"
+        path="geo_awareness_exports/" />
+    <files-path
+        name="geo_awareness_incidents"
+        path="geo_awareness/incidents/" />
+</paths>
