@@ -43,7 +43,7 @@ class MavlinkSessionCoordinator(
 
         val targetHost = sharedPreferences.getString(
             context.getString(R.string.mavlink_target_host_pref),
-            "192.168.199.33"
+            ""
         )?.trim()?.takeIf { it.isNotEmpty() }
 
         val iface = runCatching { MavlinkConfig.InterfaceType.valueOf(ifaceStr.uppercase()) }

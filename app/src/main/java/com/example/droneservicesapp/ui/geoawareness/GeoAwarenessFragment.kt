@@ -132,8 +132,8 @@ class GeoAwarenessFragment : Fragment() {
         binding.geoAwarenessFlightLogsSection.isVisible = false
         binding.geoAwarenessLogsSectionTitle.isVisible = false
         binding.geoAwarenessLogsSection.isVisible = false
-        binding.geoAwarenessInternalSectionTitle.isVisible = false
-        binding.geoAwarenessInternalSection.isVisible = false
+        binding.geoAwarenessInternalSectionTitle.isVisible = true
+        binding.geoAwarenessInternalSection.isVisible = true
         binding.geoAwarenessOverlaySwitch.setOnCheckedChangeListener { _, isChecked ->
             if (activityViewModel.geoAwarenessLayerVisible.value != isChecked) {
                 activityViewModel.geoAwarenessLayerVisible.value = isChecked
@@ -162,6 +162,9 @@ class GeoAwarenessFragment : Fragment() {
         }
         binding.geoAwarenessExportEvidenceButton.setOnClickListener {
             exportEvidencePackage()
+        }
+        binding.geoAwarenessExportEncryptedIncidentsButton.setOnClickListener {
+            exportEncryptedIncidentLogs()
         }
         updateCurrentSourceSummary()
         renderDatasetRecords()

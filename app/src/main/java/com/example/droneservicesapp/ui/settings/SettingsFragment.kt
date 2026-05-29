@@ -125,7 +125,7 @@ class SettingsFragment : PreferenceFragmentCompat(),
     private fun showMavTargetHostDialog() {
         val key = getString(R.string.mavlink_target_host_pref)
         val sharedPreferences = preferenceManager.sharedPreferences
-        val current = sharedPreferences?.getString(key, "192.168.199.33") ?: "192.168.199.33"
+        val current = sharedPreferences?.getString(key, "") ?: ""
 
         val input = EditText(requireContext()).apply {
             inputType = InputType.TYPE_CLASS_PHONE

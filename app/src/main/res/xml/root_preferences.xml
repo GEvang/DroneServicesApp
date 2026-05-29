@@ -21,7 +21,7 @@
             app:useSimpleSummaryProvider="true" />
 
         <EditTextPreference
-            app:defaultValue="192.168.199.33"
+            app:defaultValue=""
             app:key="@string/mavlink_target_host_pref"
             app:title="@string/mavlink_target_host_title"
             app:useSimpleSummaryProvider="true" />
