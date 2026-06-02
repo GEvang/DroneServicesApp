@@ -3,8 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/mission_params_left_panel"
     style="@style/Widget.DroneServices.Panel.MapLeft"
-    android:layout_width="304dp"
-    android:minWidth="304dp"
+    android:layout_width="@dimen/tablet_side_panel_width"
+    android:minWidth="@dimen/tablet_side_panel_width"
     android:maxWidth="352dp"
     android:layout_height="wrap_content"
     android:orientation="vertical">
@@ -35,7 +35,7 @@
             android:background="@drawable/bg_ds_panel_pill_active"
             android:gravity="center"
             android:text="@string/relative"
-            android:textColor="@color/ds_color_shell_selected_content"
+            android:textColor="@color/ds_color_shell_active"
             android:fontFamily="@font/inter"
             android:textStyle="bold" />
 

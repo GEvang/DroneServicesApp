@@ -386,6 +386,12 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun bindPlanningModeToggle(surveyButton: TextView, sprayButton: TextView) {
+        val selectedTextColor = if (resources.getBoolean(R.bool.config_tablet_planning_dock)) {
+            R.color.ds_color_shell_active
+        } else {
+            R.color.ds_color_shell_selected_content
+        }
+
         fun applySelection(isSurveySelected: Boolean) {
             surveyButton.setBackgroundResource(
                 if (isSurveySelected) R.drawable.bg_ds_panel_pill_active
@@ -394,7 +400,7 @@ class MissionMapFragment : Fragment() {
             surveyButton.setTextColor(
                 ContextCompat.getColor(
                     requireContext(),
-                    if (isSurveySelected) R.color.ds_color_shell_selected_content else R.color.ds_color_text_primary
+                    if (isSurveySelected) selectedTextColor else R.color.ds_color_text_primary
                 )
             )
             surveyButton.setTypeface(surveyButton.typeface, if (isSurveySelected) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
@@ -406,7 +412,7 @@ class MissionMapFragment : Fragment() {
             sprayButton.setTextColor(
                 ContextCompat.getColor(
                     requireContext(),
-                    if (isSurveySelected) R.color.ds_color_text_primary else R.color.ds_color_shell_selected_content
+                    if (isSurveySelected) R.color.ds_color_text_primary else selectedTextColor
                 )
             )
             sprayButton.setTypeface(sprayButton.typeface, if (isSurveySelected) android.graphics.Typeface.NORMAL else android.graphics.Typeface.BOLD)

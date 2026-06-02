@@ -5,6 +5,10 @@
     <string name="menu_maps_home">Χάρτης</string>
     <string name="menu_settings">Ρυθμίσεις</string>
     <string name="menu_rtk">RTK</string>
+    <string name="map_dock_operator">Χειριστής</string>
+    <string name="map_dock_drone">Drone</string>
+    <string name="map_dock_offline">Offline</string>
+    <string name="more">Περισσότερα</string>
 
     <string name="shell_operator_console">Κονσόλα Χειριστή</string>
     <string name="shell_status_connected">ΣΥΝΔΕΣΗ ΟΚ</string>

@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.ui.home.binders
 
 import android.view.View
+import android.widget.TextView
 import androidx.appcompat.content.res.AppCompatResources
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
@@ -17,6 +18,8 @@ class HomeMapChromeBinder(
 ) {
     private val drawBarReplacesDock =
         binding.root.resources.getBoolean(R.bool.config_map_draw_bar_replaces_dock)
+    private val usesTabletPlanningDock =
+        binding.root.resources.getBoolean(R.bool.config_tablet_planning_dock)
     private var isDrawActionBarVisible: Boolean = false
 
     fun bindActions(
@@ -66,11 +69,15 @@ class HomeMapChromeBinder(
         binding.homeBottomUtilityDock.isVisible =
             state.isBottomUtilityBarVisible && !(drawBarReplacesDock && isDrawActionBarVisible)
         binding.homeBottomPlanningLabel.isVisible = false
-        binding.utilityPlanningButton.isSelected = state.isRightPanelVisible
-        binding.utilityPlanningButton.setTextColor(
+        binding.utilityPlanningButton.isSelected = usesTabletPlanningDock || state.isRightPanelVisible
+        (binding.utilityPlanningButton as? TextView)?.setTextColor(
             ContextCompat.getColor(
                 binding.root.context,
-                if (state.isRightPanelVisible) android.R.color.black else android.R.color.white
+                when {
+                    usesTabletPlanningDock -> R.color.ds_color_shell_active
+                    state.isRightPanelVisible -> android.R.color.black
+                    else -> android.R.color.white
+                }
             )
         )
         binding.utilityPlanningButton.alpha = 1.0f

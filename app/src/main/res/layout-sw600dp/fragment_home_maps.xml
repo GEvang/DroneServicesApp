@@ -73,107 +73,200 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
-        <LinearLayout
+        <FrameLayout
             android:id="@+id/home_bottom_utility_dock"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="10dp"
-            android:background="@drawable/bg_bottom_dock"
-            android:gravity="center_vertical"
-            android:minWidth="420dp"
-            android:orientation="horizontal"
-            android:paddingLeft="12dp"
-            android:paddingTop="6dp"
-            android:paddingRight="12dp"
-            android:paddingBottom="6dp"
+            android:layout_width="@dimen/tablet_bottom_dock_width"
+            android:layout_height="@dimen/tablet_bottom_dock_outer_height"
+            android:layout_marginStart="@dimen/tablet_screen_margin"
+            android:layout_marginEnd="@dimen/tablet_screen_margin"
+            android:layout_marginBottom="@dimen/tablet_bottom_dock_margin_bottom"
+            android:clipChildren="false"
+            android:clipToPadding="false"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHorizontal_bias="0.5"
             app:layout_constraintStart_toStartOf="parent">
 
-            <Space
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
+            <LinearLayout
+                android:id="@+id/home_bottom_utility_dock_background"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/tablet_bottom_dock_height"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_bottom_dock"
+                android:baselineAligned="false"
+                android:elevation="8dp"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/tablet_bottom_dock_padding_horizontal"
+                android:paddingTop="@dimen/tablet_bottom_dock_padding_vertical"
+                android:paddingEnd="@dimen/tablet_bottom_dock_padding_horizontal"
+                android:paddingBottom="@dimen/tablet_bottom_dock_padding_vertical">
 
-            <androidx.appcompat.widget.AppCompatImageButton
-                android:id="@+id/utility_center_operator_button"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_bottom_dock_button"
-                android:contentDescription="@string/my_location_button_desc"
-                android:padding="12dp"
-                android:scaleType="centerInside"
-                android:src="@drawable/ic_baseline_my_location_48"
-                android:tint="@android:color/white" />
+                <LinearLayout
+                    android:id="@+id/utility_center_operator_button"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tablet_dock_item"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:paddingTop="5dp"
+                    android:paddingBottom="5dp">
 
-            <Space
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
+                    <ImageView
+                        android:layout_width="@dimen/tablet_bottom_dock_icon_size"
+                        android:layout_height="@dimen/tablet_bottom_dock_icon_size"
+                        android:contentDescription="@null"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_baseline_my_location_48"
+                        android:tint="@color/ds_color_shell_unselected" />
 
-            <androidx.appcompat.widget.AppCompatImageButton
-                android:id="@+id/utility_center_drone_button"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
-                android:layout_marginEnd="10dp"
-                android:background="@drawable/bg_bottom_dock_button"
-                android:contentDescription="@string/drone_location_button"
-                android:padding="12dp"
-                android:scaleType="centerInside"
-                android:src="@drawable/drone_marker_36"
-                android:tint="@android:color/white" />
+                    <TextView
+                        style="@style/TextAppearance.DroneServices.BottomNavInactive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="@string/map_dock_operator"
+                        android:textColor="@color/ds_color_shell_unselected"
+                        android:textSize="@dimen/tablet_bottom_dock_label_text_size" />
+                </LinearLayout>
 
-            <com.google.android.material.button.MaterialButton
+                <LinearLayout
+                    android:id="@+id/utility_center_drone_button"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="@dimen/ds_space_sm"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tablet_dock_item"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:paddingTop="5dp"
+                    android:paddingBottom="5dp">
+
+                    <ImageView
+                        android:layout_width="@dimen/tablet_bottom_dock_icon_size"
+                        android:layout_height="@dimen/tablet_bottom_dock_icon_size"
+                        android:contentDescription="@null"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/drone_marker_36"
+                        android:tint="@color/ds_color_shell_unselected" />
+
+                    <TextView
+                        style="@style/TextAppearance.DroneServices.BottomNavInactive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="@string/map_dock_drone"
+                        android:textColor="@color/ds_color_shell_unselected"
+                        android:textSize="@dimen/tablet_bottom_dock_label_text_size" />
+                </LinearLayout>
+
+                <Space
+                    android:layout_width="@dimen/tablet_bottom_center_spacer_width"
+                    android:layout_height="1dp" />
+
+                <LinearLayout
+                    android:id="@+id/utility_download_button"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tablet_dock_item"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:paddingTop="5dp"
+                    android:paddingBottom="5dp">
+
+                    <ImageView
+                        android:layout_width="@dimen/tablet_bottom_dock_icon_size"
+                        android:layout_height="@dimen/tablet_bottom_dock_icon_size"
+                        android:contentDescription="@null"
+                        android:scaleType="fitCenter"
+                        android:src="@android:drawable/stat_sys_download"
+                        android:tint="@color/ds_color_shell_unselected" />
+
+                    <TextView
+                        style="@style/TextAppearance.DroneServices.BottomNavInactive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="@string/map_dock_offline"
+                        android:textColor="@color/ds_color_shell_unselected"
+                        android:textSize="@dimen/tablet_bottom_dock_label_text_size" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/utility_settings_button"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tablet_dock_item"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:paddingTop="5dp"
+                    android:paddingBottom="5dp">
+
+                    <ImageView
+                        android:layout_width="@dimen/tablet_bottom_dock_icon_size"
+                        android:layout_height="@dimen/tablet_bottom_dock_icon_size"
+                        android:contentDescription="@null"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_menu_settings"
+                        android:tint="@color/ds_color_shell_unselected" />
+
+                    <TextView
+                        style="@style/TextAppearance.DroneServices.BottomNavInactive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="@string/more"
+                        android:textColor="@color/ds_color_shell_unselected"
+                        android:textSize="@dimen/tablet_bottom_dock_label_text_size" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
                 android:id="@+id/utility_planning_button"
-                android:layout_width="wrap_content"
-                android:layout_height="54dp"
-                android:layout_marginStart="2dp"
-                android:layout_marginEnd="12dp"
-                android:background="@drawable/bg_mode_button"
+                android:layout_width="@dimen/tablet_bottom_center_tab_size"
+                android:layout_height="@dimen/tablet_bottom_center_tab_size"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_bottom_dock_center_circle"
+                android:clickable="true"
+                android:contentDescription="@string/planning"
+                android:elevation="12dp"
+                android:focusable="true"
                 android:gravity="center"
-                android:minWidth="0dp"
-                android:paddingStart="18dp"
-                android:paddingEnd="20dp"
-                android:fontFamily="@font/inter"
-                android:text="@string/planning"
-                android:textAllCaps="false"
-                android:textColor="@android:color/white"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:orientation="vertical"
+                android:paddingTop="17dp"
+                android:paddingBottom="12dp">
 
-            <androidx.appcompat.widget.AppCompatImageButton
-                android:id="@+id/utility_download_button"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
-                android:layout_marginEnd="8dp"
-                android:background="@drawable/bg_bottom_dock_button"
-                android:contentDescription="@string/home_offline_download"
-                android:padding="10dp"
-                android:src="@android:drawable/stat_sys_download"
-                android:tint="@android:color/white" />
+                <ImageView
+                    android:layout_width="@dimen/tablet_bottom_dock_icon_size"
+                    android:layout_height="@dimen/tablet_bottom_dock_icon_size"
+                    android:contentDescription="@null"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/drone_marker_36"
+                    android:tint="@color/ds_color_shell_active" />
 
-            <Space
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
-
-            <androidx.appcompat.widget.AppCompatImageButton
-                android:id="@+id/utility_settings_button"
-                android:layout_width="42dp"
-                android:layout_height="42dp"
-                android:background="@drawable/bg_bottom_dock_button"
-                android:contentDescription="@string/menu_settings"
-                android:padding="10dp"
-                android:scaleType="centerInside"
-                android:src="@drawable/ic_menu_settings"
-                android:tint="@android:color/white" />
-
-            <Space
-                android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
-        </LinearLayout>
+                <TextView
+                    style="@style/TextAppearance.DroneServices.BottomNavActive"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="4dp"
+                    android:text="@string/planning"
+                    android:textColor="@color/ds_color_shell_active"
+                    android:textSize="@dimen/tablet_bottom_center_label_text_size"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </FrameLayout>
 
         <TextView
             android:id="@+id/liveGeoAwarenessStatusChip"

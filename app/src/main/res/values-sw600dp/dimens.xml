@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <dimen name="tablet_screen_margin">24dp</dimen>
+    <dimen name="tablet_side_panel_width">320dp</dimen>
+    <dimen name="tablet_right_panel_width">300dp</dimen>
+    <dimen name="tablet_bottom_dock_width">620dp</dimen>
+    <dimen name="tablet_bottom_dock_outer_height">96dp</dimen>
+    <dimen name="tablet_bottom_dock_height">80dp</dimen>
+    <dimen name="tablet_bottom_dock_margin_bottom">14dp</dimen>
+    <dimen name="tablet_bottom_dock_padding_horizontal">28dp</dimen>
+    <dimen name="tablet_bottom_dock_padding_vertical">8dp</dimen>
+    <dimen name="tablet_bottom_dock_icon_size">28dp</dimen>
+    <dimen name="tablet_bottom_center_tab_size">96dp</dimen>
+    <dimen name="tablet_bottom_center_spacer_width">112dp</dimen>
+    <dimen name="tablet_bottom_dock_label_text_size">12sp</dimen>
+    <dimen name="tablet_bottom_center_label_text_size">13sp</dimen>
+</resources>

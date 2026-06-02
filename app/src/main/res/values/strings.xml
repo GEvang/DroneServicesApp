@@ -106,6 +106,10 @@
     <string name="home_panel_top_actions">Workflow</string>
     <string name="home_panel_top_actions_hint">Draw or load a mission from the bottom controls, then refine and upload here.</string>
     <string name="planning">Planning</string>
+    <string name="map_dock_operator">Operator</string>
+    <string name="map_dock_drone">Drone</string>
+    <string name="map_dock_offline">Offline</string>
+    <string name="more">More</string>
     <string name="relative">Relative</string>
     <string name="terrain">Terrain</string>
     <string name="preset_dakos">Preset: Dakos</string>

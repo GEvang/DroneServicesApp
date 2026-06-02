@@ -3,10 +3,10 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/home_workflow_panel"
     style="@style/Widget.DroneServices.Panel.MapRight"
-    android:layout_width="272dp"
+    android:layout_width="@dimen/tablet_right_panel_width"
     android:layout_height="wrap_content"
     android:maxWidth="320dp"
-    android:minWidth="272dp"
+    android:minWidth="@dimen/tablet_right_panel_width"
     android:orientation="vertical">
 
     <LinearLayout
@@ -60,7 +60,7 @@
             android:fontFamily="@font/inter"
             android:gravity="center"
             android:text="@string/survey"
-            android:textColor="@color/ds_color_shell_selected_content"
+            android:textColor="@color/ds_color_shell_active"
             android:textStyle="bold" />
 
         <TextView
@@ -98,7 +98,7 @@
             android:fontFamily="@font/inter"
             android:gravity="center"
             android:text="@string/area"
-            android:textColor="@color/ds_color_shell_selected_content"
+            android:textColor="@color/ds_color_shell_active"
             android:textStyle="bold" />
 
         <TextView

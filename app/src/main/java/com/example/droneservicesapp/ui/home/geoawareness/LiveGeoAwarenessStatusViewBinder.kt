@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.widget.TextView
+import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
 
@@ -97,6 +98,9 @@ class LiveGeoAwarenessStatusViewBinder(
         backgroundColor: Int,
         textColor: Int
     ) {
+        val useTabletNeutralGlass =
+            context.resources.getBoolean(R.bool.config_tablet_planning_dock) &&
+                (text == "LIVE GEO: NO POS" || text == "LIVE GEO: CLEAR")
         statusView.text = text
         statusView.setTextColor(textColor)
         statusView.visibility = View.VISIBLE
@@ -105,12 +109,30 @@ class LiveGeoAwarenessStatusViewBinder(
         val horizontalPadding = dpToPx(16)
         val verticalPadding = dpToPx(10)
         statusView.setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding)
+        statusView.compoundDrawablePadding = dpToPx(8)
+        if (useTabletNeutralGlass) {
+            statusView.setCompoundDrawables(createStatusDot(), null, null, null)
+        } else {
+            statusView.setCompoundDrawables(null, null, null, null)
+        }
 
         statusView.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = dpToPx(18).toFloat()
-            setColor(backgroundColor)
-            setStroke(dpToPx(1), Color.parseColor("#33FFFFFF"))
+            setColor(if (useTabletNeutralGlass) Color.parseColor("#D0101820") else backgroundColor)
+            setStroke(
+                dpToPx(1),
+                if (useTabletNeutralGlass) Color.parseColor("#3DFFFFFF") else Color.parseColor("#33FFFFFF")
+            )
+        }
+    }
+
+    private fun createStatusDot(): GradientDrawable {
+        return GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(Color.parseColor("#31F7A2"))
+            setSize(dpToPx(10), dpToPx(10))
+            setBounds(0, 0, dpToPx(10), dpToPx(10))
         }
     }
 
