@@ -27,12 +27,7 @@ object MissionBuilder {
         altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE
     ): ArrayList<MissionItemInt> {
 
-        // TEMP SWITCH: disable DO_SPRAYER to confirm mission uploads cleanly
-        val ENABLE_DO_SPRAYER = false
-
-        val min = 1000.0F
-        val max = 2000.0F
-        val sprayerIntensityPWM = ((max - min) * (sprayerIntensity / 100.0F)) + min
+        val sprayerIntensityPWM = servo5PwmForSprayerIntensity(sprayerIntensity)
 
         val missionItems = ArrayList<MissionItemInt>()
         val waypointFrame = missionWaypointFrameFor(altitudeReferenceMode)
@@ -138,23 +133,8 @@ object MissionBuilder {
                 )
             )
 
-            // After first mission waypoint added: enable sprayer + servo
+            // After first mission waypoint added: enable sprayer on Servo 5.
             if (i == 0) {
-                // Sprayer ON (TEMP disabled via ENABLE_DO_SPRAYER)
-                if (ENABLE_DO_SPRAYER) {
-                    missionItems.add(
-                        buildItem(
-                            // Non-positional DO_* commands should use MAV_FRAME_MISSION
-                            frame = MavFrame.MAV_FRAME_MISSION,
-                            command = MavCmd.MAV_CMD_DO_SPRAYER,
-                            currentFlag = 0,
-                            p1 = 1.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
-                            x = 0, y = 0, z = 0.0f
-                        )
-                    )
-                }
-
-                // Servo ON
                 missionItems.add(
                     buildItem(
                         // Non-positional DO_* commands should use MAV_FRAME_MISSION
@@ -168,21 +148,7 @@ object MissionBuilder {
             }
         }
 
-        // Sprayer OFF (TEMP disabled via ENABLE_DO_SPRAYER)
-        if (ENABLE_DO_SPRAYER) {
-            missionItems.add(
-                buildItem(
-                    // Non-positional DO_* commands should use MAV_FRAME_MISSION
-                    frame = MavFrame.MAV_FRAME_MISSION,
-                    command = MavCmd.MAV_CMD_DO_SPRAYER,
-                    currentFlag = 0,
-                    p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
-                    x = 0, y = 0, z = 0.0f
-                )
-            )
-        }
-
-        // Servo OFF
+        // Disable sprayer on Servo 5.
         missionItems.add(
             buildItem(
                 // Non-positional DO_* commands should use MAV_FRAME_MISSION
@@ -226,5 +192,12 @@ object MissionBuilder {
             AltitudeReferenceMode.RELATIVE -> MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT
             AltitudeReferenceMode.TERRAIN -> MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT
         }
+    }
+
+    fun servo5PwmForSprayerIntensity(sprayerIntensity: Int): Float {
+        val closedPwm = 1000.0F
+        val maxPwm = 2200.0F
+        val percent = sprayerIntensity.coerceIn(0, 100) / 100.0F
+        return closedPwm + ((maxPwm - closedPwm) * percent)
     }
 }

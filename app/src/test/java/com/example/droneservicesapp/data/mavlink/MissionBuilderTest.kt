@@ -29,4 +29,17 @@ class MissionBuilderTest {
             AltitudeReferenceMode.fromStorageValue(null)
         )
     }
+
+    @Test
+    fun mapsSprayerIntensityToServo5PwmRange() {
+        assertEquals(1000.0f, MissionBuilder.servo5PwmForSprayerIntensity(0), 0.001f)
+        assertEquals(1600.0f, MissionBuilder.servo5PwmForSprayerIntensity(50), 0.001f)
+        assertEquals(2200.0f, MissionBuilder.servo5PwmForSprayerIntensity(100), 0.001f)
+    }
+
+    @Test
+    fun clampsSprayerIntensityBeforeMappingServo5Pwm() {
+        assertEquals(1000.0f, MissionBuilder.servo5PwmForSprayerIntensity(-10), 0.001f)
+        assertEquals(2200.0f, MissionBuilder.servo5PwmForSprayerIntensity(120), 0.001f)
+    }
 }
