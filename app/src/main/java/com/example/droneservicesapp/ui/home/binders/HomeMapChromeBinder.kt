@@ -1,9 +1,7 @@
 package com.example.droneservicesapp.ui.home.binders
 
 import android.view.View
-import android.widget.TextView
 import androidx.appcompat.content.res.AppCompatResources
-import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.R
@@ -70,16 +68,6 @@ class HomeMapChromeBinder(
             state.isBottomUtilityBarVisible && !(drawBarReplacesDock && isDrawActionBarVisible)
         binding.homeBottomPlanningLabel.isVisible = false
         binding.utilityPlanningButton.isSelected = usesTabletPlanningDock || state.isRightPanelVisible
-        (binding.utilityPlanningButton as? TextView)?.setTextColor(
-            ContextCompat.getColor(
-                binding.root.context,
-                when {
-                    usesTabletPlanningDock -> R.color.ds_color_shell_active
-                    state.isRightPanelVisible -> android.R.color.black
-                    else -> android.R.color.white
-                }
-            )
-        )
         binding.utilityPlanningButton.alpha = 1.0f
     }
 }

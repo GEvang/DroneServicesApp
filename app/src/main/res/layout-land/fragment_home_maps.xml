@@ -1,0 +1,546 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg"
+    tools:context=".ui.home.MissionMapFragment">
+
+    <org.osmdroid.views.MapView
+        android:id="@+id/osmMap"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <androidx.constraintlayout.widget.ConstraintLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:focusableInTouchMode="true">
+
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/planning_panel_container"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:layout_marginTop="@dimen/phone_map_overlay_card_margin"
+            android:layout_marginEnd="@dimen/phone_map_overlay_card_margin"
+            android:clipToPadding="false"
+            android:fillViewport="true"
+            android:overScrollMode="ifContentScrolls"
+            android:scrollbars="vertical"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintHeight_max="@dimen/phone_map_panel_max_height"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.0">
+
+            <include
+                android:id="@+id/home_workflow_panel_include"
+                layout="@layout/home_workflow_panel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </androidx.core.widget.NestedScrollView>
+
+        <TextView
+            android:id="@+id/liveGeoAwarenessStatusChip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/phone_map_overlay_card_margin"
+            android:layout_marginBottom="@dimen/phone_map_overlay_card_margin"
+            android:background="@drawable/bg_bottom_dock_button"
+            android:fontFamily="@font/inter"
+            android:gravity="center"
+            android:paddingLeft="16dp"
+            android:paddingTop="10dp"
+            android:paddingRight="16dp"
+            android:paddingBottom="10dp"
+            android:text="LIVE GEO: NO POS"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/phone_map_live_geo_text_size"
+            android:textStyle="bold"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <TextView
+            android:id="@+id/geoAwarenessStatusChip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_sm"
+            android:layout_marginEnd="@dimen/phone_map_overlay_card_margin"
+            android:background="@drawable/bg_bottom_dock_button"
+            android:fontFamily="@font/inter"
+            android:gravity="center"
+            android:paddingLeft="10dp"
+            android:paddingTop="6dp"
+            android:paddingRight="10dp"
+            android:paddingBottom="6dp"
+            android:text="GEO: CLEAR"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/phone_map_live_geo_text_size"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@id/liveGeoAwarenessStatusChip"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintVertical_bias="1.0" />
+
+        <androidx.core.widget.NestedScrollView
+            android:id="@+id/mission_params_side_view"
+            android:layout_width="wrap_content"
+            android:layout_height="0dp"
+            android:layout_marginTop="@dimen/phone_map_overlay_card_margin"
+            android:layout_marginStart="@dimen/phone_map_overlay_card_margin"
+            android:clipToPadding="false"
+            android:fillViewport="true"
+            android:overScrollMode="ifContentScrolls"
+            android:scrollbars="vertical"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
+            app:layout_constraintHeight_max="@dimen/phone_map_panel_max_height"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.0">
+
+            <include
+                android:id="@+id/home_left_panel"
+                layout="@layout/mission_params_side_view"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content" />
+        </androidx.core.widget.NestedScrollView>
+
+        <TextView
+            android:id="@+id/home_bottom_planning_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="78dp"
+            android:background="@drawable/bg_bottom_dock"
+            android:fontFamily="@font/inter"
+            android:gravity="center"
+            android:paddingLeft="12dp"
+            android:paddingTop="6dp"
+            android:paddingRight="12dp"
+            android:paddingBottom="6dp"
+            android:text="@string/planning"
+            android:textColor="@android:color/white"
+            android:textSize="@dimen/phone_map_hud_text_size"
+            android:textStyle="bold"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <LinearLayout
+            android:id="@+id/home_draw_action_bar"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/phone_map_bottom_dock_margin_bottom"
+            android:background="@drawable/bg_bottom_dock"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="@dimen/phone_map_bottom_dock_padding_horizontal"
+            android:paddingTop="@dimen/phone_map_bottom_dock_padding_vertical"
+            android:paddingRight="@dimen/phone_map_bottom_dock_padding_horizontal"
+            android:paddingBottom="@dimen/phone_map_bottom_dock_padding_vertical"
+            android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/home_draw_decline_button"
+                style="@style/Widget.DroneServices.Button.MapDark"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/phone_map_draw_button_height"
+                android:minWidth="@dimen/phone_map_draw_button_min_width"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:text="@string/decline"
+                android:textSize="@dimen/phone_map_draw_button_text_size" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/home_draw_accept_button"
+                style="@style/Widget.DroneServices.Button.MapLight"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/phone_map_draw_button_height"
+                android:layout_marginStart="@dimen/ds_space_sm"
+                android:minWidth="@dimen/phone_map_draw_button_min_width"
+                android:paddingStart="18dp"
+                android:paddingEnd="18dp"
+                android:text="@string/accept"
+                android:textSize="@dimen/phone_map_draw_button_text_size" />
+        </LinearLayout>
+
+        <FrameLayout
+            android:id="@+id/home_bottom_utility_dock"
+            android:layout_width="@dimen/phone_map_bottom_dock_width"
+            android:layout_height="@dimen/phone_map_bottom_dock_outer_height"
+            android:layout_marginBottom="@dimen/phone_map_bottom_dock_margin_bottom"
+            android:clipChildren="false"
+            android:clipToPadding="false"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="54dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_bottom_dock"
+                android:baselineAligned="false"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/phone_map_bottom_dock_padding_horizontal"
+                android:paddingTop="@dimen/phone_map_bottom_dock_padding_vertical"
+                android:paddingEnd="@dimen/phone_map_bottom_dock_padding_horizontal"
+                android:paddingBottom="@dimen/phone_map_bottom_dock_padding_vertical">
+
+                <LinearLayout
+                    android:id="@+id/utility_center_operator_button"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_phone_dock_item"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
+                        android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                        android:contentDescription="@null"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_baseline_my_location_48"
+                        android:tint="@color/ds_color_shell_unselected" />
+
+                    <TextView
+                        style="@style/TextAppearance.DroneServices.BottomNavInactive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/map_dock_operator"
+                        android:textColor="@color/ds_color_shell_unselected"
+                        android:textSize="@dimen/phone_map_bottom_dock_text_size" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/utility_center_drone_button"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="@dimen/phone_map_bottom_dock_item_spacing"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_phone_dock_item"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
+                        android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                        android:contentDescription="@null"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/drone_marker_36"
+                        android:tint="@color/ds_color_shell_unselected" />
+
+                    <TextView
+                        style="@style/TextAppearance.DroneServices.BottomNavInactive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/map_dock_drone"
+                        android:textColor="@color/ds_color_shell_unselected"
+                        android:textSize="@dimen/phone_map_bottom_dock_text_size" />
+                </LinearLayout>
+
+                <Space
+                    android:layout_width="@dimen/phone_map_bottom_dock_center_spacer_width"
+                    android:layout_height="1dp" />
+
+                <LinearLayout
+                    android:id="@+id/utility_download_button"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginEnd="@dimen/phone_map_bottom_dock_item_spacing"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_phone_dock_item"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
+                        android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                        android:contentDescription="@null"
+                        android:scaleType="fitCenter"
+                        android:src="@android:drawable/stat_sys_download"
+                        android:tint="@color/ds_color_shell_unselected" />
+
+                    <TextView
+                        style="@style/TextAppearance.DroneServices.BottomNavInactive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/map_dock_offline"
+                        android:textColor="@color/ds_color_shell_unselected"
+                        android:textSize="@dimen/phone_map_bottom_dock_text_size" />
+                </LinearLayout>
+
+                <LinearLayout
+                    android:id="@+id/utility_settings_button"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_phone_dock_item"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
+                        android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                        android:contentDescription="@null"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_menu_settings"
+                        android:tint="@color/ds_color_shell_unselected" />
+
+                    <TextView
+                        style="@style/TextAppearance.DroneServices.BottomNavInactive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/more"
+                        android:textColor="@color/ds_color_shell_unselected"
+                        android:textSize="@dimen/phone_map_bottom_dock_text_size" />
+                </LinearLayout>
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/utility_planning_button"
+                android:layout_width="@dimen/phone_map_bottom_dock_center_size"
+                android:layout_height="@dimen/phone_map_bottom_dock_center_size"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_bottom_dock_center_circle"
+                android:clickable="true"
+                android:contentDescription="@string/planning"
+                android:elevation="12dp"
+                android:focusable="true"
+                android:gravity="center"
+                android:orientation="vertical">
+
+                <ImageView
+                    android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
+                    android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                    android:contentDescription="@null"
+                    android:scaleType="fitCenter"
+                    android:src="@drawable/drone_marker_36"
+                    android:tint="@color/ds_color_shell_active" />
+
+                <TextView
+                    style="@style/TextAppearance.DroneServices.BottomNavActive"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="3dp"
+                    android:text="@string/planning"
+                    android:textColor="@color/ds_color_shell_active"
+                    android:textSize="@dimen/phone_map_bottom_dock_text_size"
+                    android:textStyle="bold" />
+            </LinearLayout>
+        </FrameLayout>
+
+        <LinearLayout
+            android:id="@+id/home_telemetry_legacy_container"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/home_top_avoidance_strip"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/front_dist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+
+                <ImageView
+                    android:id="@+id/avoidance_compass"
+                    android:layout_width="1dp"
+                    android:layout_height="1dp" />
+
+                <TextView
+                    android:id="@+id/back_dist"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" />
+            </LinearLayout>
+        </LinearLayout>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:id="@+id/save_file_layout"
+        style="@style/Widget.DroneServices.Panel.MapCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginStart="@dimen/phone_map_overlay_card_margin"
+        android:layout_marginEnd="@dimen/phone_map_overlay_card_margin"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            style="@style/TextAppearance.DroneServices.MapPanelTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/save" />
+
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:layout_width="match_parent"
+            android:layout_height="52dp"
+            android:layout_marginTop="@dimen/ds_space_md"
+            android:background="@drawable/bg_slider_pill"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="@dimen/ds_space_md"
+            android:paddingRight="@dimen/ds_space_md">
+
+            <TextView
+                style="@style/TextAppearance.DroneServices.PanelLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingEnd="@dimen/ds_space_sm"
+                android:text="@string/name"
+                tools:ignore="RtlSymmetry" />
+
+            <EditText
+                android:id="@+id/input_filename"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:background="@null"
+                android:clickable="true"
+                android:cursorVisible="true"
+                android:focusable="true"
+                android:focusableInTouchMode="true"
+                android:hint="@string/enter_text"
+                android:imeOptions="actionDone"
+                android:inputType="textShortMessage"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/text_secondary"
+                android:textSize="16sp"
+                android:fontFamily="@font/inter" />
+
+            <TextView
+                style="@style/TextAppearance.DroneServices.PanelLabel"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:paddingLeft="@dimen/ds_space_sm"
+                android:text="@string/DroneServicesFilePageSuffix"
+                tools:ignore="RtlHardcoded,RtlSymmetry" />
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_md"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <CheckBox
+                android:id="@+id/override_checkbox"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:buttonTint="@color/ds_color_shell_active" />
+
+            <TextView
+                style="@style/TextAppearance.DroneServices.Caption"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/ds_space_sm"
+                android:text="@string/override_existing_file" />
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+        <androidx.appcompat.widget.LinearLayoutCompat
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_lg"
+            android:gravity="end"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/cancel_button"
+                style="@style/Widget.DroneServices.Button.MapDark"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:text="@string/cancel" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/save_button"
+                style="@style/Widget.DroneServices.Button.MapEmphasis"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:layout_marginStart="@dimen/ds_space_sm"
+                android:text="@string/save" />
+        </androidx.appcompat.widget.LinearLayoutCompat>
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:id="@+id/load_file_selector_layout"
+        style="@style/Widget.DroneServices.Panel.MapCard"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginStart="@dimen/phone_map_overlay_card_margin"
+        android:layout_marginEnd="@dimen/phone_map_overlay_card_margin"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            style="@style/TextAppearance.DroneServices.MapPanelTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/load" />
+
+        <ListView
+            android:id="@+id/file_list"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_md"
+            android:background="@drawable/bg_slider_pill"
+            android:divider="@null"
+            android:dividerHeight="0dp"
+            android:listSelector="@drawable/drawer_nav_item_background"
+            android:paddingTop="@dimen/ds_space_sm"
+            android:paddingBottom="@dimen/ds_space_sm" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_lg"
+            android:gravity="end"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_cancel"
+                style="@style/Widget.DroneServices.Button.MapDark"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:text="@string/cancel" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btn_confirm_load"
+                style="@style/Widget.DroneServices.Button.MapEmphasis"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:layout_marginStart="@dimen/ds_space_sm"
+                android:text="@string/ok" />
+        </LinearLayout>
+
+    </androidx.appcompat.widget.LinearLayoutCompat>
+
+</FrameLayout>

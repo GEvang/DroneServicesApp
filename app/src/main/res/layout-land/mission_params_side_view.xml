@@ -1,0 +1,595 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/mission_params_left_panel"
+    style="@style/Widget.DroneServices.Panel.MapLeft"
+    android:layout_width="@dimen/phone_map_panel_left_width"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="8dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/home_panel_flight_settings"
+        style="@style/TextAppearance.DroneServices.PhoneMapPanelTitle" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:visibility="gone"
+        style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:layout_marginBottom="@dimen/ds_space_md"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="@dimen/phone_map_panel_tab_height"
+            android:layout_weight="1"
+            android:background="@drawable/bg_ds_panel_pill_active"
+            android:gravity="center"
+            android:text="@string/relative"
+            android:textColor="@color/ds_color_shell_selected_content"
+            android:fontFamily="@font/inter"
+            android:textSize="@dimen/phone_map_panel_label_text_size"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="@dimen/phone_map_panel_tab_height"
+            android:layout_marginStart="@dimen/ds_space_sm"
+            android:layout_weight="1"
+            android:background="@drawable/bg_ds_panel_pill_inactive"
+            android:gravity="center"
+            android:text="@string/terrain"
+            android:textColor="@color/ds_color_text_primary"
+            android:fontFamily="@font/inter"
+            android:textSize="@dimen/phone_map_panel_label_text_size" />
+    </LinearLayout>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/phone_map_panel_button_height"
+        android:layout_marginBottom="@dimen/ds_space_lg"
+        android:background="@drawable/bg_ds_panel_pill_inactive"
+        android:gravity="center"
+        android:text="@string/preset_dakos"
+        android:textColor="@color/ds_color_text_primary"
+        android:fontFamily="@font/inter"
+        android:textSize="@dimen/phone_map_panel_label_text_size"
+        android:textStyle="bold" />
+
+    <!-- ===== Row template: title/value on top, pill slider below ===== -->
+
+    <!-- ========= PARAM: Mission Angle ========= -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="10dp">
+
+        <!-- Title + value (right) -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/mission_angle"
+                style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel" />
+
+            <!-- keep EditText ID (controller uses it), but visually act like a value label -->
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical">
+
+                <EditText
+                    android:id="@+id/line_angle_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="44dp"
+                    android:background="@null"
+                    android:inputType="none"
+                    android:focusable="false"
+                    android:cursorVisible="false"
+                    android:gravity="end"
+                    android:text="@string/unknown_value_three_questionmarks"
+                    style="@style/TextAppearance.DroneServices.PhoneMapPanelValue" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="@string/degrees"
+                    style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <!-- Slider pill -->
+        <LinearLayout
+            android:id="@+id/angle_slider_row"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/phone_map_panel_slider_row_height"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_slider_pill"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:clickable="false"
+            android:focusable="false">
+
+            <FrameLayout
+                android:layout_width="@dimen/phone_map_panel_slider_frame_small"
+                android:layout_height="@dimen/phone_map_panel_slider_frame_large"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_angle_minus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_remove_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/decrease" />
+            </FrameLayout>
+
+            <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
+                android:id="@+id/line_angle_seekbar"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:max="90"
+                android:progress="0"
+                android:splitTrack="false"
+                android:progressDrawable="@drawable/seekbar_progress_dji"
+                android:thumb="@drawable/seekbar_thumb_dji"
+                android:minHeight="20dp"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp" />
+
+            <FrameLayout
+                android:layout_width="@dimen/phone_map_panel_slider_frame_small"
+                android:layout_height="@dimen/phone_map_panel_slider_frame_large"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_angle_plus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_add_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/increase" />
+            </FrameLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ========= PARAM: Line Distance ========= -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="10dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/line_distance"
+                style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical">
+
+                <EditText
+                    android:id="@+id/line_distance_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="44dp"
+                    android:background="@null"
+                    android:inputType="none"
+                    android:focusable="false"
+                    android:cursorVisible="false"
+                    android:gravity="end"
+                    android:text="@string/unknown_value_three_questionmarks"
+                    style="@style/TextAppearance.DroneServices.PhoneMapPanelValue" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="@string/m"
+                    style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/line_distance_slider_row"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/phone_map_panel_slider_row_height"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_slider_pill"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:clickable="false"
+            android:focusable="false">
+
+            <FrameLayout
+                android:layout_width="@dimen/phone_map_panel_slider_frame_small"
+                android:layout_height="@dimen/phone_map_panel_slider_frame_large"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_distance_minus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_remove_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/decrease" />
+            </FrameLayout>
+
+            <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
+                android:id="@+id/line_distance_seekbar"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:max="20"
+                android:min="2"
+                android:progress="10"
+                android:splitTrack="false"
+                android:progressDrawable="@drawable/seekbar_progress_dji"
+                android:thumb="@drawable/seekbar_thumb_dji"
+                android:minHeight="20dp"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp" />
+
+            <FrameLayout
+                android:layout_width="@dimen/phone_map_panel_slider_frame_small"
+                android:layout_height="@dimen/phone_map_panel_slider_frame_large"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_distance_plus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_add_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/increase" />
+            </FrameLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ========= PARAM: Altitude ========= -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="10dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/flight_altitude"
+                style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical">
+
+                <EditText
+                    android:id="@+id/altitude_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="44dp"
+                    android:background="@null"
+                    android:inputType="none"
+                    android:focusable="false"
+                    android:cursorVisible="false"
+                    android:gravity="end"
+                    android:text="@string/unknown_value_three_questionmarks"
+                    style="@style/TextAppearance.DroneServices.PhoneMapPanelValue" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="@string/m"
+                    style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/altitude_slider_row"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/phone_map_panel_slider_row_height"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_slider_pill"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:clickable="false"
+            android:focusable="false">
+
+            <FrameLayout
+                android:layout_width="@dimen/phone_map_panel_slider_frame_small"
+                android:layout_height="@dimen/phone_map_panel_slider_frame_large"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_alt_minus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_remove_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/decrease" />
+            </FrameLayout>
+
+            <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
+                android:id="@+id/altitude_seekbar"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:max="20"
+                android:min="2"
+                android:progress="5"
+                android:splitTrack="false"
+                android:progressDrawable="@drawable/seekbar_progress_dji"
+                android:thumb="@drawable/seekbar_thumb_dji"
+                android:minHeight="20dp"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp" />
+
+            <FrameLayout
+                android:layout_width="@dimen/phone_map_panel_slider_frame_small"
+                android:layout_height="@dimen/phone_map_panel_slider_frame_large"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_alt_plus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_add_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/increase" />
+            </FrameLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ========= PARAM: Sprayer Intensity ========= -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/sprayer_intensity"
+                style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel" />
+
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:gravity="center_vertical">
+
+                <EditText
+                    android:id="@+id/sprayer_seekbar_value"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:minWidth="44dp"
+                    android:background="@null"
+                    android:inputType="none"
+                    android:focusable="false"
+                    android:cursorVisible="false"
+                    android:gravity="end"
+                    android:text="@string/unknown_value_three_questionmarks"
+                    style="@style/TextAppearance.DroneServices.PhoneMapPanelValue" />
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="4dp"
+                    android:text="@string/percentage_symbol"
+                    style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/sprayer_slider_row"
+            android:layout_width="match_parent"
+            android:layout_height="@dimen/phone_map_panel_slider_row_height"
+            android:layout_marginTop="6dp"
+            android:background="@drawable/bg_slider_pill"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <FrameLayout
+                android:layout_width="@dimen/phone_map_panel_slider_frame_small"
+                android:layout_height="@dimen/phone_map_panel_slider_frame_large"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_sprayer_minus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_remove_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/decrease" />
+            </FrameLayout>
+
+            <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
+                android:id="@+id/sprayer_seekbar"
+                android:layout_width="0dp"
+                android:layout_height="28dp"
+                android:layout_weight="1"
+                android:max="100"
+                android:progress="0"
+                android:splitTrack="false"
+                android:progressDrawable="@drawable/seekbar_progress_dji"
+                android:thumb="@drawable/seekbar_thumb_dji"
+                android:minHeight="20dp"
+                android:paddingTop="0dp"
+                android:paddingBottom="0dp" />
+
+            <FrameLayout
+                android:layout_width="@dimen/phone_map_panel_slider_frame_small"
+                android:layout_height="@dimen/phone_map_panel_slider_frame_large"
+                android:gravity="center">
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/btn_sprayer_plus"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
+                    android:layout_gravity="center"
+                    android:background="@drawable/bg_icon_button_neutral"
+                    android:src="@drawable/ic_add_24"
+                    android:tint="@color/text_secondary"
+                    android:scaleType="centerInside"
+                    android:contentDescription="@string/increase" />
+            </FrameLayout>
+        </LinearLayout>
+    </LinearLayout>
+
+    <!-- ========= Speed / time row (kept compact) ========= -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/flight_time"
+        style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/phone_map_panel_button_height"
+        android:layout_marginTop="6dp"
+        android:background="@drawable/bg_slider_pill"
+        android:paddingStart="10dp"
+        android:paddingEnd="10dp"
+        android:gravity="center_vertical|center"
+        android:orientation="horizontal">
+
+        <FrameLayout
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:gravity="center">
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/minus_button"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_icon_button_neutral"
+                android:src="@drawable/ic_remove_24"
+                android:tint="@color/text_secondary"
+                android:scaleType="centerInside"
+                android:contentDescription="@string/decrease" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/flight_speed"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="@string/unknown_value"
+            android:textSize="@dimen/phone_map_panel_value_text_size"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:fontFamily="@font/inter" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="@string/meters_per_second"
+            android:textSize="@dimen/phone_map_panel_label_text_size"
+            android:textColor="@color/text_secondary"
+            android:fontFamily="@font/inter" />
+
+        <FrameLayout
+            android:layout_width="@dimen/phone_map_panel_slider_frame_large"
+            android:layout_height="@dimen/phone_map_panel_slider_frame_large"
+            android:layout_marginStart="8dp"
+            android:gravity="center">
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/plus_button"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:layout_gravity="center"
+                android:background="@drawable/bg_icon_button_neutral"
+                android:src="@drawable/ic_add_24"
+                android:tint="@color/text_secondary"
+                android:scaleType="centerInside"
+                android:contentDescription="@string/increase" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/flight_time"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="8dp"
+            android:text="@string/unknown_value"
+            android:textSize="@dimen/phone_map_panel_value_text_size"
+            android:textStyle="bold"
+            android:textColor="@color/text_primary"
+            android:fontFamily="@font/inter" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:text="@string/mins"
+            android:textSize="@dimen/phone_map_panel_label_text_size"
+            android:textColor="@color/text_secondary"
+            android:fontFamily="@font/inter" />
+    </LinearLayout>
+
+</androidx.appcompat.widget.LinearLayoutCompat>
