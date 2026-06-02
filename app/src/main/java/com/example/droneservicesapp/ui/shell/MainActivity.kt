@@ -3,9 +3,12 @@ package com.example.droneservicesapp.ui.shell
 import android.os.Build
 import android.os.Bundle
 import android.view.Menu
+import android.view.Gravity
 import android.view.View
+import android.widget.ImageButton
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.widget.Toolbar
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.findNavController
@@ -74,6 +77,7 @@ class MainActivity : AppCompatActivity() {
             drawerLayout
         )
         setupActionBarWithNavController(navController, appBarConfiguration)
+        centerToolbarNavigationButton()
         navView.setupWithNavController(navController)
         bottomNavBinder = ShellBottomNavBinder(
             activity = this,
@@ -102,6 +106,20 @@ class MainActivity : AppCompatActivity() {
 
     private fun configureSystemUi() {
         binding.root.systemUiVisibility = View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+    }
+
+    private fun centerToolbarNavigationButton() {
+        val toolbar = binding.appBarMain.customToolbar
+        toolbar.post {
+            for (index in 0 until toolbar.childCount) {
+                val child = toolbar.getChildAt(index)
+                if (child is ImageButton) {
+                    val params = child.layoutParams as? Toolbar.LayoutParams ?: continue
+                    params.gravity = Gravity.CENTER_VERTICAL or Gravity.START
+                    child.layoutParams = params
+                }
+            }
+        }
     }
 
     override fun onResume() {

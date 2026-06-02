@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.ui.home
 
 import android.os.Bundle
+import android.graphics.Typeface
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -391,6 +392,11 @@ class MissionMapFragment : Fragment() {
         } else {
             R.color.ds_color_shell_selected_content
         }
+        listOf(surveyButton, sprayButton).forEach { button ->
+            button.includeFontPadding = false
+            button.gravity = android.view.Gravity.CENTER
+            button.setTypeface(Typeface.DEFAULT, Typeface.NORMAL)
+        }
 
         fun applySelection(isSurveySelected: Boolean) {
             surveyButton.setBackgroundResource(
@@ -403,8 +409,6 @@ class MissionMapFragment : Fragment() {
                     if (isSurveySelected) selectedTextColor else R.color.ds_color_text_primary
                 )
             )
-            surveyButton.setTypeface(surveyButton.typeface, if (isSurveySelected) android.graphics.Typeface.BOLD else android.graphics.Typeface.NORMAL)
-
             sprayButton.setBackgroundResource(
                 if (isSurveySelected) R.drawable.bg_ds_panel_pill_inactive
                 else R.drawable.bg_ds_panel_pill_active
@@ -415,7 +419,6 @@ class MissionMapFragment : Fragment() {
                     if (isSurveySelected) R.color.ds_color_text_primary else selectedTextColor
                 )
             )
-            sprayButton.setTypeface(sprayButton.typeface, if (isSurveySelected) android.graphics.Typeface.NORMAL else android.graphics.Typeface.BOLD)
         }
 
         surveyButton.setOnClickListener { applySelection(true) }
