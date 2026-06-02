@@ -14,6 +14,13 @@ class MissionParamsViews(
 ) {
     val panelRoot: View = rootView.findViewById(R.id.mission_params_side_view)
 
+    val altitudeReferenceRelativeButton: TextView =
+        panelRoot.findViewById(R.id.altitude_reference_relative_button)
+    val altitudeReferenceTerrainButton: TextView =
+        panelRoot.findViewById(R.id.altitude_reference_terrain_button)
+    val altitudeReferenceWarning: TextView =
+        panelRoot.findViewById(R.id.altitude_reference_warning)
+
     val angleValue: EditText = rootView.findViewById(R.id.line_angle_value)
     val angleSeekbar: SeekBar = rootView.findViewById(R.id.line_angle_seekbar)
     val angleSliderRow: LinearLayout = rootView.findViewById(R.id.angle_slider_row)

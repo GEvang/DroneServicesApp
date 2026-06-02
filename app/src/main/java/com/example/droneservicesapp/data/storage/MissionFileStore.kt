@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Environment
 import android.util.Log
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.google.android.gms.maps.model.LatLng
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
@@ -46,6 +47,7 @@ class MissionFileStore(
      * @param lineDist Line distance in meters
      * @param angleDeg Spray angle in degrees
      * @param alt Flight altitude in meters
+     * @param altitudeReferenceMode MAVLink altitude reference mode
      * @param sprayerPct Sprayer intensity percentage
      * @param fileName Name of the file (without extension)
      * @param overwrite If true, overwrites existing file; if false, returns false if file exists
@@ -56,6 +58,7 @@ class MissionFileStore(
         lineDist: Int,
         angleDeg: Int,
         alt: Int,
+        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
         sprayerPct: Int,
         fileName: String,
         overwrite: Boolean
@@ -97,6 +100,10 @@ class MissionFileStore(
             val altitude = doc.createElement("altitude")
             altitude.textContent = alt.toString()
             root.appendChild(altitude)
+
+            val altitudeReference = doc.createElement("altitudeReferenceMode")
+            altitudeReference.textContent = altitudeReferenceMode.name
+            root.appendChild(altitudeReference)
             
             // Angle degrees
             val angleDegrees = doc.createElement("angleDegrees")

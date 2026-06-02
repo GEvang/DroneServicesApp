@@ -8,6 +8,7 @@ import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
+import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.MissionArea
 import com.example.droneservicesapp.domain.model.MissionParams
 import com.google.android.gms.maps.model.LatLng
@@ -57,6 +58,10 @@ class MainActivityViewModel : ViewModel() {
 
     val flightSpeed: MutableLiveData<Double> by lazy {
         MutableLiveData(1.0)
+    }
+
+    val altitudeReferenceMode: MutableLiveData<AltitudeReferenceMode> by lazy {
+        MutableLiveData(AltitudeReferenceMode.RELATIVE)
     }
 
     val flightDistance: MutableLiveData<Int> by lazy {
@@ -136,6 +141,13 @@ class MainActivityViewModel : ViewModel() {
 
     fun sendAction(action: MapAction) {
         mapAction.postValue(Event(action))
+    }
+
+    fun setAltitudeReferenceMode(mode: AltitudeReferenceMode) {
+        altitudeReferenceMode.value = mode
+        missionParams.value = (missionParams.value ?: MissionParams()).copy(
+            altitudeReferenceMode = mode
+        )
     }
 
     fun notifyGeoZoneDatasetReloaded() {

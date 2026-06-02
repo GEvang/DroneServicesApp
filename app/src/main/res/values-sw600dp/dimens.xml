@@ -2,7 +2,8 @@
 <resources>
     <dimen name="tablet_screen_margin">24dp</dimen>
     <dimen name="tablet_side_panel_width">320dp</dimen>
-    <dimen name="tablet_right_panel_width">300dp</dimen>
+    <dimen name="tablet_right_panel_width">320dp</dimen>
+    <dimen name="tablet_side_panel_min_height">560dp</dimen>
     <dimen name="tablet_bottom_dock_width">620dp</dimen>
     <dimen name="tablet_bottom_dock_outer_height">96dp</dimen>
     <dimen name="tablet_bottom_dock_height">80dp</dimen>

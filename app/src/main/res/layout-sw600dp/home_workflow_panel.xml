@@ -5,8 +5,9 @@
     style="@style/Widget.DroneServices.Panel.MapRight"
     android:layout_width="@dimen/tablet_right_panel_width"
     android:layout_height="wrap_content"
-    android:maxWidth="320dp"
+    android:maxWidth="352dp"
     android:minWidth="@dimen/tablet_right_panel_width"
+    android:minHeight="@dimen/tablet_side_panel_min_height"
     android:orientation="vertical">
 
     <LinearLayout

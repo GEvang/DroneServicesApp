@@ -2,6 +2,7 @@ package com.example.droneservicesapp.data.mavlink
 
 import android.location.Location
 import android.util.Log
+import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.google.android.gms.maps.model.LatLng
 import io.dronefleet.mavlink.common.MavCmd
 import io.dronefleet.mavlink.common.MavFrame
@@ -22,7 +23,8 @@ object MissionBuilder {
         flightSpeed: Float,
         angleProgress: Float,
         targetSystemId: Int,
-        targetComponentId: Int
+        targetComponentId: Int,
+        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE
     ): ArrayList<MissionItemInt> {
 
         // TEMP SWITCH: disable DO_SPRAYER to confirm mission uploads cleanly
@@ -33,7 +35,14 @@ object MissionBuilder {
         val sprayerIntensityPWM = ((max - min) * (sprayerIntensity / 100.0F)) + min
 
         val missionItems = ArrayList<MissionItemInt>()
+        val waypointFrame = missionWaypointFrameFor(altitudeReferenceMode)
         var seq = 0
+
+        Log.i(
+            "MissionUpload",
+            "Uploading survey mission: altitudeReference=$altitudeReferenceMode, " +
+                "frame=${waypointFrame.name}, altitude=${alt}m"
+        )
 
         fun nextSeq() = seq++
 
@@ -116,11 +125,10 @@ object MissionBuilder {
                 )
             )
 
-            // Add relative waypoint to mission
+            // Add waypoint using the selected altitude reference frame.
             missionItems.add(
                 buildItem(
-                    // Waypoints use a positional frame; alt in this builder is relative.
-                    frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                    frame = waypointFrame,
                     command = MavCmd.MAV_CMD_NAV_WAYPOINT,
                     currentFlag = 0,
                     p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = Float.NaN,
@@ -212,4 +220,11 @@ object MissionBuilder {
     }
 
     private fun Double.toE7(): Int = (this * 1e7).toInt()
+
+    fun missionWaypointFrameFor(mode: AltitudeReferenceMode): MavFrame {
+        return when (mode) {
+            AltitudeReferenceMode.RELATIVE -> MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT
+            AltitudeReferenceMode.TERRAIN -> MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT
+        }
+    }
 }

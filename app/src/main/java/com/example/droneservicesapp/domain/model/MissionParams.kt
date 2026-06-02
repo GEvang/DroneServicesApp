@@ -5,5 +5,6 @@ data class MissionParams(
     val lineDistance: Double = 1.0,
     val angle: Double = 1.0,
     val sprayer: Double = 0.0,
-    val speed: Double = 1.0
+    val speed: Double = 1.0,
+    val altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE
 )

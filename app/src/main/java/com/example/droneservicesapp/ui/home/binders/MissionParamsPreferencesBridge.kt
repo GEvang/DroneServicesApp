@@ -3,6 +3,7 @@ package com.example.droneservicesapp.ui.home.binders
 import android.content.Context
 import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 
 class MissionParamsPreferencesBridge(
@@ -17,6 +18,7 @@ class MissionParamsPreferencesBridge(
             "1"
         )
         loadPreference(R.string.survey_altitude_pref, activityViewModel.flightAltProgress, "2")
+        loadAltitudeReferencePreference()
         loadPreference(
             R.string.survey_sprayer_intensity_pref,
             activityViewModel.sprayerProgress,
@@ -37,6 +39,9 @@ class MissionParamsPreferencesBridge(
         savePreference(
             R.string.survey_altitude_pref,
             activityViewModel.flightAltProgress.value?.toInt() ?: 2
+        )
+        saveAltitudeReferencePreference(
+            activityViewModel.altitudeReferenceMode.value ?: AltitudeReferenceMode.RELATIVE
         )
         savePreference(
             R.string.survey_sprayer_intensity_pref,
@@ -59,10 +64,28 @@ class MissionParamsPreferencesBridge(
             ?.toDouble()
     }
 
+    private fun loadAltitudeReferencePreference() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
+        val storedValue = prefs.getString(
+            context.getString(R.string.survey_altitude_reference_pref),
+            AltitudeReferenceMode.RELATIVE.name
+        )
+        activityViewModel.setAltitudeReferenceMode(
+            AltitudeReferenceMode.fromStorageValue(storedValue)
+        )
+    }
+
     private fun savePreference(stringResourceId: Int, value: Int) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
         prefs.edit()
             .putString(context.getString(stringResourceId), value.toString())
+            .apply()
+    }
+
+    private fun saveAltitudeReferencePreference(mode: AltitudeReferenceMode) {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
+        prefs.edit()
+            .putString(context.getString(R.string.survey_altitude_reference_pref), mode.name)
             .apply()
     }
 }

@@ -602,7 +602,6 @@ class MissionMapFragment : Fragment() {
                         getString(R.string.upload_failed_with_reason, action.reason),
                         Snackbar.LENGTH_LONG
                     ).show()
-                    activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
                 }
             }
         }
@@ -1157,13 +1156,6 @@ class MissionMapFragment : Fragment() {
         return health
     }
 
-    private fun shouldWarnForGeoHealthBeforeUpload(
-        result: GeoAwarenessResult,
-        health: GeoAwarenessHealth
-    ): Boolean {
-        return !result.hasConflicts && health.requiresAcknowledgementBeforeUpload
-    }
-
     private fun handleGeoAwarenessBeforeUpload(onAllowed: () -> Unit) {
         val result = try {
             calculateGeoAwarenessPlanningResult().also { latestGeoAwarenessResult = it }
@@ -1173,23 +1165,6 @@ class MissionMapFragment : Fragment() {
             return
         }
         val health = ensureGeoAwarenessHealth()
-
-        if (shouldWarnForGeoHealthBeforeUpload(result, health)) {
-            Log.w(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: health warning state=${health.state}")
-            showGeoAwarenessHealthAcknowledgementDialog(health) {
-                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after health acknowledgement")
-                geoEventLogger.logSimple(
-                    type = GeoAwarenessEventType.UPLOAD_CONTINUED_WITH_WARNING,
-                    severity = "WARNING",
-                    message = "Upload continued with geo-awareness health warning",
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name
-                )
-                onAllowed()
-            }
-            return
-        }
 
         if (!result.hasConflicts) {
             Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: clear, proceeding")
@@ -1223,7 +1198,7 @@ class MissionMapFragment : Fragment() {
                     longitude = latestRealDronePosition?.lon,
                     altitudeMeters = latestRealDroneAltitudeMeters
                 )
-                showGeoAwarenessBlockedDialog(result, health)
+                showGeoAwarenessBlockedDialog(result)
             }
             result.requiresAcknowledgement -> {
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: acknowledgement required conflicts=${result.conflicts.size}")
@@ -1284,15 +1259,13 @@ class MissionMapFragment : Fragment() {
         }
     }
 
-    private fun showGeoAwarenessBlockedDialog(result: GeoAwarenessResult, health: GeoAwarenessHealth) {
+    private fun showGeoAwarenessBlockedDialog(result: GeoAwarenessResult) {
         val message = buildString {
             appendLine("This mission intersects a prohibited geo-zone.")
             appendLine("Upload is blocked by the geo-awareness guard.")
-            appendLine(health.message)
-            appendLine(buildGeoHealthNotice(health))
             appendLine("Verify official restrictions in DAGR before flight.")
             appendLine()
-            append(buildGeoConflictSummary(result, health))
+            append(buildGeoConflictSummary(result))
         }
         showGeoAwarenessDialog(
             title = "Geo-awareness upload blocked",
@@ -1308,10 +1281,8 @@ class MissionMapFragment : Fragment() {
         val message = buildString {
             appendLine("This mission intersects an authorization-required geo-zone.")
             appendLine("Proceed only if you have verified the required authorization.")
-            appendLine(health.message)
-            appendLine(buildGeoHealthNotice(health))
             appendLine()
-            append(buildGeoConflictSummary(result, health))
+            append(buildGeoConflictSummary(result))
         }
         val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
             .setTitle("Geo-awareness authorization warning")
@@ -1343,9 +1314,7 @@ class MissionMapFragment : Fragment() {
         val message = buildString {
             appendLine("This mission intersects conditional/information geo-zones.")
             appendLine()
-            appendLine(buildGeoConflictSummary(result, health))
-            appendLine()
-            append(buildGeoHealthNotice(health))
+            append(buildGeoConflictSummary(result))
         }
         val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
             .setTitle("Geo-awareness notice")
@@ -1419,7 +1388,6 @@ class MissionMapFragment : Fragment() {
 
     private fun buildGeoConflictSummary(
         result: GeoAwarenessResult,
-        health: GeoAwarenessHealth,
         maxItems: Int = 5
     ): String {
         val orderedConflicts = result.conflicts.sortedWith(
@@ -1431,8 +1399,6 @@ class MissionMapFragment : Fragment() {
         val remainingCount = orderedConflicts.size - visibleConflicts.size
 
         return buildString {
-            appendLine("Geo-awareness health: ${health.state}")
-            appendLine("Health message: ${health.message}")
             appendLine("Highest restriction: ${result.highestRestriction}")
             appendLine("Upload allowed: ${if (result.canUpload) "Yes" else "No"}")
             appendLine("Acknowledgement required: ${if (result.requiresAcknowledgement) "Yes" else "No"}")

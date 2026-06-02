@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.data.storage
 
 import androidx.fragment.app.FragmentActivity
+import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
 import org.xmlpull.v1.XmlPullParser
@@ -20,6 +21,7 @@ class MissionXmlParser(
 
         var eventType = parser.eventType
         var altitude = -1
+        var altitudeReferenceMode = AltitudeReferenceMode.RELATIVE
         var angleDegrees = -1
         var lineDistance = -1
         var sprayerIntensityPercentage = -1
@@ -30,6 +32,8 @@ class MissionXmlParser(
                 XmlPullParser.START_TAG -> {
                     when (parser.name) {
                         "altitude" -> altitude = parser.nextText().toInt()
+                        "altitudeReferenceMode" ->
+                            altitudeReferenceMode = AltitudeReferenceMode.fromStorageValue(parser.nextText())
                         "angleDegrees" -> angleDegrees = parser.nextText().toInt()
                         "lineDistance" -> lineDistance = parser.nextText().toInt()
                         "sprayerIntensityPercentage" ->
@@ -60,6 +64,7 @@ class MissionXmlParser(
 
         activityViewModel.angleProgress.postValue(angleDegrees.toDouble())
         activityViewModel.flightAltProgress.postValue(altitude.toDouble())
+        activityViewModel.setAltitudeReferenceMode(altitudeReferenceMode)
         activityViewModel.lineDistanceProgress.postValue(lineDistance.toDouble())
         activityViewModel.sprayerProgress.postValue(sprayerIntensityPercentage.toDouble())
         activityViewModel.setPolygonVertices(latLngList)

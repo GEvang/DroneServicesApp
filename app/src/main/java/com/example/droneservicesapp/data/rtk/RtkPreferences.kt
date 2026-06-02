@@ -2,6 +2,7 @@ package com.example.droneservicesapp.data.rtk
 
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
@@ -11,17 +12,7 @@ class RtkPreferences(
     private val appContext = context.applicationContext
 
     private val preferences: SharedPreferences by lazy {
-        val masterKey = MasterKey.Builder(appContext)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-
-        EncryptedSharedPreferences.create(
-            appContext,
-            PREFS_FILE_NAME,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        ).also { prefs ->
+        createEncryptedPreferencesWithRecovery().also { prefs ->
             migrateLegacyValuesIfNeeded(prefs)
         }
     }
@@ -125,8 +116,39 @@ class RtkPreferences(
             .apply()
     }
 
+    private fun createEncryptedPreferencesWithRecovery(): SharedPreferences {
+        return try {
+            createEncryptedPreferences()
+        } catch (error: Exception) {
+            Log.w(TAG, "RTK encrypted preferences could not be opened; resetting corrupted store", error)
+            deleteEncryptedPreferencesStore()
+            createEncryptedPreferences()
+        }
+    }
+
+    private fun createEncryptedPreferences(): SharedPreferences {
+        val masterKey = MasterKey.Builder(appContext)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
+
+        return EncryptedSharedPreferences.create(
+            appContext,
+            PREFS_FILE_NAME,
+            masterKey,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
+    }
+
+    private fun deleteEncryptedPreferencesStore() {
+        appContext.deleteSharedPreferences(PREFS_FILE_NAME)
+        appContext.deleteSharedPreferences(KEYSET_PREFS_FILE_NAME)
+    }
+
     companion object {
+        private const val TAG = "RtkPreferences"
         private const val PREFS_FILE_NAME = "rtk_secure_preferences"
+        private const val KEYSET_PREFS_FILE_NAME = "__androidx_security_crypto_encrypted_prefs_key_keyset__"
         private const val DEFAULT_PORT = 2101
         private const val KEY_IP = "rtk_ip"
         private const val KEY_HOST_LEGACY = "rtk_host"

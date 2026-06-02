@@ -1,5 +1,7 @@
 package com.example.droneservicesapp.ui.home.model
 
+import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+
 data class HomeMapUiState(
     val screenMode: HomeMapScreenMode,
     val shellState: HomeMapShellUiState,
@@ -173,6 +175,7 @@ data class MissionParamsUiState(
     val sprayerIntensity: Int,
     val flightSpeed: Int,
     val estimatedFlightMinutes: Int,
+    val altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
 )
 
 data class SaveMissionUiState(

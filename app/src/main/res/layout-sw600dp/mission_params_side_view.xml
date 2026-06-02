@@ -7,6 +7,7 @@
     android:minWidth="@dimen/tablet_side_panel_width"
     android:maxWidth="352dp"
     android:layout_height="wrap_content"
+    android:minHeight="@dimen/tablet_side_panel_min_height"
     android:orientation="vertical">
 
     <TextView
@@ -29,6 +30,7 @@
         android:orientation="horizontal">
 
         <TextView
+            android:id="@+id/altitude_reference_relative_button"
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_weight="1"
@@ -40,6 +42,7 @@
             android:textStyle="bold" />
 
         <TextView
+            android:id="@+id/altitude_reference_terrain_button"
             android:layout_width="0dp"
             android:layout_height="40dp"
             android:layout_marginStart="@dimen/ds_space_sm"
@@ -50,6 +53,17 @@
             android:textColor="@color/ds_color_text_primary"
             android:fontFamily="@font/inter" />
     </LinearLayout>
+
+    <TextView
+        android:id="@+id/altitude_reference_warning"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="@dimen/ds_space_md"
+        android:text="@string/terrain_altitude_warning"
+        android:textColor="@color/ds_color_shell_warning"
+        android:fontFamily="@font/inter"
+        android:textSize="12sp"
+        android:visibility="gone" />
 
     <TextView
         android:layout_width="match_parent"

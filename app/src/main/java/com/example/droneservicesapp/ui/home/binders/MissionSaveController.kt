@@ -119,6 +119,8 @@ class MissionSaveController(
                 lineDist = activityViewModel.lineDistanceProgress.value!!.toInt(),
                 angleDeg = activityViewModel.angleProgress.value!!.toInt(),
                 alt = activityViewModel.flightAltProgress.value!!.toInt(),
+                altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value
+                    ?: com.example.droneservicesapp.domain.model.AltitudeReferenceMode.RELATIVE,
                 sprayerPct = activityViewModel.sprayerProgress.value!!.toInt(),
                 fileName = trimmedFileName,
                 overwrite = overrideFile

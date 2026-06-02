@@ -41,7 +41,7 @@ class DroneViewModel : ViewModel() {
         private const val HEARTBEAT_STALE_MS = 2500L
         private const val TELEMETRY_STALE_MS = 2500L
         private const val MISSION_DEBOUNCE_MS = 1500L
-        private const val UPLOAD_TIMEOUT_MS = 2000L
+        private const val UPLOAD_TIMEOUT_MS = 5000L
         private const val GCS_SYSTEM_ID = 255
         private const val GCS_COMPONENT_ID = 190
         private const val MAVLINK_SYSTEM_ALL = 0

@@ -1,9 +1,11 @@
 package com.example.droneservicesapp.ui.home.binders
 
 import android.content.Context
+import android.util.Log
 import android.widget.Toast
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.mavlink.MissionBuilder
+import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 
@@ -30,6 +32,7 @@ class MissionParamsActionHandler(
         val sprayer = activityViewModel.sprayerProgress.value
         val speed = activityViewModel.flightSpeed.value
         val angle = activityViewModel.angleProgress.value
+        val altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value ?: AltitudeReferenceMode.RELATIVE
 
         when {
             !connected -> {
@@ -68,10 +71,15 @@ class MissionParamsActionHandler(
             flightSpeed = validatedSpeed.toFloat(),
             angleProgress = validatedAngle.toFloat(),
             targetSystemId = droneViewModel.getTargetSystemId(),
-            targetComponentId = droneViewModel.getTargetComponentId()
+            targetComponentId = droneViewModel.getTargetComponentId(),
+            altitudeReferenceMode = altitudeReferenceMode
         )
 
         val proceedWithUpload = {
+            Log.i(
+                "MissionUpload",
+                "Proceeding with upload altitudeReference=$altitudeReferenceMode altitude=${validatedAlt.toInt()}m"
+            )
             droneViewModel.uploadMissionNew(missionItems, activityViewModel)
             preferencesBridge.saveFromViewModel()
         }

@@ -488,7 +488,15 @@ class MissionService(
                     break
                 }
 
-                latch.await(250, TimeUnit.MILLISECONDS)
+                try {
+                    latch.await(250, TimeUnit.MILLISECONDS)
+                } catch (interrupted: InterruptedException) {
+                    Thread.currentThread().interrupt()
+                    Log.w("MissionUpload", "Upload wait interrupted; treating as cancelled")
+                    done.set(true)
+                    success.set(false)
+                    break
+                }
 
                 if (System.currentTimeMillis() - startMs > totalTimeoutMs) {
                     Log.e("MissionUpload", "Total timeout exceeded (${totalTimeoutMs}ms); failing upload")
