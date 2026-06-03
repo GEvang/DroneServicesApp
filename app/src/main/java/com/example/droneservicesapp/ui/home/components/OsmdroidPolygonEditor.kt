@@ -1,8 +1,12 @@
 package com.example.droneservicesapp.ui.home.components
 
 import android.app.Activity
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
-import androidx.core.content.ContextCompat
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.graphics.drawable.BitmapDrawable
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.survey.PolygonVertexOrderer
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
@@ -93,12 +97,13 @@ class OsmdroidPolygonEditor(
             val point = GeoPoint(vertex.latitude, vertex.longitude)
             points.add(point)
 
-            val marker = createVertexMarker(point)
+            val marker = createVertexMarker(point, vertexMarkers.size + 1)
             vertexMarkers.add(marker)
             mapView.overlays.add(marker)
         }
 
         orderVerticesIfNeeded()
+        updateVertexMarkerIcons()
         redrawPolygon()
     }
 
@@ -107,12 +112,13 @@ class OsmdroidPolygonEditor(
     private fun addVertex(p: GeoPoint) {
         points.add(p)
 
-        val marker = createVertexMarker(p)
+        val marker = createVertexMarker(p, vertexMarkers.size + 1)
 
         vertexMarkers.add(marker)
         mapView.overlays.add(marker)
 
         orderVerticesIfNeeded()
+        updateVertexMarkerIcons()
         redrawPolygonAndSyncModel()
     }
 
@@ -124,6 +130,7 @@ class OsmdroidPolygonEditor(
         vertexMarkers.removeAt(idx)
         points.removeAt(idx)
 
+        updateVertexMarkerIcons()
         redrawPolygonAndSyncModel()
     }
 
@@ -133,6 +140,7 @@ class OsmdroidPolygonEditor(
 
         points[idx] = marker.position as GeoPoint
         orderVerticesIfNeeded()
+        updateVertexMarkerIcons()
         redrawPolygonAndSyncModel()
     }
 
@@ -179,12 +187,20 @@ class OsmdroidPolygonEditor(
         vertexMarkers.addAll(orderedMarkers)
     }
 
-    private fun createVertexMarker(point: GeoPoint): Marker =
+    private fun updateVertexMarkerIcons() {
+        vertexMarkers.forEachIndexed { index, marker ->
+            marker.icon = createNumberedIcon(index + 1)
+            marker.title = "Area point ${index + 1}"
+        }
+    }
+
+    private fun createVertexMarker(point: GeoPoint, number: Int): Marker =
         Marker(mapView).apply {
             position = point
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             isDraggable = true
-            icon = ContextCompat.getDrawable(activity, R.drawable.bg_mission_vertex_marker)
+            icon = createNumberedIcon(number)
+            title = "Area point $number"
 
             setOnMarkerClickListener { marker, _ ->
                 if (!enabled) return@setOnMarkerClickListener false
@@ -202,6 +218,37 @@ class OsmdroidPolygonEditor(
                 }
             })
         }
+
+    private fun createNumberedIcon(number: Int): BitmapDrawable {
+        val density = activity.resources.displayMetrics.density
+        val size = (34 * density).toInt()
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val center = size / 2f
+
+        val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(16, 24, 32)
+            style = Paint.Style.FILL
+        }
+        val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(80, 200, 255)
+            strokeWidth = 2.5f * density
+            style = Paint.Style.STROKE
+        }
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textAlign = Paint.Align.CENTER
+            typeface = Typeface.DEFAULT_BOLD
+            textSize = 14f * density
+        }
+
+        canvas.drawCircle(center, center, center - strokePaint.strokeWidth, fillPaint)
+        canvas.drawCircle(center, center, center - strokePaint.strokeWidth, strokePaint)
+        val baseline = center - ((textPaint.descent() + textPaint.ascent()) / 2f)
+        canvas.drawText(number.toString(), center, baseline, textPaint)
+
+        return BitmapDrawable(activity.resources, bitmap)
+    }
 
     private fun isSameVertices(vertices: List<LatLng>): Boolean {
         if (vertices.size != points.size) return false
