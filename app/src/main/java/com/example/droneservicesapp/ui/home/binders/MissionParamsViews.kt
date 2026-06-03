@@ -21,6 +21,8 @@ class MissionParamsViews(
     val altitudeReferenceWarning: TextView =
         panelRoot.findViewById(R.id.altitude_reference_warning)
 
+    val presetSelector: TextView = rootView.findViewById(R.id.spray_preset_selector)
+
     val angleValue: EditText = rootView.findViewById(R.id.line_angle_value)
     val angleSeekbar: SeekBar = rootView.findViewById(R.id.line_angle_seekbar)
     val angleSliderRow: LinearLayout = rootView.findViewById(R.id.angle_slider_row)

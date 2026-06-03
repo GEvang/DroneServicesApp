@@ -173,7 +173,7 @@ data class MissionParamsUiState(
     val lineDistance: Int,
     val altitude: Int,
     val sprayerIntensity: Int,
-    val flightSpeed: Int,
+    val flightSpeed: Double,
     val estimatedFlightMinutes: Int,
     val altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
 )

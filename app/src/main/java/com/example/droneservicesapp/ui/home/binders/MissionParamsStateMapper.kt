@@ -12,7 +12,7 @@ class MissionParamsStateMapper(
             lineDistance = activityViewModel.lineDistanceProgress.value?.toInt() ?: 1,
             altitude = activityViewModel.flightAltProgress.value?.toInt() ?: 2,
             sprayerIntensity = activityViewModel.sprayerProgress.value?.toInt() ?: 0,
-            flightSpeed = activityViewModel.flightSpeed.value?.toInt() ?: 1,
+            flightSpeed = activityViewModel.flightSpeed.value ?: 1.0,
             estimatedFlightMinutes = activityViewModel.estimatedFlightMinutes.value ?: 1,
             altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value
                 ?: com.example.droneservicesapp.domain.model.AltitudeReferenceMode.RELATIVE

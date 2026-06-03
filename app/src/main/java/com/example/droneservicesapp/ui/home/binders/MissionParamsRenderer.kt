@@ -1,15 +1,19 @@
 package com.example.droneservicesapp.ui.home.binders
 
 import android.graphics.Typeface
+import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.View
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+import com.example.droneservicesapp.domain.survey.SprayPresets
 import com.example.droneservicesapp.ui.home.model.MissionParamsUiState
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
+import java.util.Locale
 
 class MissionParamsRenderer(
     private val views: MissionParamsViews,
@@ -22,7 +26,7 @@ class MissionParamsRenderer(
         lineDistance = 1,
         altitude = 2,
         sprayerIntensity = 0,
-        flightSpeed = 1,
+        flightSpeed = 1.0,
         estimatedFlightMinutes = 1,
         altitudeReferenceMode = AltitudeReferenceMode.RELATIVE
     )
@@ -30,11 +34,13 @@ class MissionParamsRenderer(
     fun bind() {
         missionParamsUiState = stateMapper.currentUiState()
         renderFlightSummary(missionParamsUiState)
+        renderPreset(activityViewModel.selectedSprayPresetId.value)
+        bindPresetSelector()
         bindAltitudeReferenceSelector()
         renderAltitudeReference(missionParamsUiState.altitudeReferenceMode)
 
         activityViewModel.flightSpeed.observe(lifecycleOwner) { flightSpeed ->
-            missionParamsUiState = missionParamsUiState.copy(flightSpeed = flightSpeed.toInt())
+            missionParamsUiState = missionParamsUiState.copy(flightSpeed = flightSpeed)
             renderFlightSummary(missionParamsUiState)
         }
 
@@ -48,11 +54,23 @@ class MissionParamsRenderer(
             missionParamsUiState = missionParamsUiState.copy(altitudeReferenceMode = selectedMode)
             renderAltitudeReference(selectedMode)
         }
+
+        activityViewModel.selectedSprayPresetId.observe(lifecycleOwner) { presetId ->
+            renderPreset(presetId)
+        }
     }
 
     private fun renderFlightSummary(state: MissionParamsUiState) {
-        views.flightSpeedValue.text = state.flightSpeed.toString()
+        views.flightSpeedValue.text = formatSpeed(state.flightSpeed)
         views.flightTimeValue.text = state.estimatedFlightMinutes.toString()
+    }
+
+    private fun formatSpeed(speed: Double): String {
+        return if (speed % 1.0 == 0.0) {
+            speed.toInt().toString()
+        } else {
+            String.format(Locale.US, "%.1f", speed)
+        }
     }
 
     private fun bindAltitudeReferenceSelector() {
@@ -67,6 +85,30 @@ class MissionParamsRenderer(
         views.altitudeReferenceTerrainButton.setOnClickListener {
             activityViewModel.setAltitudeReferenceMode(AltitudeReferenceMode.TERRAIN)
         }
+    }
+
+    private fun bindPresetSelector() {
+        views.presetSelector.setOnClickListener {
+            val presets = SprayPresets.all
+            val labels = presets.map { it.label }.toTypedArray()
+            val selectedId = activityViewModel.selectedSprayPresetId.value
+            val selectedIndex = presets.indexOfFirst { it.id == selectedId }.coerceAtLeast(0)
+
+            AlertDialog.Builder(
+                ContextThemeWrapper(views.panelRoot.context, R.style.Theme_DroneServicesApp_AlertDialog)
+            )
+                .setTitle(R.string.spray_preset_title)
+                .setSingleChoiceItems(labels, selectedIndex) { dialog, which ->
+                    activityViewModel.applySprayPreset(presets[which].id)
+                    dialog.dismiss()
+                }
+                .setNegativeButton(android.R.string.cancel, null)
+                .show()
+        }
+    }
+
+    private fun renderPreset(presetId: String?) {
+        views.presetSelector.text = SprayPresets.byId(presetId).label
     }
 
     private fun renderAltitudeReference(mode: AltitudeReferenceMode) {

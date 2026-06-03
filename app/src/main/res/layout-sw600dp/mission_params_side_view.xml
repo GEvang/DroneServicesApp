@@ -66,6 +66,7 @@
         android:visibility="gone" />
 
     <TextView
+        android:id="@+id/spray_preset_selector"
         android:layout_width="match_parent"
         android:layout_height="40dp"
         android:layout_marginBottom="@dimen/ds_space_lg"
@@ -73,6 +74,8 @@
         android:gravity="center"
         android:text="@string/preset_dakos"
         android:textColor="@color/ds_color_text_primary"
+        android:clickable="true"
+        android:focusable="true"
         android:fontFamily="@font/inter"
         android:textStyle="bold" />
 

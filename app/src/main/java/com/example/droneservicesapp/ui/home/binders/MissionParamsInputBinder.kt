@@ -6,15 +6,18 @@ import android.text.Editable
 import android.text.TextWatcher
 import android.widget.EditText
 import android.widget.SeekBar
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 
 class MissionParamsInputBinder(
     private val views: MissionParamsViews,
+    private val lifecycleOwner: LifecycleOwner,
     private val activityViewModel: MainActivityViewModel,
 ) {
-    private val minSpeed = 1
-    private val maxSpeed = 5
+    private val minSpeed = 1.0
+    private val maxSpeed = 5.0
+    private val speedStep = 0.5
 
     fun bind() {
         bindSeekbars()
@@ -27,40 +30,44 @@ class MissionParamsInputBinder(
             touchTarget = views.angleSliderRow,
             seekbar = views.angleSeekbar,
             valueView = views.angleValue,
-            target = activityViewModel.angleProgress
+            target = activityViewModel.angleProgress,
+            updateValue = activityViewModel::updateMissionAngle
         )
         bindSeekbar(
             touchTarget = views.lineDistanceSliderRow,
             seekbar = views.lineDistanceSeekbar,
             valueView = views.lineDistanceValue,
-            target = activityViewModel.lineDistanceProgress
+            target = activityViewModel.lineDistanceProgress,
+            updateValue = activityViewModel::updateLineSpacing
         )
         bindSeekbar(
             touchTarget = views.altitudeSliderRow,
             seekbar = views.altitudeSeekbar,
             valueView = views.altitudeValue,
-            target = activityViewModel.flightAltProgress
+            target = activityViewModel.flightAltProgress,
+            updateValue = activityViewModel::updateAltitude
         )
         bindSeekbar(
             touchTarget = views.sprayerSliderRow,
             seekbar = views.sprayerSeekbar,
             valueView = views.sprayerValue,
-            target = activityViewModel.sprayerProgress
+            target = activityViewModel.sprayerProgress,
+            updateValue = activityViewModel::updateSprayIntensity
         )
     }
 
     private fun bindSpeedButtons() {
         views.speedMinusButton.setOnClickListener {
-            val cur = activityViewModel.flightSpeed.value?.toInt() ?: 1
+            val cur = activityViewModel.flightSpeed.value ?: minSpeed
             if (cur > minSpeed) {
-                activityViewModel.flightSpeed.postValue((cur - 1).toDouble())
+                activityViewModel.updateMissionSpeed(cur - speedStep)
             }
         }
 
         views.speedPlusButton.setOnClickListener {
-            val cur = activityViewModel.flightSpeed.value?.toInt() ?: 1
+            val cur = activityViewModel.flightSpeed.value ?: minSpeed
             if (cur < maxSpeed) {
-                activityViewModel.flightSpeed.postValue((cur + 1).toDouble())
+                activityViewModel.updateMissionSpeed(cur + speedStep)
             }
         }
     }
@@ -100,16 +107,30 @@ class MissionParamsInputBinder(
         seekbar: SeekBar,
         valueView: EditText,
         target: MutableLiveData<Double>,
+        updateValue: (Int) -> Unit,
     ) {
+        var suppressChange = false
         val initial = target.value?.toInt() ?: 0
         seekbar.progress = initial
         valueView.setText(initial.toString())
         bindExpandedTouchTarget(touchTarget, seekbar)
 
+        target.observe(lifecycleOwner) { value ->
+            val progress = value?.toInt() ?: return@observe
+            if (seekbar.progress == progress && valueView.text.toString() == progress.toString()) {
+                return@observe
+            }
+            suppressChange = true
+            seekbar.progress = progress
+            valueView.setText(progress.toString())
+            suppressChange = false
+        }
+
         seekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                if (suppressChange) return
                 valueView.setText(progress.toString())
-                target.postValue(progress.toDouble())
+                updateValue(progress)
             }
 
             override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
@@ -125,6 +146,7 @@ class MissionParamsInputBinder(
             }
 
             override fun afterTextChanged(s: Editable?) {
+                if (suppressChange) return
                 val progress = s.toString().toIntOrNull() ?: return
                 seekbar.setProgress(progress, true)
             }

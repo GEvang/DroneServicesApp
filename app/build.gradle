@@ -37,6 +37,7 @@ def versions = [
 
         // Testing
         junit               : '4.13.2',
+        archCoreTesting     : '2.2.0',
         junitKtx            : '1.1.5',
         testMonitor         : '1.6.1',
 ]
@@ -120,6 +121,7 @@ dependencies {
 
     // Unit testing
     testImplementation "junit:junit:${versions.junit}"
+    testImplementation "androidx.arch.core:core-testing:${versions.archCoreTesting}"
 
     // Instrumentation testing (correct scope)
     androidTestImplementation "androidx.test:monitor:${versions.testMonitor}"

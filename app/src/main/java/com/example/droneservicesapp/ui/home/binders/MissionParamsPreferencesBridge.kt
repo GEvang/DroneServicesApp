@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+import com.example.droneservicesapp.domain.survey.SprayPresets
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 
 class MissionParamsPreferencesBridge(
@@ -25,6 +26,7 @@ class MissionParamsPreferencesBridge(
             "0"
         )
         loadPreference(R.string.flight_speed_pref, activityViewModel.flightSpeed, "1")
+        loadSelectedPresetPreference()
     }
 
     fun saveFromViewModel() {
@@ -47,10 +49,8 @@ class MissionParamsPreferencesBridge(
             R.string.survey_sprayer_intensity_pref,
             activityViewModel.sprayerProgress.value?.toInt() ?: 0
         )
-        savePreference(
-            R.string.flight_speed_pref,
-            activityViewModel.flightSpeed.value?.toInt() ?: 1
-        )
+        saveDoublePreference(R.string.flight_speed_pref, activityViewModel.flightSpeed.value ?: 1.0)
+        saveSelectedPresetPreference()
     }
 
     private fun loadPreference(
@@ -82,10 +82,34 @@ class MissionParamsPreferencesBridge(
             .apply()
     }
 
+    private fun saveDoublePreference(stringResourceId: Int, value: Double) {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
+        prefs.edit()
+            .putString(context.getString(stringResourceId), value.toString())
+            .apply()
+    }
+
     private fun saveAltitudeReferencePreference(mode: AltitudeReferenceMode) {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
         prefs.edit()
             .putString(context.getString(R.string.survey_altitude_reference_pref), mode.name)
+            .apply()
+    }
+
+    private fun loadSelectedPresetPreference() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
+        activityViewModel.selectedSprayPresetId.value = SprayPresets.byId(
+            prefs.getString(context.getString(R.string.survey_spray_preset_pref), SprayPresets.CUSTOM_ID)
+        ).id
+    }
+
+    private fun saveSelectedPresetPreference() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
+        prefs.edit()
+            .putString(
+                context.getString(R.string.survey_spray_preset_pref),
+                SprayPresets.byId(activityViewModel.selectedSprayPresetId.value).id
+            )
             .apply()
     }
 }

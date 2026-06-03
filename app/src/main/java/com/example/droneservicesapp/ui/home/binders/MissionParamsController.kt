@@ -27,6 +27,7 @@ class MissionParamsController(
     )
     private val inputBinder = MissionParamsInputBinder(
         views = views,
+        lifecycleOwner = lifecycleOwner,
         activityViewModel = activityViewModel
     )
     private val actionHandler = MissionParamsActionHandler(

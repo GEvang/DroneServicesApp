@@ -11,6 +11,7 @@ import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValida
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.MissionArea
 import com.example.droneservicesapp.domain.model.MissionParams
+import com.example.droneservicesapp.domain.survey.SprayPresets
 import com.google.android.gms.maps.model.LatLng
 
 class MainActivityViewModel : ViewModel() {
@@ -62,6 +63,10 @@ class MainActivityViewModel : ViewModel() {
 
     val altitudeReferenceMode: MutableLiveData<AltitudeReferenceMode> by lazy {
         MutableLiveData(AltitudeReferenceMode.RELATIVE)
+    }
+
+    val selectedSprayPresetId: MutableLiveData<String> by lazy {
+        MutableLiveData(SprayPresets.CUSTOM_ID)
     }
 
     val flightDistance: MutableLiveData<Int> by lazy {
@@ -148,6 +153,58 @@ class MainActivityViewModel : ViewModel() {
         missionParams.value = (missionParams.value ?: MissionParams()).copy(
             altitudeReferenceMode = mode
         )
+    }
+
+    fun applySprayPreset(presetId: String) {
+        val preset = SprayPresets.byId(presetId)
+        selectedSprayPresetId.value = preset.id
+        if (preset.id == SprayPresets.CUSTOM_ID) return
+
+        updateMissionAngle(preset.missionAngleDeg, markCustom = false)
+        updateLineSpacing(preset.lineSpacingM, markCustom = false)
+        updateAltitude(preset.altitudeM, markCustom = false)
+        updateSprayIntensity(preset.sprayIntensityPercent, markCustom = false)
+        updateMissionSpeed(preset.missionSpeedMs, markCustom = false)
+    }
+
+    fun updateMissionAngle(value: Int, markCustom: Boolean = true) {
+        angleProgress.value = value.coerceIn(0, 90).toDouble()
+        updateMissionParams { copy(angle = angleProgress.value ?: 0.0) }
+        markPresetCustomIfNeeded(markCustom)
+    }
+
+    fun updateLineSpacing(value: Int, markCustom: Boolean = true) {
+        lineDistanceProgress.value = value.coerceIn(2, 20).toDouble()
+        updateMissionParams { copy(lineDistance = lineDistanceProgress.value ?: 2.0) }
+        markPresetCustomIfNeeded(markCustom)
+    }
+
+    fun updateAltitude(value: Int, markCustom: Boolean = true) {
+        flightAltProgress.value = value.coerceIn(2, 20).toDouble()
+        updateMissionParams { copy(altitude = flightAltProgress.value ?: 2.0) }
+        markPresetCustomIfNeeded(markCustom)
+    }
+
+    fun updateSprayIntensity(value: Int, markCustom: Boolean = true) {
+        sprayerProgress.value = value.coerceIn(0, 100).toDouble()
+        updateMissionParams { copy(sprayer = sprayerProgress.value ?: 0.0) }
+        markPresetCustomIfNeeded(markCustom)
+    }
+
+    fun updateMissionSpeed(value: Double, markCustom: Boolean = true) {
+        flightSpeed.value = value.coerceIn(1.0, 5.0)
+        updateMissionParams { copy(speed = flightSpeed.value ?: 1.0) }
+        markPresetCustomIfNeeded(markCustom)
+    }
+
+    private fun markPresetCustomIfNeeded(markCustom: Boolean) {
+        if (markCustom && selectedSprayPresetId.value != SprayPresets.CUSTOM_ID) {
+            selectedSprayPresetId.value = SprayPresets.CUSTOM_ID
+        }
+    }
+
+    private fun updateMissionParams(update: MissionParams.() -> MissionParams) {
+        missionParams.value = (missionParams.value ?: MissionParams()).update()
     }
 
     fun notifyGeoZoneDatasetReloaded() {

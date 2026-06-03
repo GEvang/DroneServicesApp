@@ -114,6 +114,7 @@
     <string name="terrain">Terrain</string>
     <string name="terrain_altitude_warning">Terrain altitude requires ArduPilot terrain data. Verify terrain status before flight.</string>
     <string name="preset_dakos">Preset: Dakos</string>
+    <string name="spray_preset_title">Spray preset</string>
     <string name="spray">Spray</string>
     <string name="area">Area</string>
     <string name="points">Points</string>
@@ -155,6 +156,7 @@
     <string name="survey_angle_pref" translatable="false">surveyAngle</string>
     <string name="survey_altitude_pref" translatable="false">missionAlt</string>
     <string name="survey_altitude_reference_pref" translatable="false">missionAltitudeReference</string>
+    <string name="survey_spray_preset_pref" translatable="false">missionSprayPreset</string>
     <string name="survey_sprayer_intensity_pref" translatable="false">sprayerIntensity</string>
     <string name="language_pref" translatable="false">language_pref</string>
 
