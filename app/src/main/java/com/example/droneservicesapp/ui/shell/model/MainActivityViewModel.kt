@@ -11,6 +11,9 @@ import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValida
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.MissionArea
 import com.example.droneservicesapp.domain.model.MissionParams
+import com.example.droneservicesapp.domain.model.PlanningOperationMode
+import com.example.droneservicesapp.domain.model.PlanningWorkflow
+import com.example.droneservicesapp.domain.model.RouteWaypoint
 import com.example.droneservicesapp.domain.survey.SprayPresets
 import com.google.android.gms.maps.model.LatLng
 
@@ -100,6 +103,18 @@ class MainActivityViewModel : ViewModel() {
 
     // ✅ Survey path from mission planning (separate from pure area model)
     val surveyPath: MutableLiveData<List<LatLng>> by lazy {
+        MutableLiveData(emptyList())
+    }
+
+    val activePlanningWorkflow: MutableLiveData<PlanningWorkflow> by lazy {
+        MutableLiveData(PlanningWorkflow.AREA)
+    }
+
+    val planningOperationMode: MutableLiveData<PlanningOperationMode> by lazy {
+        MutableLiveData(PlanningOperationMode.SURVEY)
+    }
+
+    val routeWaypoints: MutableLiveData<List<RouteWaypoint>> by lazy {
         MutableLiveData(emptyList())
     }
 
@@ -197,6 +212,44 @@ class MainActivityViewModel : ViewModel() {
         markPresetCustomIfNeeded(markCustom)
     }
 
+    fun setPlanningWorkflow(workflow: PlanningWorkflow) {
+        activePlanningWorkflow.value = workflow
+    }
+
+    fun setPlanningOperationMode(mode: PlanningOperationMode) {
+        planningOperationMode.value = mode
+    }
+
+    fun addRouteWaypoint(latitude: Double, longitude: Double) {
+        val existing = routeWaypoints.value.orEmpty()
+        val index = existing.size + 1
+        val waypoint = RouteWaypoint(
+            id = "route-$index-${System.nanoTime()}",
+            index = index,
+            latitude = latitude,
+            longitude = longitude,
+            altitudeMeters = flightAltProgress.value ?: 2.0,
+            speedMetersPerSecond = flightSpeed.value ?: 1.0,
+            sprayEnabled = planningOperationMode.value == PlanningOperationMode.SPRAY,
+            sprayerIntensityPercent = (sprayerProgress.value ?: 0.0).toInt().coerceIn(0, 100)
+        )
+        routeWaypoints.value = existing + waypoint
+    }
+
+    fun setRouteWaypoints(waypoints: List<RouteWaypoint>) {
+        routeWaypoints.value = renumberRouteWaypoints(waypoints)
+    }
+
+    fun undoLastRouteWaypoint() {
+        val existing = routeWaypoints.value.orEmpty()
+        if (existing.isEmpty()) return
+        routeWaypoints.value = renumberRouteWaypoints(existing.dropLast(1))
+    }
+
+    fun clearRouteWaypoints() {
+        routeWaypoints.value = emptyList()
+    }
+
     private fun markPresetCustomIfNeeded(markCustom: Boolean) {
         if (markCustom && selectedSprayPresetId.value != SprayPresets.CUSTOM_ID) {
             selectedSprayPresetId.value = SprayPresets.CUSTOM_ID
@@ -205,6 +258,12 @@ class MainActivityViewModel : ViewModel() {
 
     private fun updateMissionParams(update: MissionParams.() -> MissionParams) {
         missionParams.value = (missionParams.value ?: MissionParams()).update()
+    }
+
+    private fun renumberRouteWaypoints(waypoints: List<RouteWaypoint>): List<RouteWaypoint> {
+        return waypoints.mapIndexed { index, waypoint ->
+            waypoint.copy(index = index + 1)
+        }
     }
 
     fun notifyGeoZoneDatasetReloaded() {

@@ -140,6 +140,28 @@
         android:textSize="@dimen/phone_map_panel_label_text_size" />
 
     <TextView
+        android:id="@+id/right_panel_undo_route_button"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/phone_map_panel_button_height"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:background="@drawable/bg_ds_panel_pill_inactive"
+        android:fontFamily="@font/inter"
+        android:gravity="center"
+        android:text="@string/undo_route_point"
+        android:textColor="@color/ds_color_text_primary"
+        android:textSize="@dimen/phone_map_panel_label_text_size"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/right_panel_route_summary"
+        style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:text="@string/route_summary_default"
+        android:visibility="gone" />
+
+    <TextView
         style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"

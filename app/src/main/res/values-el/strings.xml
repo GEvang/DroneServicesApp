@@ -188,4 +188,11 @@
     <string name="cache_directory_not_found">Δεν βρέθηκε ο κατάλογος cache</string>
     <string name="offline_map_cache_cleared">Η cache του χάρτη εκτός σύνδεσης καθαρίστηκε</string>
     <string name="failed_to_clear_cache">Αποτυχία καθαρισμού cache (μερικά αρχεία μπορεί να είναι κλειδωμένα)</string>
+    <string name="add_route_points">Προσθήκη Σημείων στον Χάρτη</string>
+    <string name="clear_route">Καθαρισμός Διαδρομής</string>
+    <string name="undo_route_point">Αναίρεση Τελευταίου Σημείου</string>
+    <string name="tap_map_to_add_points">Πατήστε στον χάρτη για προσθήκη σημείων διαδρομής.</string>
+    <string name="route_summary_default">Διαδρομή: 0 σημεία</string>
+    <string name="route_summary_format">Διαδρομή: %1$d σημεία</string>
+    <string name="route_requires_two_points">Προσθέστε τουλάχιστον 2 σημεία διαδρομής πριν την αποστολή.</string>
 </resources>

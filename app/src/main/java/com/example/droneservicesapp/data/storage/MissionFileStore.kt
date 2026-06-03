@@ -5,9 +5,10 @@ import android.os.Environment
 import android.util.Log
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+import com.example.droneservicesapp.domain.model.PlanningOperationMode
+import com.example.droneservicesapp.domain.model.PlanningWorkflow
+import com.example.droneservicesapp.domain.model.RouteWaypoint
 import com.google.android.gms.maps.model.LatLng
-import org.xmlpull.v1.XmlPullParser
-import org.xmlpull.v1.XmlPullParserFactory
 import java.io.File
 import java.io.InputStream
 import javax.xml.parsers.DocumentBuilderFactory
@@ -60,6 +61,10 @@ class MissionFileStore(
         alt: Int,
         altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
         sprayerPct: Int,
+        flightSpeed: Double,
+        planningWorkflow: PlanningWorkflow = PlanningWorkflow.AREA,
+        planningOperationMode: PlanningOperationMode = PlanningOperationMode.SURVEY,
+        routeWaypoints: List<RouteWaypoint> = emptyList(),
         fileName: String,
         overwrite: Boolean
     ): Boolean {
@@ -95,6 +100,14 @@ class MissionFileStore(
             root.setAttribute("Title", "Drone Services Area/Mission Parameters")
             root.setAttribute("Name", normalizedName)
             doc.appendChild(root)
+
+            val missionType = doc.createElement("missionType")
+            missionType.textContent = planningWorkflow.name
+            root.appendChild(missionType)
+
+            val operationMode = doc.createElement("operationMode")
+            operationMode.textContent = planningOperationMode.name
+            root.appendChild(operationMode)
             
             // Altitude
             val altitude = doc.createElement("altitude")
@@ -119,6 +132,10 @@ class MissionFileStore(
             val sprayerIntensityPercentage = doc.createElement("sprayerIntensityPercentage")
             sprayerIntensityPercentage.textContent = sprayerPct.toString()
             root.appendChild(sprayerIntensityPercentage)
+
+            val missionSpeed = doc.createElement("flightSpeed")
+            missionSpeed.textContent = flightSpeed.toString()
+            root.appendChild(missionSpeed)
             
             // LatLng list
             val latLnglst = doc.createElement("LatLngList")
@@ -138,6 +155,45 @@ class MissionFileStore(
                 latLngElement.appendChild(longitudeElement)
                 
                 latLnglst.appendChild(latLngElement)
+            }
+
+            val routeList = doc.createElement("RouteWaypointList")
+            routeList.setAttribute("size", routeWaypoints.size.toString())
+            root.appendChild(routeList)
+
+            routeWaypoints.forEach { waypoint ->
+                val waypointElement = doc.createElement("RouteWaypoint")
+                waypointElement.setAttribute("sequence", waypoint.index.toString())
+
+                val idElement = doc.createElement("Id")
+                idElement.textContent = waypoint.id
+                waypointElement.appendChild(idElement)
+
+                val latitudeElement = doc.createElement("Latitude")
+                latitudeElement.textContent = waypoint.latitude.toString()
+                waypointElement.appendChild(latitudeElement)
+
+                val longitudeElement = doc.createElement("Longitude")
+                longitudeElement.textContent = waypoint.longitude.toString()
+                waypointElement.appendChild(longitudeElement)
+
+                val altitudeElement = doc.createElement("Altitude")
+                altitudeElement.textContent = waypoint.altitudeMeters.toString()
+                waypointElement.appendChild(altitudeElement)
+
+                val speedElement = doc.createElement("Speed")
+                speedElement.textContent = waypoint.speedMetersPerSecond.toString()
+                waypointElement.appendChild(speedElement)
+
+                val sprayEnabledElement = doc.createElement("SprayEnabled")
+                sprayEnabledElement.textContent = waypoint.sprayEnabled.toString()
+                waypointElement.appendChild(sprayEnabledElement)
+
+                val sprayerIntensityElement = doc.createElement("SprayerIntensity")
+                sprayerIntensityElement.textContent = waypoint.sprayerIntensityPercent.toString()
+                waypointElement.appendChild(sprayerIntensityElement)
+
+                routeList.appendChild(waypointElement)
             }
             
             // Write to file

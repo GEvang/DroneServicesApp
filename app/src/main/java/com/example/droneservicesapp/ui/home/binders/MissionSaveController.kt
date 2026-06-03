@@ -10,6 +10,9 @@ import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.storage.MissionFileStore
+import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+import com.example.droneservicesapp.domain.model.PlanningOperationMode
+import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 
 /**
@@ -93,8 +96,11 @@ class MissionSaveController(
                 return@setOnClickListener
             }
 
-            val area = activityViewModel.missionArea.value
-            if (area == null) {
+            val workflow = activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA
+            val vertices = activityViewModel.missionArea.value?.vertices.orEmpty()
+            val routeWaypoints = activityViewModel.routeWaypoints.value.orEmpty()
+
+            if (workflow == PlanningWorkflow.AREA && activityViewModel.missionArea.value == null) {
                 Toast.makeText(
                     activity.baseContext,
                     activity.baseContext.getString(R.string.no_area_model_available),
@@ -103,12 +109,19 @@ class MissionSaveController(
                 return@setOnClickListener
             }
 
-            // ✅ New model: vertices instead of polygonEdges
-            val vertices = area.vertices
-            if (vertices.size < 3) {
+            if (workflow == PlanningWorkflow.AREA && vertices.size < 3) {
                 Toast.makeText(
                     activity.baseContext,
                     activity.baseContext.getString(R.string.polygon_requires_three_points),
+                    Toast.LENGTH_LONG
+                ).show()
+                return@setOnClickListener
+            }
+
+            if (workflow == PlanningWorkflow.POINTS && routeWaypoints.size < 2) {
+                Toast.makeText(
+                    activity.baseContext,
+                    activity.baseContext.getString(R.string.route_requires_two_points),
                     Toast.LENGTH_LONG
                 ).show()
                 return@setOnClickListener
@@ -120,8 +133,12 @@ class MissionSaveController(
                 angleDeg = activityViewModel.angleProgress.value!!.toInt(),
                 alt = activityViewModel.flightAltProgress.value!!.toInt(),
                 altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value
-                    ?: com.example.droneservicesapp.domain.model.AltitudeReferenceMode.RELATIVE,
+                    ?: AltitudeReferenceMode.RELATIVE,
                 sprayerPct = activityViewModel.sprayerProgress.value!!.toInt(),
+                flightSpeed = activityViewModel.flightSpeed.value ?: 1.0,
+                planningWorkflow = workflow,
+                planningOperationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY,
+                routeWaypoints = routeWaypoints,
                 fileName = trimmedFileName,
                 overwrite = overrideFile
             )

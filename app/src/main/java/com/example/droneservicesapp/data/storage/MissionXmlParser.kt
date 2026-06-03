@@ -2,6 +2,9 @@ package com.example.droneservicesapp.data.storage
 
 import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+import com.example.droneservicesapp.domain.model.PlanningOperationMode
+import com.example.droneservicesapp.domain.model.PlanningWorkflow
+import com.example.droneservicesapp.domain.model.RouteWaypoint
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
 import org.xmlpull.v1.XmlPullParser
@@ -25,12 +28,20 @@ class MissionXmlParser(
         var angleDegrees = -1
         var lineDistance = -1
         var sprayerIntensityPercentage = -1
+        var flightSpeed = 1.0
+        var missionType = PlanningWorkflow.AREA
+        var operationMode = PlanningOperationMode.SURVEY
         val latLngList = ArrayList<LatLng>()
+        val routeWaypoints = ArrayList<RouteWaypoint>()
 
         while (eventType != XmlPullParser.END_DOCUMENT) {
             when (eventType) {
                 XmlPullParser.START_TAG -> {
                     when (parser.name) {
+                        "missionType" ->
+                            missionType = parseWorkflow(parser.nextText())
+                        "operationMode" ->
+                            operationMode = parseOperationMode(parser.nextText())
                         "altitude" -> altitude = parser.nextText().toInt()
                         "altitudeReferenceMode" ->
                             altitudeReferenceMode = AltitudeReferenceMode.fromStorageValue(parser.nextText())
@@ -38,6 +49,7 @@ class MissionXmlParser(
                         "lineDistance" -> lineDistance = parser.nextText().toInt()
                         "sprayerIntensityPercentage" ->
                             sprayerIntensityPercentage = parser.nextText().toInt()
+                        "flightSpeed" -> flightSpeed = parser.nextText().toDouble()
 
                         "LatLngList" -> {
                             while (parser.next() != XmlPullParser.END_TAG) {
@@ -56,19 +68,77 @@ class MissionXmlParser(
                                 }
                             }
                         }
+                        "RouteWaypointList" -> {
+                            while (parser.next() != XmlPullParser.END_TAG) {
+                                when (parser.name) {
+                                    "RouteWaypoint" -> {
+                                        var id = ""
+                                        var latitude = -1000.0
+                                        var longitude = -1000.0
+                                        var waypointAltitude = altitude.takeIf { it >= 0 }?.toDouble() ?: 2.0
+                                        var waypointSpeed = flightSpeed
+                                        var sprayEnabled = false
+                                        var waypointSprayerIntensity = sprayerIntensityPercentage.takeIf { it >= 0 } ?: 0
+                                        val sequence = parser.getAttributeValue(null, "sequence")?.toIntOrNull()
+
+                                        while (parser.next() != XmlPullParser.END_TAG) {
+                                            when (parser.name) {
+                                                "Id" -> id = parser.nextText()
+                                                "Latitude" -> latitude = parser.nextText().toDouble()
+                                                "Longitude" -> longitude = parser.nextText().toDouble()
+                                                "Altitude" -> waypointAltitude = parser.nextText().toDouble()
+                                                "Speed" -> waypointSpeed = parser.nextText().toDouble()
+                                                "SprayEnabled" -> sprayEnabled = parser.nextText().toBoolean()
+                                                "SprayerIntensity" ->
+                                                    waypointSprayerIntensity = parser.nextText().toInt()
+                                            }
+                                        }
+
+                                        routeWaypoints.add(
+                                            RouteWaypoint(
+                                                id = id.ifBlank { "route-${sequence ?: routeWaypoints.size + 1}" },
+                                                index = sequence ?: routeWaypoints.size + 1,
+                                                latitude = latitude,
+                                                longitude = longitude,
+                                                altitudeMeters = waypointAltitude,
+                                                speedMetersPerSecond = waypointSpeed,
+                                                sprayEnabled = sprayEnabled,
+                                                sprayerIntensityPercent = waypointSprayerIntensity
+                                            )
+                                        )
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
             }
             eventType = parser.next()
         }
 
-        activityViewModel.angleProgress.postValue(angleDegrees.toDouble())
-        activityViewModel.flightAltProgress.postValue(altitude.toDouble())
+        if (angleDegrees >= 0) activityViewModel.angleProgress.postValue(angleDegrees.toDouble())
+        if (altitude >= 0) activityViewModel.flightAltProgress.postValue(altitude.toDouble())
         activityViewModel.setAltitudeReferenceMode(altitudeReferenceMode)
-        activityViewModel.lineDistanceProgress.postValue(lineDistance.toDouble())
-        activityViewModel.sprayerProgress.postValue(sprayerIntensityPercentage.toDouble())
+        if (lineDistance >= 0) activityViewModel.lineDistanceProgress.postValue(lineDistance.toDouble())
+        if (sprayerIntensityPercentage >= 0) {
+            activityViewModel.sprayerProgress.postValue(sprayerIntensityPercentage.toDouble())
+        }
+        activityViewModel.flightSpeed.postValue(flightSpeed)
+        activityViewModel.setPlanningOperationMode(operationMode)
+        activityViewModel.setPlanningWorkflow(missionType)
         activityViewModel.setPolygonVertices(latLngList)
+        activityViewModel.setRouteWaypoints(routeWaypoints)
         activityViewModel.surveyPath.postValue(emptyList())
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.SetFlightParams)
+    }
+
+    private fun parseWorkflow(value: String?): PlanningWorkflow {
+        return runCatching { PlanningWorkflow.valueOf(value.orEmpty()) }.getOrDefault(PlanningWorkflow.AREA)
+    }
+
+    private fun parseOperationMode(value: String?): PlanningOperationMode {
+        return runCatching {
+            PlanningOperationMode.valueOf(value.orEmpty())
+        }.getOrDefault(PlanningOperationMode.SURVEY)
     }
 }

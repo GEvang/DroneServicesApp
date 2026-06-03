@@ -45,6 +45,8 @@ import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessProximit
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
+import com.example.droneservicesapp.domain.model.PlanningOperationMode
+import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.ui.home.binders.HomeMapChromeBinder
@@ -57,6 +59,7 @@ import com.example.droneservicesapp.ui.home.binders.MissionSaveController
 import com.example.droneservicesapp.ui.home.components.EsriWorldImageryTileSource
 import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
 import com.example.droneservicesapp.ui.home.components.OsmdroidPolygonEditor
+import com.example.droneservicesapp.ui.home.components.OsmdroidRouteWaypointEditor
 import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessStatusViewBinder
 import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoAwarenessStatusViewBinder
 import com.example.droneservicesapp.ui.home.geoawareness.GeoZoneOverlayController
@@ -99,6 +102,7 @@ class MissionMapFragment : Fragment() {
     private lateinit var homeMapTelemetryBinder: HomeMapTelemetryBinder
     private lateinit var osmdroidMapController: OsmdroidMapController
     private lateinit var osmdroidPolygonEditor: OsmdroidPolygonEditor
+    private lateinit var osmdroidRouteWaypointEditor: OsmdroidRouteWaypointEditor
     private lateinit var missionFileStore: MissionFileStore
     private var geoAwarenessZones: List<GeoZone> = emptyList()
     private var geoZoneDatasetInfo: GeoZoneDatasetInfo? = null
@@ -202,6 +206,9 @@ class MissionMapFragment : Fragment() {
         osmdroidPolygonEditor = OsmdroidPolygonEditor(requireActivity(), activityViewModel, mapView)
         osmdroidPolygonEditor.init()
 
+        osmdroidRouteWaypointEditor = OsmdroidRouteWaypointEditor(requireContext(), activityViewModel, mapView)
+        osmdroidRouteWaypointEditor.init()
+
         geoZoneOverlayController = GeoZoneOverlayController(requireContext(), mapView)
         geoAwarenessChecker = GeoAwarenessChecker()
         geoAwarenessStatusBinder = GeoAwarenessStatusViewBinder(
@@ -303,7 +310,6 @@ class MissionMapFragment : Fragment() {
                     Toast.makeText(requireContext(), getString(R.string.no_saved_missions_yet), Toast.LENGTH_LONG).show()
                     activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
                 } else {
-                    activityViewModel.missionArea.value?.clearAll()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.LoadMissionFromFile)
                 }
             }
@@ -334,28 +340,62 @@ class MissionMapFragment : Fragment() {
             activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
         }
 
-        requireView().findViewById<TextView>(R.id.right_panel_area_button).setOnClickListener {
-            startAreaDrawing()
-        }
+        bindWorkflowToggle()
 
         requireView().findViewById<TextView>(R.id.right_panel_draw_area_button).setOnClickListener {
-            startAreaDrawing()
-        }
-
-        requireView().findViewById<TextView>(R.id.right_panel_points_button).setOnClickListener {
-            Toast.makeText(requireContext(), getString(R.string.work_in_progress), Toast.LENGTH_SHORT).show()
+            if (activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS) {
+                Toast.makeText(requireContext(), getString(R.string.tap_map_to_add_points), Toast.LENGTH_SHORT).show()
+            } else {
+                startAreaDrawing()
+            }
         }
 
         requireView().findViewById<TextView>(R.id.right_panel_clear_area_button).setOnClickListener {
-            activityViewModel.sendAction(MainActivityViewModel.MapAction.ClearAreaOnly)
+            if (activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS) {
+                activityViewModel.clearRouteWaypoints()
+            } else {
+                activityViewModel.sendAction(MainActivityViewModel.MapAction.ClearAreaOnly)
+            }
+        }
+
+        requireView().findViewById<TextView?>(R.id.right_panel_undo_route_button)?.setOnClickListener {
+            activityViewModel.undoLastRouteWaypoint()
         }
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
     }
 
     private fun startAreaDrawing() {
         mapViewModel.setPlanningPanelVisible(false)
+        activityViewModel.setPlanningWorkflow(PlanningWorkflow.AREA)
         activityViewModel.missionArea.value?.clearAll()
         activityViewModel.mapState.value = MainActivityViewModel.MapState.Draw
+    }
+
+    private fun bindWorkflowToggle() {
+        val areaButton = requireView().findViewById<TextView>(R.id.right_panel_area_button)
+        val pointsButton = requireView().findViewById<TextView>(R.id.right_panel_points_button)
+
+        listOf(areaButton, pointsButton).forEach { button ->
+            button.includeFontPadding = false
+            button.gravity = android.view.Gravity.CENTER
+        }
+
+        areaButton.setOnClickListener {
+            activityViewModel.setPlanningWorkflow(PlanningWorkflow.AREA)
+            activityViewModel.mapState.value = MainActivityViewModel.MapState.SetFlightParams
+        }
+
+        pointsButton.setOnClickListener {
+            activityViewModel.setPlanningWorkflow(PlanningWorkflow.POINTS)
+            activityViewModel.mapState.value = MainActivityViewModel.MapState.SetFlightParams
+            Toast.makeText(requireContext(), getString(R.string.tap_map_to_add_points), Toast.LENGTH_SHORT).show()
+        }
+
+        activityViewModel.activePlanningWorkflow.observe(viewLifecycleOwner) { workflow ->
+            renderWorkflowSelection(workflow)
+            updateRouteEditorEnabled()
+            updateGeoAwarenessPlanningStatus()
+        }
     }
 
     private fun applyMapInsets() {
@@ -421,9 +461,82 @@ class MissionMapFragment : Fragment() {
             )
         }
 
-        surveyButton.setOnClickListener { applySelection(true) }
-        sprayButton.setOnClickListener { applySelection(false) }
+        surveyButton.setOnClickListener {
+            activityViewModel.setPlanningOperationMode(PlanningOperationMode.SURVEY)
+        }
+        sprayButton.setOnClickListener {
+            activityViewModel.setPlanningOperationMode(PlanningOperationMode.SPRAY)
+        }
+        activityViewModel.planningOperationMode.observe(viewLifecycleOwner) { mode ->
+            applySelection(mode != PlanningOperationMode.SPRAY)
+        }
         applySelection(true)
+    }
+
+    private fun renderWorkflowSelection(workflow: PlanningWorkflow) {
+        val areaButton = requireView().findViewById<TextView>(R.id.right_panel_area_button)
+        val pointsButton = requireView().findViewById<TextView>(R.id.right_panel_points_button)
+        val drawButton = requireView().findViewById<TextView>(R.id.right_panel_draw_area_button)
+        val clearButton = requireView().findViewById<TextView>(R.id.right_panel_clear_area_button)
+        val undoButton = requireView().findViewById<TextView?>(R.id.right_panel_undo_route_button)
+        val routeSummary = requireView().findViewById<TextView?>(R.id.right_panel_route_summary)
+        val selectedTextColor = if (resources.getBoolean(R.bool.config_tablet_planning_dock)) {
+            R.color.ds_color_shell_active
+        } else {
+            R.color.ds_color_shell_selected_content
+        }
+
+        fun style(button: TextView, selected: Boolean) {
+            button.setBackgroundResource(
+                if (selected) R.drawable.bg_ds_panel_pill_active
+                else R.drawable.bg_ds_panel_pill_inactive
+            )
+            button.setTextColor(
+                ContextCompat.getColor(
+                    requireContext(),
+                    if (selected) selectedTextColor else R.color.ds_color_text_primary
+                )
+            )
+            button.setTypeface(Typeface.DEFAULT, if (selected) Typeface.BOLD else Typeface.NORMAL)
+            button.includeFontPadding = false
+            button.gravity = android.view.Gravity.CENTER
+        }
+
+        val isPoints = workflow == PlanningWorkflow.POINTS
+        style(areaButton, !isPoints)
+        style(pointsButton, isPoints)
+        drawButton.text = getString(if (isPoints) R.string.add_route_points else R.string.draw_area)
+        clearButton.text = getString(if (isPoints) R.string.clear_route else R.string.clear_area)
+        undoButton?.visibility = if (isPoints) View.VISIBLE else View.GONE
+        routeSummary?.visibility = if (isPoints) View.VISIBLE else View.GONE
+        updateRouteSummary()
+    }
+
+    private fun updateRouteSummary() {
+        val routeSummary = requireView().findViewById<TextView?>(R.id.right_panel_route_summary) ?: return
+        val waypoints = activityViewModel.routeWaypoints.value.orEmpty()
+        routeSummary.text = getString(R.string.route_summary_format, waypoints.size)
+    }
+
+    private fun updateRouteEditorEnabled() {
+        if (!::osmdroidRouteWaypointEditor.isInitialized) return
+        osmdroidRouteWaypointEditor.setEnabled(
+            activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS
+        )
+    }
+
+    private fun updateRouteDistance(waypoints: List<com.example.droneservicesapp.domain.model.RouteWaypoint>) {
+        if (waypoints.size < 2) {
+            activityViewModel.flightDistance.postValue(0)
+            return
+        }
+        val distance = waypoints.zipWithNext().sumOf { (from, to) ->
+            SphericalUtil.computeDistanceBetween(
+                LatLng(from.latitude, from.longitude),
+                LatLng(to.latitude, to.longitude)
+            )
+        }
+        activityViewModel.flightDistance.postValue(distance.toInt())
     }
 
     private fun observeDroneViewModel() {
@@ -463,7 +576,8 @@ class MissionMapFragment : Fragment() {
 
         activityViewModel.missionArea.observe(viewLifecycleOwner) { missionArea ->
             val vertices = missionArea?.vertices ?: emptyList()
-            mapViewModel.setMissionAreaAvailable(vertices.size >= 3)
+            val hasRoute = activityViewModel.routeWaypoints.value.orEmpty().size >= 2
+            mapViewModel.setMissionAreaAvailable(vertices.size >= 3 || hasRoute)
             osmdroidPolygonEditor.setVertices(vertices)
             updateGeoAwarenessPlanningStatus()
         }
@@ -507,7 +621,10 @@ class MissionMapFragment : Fragment() {
 
     private fun observeMapState() {
         activityViewModel.angleProgress.observe(viewLifecycleOwner, Observer { angle ->
-            if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams) {
+            if (
+                activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
+                activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA
+            ) {
                 savePreference(getString(R.string.survey_angle_pref), angle.toInt().toString())
                 drawSurveyMissionOnMap(
                     activityViewModel.lineDistanceProgress.value!!,
@@ -517,7 +634,10 @@ class MissionMapFragment : Fragment() {
         })
 
         activityViewModel.lineDistanceProgress.observe(viewLifecycleOwner, Observer { distance ->
-            if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams) {
+            if (
+                activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
+                activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA
+            ) {
                 savePreference(
                     getString(R.string.survey_line_distance_pref),
                     distance.toInt().toString()
@@ -541,13 +661,29 @@ class MissionMapFragment : Fragment() {
 
         activityViewModel.surveyPath.observe(viewLifecycleOwner) { surveyPath ->
             val hasPolygon = (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
-            mapViewModel.setMissionAreaAvailable(hasPolygon || !surveyPath.isNullOrEmpty())
+            val hasRoute = activityViewModel.routeWaypoints.value.orEmpty().size >= 2
+            mapViewModel.setMissionAreaAvailable(hasPolygon || hasRoute || !surveyPath.isNullOrEmpty())
+            updateGeoAwarenessPlanningStatus()
+        }
+
+        activityViewModel.routeWaypoints.observe(viewLifecycleOwner) { waypoints ->
+            osmdroidRouteWaypointEditor.setWaypoints(waypoints.orEmpty())
+            val hasPolygon = (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
+            val hasSurveyPath = !activityViewModel.surveyPath.value.isNullOrEmpty()
+            mapViewModel.setMissionAreaAvailable(hasPolygon || hasSurveyPath || waypoints.orEmpty().size >= 2)
+            if (activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS) {
+                updateRouteDistance(waypoints.orEmpty())
+            }
+            updateRouteSummary()
             updateGeoAwarenessPlanningStatus()
         }
 
         activityViewModel.mapState.observe(viewLifecycleOwner) { mapState ->
             mapViewModel.updateFromMapState(mapState)
-            if (mapState == MainActivityViewModel.MapState.SetFlightParams) {
+            if (
+                mapState == MainActivityViewModel.MapState.SetFlightParams &&
+                activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA
+            ) {
                 val hasPolygon = (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
                 if (hasPolygon) {
                     drawSurveyMissionOnMap(
@@ -623,7 +759,11 @@ class MissionMapFragment : Fragment() {
 
     private fun renderHomeMapUiState(state: HomeMapUiState) {
         isDrawingModeActive = state.interactionState.isDrawingEnabled
-        osmdroidPolygonEditor.setEnabled(state.interactionState.isDrawingEnabled)
+        osmdroidPolygonEditor.setEnabled(
+            state.interactionState.isDrawingEnabled &&
+                activityViewModel.activePlanningWorkflow.value != PlanningWorkflow.POINTS
+        )
+        updateRouteEditorEnabled()
         homeMapChromeBinder.renderShell(state.shellState)
         homeMapChromeBinder.renderInteraction(state.interactionState)
         homeMapChromeBinder.renderOverlayControls(state.overlayControlsState)
@@ -1054,10 +1194,19 @@ class MissionMapFragment : Fragment() {
             ?.takeIf { it.isNotEmpty() }
             ?.map { LatLon(lat = it.latitude, lon = it.longitude) }
             .orEmpty()
+        val pointRoutePath = activityViewModel.routeWaypoints.value
+            ?.takeIf { it.isNotEmpty() }
+            ?.map { LatLon(lat = it.latitude, lon = it.longitude) }
+            .orEmpty()
+        val planningPath = if (activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS) {
+            pointRoutePath
+        } else {
+            surveyPath
+        }
         val altitudeMeters = activityViewModel.flightAltProgress.value?.toDouble()
         // TODO: Confirm altitude source unit is meters.
 
-        if (missionPolygon.isNullOrEmpty() && surveyPath.isEmpty()) {
+        if (missionPolygon.isNullOrEmpty() && planningPath.isEmpty()) {
             return GeoAwarenessResult.clear()
         }
 
@@ -1067,7 +1216,7 @@ class MissionMapFragment : Fragment() {
 
         return geoAwarenessChecker?.checkMission(
             missionPolygon = missionPolygon,
-            surveyPath = surveyPath,
+            surveyPath = planningPath,
             missionAltitudeMeters = altitudeMeters,
             zones = geoAwarenessZones
         ) ?: GeoAwarenessResult.clear()

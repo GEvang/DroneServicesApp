@@ -120,6 +120,12 @@
     <string name="points">Points</string>
     <string name="draw_area">Draw Area</string>
     <string name="clear_area">Clear Area</string>
+    <string name="add_route_points">Tap Map to Add Points</string>
+    <string name="clear_route">Clear Route</string>
+    <string name="undo_route_point">Undo Last Point</string>
+    <string name="tap_map_to_add_points">Tap the map to add route waypoints.</string>
+    <string name="route_summary_default">Route: 0 points</string>
+    <string name="route_summary_format">Route: %1$d points</string>
     <string name="work_in_progress">Work in progress</string>
     <string name="home_panel_instruction_title">Instructions</string>
     <string name="home_panel_mode_title">Mode Select</string>
@@ -273,6 +279,7 @@
     <string name="polygon_requires_three_points">Polygon must have at least 3 points</string>
     <string name="drone_gps_not_available_yet">Drone GPS not available yet</string>
     <string name="no_survey_path_available">No survey path available. Please generate survey first.</string>
+    <string name="route_requires_two_points">Add at least 2 route waypoints before upload.</string>
     <string name="missing_mission_parameters">Missing mission parameters</string>
     <string name="waiting_for_gps_fix">Waiting for GPS fix...</string>
     <string name="drone_location_not_available_yet">Drone location not available yet</string>

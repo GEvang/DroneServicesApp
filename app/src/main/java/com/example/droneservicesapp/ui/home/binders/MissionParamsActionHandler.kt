@@ -6,6 +6,7 @@ import android.widget.Toast
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.mavlink.MissionBuilder
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 
@@ -28,6 +29,8 @@ class MissionParamsActionHandler(
         val connected = droneViewModel.conStateLiveData.value == true
         val droneLoc = droneViewModel.droneLocationLiveData.value
         val path = activityViewModel.surveyPath.value
+        val routeWaypoints = activityViewModel.routeWaypoints.value.orEmpty()
+        val workflow = activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA
         val alt = activityViewModel.flightAltProgress.value
         val sprayer = activityViewModel.sprayerProgress.value
         val speed = activityViewModel.flightSpeed.value
@@ -45,8 +48,13 @@ class MissionParamsActionHandler(
                 return
             }
 
-            path.isNullOrEmpty() -> {
+            workflow == PlanningWorkflow.AREA && path.isNullOrEmpty() -> {
                 showMessage(context.getString(R.string.no_survey_path_available))
+                return
+            }
+
+            workflow == PlanningWorkflow.POINTS && routeWaypoints.size < 2 -> {
+                showMessage(context.getString(R.string.route_requires_two_points))
                 return
             }
 
@@ -57,28 +65,39 @@ class MissionParamsActionHandler(
         }
 
         val validatedDroneLoc = droneLoc ?: return
-        val validatedPath = path ?: return
         val validatedAlt = alt ?: return
         val validatedSprayer = sprayer ?: return
         val validatedSpeed = speed ?: return
         val validatedAngle = angle ?: return
 
-        val missionItems = MissionBuilder.buildSurveyMission(
-            waypoints = ArrayList(validatedPath),
-            currentPos = validatedDroneLoc,
-            alt = validatedAlt.toFloat(),
-            sprayerIntensity = validatedSprayer.toInt(),
-            flightSpeed = validatedSpeed.toFloat(),
-            angleProgress = validatedAngle.toFloat(),
-            targetSystemId = droneViewModel.getTargetSystemId(),
-            targetComponentId = droneViewModel.getTargetComponentId(),
-            altitudeReferenceMode = altitudeReferenceMode
-        )
+        val missionItems = if (workflow == PlanningWorkflow.POINTS) {
+            MissionBuilder.buildPointRouteMission(
+                routeWaypoints = routeWaypoints,
+                currentPos = validatedDroneLoc,
+                targetSystemId = droneViewModel.getTargetSystemId(),
+                targetComponentId = droneViewModel.getTargetComponentId(),
+                altitudeReferenceMode = altitudeReferenceMode
+            )
+        } else {
+            val validatedPath = path ?: return
+            MissionBuilder.buildSurveyMission(
+                waypoints = ArrayList(validatedPath),
+                currentPos = validatedDroneLoc,
+                alt = validatedAlt.toFloat(),
+                sprayerIntensity = validatedSprayer.toInt(),
+                flightSpeed = validatedSpeed.toFloat(),
+                angleProgress = validatedAngle.toFloat(),
+                targetSystemId = droneViewModel.getTargetSystemId(),
+                targetComponentId = droneViewModel.getTargetComponentId(),
+                altitudeReferenceMode = altitudeReferenceMode
+            )
+        }
 
         val proceedWithUpload = {
             Log.i(
                 "MissionUpload",
-                "Proceeding with upload altitudeReference=$altitudeReferenceMode altitude=${validatedAlt.toInt()}m"
+                "Proceeding with upload workflow=$workflow altitudeReference=$altitudeReferenceMode " +
+                    "altitude=${validatedAlt.toInt()}m missionItems=${missionItems.size}"
             )
             droneViewModel.uploadMissionNew(missionItems, activityViewModel)
             preferencesBridge.saveFromViewModel()
