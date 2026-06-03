@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class UdpTransport(
     private val listenPort: Int,
     targetHost: String? = null,
+    private val targetPort: Int = 14550,
     private val network: Network? = null
 ) : MavTransport {
     private companion object {
@@ -63,7 +64,7 @@ class UdpTransport(
             socket?.soTimeout = 200  // 200ms timeout to periodically wake up and flush
             Log.i(
                 TAG,
-                "UDP socket created/bound local=${socket?.localAddress?.hostAddress}:${socket?.localPort} configuredTarget=${configuredTargetIP?.hostAddress ?: "<auto>"} network=${network?.networkHandle ?: "<default>"}"
+                "UDP socket created/bound local=${socket?.localAddress?.hostAddress}:${socket?.localPort} configuredTarget=${configuredTargetIP?.hostAddress ?: "<auto>"}:$targetPort network=${network?.networkHandle ?: "<default>"}"
             )
             Thread({ runLoop() }, "UdpTransport-$listenPort").apply { isDaemon = true }.start()
             Log.i(TAG, "Started UDP listen on $listenPort")
@@ -225,7 +226,7 @@ class UdpTransport(
         logMavlinkPacketVersion(outBuffer, bytesRead)
         val candidateEndpoints = buildList {
             configuredTargetIP?.let { targetAddress ->
-                add(targetAddress to listenPort)
+                add(targetAddress to targetPort)
             } ?: run {
                 add(remoteAddress to remotePort)
                 add(remoteAddress to listenPort)

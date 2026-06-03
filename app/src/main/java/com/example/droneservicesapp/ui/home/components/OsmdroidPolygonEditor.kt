@@ -4,6 +4,7 @@ import android.app.Activity
 import android.graphics.Color
 import androidx.core.content.ContextCompat
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.domain.survey.PolygonVertexOrderer
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
 import org.osmdroid.events.MapEventsReceiver
@@ -97,6 +98,7 @@ class OsmdroidPolygonEditor(
             mapView.overlays.add(marker)
         }
 
+        orderVerticesIfNeeded()
         redrawPolygon()
     }
 
@@ -110,6 +112,7 @@ class OsmdroidPolygonEditor(
         vertexMarkers.add(marker)
         mapView.overlays.add(marker)
 
+        orderVerticesIfNeeded()
         redrawPolygonAndSyncModel()
     }
 
@@ -129,6 +132,7 @@ class OsmdroidPolygonEditor(
         if (idx < 0) return
 
         points[idx] = marker.position as GeoPoint
+        orderVerticesIfNeeded()
         redrawPolygonAndSyncModel()
     }
 
@@ -156,6 +160,23 @@ class OsmdroidPolygonEditor(
         }
 
         mapView.invalidate()
+    }
+
+    private fun orderVerticesIfNeeded() {
+        if (points.size < 4) return
+
+        val latLngPoints = points.map { LatLng(it.latitude, it.longitude) }
+        val order = PolygonVertexOrderer.orderNonCrossingIndices(latLngPoints)
+        if (order == points.indices.toList()) return
+
+        val orderedPoints = order.map(points::get)
+        val orderedMarkers = order.map(vertexMarkers::get)
+
+        points.clear()
+        points.addAll(orderedPoints)
+
+        vertexMarkers.clear()
+        vertexMarkers.addAll(orderedMarkers)
     }
 
     private fun createVertexMarker(point: GeoPoint): Marker =

@@ -46,15 +46,34 @@ class MavlinkSessionCoordinator(
             ""
         )?.trim()?.takeIf { it.isNotEmpty() }
 
+        val targetPort = sharedPreferences.getString(
+            context.getString(R.string.mavlink_target_port_pref),
+            "14550"
+        )?.toIntOrNull() ?: 14550
+
         val iface = runCatching { MavlinkConfig.InterfaceType.valueOf(ifaceStr.uppercase()) }
             .getOrDefault(MavlinkConfig.InterfaceType.UDP)
 
-        val network = selectWifiNetwork()
+        val network = selectMavlinkNetwork(targetHost)
         Log.i(
             TAG,
-            "MAVLink config iface=$iface port=$port targetHost=${targetHost ?: "<auto>"} network=${network?.networkHandle ?: "<default>"}"
+            "MAVLink config iface=$iface localPort=$port targetHost=${targetHost ?: "<auto>"} targetPort=$targetPort network=${network?.networkHandle ?: "<default>"}"
         )
-        return MavlinkConfig(interfaceType = iface, port = port, targetHost = targetHost, network = network)
+        return MavlinkConfig(
+            interfaceType = iface,
+            port = port,
+            targetHost = targetHost,
+            targetPort = targetPort,
+            network = network
+        )
+    }
+
+    private fun selectMavlinkNetwork(targetHost: String?): Network? {
+        if (targetHost != null) {
+            Log.i(TAG, "explicit MAVLink target configured; using default route for targetHost=$targetHost")
+            return null
+        }
+        return selectWifiNetwork()
     }
 
     private fun selectWifiNetwork(): Network? {

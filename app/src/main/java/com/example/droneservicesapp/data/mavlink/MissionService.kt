@@ -240,10 +240,6 @@ class MissionService(
             .missionType(MavMissionType.MAV_MISSION_TYPE_MISSION)
             .build()
 
-        Log.i("MissionUpload", "TX MissionCount count=${items.size}")
-        client.send2(gcsSystemId, gcsComponentId, countMsg)
-        lastProgressMs.set(System.currentTimeMillis())
-
         val startMs = System.currentTimeMillis()
         // More forgiving than the previous 15s/500ms heuristic.
         val totalTimeoutMs = maxOf(45_000L, items.size * 750L)
@@ -478,6 +474,10 @@ class MissionService(
                         Log.e("MissionUpload", "Watchdog error: ${err.message}", err)
                     })
             )
+
+            Log.i("MissionUpload", "TX MissionCount count=${items.size}")
+            client.send2(gcsSystemId, gcsComponentId, countMsg)
+            lastProgressMs.set(System.currentTimeMillis())
 
             // ---- Wait loop (cancel-friendly) ----
             while (!done.get()) {

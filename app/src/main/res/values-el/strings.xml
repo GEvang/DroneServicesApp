@@ -61,7 +61,9 @@
     <string name="mavlink_lan_port_pref">mavLANport</string>
     <string name="mavlink_interface_pref">mavInterface</string>
     <string name="mavlink_target_host_pref">mavTargetHost</string>
+    <string name="mavlink_target_port_pref">mavTargetPort</string>
     <string name="mavlink_target_host_title">MAVLink Target IP (blank for auto)</string>
+    <string name="mavlink_target_port_title">MAVLink Target Port</string>
     <string name="survey_line_distance_pref">surveyLineDist</string>
     <string name="survey_angle_pref">surveyAngle</string>
     <string name="survey_altitude_pref">missionAlt</string>

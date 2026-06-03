@@ -12,6 +12,7 @@ class DefaultMavTransportFactory : MavTransportFactory {
             MavlinkConfig.InterfaceType.UDP -> UdpTransport(
                 listenPort = config.port,
                 targetHost = config.targetHost,
+                targetPort = config.targetPort,
                 network = config.network
             )
             else -> throw IllegalArgumentException("Not implemented yet: ${config.interfaceType}")

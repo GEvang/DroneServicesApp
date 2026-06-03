@@ -30,6 +30,7 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
     private lateinit var interfaceSummary: TextView
     private lateinit var portSummary: TextView
     private lateinit var targetIpSummary: TextView
+    private lateinit var targetPortSummary: TextView
     private lateinit var languageSummary: TextView
     private lateinit var cacheSizeSummary: TextView
 
@@ -98,6 +99,17 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
             title = getString(R.string.mavlink_target_host_title),
             onClick = { showMavTargetHostDialog() }
         ).also { targetIpSummary = it.findViewWithTag(SUMMARY_TAG) })
+
+        panel.addView(createSettingRow(
+            title = getString(R.string.mavlink_target_port_title),
+            onClick = { showChoiceDialog(
+                title = getString(R.string.mavlink_target_port_title),
+                entries = resources.getStringArray(R.array.drone_tcp_udp_ports),
+                values = resources.getStringArray(R.array.drone_tcp_udp_ports),
+                key = getString(R.string.mavlink_target_port_pref),
+                defaultValue = "14550"
+            ) }
+        ).also { targetPortSummary = it.findViewWithTag(SUMMARY_TAG) })
 
         return panel
     }
@@ -272,6 +284,7 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
             ?.trim()
             ?.takeIf { it.isNotEmpty() }
             ?: "Auto"
+        targetPortSummary.text = sharedPreferences.getString(getString(R.string.mavlink_target_port_pref), "14550") ?: "14550"
         languageSummary.text = languageLabel(
             sharedPreferences.getString(getString(R.string.language_pref), LocaleUtils.GREEK) ?: LocaleUtils.GREEK
         )

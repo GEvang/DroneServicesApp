@@ -292,7 +292,7 @@ class DroneViewModel : ViewModel() {
     }
 
     private fun MavlinkConfig.toConnectionKey(): String {
-        return "${interfaceType.name}|$port|${targetHost.orEmpty()}|${network?.networkHandle ?: "default"}"
+        return "${interfaceType.name}|$port|${targetHost.orEmpty()}|$targetPort|${network?.networkHandle ?: "default"}"
     }
 
     fun onRtkConfigurationChanged(forceStart: Boolean = false) {

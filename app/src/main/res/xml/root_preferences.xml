@@ -26,6 +26,14 @@
             app:title="@string/mavlink_target_host_title"
             app:useSimpleSummaryProvider="true" />
 
+        <ListPreference
+            app:defaultValue="14550"
+            app:entries="@array/drone_tcp_udp_ports"
+            app:entryValues="@array/drone_tcp_udp_ports"
+            app:key="@string/mavlink_target_port_pref"
+            app:title="@string/mavlink_target_port_title"
+            app:useSimpleSummaryProvider="true" />
+
     </PreferenceCategory>
 
     <PreferenceCategory app:title="@string/locales_categ_pref"
