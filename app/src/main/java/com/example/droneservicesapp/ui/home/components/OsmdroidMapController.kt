@@ -20,8 +20,6 @@ import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import kotlin.math.atan2
-import kotlin.math.cos
-import kotlin.math.sin
 
 /**
  * osmdroid equivalent of the parts of MapController that are:
@@ -282,7 +280,7 @@ class OsmdroidMapController(
                 )
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 icon = createDirectionArrowIcon()
-                rotation = bearingDegrees(from, to)
+                rotation = screenVectorRotationDegrees(from, to)
             }
             surveyDirectionMarkers += marker
             mapView.overlays.add(marker)
@@ -316,10 +314,10 @@ class OsmdroidMapController(
         }
 
         val path = Path().apply {
-            moveTo(center, 3f * density)
-            lineTo(size - 5f * density, size - 5f * density)
-            lineTo(center, size - 10f * density)
+            moveTo(size - 3f * density, center)
             lineTo(5f * density, size - 5f * density)
+            lineTo(10f * density, center)
+            lineTo(5f * density, 5f * density)
             close()
         }
         canvas.drawCircle(center, center, center - 2f * density, shadowPaint)
@@ -329,13 +327,17 @@ class OsmdroidMapController(
         return BitmapDrawable(context.resources, bitmap)
     }
 
-    private fun bearingDegrees(from: GeoPoint, to: GeoPoint): Float {
-        val fromLat = Math.toRadians(from.latitude)
-        val toLat = Math.toRadians(to.latitude)
-        val deltaLon = Math.toRadians(to.longitude - from.longitude)
-        val y = sin(deltaLon) * cos(toLat)
-        val x = cos(fromLat) * sin(toLat) - sin(fromLat) * cos(toLat) * cos(deltaLon)
-        return ((Math.toDegrees(atan2(y, x)) + 360.0) % 360.0).toFloat()
+    private fun screenVectorRotationDegrees(from: GeoPoint, to: GeoPoint): Float {
+        val projection = mapView.projection
+        val fromPixel = projection.toPixels(from, null)
+        val toPixel = projection.toPixels(to, null)
+        val dx = (toPixel.x - fromPixel.x).toDouble()
+        val dy = (toPixel.y - fromPixel.y).toDouble()
+        if (dx == 0.0 && dy == 0.0) return 0f
+
+        // osmdroid Marker draws with -bearing, so negate the rendered
+        // screen-vector angle. The bitmap itself points right at 0 degrees.
+        return ((-Math.toDegrees(atan2(dy, dx)) + 360.0) % 360.0).toFloat()
     }
 
     private fun isValidMapPoint(latitude: Double, longitude: Double): Boolean {
