@@ -195,4 +195,8 @@
     <string name="route_summary_default">Διαδρομή: 0 σημεία</string>
     <string name="route_summary_format">Διαδρομή: %1$d σημεία</string>
     <string name="route_requires_two_points">Προσθέστε τουλάχιστον 2 σημεία διαδρομής πριν την αποστολή.</string>
+    <string name="mission_operation_settings_title">Τύπος Αποστολής</string>
+    <string name="mission_operation_mode_title">Λειτουργία</string>
+    <string name="mission_operation_mode_survey">Τοπογράφηση</string>
+    <string name="mission_operation_mode_spray">Ψεκασμός</string>
 </resources>

@@ -16,8 +16,10 @@ import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.navigateUp
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
+import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.databinding.ActivityMainBinding
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.ui.home.binders.HomeTelemetryCoordinator
@@ -56,6 +58,7 @@ class MainActivity : AppCompatActivity() {
 
         droneViewModel = ViewModelProvider(this)[DroneViewModel::class.java]
         activityViewModel = ViewModelProvider(this)[MainActivityViewModel::class.java]
+        loadPlanningOperationMode()
         homeTelemetryViewModel = ViewModelProvider(this)[HomeTelemetryViewModel::class.java]
 
         homeTelemetryCoordinator = HomeTelemetryCoordinator(
@@ -120,6 +123,18 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
+    }
+
+    private fun loadPlanningOperationMode() {
+        val preferences = PreferenceManager.getDefaultSharedPreferences(this)
+        val value = preferences.getString(
+            getString(R.string.mission_operation_mode_pref),
+            PlanningOperationMode.SURVEY.name
+        )
+        val mode = runCatching {
+            PlanningOperationMode.valueOf(value.orEmpty())
+        }.getOrDefault(PlanningOperationMode.SURVEY)
+        activityViewModel.setPlanningOperationMode(mode)
     }
 
     override fun onResume() {

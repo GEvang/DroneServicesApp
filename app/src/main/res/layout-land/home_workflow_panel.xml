@@ -41,46 +41,6 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/ds_space_md"
-        android:text="@string/home_panel_mode_title" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/ds_space_sm"
-        android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/right_panel_survey_button"
-            android:layout_width="0dp"
-            android:layout_height="@dimen/phone_map_panel_tab_height"
-            android:layout_weight="1"
-            android:background="@drawable/bg_ds_panel_pill_active"
-            android:fontFamily="@font/inter"
-            android:gravity="center"
-            android:text="@string/survey"
-            android:textColor="@color/ds_color_shell_selected_content"
-            android:textSize="@dimen/phone_map_panel_label_text_size"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/right_panel_spray_button"
-            android:layout_width="0dp"
-            android:layout_height="@dimen/phone_map_panel_tab_height"
-            android:layout_marginStart="@dimen/ds_space_sm"
-            android:layout_weight="1"
-            android:background="@drawable/bg_ds_panel_pill_inactive"
-            android:fontFamily="@font/inter"
-            android:gravity="center"
-            android:text="@string/spray"
-            android:textColor="@color/ds_color_text_primary"
-            android:textSize="@dimen/phone_map_panel_label_text_size" />
-    </LinearLayout>
-
-    <TextView
-        style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/ds_space_lg"
         android:text="@string/home_panel_top_actions" />
 
     <LinearLayout

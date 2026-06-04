@@ -37,18 +37,21 @@
 
         <FrameLayout
             android:id="@+id/planning_panel_container"
-            android:layout_width="wrap_content"
+            android:layout_width="@dimen/tablet_side_panel_width"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/ds_space_md"
             android:layout_marginEnd="@dimen/ds_space_md"
+            android:layout_marginTop="@dimen/tablet_right_panel_compact_top_margin"
+            android:layout_marginBottom="@dimen/tablet_right_panel_compact_bottom_margin"
             android:visibility="gone"
+            app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintVertical_bias="0.28">
 
             <include
                 android:id="@+id/home_workflow_panel_include"
                 layout="@layout/home_workflow_panel"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
         </FrameLayout>
 

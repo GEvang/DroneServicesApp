@@ -15,10 +15,13 @@ import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.core.util.LocaleUtils
+import com.example.droneservicesapp.domain.model.PlanningOperationMode
+import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.jakewharton.processphoenix.ProcessPhoenix
 import org.osmdroid.config.Configuration
 import java.io.File
@@ -31,8 +34,10 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
     private lateinit var portSummary: TextView
     private lateinit var targetIpSummary: TextView
     private lateinit var targetPortSummary: TextView
+    private lateinit var operationModeSummary: TextView
     private lateinit var languageSummary: TextView
     private lateinit var cacheSizeSummary: TextView
+    private lateinit var activityViewModel: MainActivityViewModel
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -40,6 +45,7 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
         savedInstanceState: Bundle?
     ): View {
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
+        activityViewModel = ViewModelProvider(requireActivity())[MainActivityViewModel::class.java]
         requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
 
         val context = requireContext()
@@ -63,12 +69,36 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
             )
         )
 
+        content.addView(createMissionOperationPanel())
         content.addView(createDroneConnectionPanel())
         content.addView(createLocalizationPanel())
         content.addView(createOfflineMapsPanel())
 
         refreshSummaries()
         return scrollView
+    }
+
+    private fun createMissionOperationPanel(): View {
+        val panel = createPanel(getString(R.string.mission_operation_settings_title))
+        panel.addView(createSettingRow(
+            title = getString(R.string.mission_operation_mode_title),
+            onClick = {
+                showChoiceDialog(
+                    title = getString(R.string.mission_operation_mode_title),
+                    entries = arrayOf(
+                        getString(R.string.mission_operation_mode_survey),
+                        getString(R.string.mission_operation_mode_spray)
+                    ),
+                    values = arrayOf(
+                        PlanningOperationMode.SURVEY.name,
+                        PlanningOperationMode.SPRAY.name
+                    ),
+                    key = getString(R.string.mission_operation_mode_pref),
+                    defaultValue = PlanningOperationMode.SURVEY.name
+                )
+            }
+        ).also { operationModeSummary = it.findViewWithTag(SUMMARY_TAG) })
+        return panel
     }
 
     private fun createDroneConnectionPanel(): View {
@@ -277,6 +307,11 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
     }
 
     private fun refreshSummaries() {
+        if (::operationModeSummary.isInitialized) {
+            val operationMode = operationModeFromPreferences()
+            operationModeSummary.text = operationModeLabel(operationMode)
+            activityViewModel.setPlanningOperationMode(operationMode)
+        }
         interfaceSummary.text = sharedPreferences.getString(getString(R.string.mavlink_interface_pref), "UDP") ?: "UDP"
         portSummary.text = sharedPreferences.getString(getString(R.string.mavlink_lan_port_pref), "14550") ?: "14550"
         targetIpSummary.text = sharedPreferences
@@ -293,6 +328,25 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
 
     private fun languageLabel(value: String): String {
         return if (value == LocaleUtils.ENGLISH) "English" else "Ελληνικά"
+    }
+
+    private fun operationModeFromPreferences(): PlanningOperationMode {
+        val value = sharedPreferences.getString(
+            getString(R.string.mission_operation_mode_pref),
+            PlanningOperationMode.SURVEY.name
+        )
+        return runCatching {
+            PlanningOperationMode.valueOf(value.orEmpty())
+        }.getOrDefault(PlanningOperationMode.SURVEY)
+    }
+
+    private fun operationModeLabel(mode: PlanningOperationMode): String {
+        return getString(
+            when (mode) {
+                PlanningOperationMode.SURVEY -> R.string.mission_operation_mode_survey
+                PlanningOperationMode.SPRAY -> R.string.mission_operation_mode_spray
+            }
+        )
     }
 
     private fun updateCacheSizeSummary() {

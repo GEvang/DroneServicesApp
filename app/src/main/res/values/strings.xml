@@ -158,6 +158,11 @@
     <string name="mavlink_target_port_pref" translatable="false">mavTargetPort</string>
     <string name="mavlink_target_host_title">MAVLink Target IP (blank for auto)</string>
     <string name="mavlink_target_port_title">MAVLink Target Port</string>
+    <string name="mission_operation_mode_pref" translatable="false">missionOperationMode</string>
+    <string name="mission_operation_settings_title">Mission Type</string>
+    <string name="mission_operation_mode_title">Operation Mode</string>
+    <string name="mission_operation_mode_survey">Surveying</string>
+    <string name="mission_operation_mode_spray">Spraying</string>
     <string name="survey_line_distance_pref" translatable="false">surveyLineDist</string>
     <string name="survey_angle_pref" translatable="false">surveyAngle</string>
     <string name="survey_altitude_pref" translatable="false">missionAlt</string>

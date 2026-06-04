@@ -45,7 +45,6 @@ import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessProximit
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
-import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
 import com.example.droneservicesapp.mavserver.DroneViewModel
@@ -314,14 +313,10 @@ class MissionMapFragment : Fragment() {
                 }
             }
 
-        requireView().findViewById<com.google.android.material.button.MaterialButton>(R.id.right_panel_close_button)
-            .setOnClickListener {
+        requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_close_button)
+            ?.setOnClickListener {
                 mapViewModel.dismissSidePanels()
             }
-
-        val surveyButton = requireView().findViewById<TextView>(R.id.right_panel_survey_button)
-        val sprayButton = requireView().findViewById<TextView>(R.id.right_panel_spray_button)
-        bindPlanningModeToggle(surveyButton, sprayButton)
 
         binding.homeDrawAcceptButton.setOnClickListener {
             val verts = activityViewModel.missionArea.value?.vertices ?: emptyList()
@@ -424,53 +419,6 @@ class MissionMapFragment : Fragment() {
         }
         layoutParams.bottomMargin = marginBottom
         view.layoutParams = layoutParams
-    }
-
-    private fun bindPlanningModeToggle(surveyButton: TextView, sprayButton: TextView) {
-        val selectedTextColor = if (resources.getBoolean(R.bool.config_tablet_planning_dock)) {
-            R.color.ds_color_shell_active
-        } else {
-            R.color.ds_color_shell_selected_content
-        }
-        listOf(surveyButton, sprayButton).forEach { button ->
-            button.includeFontPadding = false
-            button.gravity = android.view.Gravity.CENTER
-            button.setTypeface(Typeface.DEFAULT, Typeface.NORMAL)
-        }
-
-        fun applySelection(isSurveySelected: Boolean) {
-            surveyButton.setBackgroundResource(
-                if (isSurveySelected) R.drawable.bg_ds_panel_pill_active
-                else R.drawable.bg_ds_panel_pill_inactive
-            )
-            surveyButton.setTextColor(
-                ContextCompat.getColor(
-                    requireContext(),
-                    if (isSurveySelected) selectedTextColor else R.color.ds_color_text_primary
-                )
-            )
-            sprayButton.setBackgroundResource(
-                if (isSurveySelected) R.drawable.bg_ds_panel_pill_inactive
-                else R.drawable.bg_ds_panel_pill_active
-            )
-            sprayButton.setTextColor(
-                ContextCompat.getColor(
-                    requireContext(),
-                    if (isSurveySelected) R.color.ds_color_text_primary else selectedTextColor
-                )
-            )
-        }
-
-        surveyButton.setOnClickListener {
-            activityViewModel.setPlanningOperationMode(PlanningOperationMode.SURVEY)
-        }
-        sprayButton.setOnClickListener {
-            activityViewModel.setPlanningOperationMode(PlanningOperationMode.SPRAY)
-        }
-        activityViewModel.planningOperationMode.observe(viewLifecycleOwner) { mode ->
-            applySelection(mode != PlanningOperationMode.SPRAY)
-        }
-        applySelection(true)
     }
 
     private fun renderWorkflowSelection(workflow: PlanningWorkflow) {
