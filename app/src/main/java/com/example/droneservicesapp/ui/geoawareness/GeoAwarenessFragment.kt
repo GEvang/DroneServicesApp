@@ -1,5 +1,6 @@
 package com.example.droneservicesapp.ui.geoawareness
 
+import android.content.res.ColorStateList
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.content.Intent
@@ -17,6 +18,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -417,36 +419,63 @@ class GeoAwarenessFragment : Fragment() {
             ))
         }
         if (record.sourceType == GeoZoneDatasetSourceType.IMPORTED_FILE && record.storageFileName != null) {
+            wrapper.addView(createPanelText("Actions"))
             val actionsRow = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     ViewGroup.LayoutParams.WRAP_CONTENT
                 ).apply {
-                    topMargin = (12 * resources.displayMetrics.density).toInt()
+                    topMargin = (8 * resources.displayMetrics.density).toInt()
                 }
             }
-            actionsRow.addView(com.google.android.material.button.MaterialButton(requireContext(), null, R.attr.materialButtonOutlinedStyle).apply {
-                text = getString(R.string.geo_awareness_update_dataset)
-                setOnClickListener { launchUpdateDatasetPicker(record) }
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    (44 * resources.displayMetrics.density).toInt()
-                )
-            })
-            actionsRow.addView(com.google.android.material.button.MaterialButton(requireContext(), null, R.attr.materialButtonOutlinedStyle).apply {
-                text = getString(R.string.geo_awareness_remove_dataset)
-                setOnClickListener { confirmRemoveDataset(record) }
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT,
-                    (44 * resources.displayMetrics.density).toInt()
-                ).apply {
-                    marginStart = (12 * resources.displayMetrics.density).toInt()
-                }
-            })
+            actionsRow.addView(createDatasetActionButton(
+                text = getString(R.string.geo_awareness_update_dataset),
+                backgroundColor = ContextCompat.getColor(requireContext(), R.color.ds_color_shell_selected_surface),
+                textColor = ContextCompat.getColor(requireContext(), R.color.ds_color_shell_selected_content),
+                onClick = { launchUpdateDatasetPicker(record) }
+            ))
+            actionsRow.addView(createDatasetActionButton(
+                text = getString(R.string.geo_awareness_remove_dataset),
+                backgroundColor = ContextCompat.getColor(requireContext(), R.color.ds_color_shell_danger),
+                textColor = ContextCompat.getColor(requireContext(), R.color.ds_color_text_primary),
+                onClick = { confirmRemoveDataset(record) },
+                marginStartDp = 8
+            ))
             wrapper.addView(actionsRow)
         }
         return wrapper
+    }
+
+    private fun createDatasetActionButton(
+        text: String,
+        backgroundColor: Int,
+        textColor: Int,
+        strokeColor: Int? = null,
+        marginStartDp: Int = 0,
+        onClick: () -> Unit
+    ): com.google.android.material.button.MaterialButton {
+        return com.google.android.material.button.MaterialButton(requireContext()).apply {
+            this.text = text
+            minWidth = 0
+            insetTop = 0
+            insetBottom = 0
+            backgroundTintList = ColorStateList.valueOf(backgroundColor)
+            setTextColor(textColor)
+            cornerRadius = resources.getDimensionPixelSize(R.dimen.ds_radius_round)
+            strokeColor?.let {
+                this.strokeColor = ColorStateList.valueOf(it)
+                strokeWidth = (1 * resources.displayMetrics.density).toInt()
+            }
+            setOnClickListener { onClick() }
+            layoutParams = LinearLayout.LayoutParams(
+                0,
+                (44 * resources.displayMetrics.density).toInt(),
+                1f
+            ).apply {
+                marginStart = (marginStartDp * resources.displayMetrics.density).toInt()
+            }
+        }
     }
 
     private fun createStatusValue(text: String): TextView = TextView(requireContext()).apply {
