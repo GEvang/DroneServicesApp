@@ -4,6 +4,10 @@ import android.content.Context
 import android.util.Log
 import org.json.JSONObject
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 class GeoIncidentEncryptedLogStore(private val context: Context) {
 
@@ -11,9 +15,9 @@ class GeoIncidentEncryptedLogStore(private val context: Context) {
         synchronized(FILE_LOCK) {
             try {
                 val publicKey = GeoIncidentPublicKeyProvider.getPublicKey()
-                val logFile = getCurrentLogFile()
+                val logFile = getDailyLogFile(event.timestampMillis)
                 ensureParentDirs(logFile)
-                rotateIfNeeded(logFile)
+                cleanupExpiredLogs()
                 val envelope = GeoIncidentCrypto.encryptEvent(event.toJson(), publicKey, GeoIncidentPublicKeyProvider.KEY_ID)
                 logFile.appendText(envelope.toJson().toString() + "\n")
             } catch (error: Exception) {
@@ -23,32 +27,33 @@ class GeoIncidentEncryptedLogStore(private val context: Context) {
     }
 
     fun getEncryptedLogFiles(): List<File> {
-        return listOf(getRotatedLogFile(), getCurrentLogFile()).filter { it.exists() }
+        synchronized(FILE_LOCK) {
+            cleanupExpiredLogs()
+            val dir = File(context.filesDir, INCIDENT_DIR)
+            if (!dir.exists()) {
+                return emptyList()
+            }
+            return dir.listFiles { file ->
+                file.isFile &&
+                    file.name.startsWith(LOG_FILE_PREFIX) &&
+                    file.extension.equals("jsonl", ignoreCase = true)
+            }?.sortedBy { it.name }.orEmpty()
+        }
     }
 
     fun getCurrentLogFile(): File {
-        return File(File(context.filesDir, INCIDENT_DIR), CURRENT_LOG_FILE)
+        return getDailyLogFile(System.currentTimeMillis())
     }
 
     fun clearInternalLogsForDebugOnly() {
         synchronized(FILE_LOCK) {
-            runCatching { getCurrentLogFile().delete() }
-            runCatching { getRotatedLogFile().delete() }
+            Log.w(TAG, "Retained encrypted geo incident logs cannot be deleted from the app.")
         }
     }
 
-    private fun rotateIfNeeded(logFile: File) {
-        if (logFile.exists() && logFile.length() >= MAX_LOG_BYTES) {
-            val rotated = getRotatedLogFile()
-            if (rotated.exists()) {
-                rotated.delete()
-            }
-            logFile.renameTo(rotated)
-        }
-    }
-
-    private fun getRotatedLogFile(): File {
-        return File(File(context.filesDir, INCIDENT_DIR), ROTATED_LOG_FILE)
+    private fun getDailyLogFile(timestampMillis: Long): File {
+        val date = requireNotNull(LOG_DATE_FORMAT.get()).format(Date(timestampMillis))
+        return File(File(context.filesDir, INCIDENT_DIR), "$LOG_FILE_PREFIX$date.enc.jsonl")
     }
 
     private fun ensureParentDirs(file: File) {
@@ -57,6 +62,34 @@ class GeoIncidentEncryptedLogStore(private val context: Context) {
                 parent.mkdirs()
             }
         }
+    }
+
+    private fun cleanupExpiredLogs(nowMillis: Long = System.currentTimeMillis()) {
+        val cutoffMillis = nowMillis - RETENTION_MILLIS
+        val dir = File(context.filesDir, INCIDENT_DIR)
+        if (!dir.exists()) {
+            return
+        }
+        dir.listFiles { file ->
+            file.isFile &&
+                file.name.startsWith(LOG_FILE_PREFIX) &&
+                file.extension.equals("jsonl", ignoreCase = true)
+        }.orEmpty()
+            .filter { file -> resolveLogDateMillis(file) < cutoffMillis }
+            .forEach { file ->
+                if (!file.delete()) {
+                    Log.w(TAG, "Failed to delete expired encrypted geo incident log: ${file.name}")
+                }
+            }
+    }
+
+    private fun resolveLogDateMillis(file: File): Long {
+        val dateText = file.name
+            .removePrefix(LOG_FILE_PREFIX)
+            .removeSuffix(".enc.jsonl")
+        return runCatching {
+            requireNotNull(LOG_DATE_FORMAT.get()).parse(dateText)?.time ?: file.lastModified()
+        }.getOrDefault(file.lastModified())
     }
 
     private fun GeoIncidentEvent.toJson(): JSONObject {
@@ -96,9 +129,16 @@ class GeoIncidentEncryptedLogStore(private val context: Context) {
     companion object {
         private const val TAG = "GeoIncidentLog"
         private const val INCIDENT_DIR = "geo_awareness/incidents"
-        private const val CURRENT_LOG_FILE = "geo_incident_events.enc.jsonl"
-        private const val ROTATED_LOG_FILE = "geo_incident_events.1.enc.jsonl"
-        private const val MAX_LOG_BYTES = 2 * 1024 * 1024L
+        private const val LOG_FILE_PREFIX = "geo_incident_events_"
+        private const val RETENTION_DAYS = 90L
+        private const val RETENTION_MILLIS = RETENTION_DAYS * 24L * 60L * 60L * 1000L
         private val FILE_LOCK = Any()
+        private val LOG_DATE_FORMAT = object : ThreadLocal<SimpleDateFormat>() {
+            override fun initialValue(): SimpleDateFormat {
+                return SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+                    timeZone = TimeZone.getDefault()
+                }
+            }
+        }
     }
 }

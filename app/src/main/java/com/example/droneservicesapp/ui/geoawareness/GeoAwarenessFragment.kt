@@ -134,6 +134,7 @@ class GeoAwarenessFragment : Fragment() {
         binding.geoAwarenessFlightLogsSection.isVisible = false
         binding.geoAwarenessLogsSectionTitle.isVisible = false
         binding.geoAwarenessLogsSection.isVisible = false
+        binding.geoAwarenessClearLogsButton.isVisible = false
         binding.geoAwarenessInternalSectionTitle.isVisible = true
         binding.geoAwarenessInternalSection.isVisible = true
         binding.geoAwarenessOverlaySwitch.setOnCheckedChangeListener { _, isChecked ->
@@ -155,9 +156,6 @@ class GeoAwarenessFragment : Fragment() {
         }
         binding.geoAwarenessExportLogsButton.setOnClickListener {
             exportGeoAwarenessLogs()
-        }
-        binding.geoAwarenessClearLogsButton.setOnClickListener {
-            confirmClearGeoAwarenessLogs()
         }
         binding.geoAwarenessViewDetailedLogsButton.setOnClickListener {
             showDetailedLogsPreview()
@@ -1099,21 +1097,6 @@ class GeoAwarenessFragment : Fragment() {
                 message = "Failed to share geo-awareness logs.\n\n${error.message ?: "Unknown error"}"
             )
         }
-    }
-
-    private fun confirmClearGeoAwarenessLogs() {
-        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle("Clear geo-awareness logs?")
-            .setMessage("This will delete stored geo-awareness event logs from this device.")
-            .setPositiveButton("Clear") { _, _ ->
-                geoEventLogger.clearLogs()
-                refreshEventLogCount()
-                Toast.makeText(requireContext(), "Geo-awareness logs cleared", Toast.LENGTH_SHORT).show()
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
     }
 
     private fun updateLiveStatus() {
