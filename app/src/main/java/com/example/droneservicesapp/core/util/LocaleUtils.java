@@ -31,7 +31,7 @@ public class LocaleUtils {
     }
 
     private static void updateResources(Context context, String language) {
-        Locale locale = new Locale(language);
+        Locale locale = ENGLISH.equals(language) ? Locale.ENGLISH : new Locale(language);
         Locale.setDefault(locale);
         Resources resources = context.getResources();
         Configuration configuration = resources.getConfiguration();
@@ -50,7 +50,7 @@ public class LocaleUtils {
 
     public static String getSelectedLanguageId() {
         return Objects.requireNonNull(getDefaultSharedPreference())
-                .getString(Application.getInstance().getApplicationContext().getString(R.string.language_pref), GREEK);
+                .getString(Application.getInstance().getApplicationContext().getString(R.string.language_pref), ENGLISH);
     }
 
     public static void setSelectedLanguageId(String id) {
