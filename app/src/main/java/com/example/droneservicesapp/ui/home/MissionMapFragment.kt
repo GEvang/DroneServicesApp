@@ -1939,9 +1939,13 @@ class MissionMapFragment : Fragment() {
             put("requiredWarningTimeSeconds", proximity.requiredWarningSeconds.toString())
             proximity.minimumWarningDistanceMeters?.let { put("minimumSpeedBasedWarningDistanceMeters", it.toString()) }
             proximity.groundSpeedMetersPerSecond?.let { put("groundSpeedMetersPerSecond", it.toString()) }
+            proximity.headingDegrees?.let { put("headingDegrees", it.toString()) }
+            proximity.closingSpeedMetersPerSecond?.let { put("closingSpeedMetersPerSecond", it.toString()) }
             proximity.timeToBoundarySeconds?.let { put("timeToBoundarySeconds", it.toString()) }
             proximity.warningMeetsRequiredTime?.let { put("warningMeetsRequiredTime", it.toString()) }
-            put("triggerRule", "distanceToBoundaryMeters <= max(configuredDistanceThresholdMeters, groundSpeedMetersPerSecond * requiredWarningTimeSeconds)")
+            put("warningMode", proximity.warningMode)
+            put("verticalRelevance", proximity.verticalRelevance.toString())
+            put("triggerRule", "distanceToBoundaryMeters <= configuredDistanceThresholdMeters OR timeToBoundarySeconds <= requiredWarningTimeSeconds when closingSpeedMetersPerSecond > 0")
         }
     }
 
@@ -2016,7 +2020,8 @@ class MissionMapFragment : Fragment() {
                     aglMeters = droneAltitudeMeters,
                     amslMeters = latestRealDroneAltitudeAmslMeters
                 ),
-                groundSpeedMetersPerSecond = latestRealDroneGroundSpeedMetersPerSecond?.toDouble()
+                groundSpeedMetersPerSecond = latestRealDroneGroundSpeedMetersPerSecond?.toDouble(),
+                headingDegrees = latestRealDroneHeadingDegrees
             )
             latestLiveGeoProximity = nearestZone
             if (nearestZone == null) {
@@ -2086,9 +2091,13 @@ class MissionMapFragment : Fragment() {
                     proximity.groundSpeedMetersPerSecond?.let { speed ->
                         appendLine("Ground speed: ${"%.2f".format(Locale.US, speed)} m/s")
                     }
+                    proximity.closingSpeedMetersPerSecond?.let { speed ->
+                        appendLine("Closing speed: ${"%.2f".format(Locale.US, speed)} m/s")
+                    }
                     proximity.timeToBoundarySeconds?.let { seconds ->
                         appendLine("Time to boundary: ${"%.2f".format(Locale.US, seconds)} s")
                     }
+                    appendLine("Warning mode: ${proximity.warningMode}")
                     if (!geoZoneDatasetInfo?.title.isNullOrBlank()) {
                         appendLine("Dataset: ${geoZoneDatasetInfo?.title} (${geoZoneDatasetInfo?.version ?: "N/A"})")
                     }

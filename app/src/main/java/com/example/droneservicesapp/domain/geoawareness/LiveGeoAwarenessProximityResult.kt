@@ -9,6 +9,10 @@ data class LiveGeoAwarenessProximityResult(
     val requiredWarningSeconds: Double = 3.0,
     val minimumWarningDistanceMeters: Double? = null,
     val groundSpeedMetersPerSecond: Double? = null,
+    val headingDegrees: Double? = null,
+    val closingSpeedMetersPerSecond: Double? = null,
     val timeToBoundarySeconds: Double? = null,
-    val warningMeetsRequiredTime: Boolean? = null
+    val warningMeetsRequiredTime: Boolean? = null,
+    val warningMode: String = "FIXED_DISTANCE_100M",
+    val verticalRelevance: Boolean = true
 )

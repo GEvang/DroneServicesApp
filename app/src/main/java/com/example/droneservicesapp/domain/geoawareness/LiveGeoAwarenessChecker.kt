@@ -2,6 +2,10 @@ package com.example.droneservicesapp.domain.geoawareness
 
 import android.util.Log
 import com.example.droneservicesapp.domain.model.LatLon
+import kotlin.math.asin
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
 
 class LiveGeoAwarenessChecker {
 
@@ -67,6 +71,7 @@ class LiveGeoAwarenessChecker {
         thresholdMeters: Double = 100.0,
         altitudeContext: GeoAltitudeContext? = null,
         groundSpeedMetersPerSecond: Double? = null,
+        headingDegrees: Double? = null,
         requiredWarningSeconds: Double = REQUIRED_WARNING_SECONDS
     ): LiveGeoAwarenessProximityResult? {
         if (zones.isEmpty()) {
@@ -75,8 +80,14 @@ class LiveGeoAwarenessChecker {
 
         val normalizedSpeed = groundSpeedMetersPerSecond
             ?.takeIf { it.isFinite() && it > 0.0 }
-        val minimumWarningDistanceMeters = normalizedSpeed?.let { it * requiredWarningSeconds }
-        val effectiveThresholdMeters = maxOf(thresholdMeters, minimumWarningDistanceMeters ?: 0.0)
+        val normalizedHeading = headingDegrees
+            ?.takeIf { it.isFinite() }
+            ?.let { ((it % 360.0) + 360.0) % 360.0 }
+        val predictedPosition = if (normalizedSpeed != null && normalizedHeading != null) {
+            projectPosition(position, normalizedHeading, normalizedSpeed * CLOSING_SPEED_LOOKAHEAD_SECONDS)
+        } else {
+            null
+        }
 
         val candidates = zones.mapNotNull { zone ->
             if (!isNearWarningRestriction(zone.restriction)) {
@@ -119,11 +130,40 @@ class LiveGeoAwarenessChecker {
                 .minOrNull()
                 ?: return@mapNotNull null
 
-            if (nearestDistance > effectiveThresholdMeters) {
+            val predictedDistance = predictedPosition?.let { nextPosition ->
+                zone.geometries
+                    .filter { geometry ->
+                        GeoAwarenessGeometryUtils.altitudeOverlaps(
+                            altitudeContext = altitudeContext,
+                            zoneLowerMeters = geometry.lowerLimitMeters,
+                            zoneUpperMeters = geometry.upperLimitMeters,
+                            lowerReference = geometry.lowerVerticalReference,
+                            upperReference = geometry.upperVerticalReference
+                        )
+                    }
+                    .mapNotNull { geometry ->
+                        try {
+                            GeoAwarenessGeometryUtils.distanceMetersToGeometry(nextPosition, geometry)
+                        } catch (error: Exception) {
+                            Log.w(TAG, "Skipping malformed geometry while checking predicted proximity for ${zone.id}", error)
+                            null
+                        }
+                    }
+                    .minOrNull()
+            }
+            val closingSpeed = predictedDistance
+                ?.let { (nearestDistance - it) / CLOSING_SPEED_LOOKAHEAD_SECONDS }
+                ?.takeIf { it.isFinite() && it > 0.0 }
+            val timeToBoundarySeconds = closingSpeed?.let { nearestDistance / it }
+            val minimumWarningDistanceMeters = closingSpeed?.let { it * requiredWarningSeconds }
+            val effectiveThresholdMeters = maxOf(thresholdMeters, minimumWarningDistanceMeters ?: 0.0)
+            val fixedDistanceTriggered = nearestDistance <= thresholdMeters
+            val timeToBoundaryTriggered = timeToBoundarySeconds?.let { it <= requiredWarningSeconds } == true
+
+            if (!fixedDistanceTriggered && !timeToBoundaryTriggered) {
                 return@mapNotNull null
             }
 
-            val timeToBoundarySeconds = normalizedSpeed?.let { nearestDistance / it }
             LiveGeoAwarenessProximityResult(
                 nearestZone = zone,
                 distanceMeters = nearestDistance,
@@ -133,8 +173,16 @@ class LiveGeoAwarenessChecker {
                 requiredWarningSeconds = requiredWarningSeconds,
                 minimumWarningDistanceMeters = minimumWarningDistanceMeters,
                 groundSpeedMetersPerSecond = normalizedSpeed,
+                headingDegrees = normalizedHeading,
+                closingSpeedMetersPerSecond = closingSpeed,
                 timeToBoundarySeconds = timeToBoundarySeconds,
-                warningMeetsRequiredTime = timeToBoundarySeconds?.let { it >= requiredWarningSeconds }
+                warningMeetsRequiredTime = timeToBoundarySeconds?.let { it >= requiredWarningSeconds },
+                warningMode = when {
+                    timeToBoundaryTriggered -> "TIME_TO_BOUNDARY"
+                    fixedDistanceTriggered -> "FIXED_DISTANCE_100M"
+                    else -> "NONE"
+                },
+                verticalRelevance = true
             )
         }
 
@@ -168,5 +216,28 @@ class LiveGeoAwarenessChecker {
     companion object {
         private const val TAG = "LiveGeoAwarenessChecker"
         const val REQUIRED_WARNING_SECONDS = 3.0
+        private const val CLOSING_SPEED_LOOKAHEAD_SECONDS = 1.0
+        private const val EARTH_RADIUS_METERS = 6_371_000.0
+    }
+
+    private fun projectPosition(position: LatLon, headingDegrees: Double, distanceMeters: Double): LatLon {
+        if (distanceMeters <= 0.0) return position
+        val angularDistance = distanceMeters / EARTH_RADIUS_METERS
+        val bearing = Math.toRadians(headingDegrees)
+        val lat1 = Math.toRadians(position.lat)
+        val lon1 = Math.toRadians(position.lon)
+        val sinLat1 = sin(lat1)
+        val cosLat1 = cos(lat1)
+        val sinAngular = sin(angularDistance)
+        val cosAngular = cos(angularDistance)
+        val lat2 = asin(sinLat1 * cosAngular + cosLat1 * sinAngular * cos(bearing))
+        val lon2 = lon1 + atan2(
+            sin(bearing) * sinAngular * cosLat1,
+            cosAngular - sinLat1 * sin(lat2)
+        )
+        return LatLon(
+            lat = Math.toDegrees(lat2),
+            lon = ((Math.toDegrees(lon2) + 540.0) % 360.0) - 180.0
+        )
     }
 }

@@ -23,6 +23,8 @@ The feature supports:
 
 Geo-awareness is an operational aid. It does not replace official airspace checks, authority approvals, pilot judgement, or legal compliance. Operators must verify current official restrictions with DAGR/HCAA or the responsible authority before flight.
 
+The app implements **Geo-awareness Only** for UGZ monitoring. It does not implement geofencing and does not automatically trigger RTL, Brake, Loiter, Land, guided redirection, fence parameter changes, waypoint alteration, or any other automatic recovery manoeuvre when approaching or entering a UGZ. Warnings are advisory alerts to the remote pilot.
+
 ## 2. Accessing Geo-awareness
 
 1. Open the Drone Services App.
@@ -289,11 +291,15 @@ Live status labels:
 | **LIVE GEO: NEAR CONDITIONAL** | Drone is outside but within the near-zone threshold of a conditional zone. |
 | **LIVE GEO: NEAR UNKNOWN** | Drone is outside but within the near-zone threshold of an unknown zone. |
 
-The near-zone warning threshold is the greater of 100 meters or the current ground speed multiplied by 3 seconds. This provides an explicit 3-second approach-warning rule for live UGZ boundary proximity when ground speed telemetry is available.
+The near-zone warning threshold is the greater of 100 meters or the current closing speed toward the UGZ boundary multiplied by 3 seconds. This provides an explicit 3-second approach-warning rule for live UGZ boundary proximity when ground speed and heading telemetry are available. If speed or heading is unavailable, the app uses the conservative 100 meter fixed-distance warning only.
+
+At the maximum configured UA speed of 7 m/s, the 100 meter fixed-distance warning gives approximately 14.3 seconds before boundary breach when flying directly toward the boundary.
 
 Tap the live status chip to see details. If the drone is inside zones, the app lists up to five zones and their restrictions. If a near-zone warning applies, the app shows the nearest zone, restriction, distance, threshold, dataset, and message.
 
 If live status shows **NO POS**, verify telemetry and GPS before relying on live geo-awareness.
+
+Time-limited UGZ applicability windows are parsed for display/evidence but are not currently enforced for active, future, or expired zone filtering. Operators must treat loaded zones as applicable unless verified otherwise with the responsible authority.
 
 ## 14. Event and Incident Records
 
@@ -362,6 +368,8 @@ The operator is responsible for:
 - The app uses available mission height, drone relative altitude, AMSL telemetry, and zone altitude limits where present.
 - True terrain-derived AGL requires a terrain source and is not currently calculated beyond mission height or drone relative altitude.
 - Live geo-awareness depends on valid drone telemetry and GPS position.
-- The near-zone threshold is the greater of 100 meters or current ground speed multiplied by 3 seconds.
+- The near-zone threshold is the greater of 100 meters or current closing speed toward the UGZ boundary multiplied by 3 seconds.
+- The app is Geo-awareness Only and does not perform automatic geofencing recovery manoeuvres.
+- Time-limited UGZ applicability windows are not currently enforced.
 - Automatic authoritative DAGR/API retrieval is not implemented.
 - Operators must verify official restrictions before flight regardless of app status.

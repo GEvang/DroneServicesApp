@@ -89,6 +89,7 @@ class GeoAwarenessFragment : Fragment() {
     private var latestRealDroneAltitudeMeters: Double? = null
     private var latestRealDroneAltitudeAmslMeters: Double? = null
     private var latestRealDroneGroundSpeedMetersPerSecond: Float? = null
+    private var latestRealDroneHeadingDegrees: Double? = null
     private var geoAwarenessHealth: GeoAwarenessHealth? = null
     private var geoAwarenessLoadError: Throwable? = null
     private var validationResult: GeoZoneValidationResult? = null
@@ -260,6 +261,10 @@ class GeoAwarenessFragment : Fragment() {
         }
         droneViewModel.droneGroundSpeedMetersPerSecond.observe(viewLifecycleOwner) { speed ->
             latestRealDroneGroundSpeedMetersPerSecond = speed
+            updateLiveStatus()
+        }
+        droneViewModel.droneHeading.observe(viewLifecycleOwner) { heading ->
+            latestRealDroneHeadingDegrees = heading
             updateLiveStatus()
         }
     }
@@ -1305,7 +1310,8 @@ class GeoAwarenessFragment : Fragment() {
                 zones = geoZones,
                 thresholdMeters = DEFAULT_NEAR_ZONE_THRESHOLD_METERS,
                 altitudeContext = altitudeContext,
-                groundSpeedMetersPerSecond = latestRealDroneGroundSpeedMetersPerSecond?.toDouble()
+                groundSpeedMetersPerSecond = latestRealDroneGroundSpeedMetersPerSecond?.toDouble(),
+                headingDegrees = latestRealDroneHeadingDegrees
             )
             if (latestLiveProximity == null) {
                 liveStatusBinder?.bindClear()
@@ -1367,9 +1373,13 @@ class GeoAwarenessFragment : Fragment() {
                             proximity.groundSpeedMetersPerSecond?.let { speed ->
                                 appendLine("Ground speed: ${"%.2f".format(Locale.US, speed)} m/s")
                             }
+                            proximity.closingSpeedMetersPerSecond?.let { speed ->
+                                appendLine("Closing speed: ${"%.2f".format(Locale.US, speed)} m/s")
+                            }
                             proximity.timeToBoundarySeconds?.let { seconds ->
                                 appendLine("Time to boundary: ${"%.2f".format(Locale.US, seconds)} s")
                             }
+                            appendLine("Warning mode: ${proximity.warningMode}")
                             if (!datasetInfo?.title.isNullOrBlank()) {
                                 appendLine("Dataset: ${datasetInfo?.title} (${datasetInfo?.version ?: "N/A"})")
                             }
