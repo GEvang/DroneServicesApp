@@ -31,6 +31,7 @@ import com.example.droneservicesapp.data.geoawareness.logging.OperatorFlightEven
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessChecker
+import com.example.droneservicesapp.domain.geoawareness.GeoAltitudeContext
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthEvaluator
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthState
@@ -119,11 +120,18 @@ class MissionMapFragment : Fragment() {
     private var latestLiveDronePosition: LatLon? = null
     private var latestRealDronePosition: LatLon? = null
     private var latestRealDroneAltitudeMeters: Double? = null
+    private var latestRealDroneAltitudeAmslMeters: Double? = null
+    private var latestRealDroneHorizontalAccuracyMeters: Float? = null
+    private var latestRealDroneVerticalAccuracyMeters: Float? = null
+    private var latestRealDroneGroundSpeedMetersPerSecond: Float? = null
+    private var latestRealDroneVerticalSpeedMetersPerSecond: Float? = null
+    private var latestRealDroneHeadingDegrees: Double? = null
     private var lastPlanningLogSignature: String? = null
     private var lastConflictLogSignature: String? = null
     private var lastHealthLogSignature: String? = null
     private var lastHealthState: GeoAwarenessHealthState? = null
     private var lastLiveZoneIdentityMap: Map<String, GeoZone> = emptyMap()
+    private val authorizedUgzIdsForCurrentFlight = mutableSetOf<String>()
     private var lastRtkStreamingActive: Boolean? = null
     private var isDrawingModeActive = false
     private var hasCenteredInitialViewport = false
@@ -495,6 +503,14 @@ class MissionMapFragment : Fragment() {
             val liveAltitudeMeters = droneLocation?.takeIf(::isUsableDroneLocation)?.altitude
             latestRealDronePosition = livePosition
             latestRealDroneAltitudeMeters = liveAltitudeMeters
+            latestRealDroneHorizontalAccuracyMeters = droneLocation
+                ?.takeIf(::isUsableDroneLocation)
+                ?.takeIf { it.hasAccuracy() }
+                ?.accuracy
+            latestRealDroneVerticalAccuracyMeters = droneLocation
+                ?.takeIf(::isUsableDroneLocation)
+                ?.takeIf { android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && it.hasVerticalAccuracy() }
+                ?.verticalAccuracyMeters
 
             if (livePosition != null) {
                 osmdroidMapController.updateDronePosition(
@@ -514,8 +530,22 @@ class MissionMapFragment : Fragment() {
 
         droneViewModel.droneHeading.observe(viewLifecycleOwner) { droneHeading ->
             droneHeading?.let { heading ->
+                latestRealDroneHeadingDegrees = heading
                 osmdroidMapController.updateDroneHeadingDegrees(heading.toFloat())
             }
+        }
+
+        droneViewModel.droneGroundSpeedMetersPerSecond.observe(viewLifecycleOwner) { speed ->
+            latestRealDroneGroundSpeedMetersPerSecond = speed
+        }
+
+        droneViewModel.droneVerticalSpeedMetersPerSecond.observe(viewLifecycleOwner) { speed ->
+            latestRealDroneVerticalSpeedMetersPerSecond = speed
+        }
+
+        droneViewModel.droneAltitudeAmslMeters.observe(viewLifecycleOwner) { altitudeAmslMeters ->
+            latestRealDroneAltitudeAmslMeters = altitudeAmslMeters
+            updateLiveGeoAwarenessFromActiveSource()
         }
 
         droneViewModel.armedState.observe(viewLifecycleOwner) { armed ->
@@ -869,8 +899,30 @@ class MissionMapFragment : Fragment() {
             } else {
                 pendingHomeMarkerAfterArm = true
             }
+        } else if (wasDroneArmed && !isArmed) {
+            resetCurrentFlightUgzAuthorizations("disarmed")
         }
         wasDroneArmed = isArmed
+    }
+
+    private fun resetCurrentFlightUgzAuthorizations(reason: String) {
+        if (authorizedUgzIdsForCurrentFlight.isEmpty()) return
+        val resetIds = authorizedUgzIdsForCurrentFlight.toList()
+        authorizedUgzIdsForCurrentFlight.clear()
+        geoEventLogger.logSimple(
+            type = GeoAwarenessEventType.UGZ_AUTHORIZATION_RESET,
+            severity = "INFO",
+            message = "UGZ authorization confirmations reset",
+            category = "GEO",
+            datasetTitle = geoZoneDatasetInfo?.title,
+            datasetVersion = geoZoneDatasetInfo?.version,
+            healthState = geoAwarenessHealth?.state?.name,
+            zoneIds = resetIds,
+            details = mapOf(
+                "reason" to reason,
+                "resetScope" to "current_flight"
+            )
+        )
     }
 
     private fun maybeSetPendingHomeMarker(position: LatLon) {
@@ -1165,7 +1217,7 @@ class MissionMapFragment : Fragment() {
         return geoAwarenessChecker?.checkMission(
             missionPolygon = missionPolygon,
             surveyPath = planningPath,
-            missionAltitudeMeters = altitudeMeters,
+            altitudeContext = GeoAltitudeContext(aglMeters = altitudeMeters),
             zones = geoAwarenessZones
         ) ?: GeoAwarenessResult.clear()
     }
@@ -1298,7 +1350,30 @@ class MissionMapFragment : Fragment() {
                 showGeoAwarenessBlockedDialog(result)
             }
             result.requiresAcknowledgement -> {
-                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: acknowledgement required conflicts=${result.conflicts.size}")
+                val authorizationZones = authorizationRequiredZones(result)
+                val unconfirmedAuthorizationZones = authorizationZones
+                    .filter { it.id !in authorizedUgzIdsForCurrentFlight }
+                    .distinctBy { it.id }
+                if (unconfirmedAuthorizationZones.isEmpty()) {
+                    Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: authorization already confirmed for current flight")
+                    geoEventLogger.logSimple(
+                        type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
+                        severity = "INFO",
+                        message = "Geo upload authorization already confirmed for current flight",
+                        category = "MISSION",
+                        datasetTitle = geoZoneDatasetInfo?.title,
+                        datasetVersion = geoZoneDatasetInfo?.version,
+                        healthState = health.state.name,
+                        zoneIds = authorizationZones.map { it.id }.distinct(),
+                        zoneNames = authorizationZones.map { it.name }.distinct(),
+                        restriction = GeoZoneRestriction.REQ_AUTHORISATION.name,
+                        details = mapOf("authorizationScope" to "current_flight")
+                    )
+                    onAllowed()
+                    return
+                }
+
+                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: authorization confirmation required conflicts=${result.conflicts.size}")
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.UPLOAD_ACK_REQUIRED,
                     severity = "WARNING",
@@ -1307,15 +1382,53 @@ class MissionMapFragment : Fragment() {
                     datasetTitle = geoZoneDatasetInfo?.title,
                     datasetVersion = geoZoneDatasetInfo?.version,
                     healthState = health.state.name,
-                    zoneIds = result.conflicts.map { it.zone.id }.distinct(),
-                    zoneNames = result.conflicts.map { it.zone.name }.distinct(),
-                    restriction = result.highestRestriction.name,
+                    zoneIds = unconfirmedAuthorizationZones.map { it.id },
+                    zoneNames = unconfirmedAuthorizationZones.map { it.name },
+                    restriction = GeoZoneRestriction.REQ_AUTHORISATION.name,
+                    latitude = latestRealDronePosition?.lat,
+                    longitude = latestRealDronePosition?.lon,
+                    altitudeMeters = latestRealDroneAltitudeMeters,
+                    details = mapOf("authorizationScope" to "current_flight")
+                )
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.UGZ_AUTHORIZATION_REQUIRED,
+                    severity = "WARNING",
+                    message = "Geo upload requires UGZ authorization confirmation",
+                    category = "MISSION",
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = health.state.name,
+                    zoneIds = unconfirmedAuthorizationZones.map { it.id },
+                    zoneNames = unconfirmedAuthorizationZones.map { it.name },
+                    restriction = GeoZoneRestriction.REQ_AUTHORISATION.name,
                     latitude = latestRealDronePosition?.lat,
                     longitude = latestRealDronePosition?.lon,
                     altitudeMeters = latestRealDroneAltitudeMeters
                 )
                 showGeoAwarenessAcknowledgementDialog(result, health) {
+                    val confirmedZones = authorizationRequiredZones(result).distinctBy { it.id }
+                    authorizedUgzIdsForCurrentFlight += confirmedZones.map { it.id }
                     Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after acknowledgement")
+                    geoEventLogger.logSimple(
+                        type = GeoAwarenessEventType.UGZ_AUTHORIZATION_CONFIRMED,
+                        severity = "INFO",
+                        message = "Pilot declared UGZ authorization completed",
+                        category = "MISSION",
+                        datasetTitle = geoZoneDatasetInfo?.title,
+                        datasetVersion = geoZoneDatasetInfo?.version,
+                        healthState = health.state.name,
+                        zoneIds = confirmedZones.map { it.id },
+                        zoneNames = confirmedZones.map { it.name },
+                        restriction = GeoZoneRestriction.REQ_AUTHORISATION.name,
+                        latitude = latestRealDronePosition?.lat,
+                        longitude = latestRealDronePosition?.lon,
+                        altitudeMeters = latestRealDroneAltitudeMeters,
+                        details = mapOf(
+                            "confirmationScope" to "current_flight",
+                            "pilotDeclaration" to "authorization_or_notification_completed",
+                            "resetCondition" to "disarm_or_end_of_flight"
+                        )
+                    )
                     geoEventLogger.logSimple(
                         type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
                         severity = "INFO",
@@ -1324,9 +1437,13 @@ class MissionMapFragment : Fragment() {
                         datasetTitle = geoZoneDatasetInfo?.title,
                         datasetVersion = geoZoneDatasetInfo?.version,
                         healthState = health.state.name,
+                        zoneIds = confirmedZones.map { it.id },
+                        zoneNames = confirmedZones.map { it.name },
+                        restriction = GeoZoneRestriction.REQ_AUTHORISATION.name,
                         latitude = latestRealDronePosition?.lat,
                         longitude = latestRealDronePosition?.lon,
-                        altitudeMeters = latestRealDroneAltitudeMeters
+                        altitudeMeters = latestRealDroneAltitudeMeters,
+                        details = mapOf("authorizationScope" to "current_flight")
                     )
                     onAllowed()
                 }
@@ -1375,16 +1492,27 @@ class MissionMapFragment : Fragment() {
         health: GeoAwarenessHealth,
         onAcknowledged: () -> Unit
     ) {
+        val authorizationZones = authorizationRequiredZones(result).distinctBy { it.id }
         val message = buildString {
-            appendLine("This mission intersects an authorization-required geo-zone.")
-            appendLine("Proceed only if you have verified the required authorization.")
+            appendLine("This mission intersects authorization-required UAS geographical zone(s).")
+            appendLine("Confirm only if notification or authorization has been completed with the relevant authority for each listed UGZ.")
+            appendLine("This confirmation is valid for the current flight only and resets when the drone disarms.")
+            appendLine()
+            authorizationZones.forEach { zone ->
+                appendLine("- ${zone.name}")
+                appendLine("  UGZ ID: ${zone.id}")
+                zone.authorities.firstOrNull()?.let { authority ->
+                    appendLine("  Authority: ${authority.name ?: "Not specified"}")
+                    appendLine("  Purpose: ${authority.purpose ?: "Not specified"}")
+                }
+            }
             appendLine()
             append(buildGeoConflictSummary(result))
         }
         val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle("Geo-awareness authorization warning")
+            .setTitle("Confirm UGZ authorization")
             .setMessage(message)
-            .setPositiveButton("Proceed") { _, _ ->
+            .setPositiveButton("Confirm authorization") { _, _ ->
                 onAcknowledged()
             }
             .setNegativeButton("Cancel") { _, _ ->
@@ -1401,6 +1529,13 @@ class MissionMapFragment : Fragment() {
             .show()
         dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+    }
+
+    private fun authorizationRequiredZones(result: GeoAwarenessResult): List<GeoZone> {
+        return result.conflicts
+            .map { it.zone }
+            .filter { it.restriction == GeoZoneRestriction.REQ_AUTHORISATION }
+            .distinctBy { it.id }
     }
 
     private fun showGeoAwarenessNoticeDialog(
@@ -1514,9 +1649,8 @@ class MissionMapFragment : Fragment() {
 
     private fun buildGeoHealthNotice(health: GeoAwarenessHealth): String {
         return when (health.state) {
-            GeoAwarenessHealthState.DUMMY_DATA -> "This is development-only dummy data. It is not official DAGR/HCAA data."
             GeoAwarenessHealthState.STALE -> "Geo-awareness data may be stale."
-            GeoAwarenessHealthState.DEGRADED -> "Geo-awareness data is degraded or unofficial."
+            GeoAwarenessHealthState.DEGRADED -> "Geo-awareness data has validation warnings."
             GeoAwarenessHealthState.UNAVAILABLE -> "Geo-awareness data is unavailable. Continuing will bypass geo-awareness protection."
             GeoAwarenessHealthState.AVAILABLE -> "Geo-awareness data is available."
         }
@@ -1533,7 +1667,7 @@ class MissionMapFragment : Fragment() {
                 "zoneCount" to info.zoneCount.toString(),
                 "circleGeometryCount" to info.circleGeometryCount.toString(),
                 "polygonGeometryCount" to info.polygonGeometryCount.toString(),
-                "official" to info.isOfficial.toString(),
+                "validNonDummyDataset" to (info.zoneCount > 0 && !info.isDummy).toString(),
                 "dummy" to info.isDummy.toString()
             )
         )
@@ -1731,7 +1865,8 @@ class MissionMapFragment : Fragment() {
                 datasetTitle = geoZoneDatasetInfo?.title,
                 datasetVersion = geoZoneDatasetInfo?.version,
                 healthState = geoAwarenessHealth?.state?.name,
-                source = "live_drone"
+                source = "live_drone",
+                details = liveVerificationDetails("alert_active")
             )
         }
 
@@ -1744,11 +1879,28 @@ class MissionMapFragment : Fragment() {
                 datasetTitle = geoZoneDatasetInfo?.title,
                 datasetVersion = geoZoneDatasetInfo?.version,
                 healthState = geoAwarenessHealth?.state?.name,
-                source = "live_drone"
+                source = "live_drone",
+                details = liveVerificationDetails("alert_cleared")
             )
         }
 
         lastLiveZoneIdentityMap = currentZoneMap
+    }
+
+    private fun liveVerificationDetails(alertStatus: String): Map<String, String> {
+        return buildMap {
+            put("verificationSchema", "prEN4709-003-7.1-live-behaviour-v1")
+            put("utcTimeMillis", System.currentTimeMillis().toString())
+            put("alertStatus", alertStatus)
+            latestRealDroneAltitudeMeters?.let { put("heightAglOrRelativeMeters", it.toString()) }
+            latestRealDroneAltitudeAmslMeters?.let { put("altitudeAmslMeters", it.toString()) }
+            latestRealDroneHorizontalAccuracyMeters?.let { put("horizontalPositionAccuracyMeters", it.toString()) }
+            latestRealDroneVerticalAccuracyMeters?.let { put("verticalPositionAccuracyMeters", it.toString()) }
+            latestRealDroneGroundSpeedMetersPerSecond?.let { put("groundSpeedMetersPerSecond", it.toString()) }
+            latestRealDroneVerticalSpeedMetersPerSecond?.let { put("verticalSpeedMetersPerSecond", it.toString()) }
+            latestRealDroneHeadingDegrees?.let { put("headingDegrees", it.toString()) }
+            put("altitudeReferenceSupport", "AGL_from_relative_altitude_or_mission_height;AMSL_from_GLOBAL_POSITION_INT.alt")
+        }
     }
 
     private fun buildLiveZoneIdentity(zone: GeoZone): String {
@@ -1792,7 +1944,10 @@ class MissionMapFragment : Fragment() {
 
         val insideZones = liveGeoAwarenessChecker?.checkDronePosition(
             dronePosition = dronePosition,
-            droneAltitudeMeters = droneAltitudeMeters,
+            altitudeContext = GeoAltitudeContext(
+                aglMeters = droneAltitudeMeters,
+                amslMeters = latestRealDroneAltitudeAmslMeters
+            ),
             zones = geoAwarenessZones
         ).orEmpty()
 
@@ -1808,7 +1963,10 @@ class MissionMapFragment : Fragment() {
                 position = dronePosition,
                 zones = geoAwarenessZones,
                 thresholdMeters = DEFAULT_NEAR_ZONE_THRESHOLD_METERS,
-                altitudeMeters = droneAltitudeMeters
+                altitudeContext = GeoAltitudeContext(
+                    aglMeters = droneAltitudeMeters,
+                    amslMeters = latestRealDroneAltitudeAmslMeters
+                )
             )
             latestLiveGeoProximity = nearestZone
             if (nearestZone == null) {

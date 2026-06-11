@@ -30,35 +30,62 @@ object GeoAwarenessGeometryUtils {
         missionAltitudeMeters: Double?,
         zoneLowerMeters: Double?,
         zoneUpperMeters: Double?
-    ): Boolean {
-        if (missionAltitudeMeters == null) {
-            return true
-        }
+    ): Boolean = altitudeOverlaps(
+        altitudeContext = GeoAltitudeContext(aglMeters = missionAltitudeMeters),
+        zoneLowerMeters = zoneLowerMeters,
+        zoneUpperMeters = zoneUpperMeters,
+        lowerReference = GeoVerticalReference.AGL,
+        upperReference = GeoVerticalReference.AGL
+    )
 
+    fun altitudeOverlaps(
+        altitudeContext: GeoAltitudeContext?,
+        zoneLowerMeters: Double?,
+        zoneUpperMeters: Double?,
+        lowerReference: GeoVerticalReference,
+        upperReference: GeoVerticalReference
+    ): Boolean {
+        val context = altitudeContext ?: return true
         if (zoneLowerMeters == null && zoneUpperMeters == null) {
             return true
         }
 
-        val lower = zoneLowerMeters
-        val upper = zoneUpperMeters
-        return when {
-            lower != null && upper != null -> {
-                val normalizedLower = min(lower, upper)
-                val normalizedUpper = max(lower, upper)
-                missionAltitudeMeters in normalizedLower..normalizedUpper
-            }
-            lower != null -> missionAltitudeMeters >= lower
-            upper != null -> missionAltitudeMeters <= upper
-            else -> true
-        }
+        val lowerAltitude = context.altitudeFor(lowerReference)
+        val upperAltitude = context.altitudeFor(upperReference)
+        val lowerOk = zoneLowerMeters?.let { lower -> lowerAltitude?.let { it >= lower } ?: true } ?: true
+        val upperOk = zoneUpperMeters?.let { upper -> upperAltitude?.let { it <= upper } ?: true } ?: true
+        return lowerOk && upperOk
+    }
+
+    private fun altitudeOverlapsGeometry(
+        altitudeContext: GeoAltitudeContext?,
+        geometry: GeoZoneGeometry
+    ): Boolean {
+        return altitudeOverlaps(
+            altitudeContext = altitudeContext,
+            zoneLowerMeters = geometry.lowerLimitMeters,
+            zoneUpperMeters = geometry.upperLimitMeters,
+            lowerReference = geometry.lowerVerticalReference,
+            upperReference = geometry.upperVerticalReference
+        )
     }
 
     fun pointInZone(
         point: LatLon,
         geometry: GeoZoneGeometry,
         missionAltitudeMeters: Double? = null
+    ): Boolean = pointInZone(
+        point = point,
+        geometry = geometry,
+        altitudeContext = GeoAltitudeContext(aglMeters = missionAltitudeMeters)
+    )
+
+    fun pointInZone(
+        point: LatLon,
+        geometry: GeoZoneGeometry,
+        altitudeContext: GeoAltitudeContext?
     ): Boolean {
-        if (!altitudeOverlaps(missionAltitudeMeters, geometry.lowerLimitMeters, geometry.upperLimitMeters)) {
+        if (!altitudeOverlapsGeometry(altitudeContext, geometry)) {
             return false
         }
 
@@ -176,17 +203,27 @@ object GeoAwarenessGeometryUtils {
         path: List<LatLon>,
         geometry: GeoZoneGeometry,
         missionAltitudeMeters: Double? = null
+    ): Boolean = pathIntersectsGeometry(
+        path = path,
+        geometry = geometry,
+        altitudeContext = GeoAltitudeContext(aglMeters = missionAltitudeMeters)
+    )
+
+    fun pathIntersectsGeometry(
+        path: List<LatLon>,
+        geometry: GeoZoneGeometry,
+        altitudeContext: GeoAltitudeContext?
     ): Boolean {
         if (path.isEmpty()) {
             return false
         }
 
-        if (!altitudeOverlaps(missionAltitudeMeters, geometry.lowerLimitMeters, geometry.upperLimitMeters)) {
+        if (!altitudeOverlapsGeometry(altitudeContext, geometry)) {
             return false
         }
 
         if (path.size == 1) {
-            return pointInZone(path.first(), geometry, missionAltitudeMeters)
+            return pointInZone(path.first(), geometry, altitudeContext)
         }
 
         return when (geometry) {
@@ -213,13 +250,23 @@ object GeoAwarenessGeometryUtils {
         polygon: List<LatLon>,
         geometry: GeoZoneGeometry,
         missionAltitudeMeters: Double? = null
+    ): Boolean = polygonIntersectsGeometry(
+        polygon = polygon,
+        geometry = geometry,
+        altitudeContext = GeoAltitudeContext(aglMeters = missionAltitudeMeters)
+    )
+
+    fun polygonIntersectsGeometry(
+        polygon: List<LatLon>,
+        geometry: GeoZoneGeometry,
+        altitudeContext: GeoAltitudeContext?
     ): Boolean {
         val missionRing = normalizeRing(polygon)
         if (distinctPointCount(missionRing) < 3) {
             return false
         }
 
-        if (!altitudeOverlaps(missionAltitudeMeters, geometry.lowerLimitMeters, geometry.upperLimitMeters)) {
+        if (!altitudeOverlapsGeometry(altitudeContext, geometry)) {
             return false
         }
 

@@ -163,6 +163,10 @@ class GeoAwarenessEvidencePackageExporter(
                     append(" alt=")
                     append(it)
                 }
+                if (event.details.isNotEmpty()) {
+                    append(" | details=")
+                    append(event.details.entries.joinToString(";") { "${it.key}=${it.value}" })
+                }
                 appendLine()
             }
         }
@@ -174,7 +178,7 @@ class GeoAwarenessEvidencePackageExporter(
             put("title", datasetInfo?.title)
             put("version", datasetInfo?.version)
             put("country", datasetInfo?.country)
-            put("official", datasetInfo?.isOfficial)
+            put("validNonDummyDataset", datasetInfo?.isDummy == false && (datasetInfo.zoneCount > 0))
             put("dummy", datasetInfo?.isDummy)
             put("loadedAtMillis", datasetInfo?.loadedAtMillis)
             put("zoneCount", datasetInfo?.zoneCount)
@@ -285,11 +289,11 @@ class GeoAwarenessEvidencePackageExporter(
     private fun buildKnownLimitations(records: List<GeoZoneDatasetRecord>, warningCount: Int): String {
         val datasetInfo = records.firstOrNull()?.datasetInfo
         return buildString {
-            if (datasetInfo?.isOfficial == false) appendLine("- Dataset is not official.")
             if (datasetInfo?.isDummy == true) appendLine("- Dataset is development/test dummy data.")
             if (warningCount > 0) appendLine("- Validation warnings are present ($warningCount).")
-            appendLine("- Official DAGR/API integration is not implemented.")
-            appendLine("- Near-zone warning is not implemented unless added elsewhere.")
+            appendLine("- Automatic authoritative DAGR/API retrieval is not implemented; operators must import or update official data.")
+            appendLine("- AGL checks use mission height or drone relative altitude. Terrain-derived true AGL is not implemented.")
+            appendLine("- AMSL checks use telemetry AMSL altitude when available during live monitoring.")
             appendLine("- Real drone testing may still be required for operational validation.")
             appendLine("- Takeoff/landing event detection is telemetry-derived best effort.")
         }
@@ -375,6 +379,14 @@ class GeoAwarenessEvidencePackageExporter(
             GeoAwarenessEventType.UPLOAD_BLOCKED,
             GeoAwarenessEventType.UPLOAD_ACK_REQUIRED,
             GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
+            GeoAwarenessEventType.UPLOAD_CANCELLED,
+            GeoAwarenessEventType.UPLOAD_CONTINUED_WITH_WARNING,
+            GeoAwarenessEventType.UGZ_AUTHORIZATION_REQUIRED,
+            GeoAwarenessEventType.UGZ_AUTHORIZATION_CONFIRMED,
+            GeoAwarenessEventType.UGZ_AUTHORIZATION_RESET,
+            GeoAwarenessEventType.LIVE_ZONE_ENTERED,
+            GeoAwarenessEventType.LIVE_ZONE_EXITED,
+            GeoAwarenessEventType.LIVE_STATUS_CHANGED,
             GeoAwarenessEventType.BATTERY_LOW,
             GeoAwarenessEventType.FAILSAFE_DETECTED,
             GeoAwarenessEventType.RTL_DETECTED

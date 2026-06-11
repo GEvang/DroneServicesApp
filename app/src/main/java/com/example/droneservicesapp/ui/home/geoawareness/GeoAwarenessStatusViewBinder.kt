@@ -61,7 +61,6 @@ class GeoAwarenessStatusViewBinder(
     fun bindHealth(health: GeoAwarenessHealth) {
         when (health.state) {
             GeoAwarenessHealthState.AVAILABLE -> clear()
-            GeoAwarenessHealthState.DUMMY_DATA,
             GeoAwarenessHealthState.DEGRADED -> applyStyle(
                 text = "GEO: DEGRADED",
                 backgroundColor = Color.parseColor("#E65100"),

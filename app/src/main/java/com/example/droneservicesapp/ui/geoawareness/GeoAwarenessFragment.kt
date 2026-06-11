@@ -35,6 +35,7 @@ import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventL
 import com.example.droneservicesapp.data.geoawareness.verification.GeoAwarenessVerificationStatusStore
 import com.example.droneservicesapp.databinding.FragmentGeoAwarenessBinding
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
+import com.example.droneservicesapp.domain.geoawareness.GeoAltitudeContext
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthEvaluator
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthState
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
@@ -42,7 +43,10 @@ import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetStalenessPolicy
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetSourceType
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneGeometry
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneLoadResult
 import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessChecker
+import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessProximityResult
 import com.example.droneservicesapp.domain.geoawareness.testing.GeoAwarenessTestRunResult
 import com.example.droneservicesapp.domain.geoawareness.testing.GeoAwarenessTestRunner
 import com.example.droneservicesapp.domain.geoawareness.testing.GeoAwarenessTestStatus
@@ -59,6 +63,7 @@ import java.io.ByteArrayOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -79,8 +84,10 @@ class GeoAwarenessFragment : Fragment() {
     private var datasetInfo: GeoZoneDatasetInfo? = null
     private var geoZones: List<GeoZone> = emptyList()
     private var latestLiveZones: List<GeoZone> = emptyList()
+    private var latestLiveProximity: LiveGeoAwarenessProximityResult? = null
     private var latestRealDronePosition: LatLon? = null
     private var latestRealDroneAltitudeMeters: Double? = null
+    private var latestRealDroneAltitudeAmslMeters: Double? = null
     private var geoAwarenessHealth: GeoAwarenessHealth? = null
     private var geoAwarenessLoadError: Throwable? = null
     private var validationResult: GeoZoneValidationResult? = null
@@ -93,6 +100,7 @@ class GeoAwarenessFragment : Fragment() {
     private var lastStaleSignature: String? = null
     private var lastTestRunResult: GeoAwarenessTestRunResult? = null
     private var datasetLoadInProgress: Boolean = false
+    private var lastGeoZoneReloadToken: Long? = null
     private lateinit var verificationStatusStore: GeoAwarenessVerificationStatusStore
     private val importDatasetLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -102,6 +110,7 @@ class GeoAwarenessFragment : Fragment() {
 
     companion object {
         private const val MAX_IMPORT_BYTES = 5L * 1024L * 1024L
+        private const val DEFAULT_NEAR_ZONE_THRESHOLD_METERS = 100.0
     }
 
     override fun onCreateView(
@@ -154,6 +163,8 @@ class GeoAwarenessFragment : Fragment() {
         binding.geoAwarenessValidationDetailsButton.setOnClickListener {
             showValidationDetails()
         }
+        binding.geoAwarenessNoticeSectionTitle.isVisible = false
+        binding.geoAwarenessValidationSection.isVisible = false
         binding.geoAwarenessExportLogsButton.setOnClickListener {
             exportGeoAwarenessLogs()
         }
@@ -185,6 +196,7 @@ class GeoAwarenessFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        refreshGeoAwarenessStatus(manual = false)
     }
 
     private fun observeSharedState() {
@@ -220,6 +232,18 @@ class GeoAwarenessFragment : Fragment() {
             renderHealthStatus(health)
         }
 
+        activityViewModel.geoZoneReloadToken.observe(viewLifecycleOwner) { token ->
+            if (token == null || token <= 0L || token == lastGeoZoneReloadToken) {
+                return@observe
+            }
+            lastGeoZoneReloadToken = token
+            if (!datasetLoadInProgress) {
+                geoZones = emptyList()
+                datasetInfo = null
+                loadDatasetIfNeededAsync(forceReload = true)
+            }
+        }
+
     }
 
     private fun observeDroneLocation() {
@@ -227,6 +251,10 @@ class GeoAwarenessFragment : Fragment() {
             val usableLocation = location?.takeIf(::isUsableDroneLocation)
             latestRealDronePosition = usableLocation?.let { LatLon(lat = it.latitude, lon = it.longitude) }
             latestRealDroneAltitudeMeters = usableLocation?.altitude
+            updateLiveStatus()
+        }
+        droneViewModel.droneAltitudeAmslMeters.observe(viewLifecycleOwner) { altitudeAmslMeters ->
+            latestRealDroneAltitudeAmslMeters = altitudeAmslMeters
             updateLiveStatus()
         }
     }
@@ -249,11 +277,11 @@ class GeoAwarenessFragment : Fragment() {
         loadDatasetIfNeededAsync()
     }
 
-    private fun loadDatasetIfNeededAsync() {
+    private fun loadDatasetIfNeededAsync(forceReload: Boolean = false) {
         if (datasetLoadInProgress || _binding == null) return
-        if (geoZones.isNotEmpty() && datasetInfo != null) return
+        if (!forceReload && geoZones.isNotEmpty() && datasetInfo != null) return
         val sharedInfo = activityViewModel.geoZoneDatasetInfo.value
-        if (sharedInfo != null && activityViewModel.geoZoneDatasetRecords.value != null) {
+        if (!forceReload && sharedInfo != null && activityViewModel.geoZoneDatasetRecords.value != null) {
             datasetInfo = sharedInfo
             validationResult = activityViewModel.geoZoneValidationResult.value
             datasetRecords = activityViewModel.geoZoneDatasetRecords.value.orEmpty()
@@ -365,50 +393,60 @@ class GeoAwarenessFragment : Fragment() {
         val container = binding.geoAwarenessDatasetRecordsContainer
         container.removeAllViews()
         if (datasetRecords.isEmpty()) {
-            container.addView(createPanelText(getString(R.string.geo_awareness_dataset_list_empty)))
+            container.addView(createPanelText(getString(R.string.geo_awareness_dataset_list_empty)).apply {
+                setPadding(0, 0, 0, 0)
+            })
             return
         }
 
         datasetRecords.forEachIndexed { index, record ->
-            if (index > 0) {
-                container.addView(View(requireContext()).apply {
-                    layoutParams = LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        (1 * resources.displayMetrics.density).toInt()
-                    ).apply {
-                        topMargin = (12 * resources.displayMetrics.density).toInt()
-                        bottomMargin = (12 * resources.displayMetrics.density).toInt()
-                    }
-                    setBackgroundColor(Color.parseColor("#1F2A44"))
-                })
-            }
-            container.addView(createDatasetRecordView(record))
+            container.addView(createDatasetRecordView(record, topMarginDp = if (index == 0) 0 else 12))
         }
     }
 
-    private fun createDatasetRecordView(record: GeoZoneDatasetRecord): View {
+    private fun createDatasetRecordView(record: GeoZoneDatasetRecord, topMarginDp: Int): View {
         val wrapper = LinearLayout(requireContext()).apply {
             orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = (10 * resources.displayMetrics.density)
+                setColor(Color.parseColor("#7010151C"))
+                setStroke((1 * resources.displayMetrics.density).toInt(), Color.parseColor("#2EFFFFFF"))
+            }
+            setPadding(
+                (12 * resources.displayMetrics.density).toInt(),
+                (12 * resources.displayMetrics.density).toInt(),
+                (12 * resources.displayMetrics.density).toInt(),
+                (12 * resources.displayMetrics.density).toInt()
+            )
             layoutParams = LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT
-            )
+            ).apply {
+                topMargin = (topMarginDp * resources.displayMetrics.density).toInt()
+            }
         }
         val validationLabel = when {
             record.validationResult.hasErrors -> getString(R.string.geo_awareness_validation_errors)
             record.validationResult.hasWarnings -> getString(R.string.geo_awareness_validation_warnings)
             else -> getString(R.string.geo_awareness_validation_ok)
         }
-        wrapper.addView(createStatusValue(record.displayName))
+        wrapper.addView(LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = android.view.Gravity.CENTER_VERTICAL
+            addView(createStatusValue(record.displayName).apply {
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            addView(createValidationPill(record.validationResult, validationLabel))
+        })
         wrapper.addView(createPanelText("Source: " + when (record.sourceType) {
             GeoZoneDatasetSourceType.BUNDLED_ASSET -> getString(R.string.geo_awareness_dataset_source_bundled_row)
             GeoZoneDatasetSourceType.IMPORTED_FILE -> getString(R.string.geo_awareness_dataset_source_imported_row)
-        }))
-        wrapper.addView(createPanelText("Version: ${record.datasetInfo.version ?: "N/A"}"))
-        wrapper.addView(createPanelText("Country: ${record.datasetInfo.country ?: "N/A"}"))
-        wrapper.addView(createPanelText("Zones: ${record.zoneCount}"))
-        wrapper.addView(createPanelText("Validation: $validationLabel"))
-        wrapper.addView(createPanelText("Official: ${if (record.datasetInfo.isOfficial) "Yes" else "No"}"))
+        }).apply {
+            setPadding(0, (10 * resources.displayMetrics.density).toInt(), 0, 0)
+        })
+        wrapper.addView(createDatasetMetaGrid(record))
+        wrapper.addView(createDatasetValidationDetailsButton(record))
         if (record.sourceType == GeoZoneDatasetSourceType.IMPORTED_FILE) {
             wrapper.addView(createPanelText("${getString(R.string.geo_awareness_updated_label)} ${record.ageDescription ?: GeoZoneDatasetStalenessPolicy.ageDescription(record.updatedAtMillis)}"))
             wrapper.addView(createPanelText(
@@ -417,7 +455,9 @@ class GeoAwarenessFragment : Fragment() {
             ))
         }
         if (record.sourceType == GeoZoneDatasetSourceType.IMPORTED_FILE && record.storageFileName != null) {
-            wrapper.addView(createPanelText("Actions"))
+            wrapper.addView(createPanelText("Actions").apply {
+                setPadding(0, (12 * resources.displayMetrics.density).toInt(), 0, 0)
+            })
             val actionsRow = LinearLayout(requireContext()).apply {
                 orientation = LinearLayout.HORIZONTAL
                 layoutParams = LinearLayout.LayoutParams(
@@ -476,6 +516,139 @@ class GeoAwarenessFragment : Fragment() {
         }
     }
 
+    private fun createDatasetMetaGrid(record: GeoZoneDatasetRecord): LinearLayout {
+        val grid = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = (10 * resources.displayMetrics.density).toInt()
+            }
+        }
+        grid.addView(createDatasetMetaRow(
+            "Version",
+            record.datasetInfo.version ?: "N/A",
+            "Zones",
+            record.zoneCount.toString()
+        ))
+        grid.addView(createDatasetMetaRow(
+            "Country",
+            record.datasetInfo.country ?: "N/A",
+            "Type",
+            if (record.datasetInfo.isDummy) "Test / dummy" else "Validated JSON"
+        ))
+        grid.addView(createDatasetMetaRow(
+            "Errors",
+            record.validationResult.errorCount.toString(),
+            "Warnings",
+            record.validationResult.warningCount.toString()
+        ))
+        return grid
+    }
+
+    private fun createDatasetMetaRow(
+        leftLabel: String,
+        leftValue: String,
+        rightLabel: String,
+        rightValue: String
+    ): LinearLayout {
+        return LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = (4 * resources.displayMetrics.density).toInt()
+            }
+            addView(createDatasetMetaCell(leftLabel, leftValue).apply {
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            })
+            addView(createDatasetMetaCell(rightLabel, rightValue).apply {
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
+                    marginStart = (8 * resources.displayMetrics.density).toInt()
+                }
+            })
+        }
+    }
+
+    private fun createDatasetMetaCell(label: String, value: String): LinearLayout {
+        return LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = (8 * resources.displayMetrics.density)
+                setColor(Color.parseColor("#661B2430"))
+                setStroke((1 * resources.displayMetrics.density).toInt(), Color.parseColor("#1FFFFFFF"))
+            }
+            setPadding(
+                (10 * resources.displayMetrics.density).toInt(),
+                (8 * resources.displayMetrics.density).toInt(),
+                (10 * resources.displayMetrics.density).toInt(),
+                (8 * resources.displayMetrics.density).toInt()
+            )
+            addView(TextView(requireContext()).apply {
+                text = label
+                setTextColor(Color.parseColor("#8FA0B8"))
+                textSize = 11f
+                setTypeface(typeface, android.graphics.Typeface.BOLD)
+            })
+            addView(TextView(requireContext()).apply {
+                text = value
+                setTextColor(Color.parseColor("#EAF1FF"))
+                textSize = 13f
+                maxLines = 2
+            })
+        }
+    }
+
+    private fun createValidationPill(
+        result: GeoZoneValidationResult,
+        label: String
+    ): TextView {
+        val (backgroundColor, textColor) = when {
+            result.hasErrors -> Color.parseColor("#B71C1C") to Color.WHITE
+            result.hasWarnings -> Color.parseColor("#E65100") to Color.WHITE
+            else -> Color.parseColor("#2E7D32") to Color.WHITE
+        }
+        return TextView(requireContext()).apply {
+            text = label
+            setTextColor(textColor)
+            textSize = 12f
+            setTypeface(typeface, android.graphics.Typeface.BOLD)
+            setPadding(
+                (10 * resources.displayMetrics.density).toInt(),
+                (6 * resources.displayMetrics.density).toInt(),
+                (10 * resources.displayMetrics.density).toInt(),
+                (6 * resources.displayMetrics.density).toInt()
+            )
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = (16 * resources.displayMetrics.density)
+                setColor(backgroundColor)
+            }
+        }
+    }
+
+    private fun createDatasetValidationDetailsButton(record: GeoZoneDatasetRecord): com.google.android.material.button.MaterialButton {
+        return com.google.android.material.button.MaterialButton(requireContext()).apply {
+            text = getString(R.string.geo_awareness_view_validation_details)
+            minWidth = 0
+            insetTop = 0
+            insetBottom = 0
+            backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.ds_color_shell_selected_surface))
+            setTextColor(ContextCompat.getColor(requireContext(), R.color.ds_color_shell_selected_content))
+            cornerRadius = resources.getDimensionPixelSize(R.dimen.ds_radius_round)
+            setOnClickListener { showValidationDetails(record) }
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                (40 * resources.displayMetrics.density).toInt()
+            ).apply {
+                topMargin = (10 * resources.displayMetrics.density).toInt()
+            }
+        }
+    }
+
     private fun createStatusValue(text: String): TextView = TextView(requireContext()).apply {
         this.text = text
         setTextColor(Color.parseColor("#EAF1FF"))
@@ -507,11 +680,6 @@ class GeoAwarenessFragment : Fragment() {
             GeoAwarenessHealthState.AVAILABLE -> Triple(
                 getString(R.string.geo_awareness_health_available),
                 Color.parseColor("#2E7D32"),
-                Color.WHITE
-            )
-            GeoAwarenessHealthState.DUMMY_DATA -> Triple(
-                getString(R.string.geo_awareness_health_dummy),
-                Color.parseColor("#8E24AA"),
                 Color.WHITE
             )
             GeoAwarenessHealthState.DEGRADED -> Triple(
@@ -1104,6 +1272,7 @@ class GeoAwarenessFragment : Fragment() {
         val altitude = latestRealDroneAltitudeMeters
         if (position == null) {
             latestLiveZones = emptyList()
+            latestLiveProximity = null
             liveStatusBinder?.bindUnknown(getString(R.string.geo_awareness_live_no_position))
             return
         }
@@ -1111,18 +1280,37 @@ class GeoAwarenessFragment : Fragment() {
         loadDatasetIfNeeded()
         if (geoZones.isEmpty()) {
             latestLiveZones = emptyList()
+            latestLiveProximity = null
             liveStatusBinder?.bindUnknown("Geo-awareness unavailable")
             return
         }
+        val altitudeContext = GeoAltitudeContext(
+            aglMeters = altitude,
+            amslMeters = latestRealDroneAltitudeAmslMeters
+        )
         val zones = liveChecker.checkDronePosition(
             dronePosition = position,
-            droneAltitudeMeters = altitude,
+            altitudeContext = altitudeContext,
             zones = geoZones
         )
         latestLiveZones = zones
         if (zones.isEmpty()) {
-            liveStatusBinder?.bindClear()
+            latestLiveProximity = liveChecker.findNearestZoneWithinThreshold(
+                position = position,
+                zones = geoZones,
+                thresholdMeters = DEFAULT_NEAR_ZONE_THRESHOLD_METERS,
+                altitudeContext = altitudeContext
+            )
+            if (latestLiveProximity == null) {
+                liveStatusBinder?.bindClear()
+            } else {
+                liveStatusBinder?.bindNear(
+                    zone = latestLiveProximity!!.nearestZone,
+                    distanceMeters = latestLiveProximity!!.distanceMeters
+                )
+            }
         } else {
+            latestLiveProximity = null
             liveStatusBinder?.bindInsideMultiple(zones)
         }
     }
@@ -1140,26 +1328,48 @@ class GeoAwarenessFragment : Fragment() {
                 title = getString(R.string.geo_awareness_title)
                 message = getString(R.string.geo_awareness_no_dataset_message)
             }
-            latestLiveZones.isEmpty() -> {
-                title = getString(R.string.geo_awareness_title)
-                message = getString(R.string.geo_awareness_live_clear)
-            }
             else -> {
-                title = "Live geo-awareness warning"
-                val visibleZones = latestLiveZones.take(5)
-                val remaining = latestLiveZones.size - visibleZones.size
-                message = buildString {
-                    appendLine("Drone is inside loaded geo-zone(s):")
-                    appendLine()
-                    visibleZones.forEach { zone ->
-                        appendLine("- ${zone.name}")
-                        appendLine("  Restriction: ${zone.restriction}")
-                        appendLine("  Message: ${zone.message ?: "No message"}")
+                when {
+                    latestLiveZones.isNotEmpty() -> {
+                        title = "Live geo-awareness warning"
+                        val visibleZones = latestLiveZones.take(5)
+                        val remaining = latestLiveZones.size - visibleZones.size
+                        message = buildString {
+                            appendLine("Drone is inside loaded geo-zone(s):")
+                            appendLine()
+                            visibleZones.forEach { zone ->
+                                appendLine("- ${zone.name}")
+                                appendLine("  Restriction: ${zone.restriction}")
+                                appendLine("  Message: ${zone.message ?: "No message"}")
+                            }
+                            if (remaining > 0) {
+                                appendLine("...and $remaining more.")
+                            }
+                            append("Verify restrictions with the responsible authority before flight.")
+                        }
                     }
-                    if (remaining > 0) {
-                        appendLine("...and $remaining more.")
+                    latestLiveProximity != null -> {
+                        val proximity = latestLiveProximity!!
+                        title = "Nearby geo-zone"
+                        message = buildString {
+                            appendLine("Nearest zone: ${proximity.nearestZone.name}")
+                            appendLine("Restriction: ${proximity.restriction}")
+                            appendLine("Distance: ${proximity.distanceMeters.toInt().coerceAtLeast(0)} m")
+                            appendLine("Warning threshold: ${DEFAULT_NEAR_ZONE_THRESHOLD_METERS.toInt()} m")
+                            if (!datasetInfo?.title.isNullOrBlank()) {
+                                appendLine("Dataset: ${datasetInfo?.title} (${datasetInfo?.version ?: "N/A"})")
+                            }
+                            if (!proximity.nearestZone.message.isNullOrBlank()) {
+                                appendLine("Message: ${proximity.nearestZone.message}")
+                            }
+                            appendLine()
+                            append("The drone is outside this zone but within the near-zone warning threshold.")
+                        }
                     }
-                    append("Verify restrictions with the responsible authority before flight.")
+                    else -> {
+                        title = getString(R.string.geo_awareness_title)
+                        message = getString(R.string.geo_awareness_live_clear)
+                    }
                 }
             }
         }
@@ -1202,7 +1412,7 @@ class GeoAwarenessFragment : Fragment() {
             val repository = buildRepository()
             val loadResult = repository.importDataset(rawJson, originalFileName)
             applyLoadedDataset(loadResult, importedActive = true)
-            activityViewModel.notifyGeoZoneDatasetReloaded()
+            lastGeoZoneReloadToken = activityViewModel.notifyGeoZoneDatasetReloaded()
             geoEventLogger.logSimple(
                 type = GeoAwarenessEventType.DATASET_IMPORT_SUCCEEDED,
                 severity = "INFO",
@@ -1210,16 +1420,13 @@ class GeoAwarenessFragment : Fragment() {
                 datasetTitle = loadResult.datasetInfo.title,
                 datasetVersion = loadResult.datasetInfo.version,
                 healthState = geoAwarenessHealth?.state?.name,
-                details = mapOf(
-                    "title" to loadResult.datasetInfo.title,
-                    "version" to (loadResult.datasetInfo.version ?: "N/A"),
-                    "zoneCount" to loadResult.datasetInfo.zoneCount.toString(),
-                    "addedDatasetTitle" to loadResult.datasetRecords.lastOrNull()?.displayName.orEmpty(),
-                    "activeDatasetCount" to loadResult.datasetRecords.size.toString(),
-                    "totalZones" to loadResult.datasetInfo.zoneCount.toString(),
-                    "errorCount" to loadResult.validationResult.errorCount.toString(),
-                    "warningCount" to loadResult.validationResult.warningCount.toString(),
-                    "infoCount" to loadResult.validationResult.infoCount.toString()
+                details = standardDatasetLogDetails(
+                    operation = "manual_import",
+                    loadResult = loadResult,
+                    requestedUri = uri.toString(),
+                    originalFileName = originalFileName
+                ) + mapOf(
+                    "addedDatasetTitle" to loadResult.datasetRecords.lastOrNull()?.displayName.orEmpty()
                 )
             )
             refreshEventLogCount()
@@ -1258,7 +1465,7 @@ class GeoAwarenessFragment : Fragment() {
             val repository = buildRepository()
             val loadResult = repository.updateImportedDataset(storageFileName, rawJson, originalFileName)
             applyLoadedDataset(loadResult, importedActive = repository.hasImportedDatasets())
-            activityViewModel.notifyGeoZoneDatasetReloaded()
+            lastGeoZoneReloadToken = activityViewModel.notifyGeoZoneDatasetReloaded()
             geoEventLogger.logSimple(
                 type = GeoAwarenessEventType.DATASET_UPDATE_SUCCEEDED,
                 severity = "INFO",
@@ -1266,15 +1473,14 @@ class GeoAwarenessFragment : Fragment() {
                 datasetTitle = loadResult.datasetInfo.title,
                 datasetVersion = loadResult.datasetInfo.version,
                 healthState = geoAwarenessHealth?.state?.name,
-                details = mapOf(
-                    "storageFileName" to storageFileName,
-                    "title" to loadResult.datasetInfo.title,
-                    "version" to (loadResult.datasetInfo.version ?: "N/A"),
-                    "activeDatasetCount" to loadResult.datasetRecords.size.toString(),
-                    "zoneCount" to loadResult.datasetInfo.zoneCount.toString(),
-                    "errorCount" to loadResult.validationResult.errorCount.toString(),
-                    "warningCount" to loadResult.validationResult.warningCount.toString(),
-                    "infoCount" to loadResult.validationResult.infoCount.toString()
+                details = standardDatasetLogDetails(
+                    operation = "manual_update",
+                    loadResult = loadResult,
+                    requestedUri = uri.toString(),
+                    originalFileName = originalFileName,
+                    storageFileName = storageFileName
+                ) + mapOf(
+                    "storageFileName" to storageFileName
                 )
             )
             refreshEventLogCount()
@@ -1308,7 +1514,7 @@ class GeoAwarenessFragment : Fragment() {
             val removedCount = datasetRecords.count { it.sourceType == GeoZoneDatasetSourceType.IMPORTED_FILE }
             val loadResult = repository.removeAllImportedDatasets()
             applyLoadedDataset(loadResult, importedActive = false)
-            activityViewModel.notifyGeoZoneDatasetReloaded()
+            lastGeoZoneReloadToken = activityViewModel.notifyGeoZoneDatasetReloaded()
             if (removedCount > 0) {
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.ALL_IMPORTED_DATASETS_REMOVED,
@@ -1346,7 +1552,7 @@ class GeoAwarenessFragment : Fragment() {
             val repository = buildRepository()
             val loadResult = repository.removeImportedDataset(fileName)
             applyLoadedDataset(loadResult, importedActive = repository.hasImportedDatasets())
-            activityViewModel.notifyGeoZoneDatasetReloaded()
+            lastGeoZoneReloadToken = activityViewModel.notifyGeoZoneDatasetReloaded()
             geoEventLogger.logSimple(
                 type = GeoAwarenessEventType.DATASET_REMOVED,
                 severity = "INFO",
@@ -1382,7 +1588,7 @@ class GeoAwarenessFragment : Fragment() {
                 if (_binding == null) return@launch
                 applyLoadedDataset(loadResult, importedActive = importedActive)
                 geoAwarenessHealth?.let { logStaleDatasetsIfNeeded(loadResult.datasetRecords, it, manualRefresh = true) }
-                activityViewModel.notifyGeoZoneDatasetReloaded()
+                lastGeoZoneReloadToken = activityViewModel.notifyGeoZoneDatasetReloaded()
                 if (manual) {
                     geoEventLogger.logSimple(
                         type = GeoAwarenessEventType.DATASET_STATUS_REFRESHED,
@@ -1397,6 +1603,11 @@ class GeoAwarenessFragment : Fragment() {
                             "staleDatasetCount" to loadResult.datasetRecords.count { it.isStale }.toString(),
                             "errorCount" to loadResult.validationResult.errorCount.toString(),
                             "warningCount" to loadResult.validationResult.warningCount.toString()
+                        ) + standardDatasetLogDetails(
+                            operation = "status_refresh",
+                            loadResult = loadResult,
+                            requestedUri = "not_applicable",
+                            originalFileName = null
                         )
                     )
                     Toast.makeText(requireContext(), "Geo-awareness status refreshed", Toast.LENGTH_SHORT).show()
@@ -1448,6 +1659,103 @@ class GeoAwarenessFragment : Fragment() {
                 null
             }
         }
+    }
+
+    private fun standardDatasetLogDetails(
+        operation: String,
+        loadResult: GeoZoneLoadResult,
+        requestedUri: String,
+        originalFileName: String?,
+        storageFileName: String? = null
+    ): Map<String, String> {
+        val activeRecords = loadResult.datasetRecords
+        val countries = activeRecords
+            .mapNotNull { it.datasetInfo.country?.takeIf(String::isNotBlank) }
+            .distinct()
+            .joinToString(", ")
+            .ifBlank { "not_specified" }
+        val applicability = loadResult.zones.flatMap { it.applicability }
+        val timeWindowStart = applicability.mapNotNull { it.startDateTime?.takeIf(String::isNotBlank) }.minOrNull()
+        val timeWindowEnd = applicability.mapNotNull { it.endDateTime?.takeIf(String::isNotBlank) }.maxOrNull()
+
+        return buildMap {
+            put("standardLogSchema", "prEN4709-003-5.4-transaction-scope-v1")
+            put("operation", operation)
+            put("retrievalMethod", "manual_file_import")
+            put("retrievalRequestUri", requestedUri)
+            put("retrievalRequestUtc", isoUtc(System.currentTimeMillis()))
+            put("officialRetrievalService", "not_implemented")
+            put("subscriptionId", "not_applicable_manual_import")
+            put("changePublicationId", "not_applicable_manual_import")
+            put("originalFileName", originalFileName ?: "unknown")
+            storageFileName?.let { put("storageFileName", it) }
+            put("datasetTitle", loadResult.datasetInfo.title)
+            put("datasetVersion", loadResult.datasetInfo.version ?: "not_specified")
+            put("datasetSource", loadResult.datasetInfo.source ?: "not_specified")
+            put("datasetSourceUrl", loadResult.datasetInfo.sourceUrl ?: "not_specified")
+            put("datasetCountries", countries)
+            put("scopeArea", boundingBox(loadResult.zones) ?: countries)
+            put("scopeRegionOfInterest", countries)
+            put("scopeTimeWindowStart", timeWindowStart ?: "not_provided_by_dataset")
+            put("scopeTimeWindowEnd", timeWindowEnd ?: "not_provided_by_dataset")
+            put("permanentApplicabilityCount", applicability.count { it.permanent }.toString())
+            put("verticalReferenceSummary", verticalReferenceSummary(loadResult.zones))
+            put("altitudeUnitSummary", altitudeUnitSummary(loadResult.zones))
+            put("activeDatasetCount", activeRecords.size.toString())
+            put("activeDatasetIds", activeRecords.joinToString(",") { it.datasetId })
+            put("activeDatasetTitles", activeRecords.joinToString(" | ") { it.displayName })
+            put("totalZones", loadResult.datasetInfo.zoneCount.toString())
+            put("errorCount", loadResult.validationResult.errorCount.toString())
+            put("warningCount", loadResult.validationResult.warningCount.toString())
+            put("infoCount", loadResult.validationResult.infoCount.toString())
+        }
+    }
+
+    private fun boundingBox(zones: List<GeoZone>): String? {
+        val points = zones.flatMap { zone ->
+            zone.geometries.flatMap { geometry ->
+                when (geometry) {
+                    is GeoZoneGeometry.Circle -> listOf(
+                        LatLon(geometry.center.lat - metersToLatitudeDegrees(geometry.radiusMeters), geometry.center.lon),
+                        LatLon(geometry.center.lat + metersToLatitudeDegrees(geometry.radiusMeters), geometry.center.lon),
+                        LatLon(geometry.center.lat, geometry.center.lon - metersToLongitudeDegrees(geometry.radiusMeters, geometry.center.lat)),
+                        LatLon(geometry.center.lat, geometry.center.lon + metersToLongitudeDegrees(geometry.radiusMeters, geometry.center.lat))
+                    )
+                    is GeoZoneGeometry.Polygon -> geometry.rings.flatten()
+                }
+            }
+        }
+        if (points.isEmpty()) return null
+        return "bbox=${points.minOf { it.lon }},${points.minOf { it.lat }},${points.maxOf { it.lon }},${points.maxOf { it.lat }}"
+    }
+
+    private fun verticalReferenceSummary(zones: List<GeoZone>): String {
+        val references = zones.flatMap { zone ->
+            zone.geometries.flatMap { geometry ->
+                listOf(geometry.lowerVerticalReference.name, geometry.upperVerticalReference.name)
+            }
+        }.groupingBy { it }.eachCount()
+        return references.entries.joinToString(",") { "${it.key}:${it.value}" }.ifBlank { "none" }
+    }
+
+    private fun altitudeUnitSummary(zones: List<GeoZone>): String {
+        val units = zones.flatMap { zone ->
+            zone.geometries.map { geometry -> geometry.altitudeUnit.name }
+        }.groupingBy { it }.eachCount()
+        return units.entries.joinToString(",") { "${it.key}:${it.value}" }.ifBlank { "none" }
+    }
+
+    private fun metersToLatitudeDegrees(meters: Double): Double = meters / 111_320.0
+
+    private fun metersToLongitudeDegrees(meters: Double, latitude: Double): Double {
+        val scale = kotlin.math.cos(Math.toRadians(latitude)).coerceAtLeast(0.01)
+        return meters / (111_320.0 * scale)
+    }
+
+    private fun isoUtc(timestampMillis: Long): String {
+        return SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.US).apply {
+            timeZone = TimeZone.getTimeZone("UTC")
+        }.format(Date(timestampMillis))
     }
 
     private fun showImportFailure(
@@ -1571,6 +1879,17 @@ class GeoAwarenessFragment : Fragment() {
 
     private fun showValidationDetails() {
         val result = validationResult ?: GeoZoneValidationResult.ok()
+        showReadableDialog("Geo-zone dataset validation", formatValidationDetails(result))
+    }
+
+    private fun showValidationDetails(record: GeoZoneDatasetRecord) {
+        showReadableDialog(
+            title = "Validation: ${record.displayName}",
+            message = formatValidationDetails(record.validationResult)
+        )
+    }
+
+    private fun formatValidationDetails(result: GeoZoneValidationResult): String {
         val message = if (result.issues.isEmpty()) {
             "Dataset validation passed."
         } else {
@@ -1601,7 +1920,7 @@ class GeoAwarenessFragment : Fragment() {
                 }
             }
         }
-        showReadableDialog("Geo-zone dataset validation", message)
+        return message
     }
 
     private fun showReadableDialog(title: String, message: String) {

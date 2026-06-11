@@ -65,14 +65,9 @@ object GeoAwarenessHealthEvaluator {
             } else {
                 "One or more geo-awareness datasets may be stale."
             }
-            val fullMessage = if (!datasetInfo.isOfficial) {
-                "$baseMessage Dataset is not marked official."
-            } else {
-                baseMessage
-            }
             return GeoAwarenessHealth(
                 state = GeoAwarenessHealthState.STALE,
-                message = fullMessage,
+                message = baseMessage,
                 canPlan = true,
                 canUploadWithoutAcknowledgement = false,
                 requiresAcknowledgementBeforeUpload = true,
@@ -80,21 +75,14 @@ object GeoAwarenessHealthEvaluator {
             )
         }
 
-        if (validationResult?.hasWarnings == true) {
+        if (validationResult?.issues?.any { issue ->
+                issue.severity == com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationSeverity.WARNING &&
+                    issue.code != "DATASET_IS_DUMMY"
+            } == true
+        ) {
             return GeoAwarenessHealth(
                 state = GeoAwarenessHealthState.DEGRADED,
                 message = "Geo-awareness dataset has validation warnings.",
-                canPlan = true,
-                canUploadWithoutAcknowledgement = false,
-                requiresAcknowledgementBeforeUpload = true,
-                checkedAtMillis = nowMillis
-            )
-        }
-
-        if (!datasetInfo.isOfficial) {
-            return GeoAwarenessHealth(
-                state = GeoAwarenessHealthState.DEGRADED,
-                message = "Dataset is not marked official.",
                 canPlan = true,
                 canUploadWithoutAcknowledgement = false,
                 requiresAcknowledgementBeforeUpload = true,

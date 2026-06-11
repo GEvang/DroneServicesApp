@@ -2,7 +2,6 @@ package com.example.droneservicesapp.domain.geoawareness
 
 enum class GeoAwarenessHealthState {
     AVAILABLE,
-    DUMMY_DATA,
     DEGRADED,
     STALE,
     UNAVAILABLE

@@ -221,6 +221,8 @@ internal class DroneTelemetryProcessor(
             longitude = position.lon().toDouble() * 10.0.pow(-7.0)
             altitude = position.relativeAlt().toDouble() * 10.0.pow(-3.0)
         }
+        stateStore.droneAltitudeAmslMeters.postValue(position.alt().toDouble() * 10.0.pow(-3.0))
+        stateStore.droneVerticalSpeedMetersPerSecond.postValue(position.vz().toFloat() / 100.0f)
         runtimeState.lastDroneLocation = Location(location)
         stateStore.droneHeading.postValue(position.hdg().toDouble() / 100.0)
         stateStore.droneLocationLiveData.postValue(location)

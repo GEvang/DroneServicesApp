@@ -20,12 +20,20 @@ import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.core.util.LocaleUtils
+import com.example.droneservicesapp.data.geoawareness.GeoZoneImportedFileDataSource
+import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetStalenessPolicy
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.jakewharton.processphoenix.ProcessPhoenix
 import org.osmdroid.config.Configuration
 import java.io.File
+import java.text.SimpleDateFormat
 import java.text.DecimalFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeListener {
 
@@ -36,6 +44,10 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
     private lateinit var targetPortSummary: TextView
     private lateinit var operationModeSummary: TextView
     private lateinit var languageSummary: TextView
+    private lateinit var geoDatasetSourceSummary: TextView
+    private lateinit var geoDatasetUpdatedSummary: TextView
+    private lateinit var geoDatasetStatusSummary: TextView
+    private lateinit var geoDatasetScopeSummary: TextView
     private lateinit var cacheSizeSummary: TextView
     private lateinit var activityViewModel: MainActivityViewModel
 
@@ -72,6 +84,7 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
         content.addView(createMissionOperationPanel())
         content.addView(createDroneConnectionPanel())
         content.addView(createLocalizationPanel())
+        content.addView(createGeoAwarenessPanel())
         content.addView(createOfflineMapsPanel())
 
         refreshSummaries()
@@ -154,11 +167,32 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
                     entries = arrayOf("English", "Ελληνικά"),
                     values = arrayOf(LocaleUtils.ENGLISH, LocaleUtils.GREEK),
                     key = getString(R.string.language_pref),
-                    defaultValue = LocaleUtils.GREEK,
+                    defaultValue = LocaleUtils.ENGLISH,
                     restartOnChange = true
                 )
             }
         ).also { languageSummary = it.findViewWithTag(SUMMARY_TAG) })
+        return panel
+    }
+
+    private fun createGeoAwarenessPanel(): View {
+        val panel = createPanel("Geo-awareness data")
+        panel.addView(createSettingRow(
+            title = "Dataset source",
+            onClick = null
+        ).also { geoDatasetSourceSummary = it.findViewWithTag(SUMMARY_TAG) })
+        panel.addView(createSettingRow(
+            title = "Last data update",
+            onClick = null
+        ).also { geoDatasetUpdatedSummary = it.findViewWithTag(SUMMARY_TAG) })
+        panel.addView(createSettingRow(
+            title = "Update status",
+            onClick = null
+        ).also { geoDatasetStatusSummary = it.findViewWithTag(SUMMARY_TAG) })
+        panel.addView(createSettingRow(
+            title = "Active scope",
+            onClick = null
+        ).also { geoDatasetScopeSummary = it.findViewWithTag(SUMMARY_TAG) })
         return panel
     }
 
@@ -321,9 +355,67 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
             ?: "Auto"
         targetPortSummary.text = sharedPreferences.getString(getString(R.string.mavlink_target_port_pref), "14550") ?: "14550"
         languageSummary.text = languageLabel(
-            sharedPreferences.getString(getString(R.string.language_pref), LocaleUtils.GREEK) ?: LocaleUtils.GREEK
+            sharedPreferences.getString(getString(R.string.language_pref), LocaleUtils.ENGLISH) ?: LocaleUtils.ENGLISH
         )
+        updateGeoAwarenessDataSummary()
         updateCacheSizeSummary()
+    }
+
+    private fun updateGeoAwarenessDataSummary() {
+        if (!::geoDatasetSourceSummary.isInitialized) return
+        val result = runCatching {
+            GeoZoneRepository(
+                importedFileDataSource = GeoZoneImportedFileDataSource(requireContext().applicationContext)
+            ).loadCurrentDataset()
+        }.getOrNull()
+
+        if (result == null || result.datasetRecords.isEmpty()) {
+            geoDatasetSourceSummary.text = "No dataset loaded"
+            geoDatasetUpdatedSummary.text = "No update recorded"
+            geoDatasetStatusSummary.text = "Unavailable"
+            geoDatasetScopeSummary.text = "Import or update a geo-zone dataset"
+            return
+        }
+
+        val records = result.datasetRecords
+        val newestUpdate = records.mapNotNull { it.updatedAtMillis }.maxOrNull()
+        val staleCount = records.count { it.isStale }
+        geoDatasetSourceSummary.text = buildString {
+            append(result.datasetInfo.source ?: "Unknown source")
+            append(" | ")
+            append(records.size)
+            append(if (records.size == 1) " dataset" else " datasets")
+        }
+        geoDatasetUpdatedSummary.text = newestUpdate?.let(::formatDateTime) ?: "Update time unknown"
+        geoDatasetStatusSummary.text = when {
+            staleCount > 0 -> "Stale: $staleCount dataset(s) older than ${GeoZoneDatasetStalenessPolicy.DEFAULT_STALE_AFTER_MILLIS / DAY_MILLIS} days"
+            result.validationResult.hasErrors -> "Validation errors"
+            result.validationResult.warningCount > 0 -> "Valid with ${result.validationResult.warningCount} warning(s)"
+            else -> "Valid and current"
+        }
+        geoDatasetScopeSummary.text = formatGeoScope(records)
+    }
+
+    private fun formatGeoScope(records: List<GeoZoneDatasetRecord>): String {
+        val countries = records.mapNotNull { it.datasetInfo.country?.takeIf(String::isNotBlank) }.distinct()
+        val zones = records.sumOf { it.zoneCount }
+        val names = records.take(3).joinToString(", ") { it.displayName }
+        val suffix = if (records.size > 3) " +" + (records.size - 3) else ""
+        return buildString {
+            append("Countries: ")
+            append(countries.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "not specified")
+            append(" | Zones: ")
+            append(zones)
+            append(" | ")
+            append(names)
+            append(suffix)
+        }
+    }
+
+    private fun formatDateTime(timestampMillis: Long): String {
+        return SimpleDateFormat("yyyy-MM-dd HH:mm:ss z", Locale.US).apply {
+            timeZone = TimeZone.getDefault()
+        }.format(Date(timestampMillis))
     }
 
     private fun languageLabel(value: String): String {
@@ -424,5 +516,6 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
 
     companion object {
         private const val SUMMARY_TAG = "summary"
+        private const val DAY_MILLIS = 24L * 60L * 60L * 1000L
     }
 }

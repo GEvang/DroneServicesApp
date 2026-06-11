@@ -9,6 +9,16 @@ class LiveGeoAwarenessChecker {
         dronePosition: LatLon?,
         droneAltitudeMeters: Double?,
         zones: List<GeoZone>
+    ): List<GeoZone> = checkDronePosition(
+        dronePosition = dronePosition,
+        altitudeContext = GeoAltitudeContext(aglMeters = droneAltitudeMeters),
+        zones = zones
+    )
+
+    fun checkDronePosition(
+        dronePosition: LatLon?,
+        altitudeContext: GeoAltitudeContext?,
+        zones: List<GeoZone>
     ): List<GeoZone> {
         if (dronePosition == null || zones.isEmpty()) {
             return emptyList()
@@ -21,7 +31,7 @@ class LiveGeoAwarenessChecker {
                     GeoAwarenessGeometryUtils.pointInZone(
                         point = dronePosition,
                         geometry = geometry,
-                        missionAltitudeMeters = droneAltitudeMeters
+                        altitudeContext = altitudeContext
                     )
                 } catch (error: Exception) {
                     Log.w(TAG, "Skipping malformed geometry while checking live zone ${zone.id}", error)
@@ -44,6 +54,18 @@ class LiveGeoAwarenessChecker {
         zones: List<GeoZone>,
         thresholdMeters: Double = 100.0,
         altitudeMeters: Double? = null
+    ): LiveGeoAwarenessProximityResult? = findNearestZoneWithinThreshold(
+        position = position,
+        zones = zones,
+        thresholdMeters = thresholdMeters,
+        altitudeContext = GeoAltitudeContext(aglMeters = altitudeMeters)
+    )
+
+    fun findNearestZoneWithinThreshold(
+        position: LatLon,
+        zones: List<GeoZone>,
+        thresholdMeters: Double = 100.0,
+        altitudeContext: GeoAltitudeContext? = null
     ): LiveGeoAwarenessProximityResult? {
         if (zones.isEmpty()) {
             return null
@@ -58,7 +80,7 @@ class LiveGeoAwarenessChecker {
                     GeoAwarenessGeometryUtils.pointInZone(
                         point = position,
                         geometry = geometry,
-                        missionAltitudeMeters = altitudeMeters
+                        altitudeContext = altitudeContext
                     )
                 } catch (error: Exception) {
                     Log.w(TAG, "Skipping malformed geometry while checking inside state for ${zone.id}", error)
@@ -72,9 +94,11 @@ class LiveGeoAwarenessChecker {
             val nearestDistance = zone.geometries
                 .filter { geometry ->
                     GeoAwarenessGeometryUtils.altitudeOverlaps(
-                        missionAltitudeMeters = altitudeMeters,
+                        altitudeContext = altitudeContext,
                         zoneLowerMeters = geometry.lowerLimitMeters,
-                        zoneUpperMeters = geometry.upperLimitMeters
+                        zoneUpperMeters = geometry.upperLimitMeters,
+                        lowerReference = geometry.lowerVerticalReference,
+                        upperReference = geometry.upperVerticalReference
                     )
                 }
                 .mapNotNull { geometry ->

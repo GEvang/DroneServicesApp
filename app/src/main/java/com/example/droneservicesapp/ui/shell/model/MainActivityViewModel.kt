@@ -266,7 +266,9 @@ class MainActivityViewModel : ViewModel() {
         }
     }
 
-    fun notifyGeoZoneDatasetReloaded() {
-        geoZoneReloadToken.postValue(System.currentTimeMillis())
+    fun notifyGeoZoneDatasetReloaded(): Long {
+        val token = System.currentTimeMillis()
+        geoZoneReloadToken.postValue(token)
+        return token
     }
 }

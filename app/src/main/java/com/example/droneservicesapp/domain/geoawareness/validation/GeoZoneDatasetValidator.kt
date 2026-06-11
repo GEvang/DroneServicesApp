@@ -1,10 +1,12 @@
 package com.example.droneservicesapp.domain.geoawareness.validation
 
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessGeometryUtils
+import com.example.droneservicesapp.domain.geoawareness.GeoAltitudeUnit
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneGeometry
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
+import com.example.droneservicesapp.domain.geoawareness.GeoVerticalReference
 import com.example.droneservicesapp.domain.model.LatLon
 import org.json.JSONObject
 
@@ -71,11 +73,8 @@ object GeoZoneDatasetValidator {
         if (datasetInfo.country.isNullOrBlank()) {
             issues += issue(GeoZoneValidationSeverity.WARNING, "DATASET_COUNTRY_MISSING", "Dataset country is missing.", field = "country")
         }
-        if (!datasetInfo.isOfficial) {
-            issues += issue(GeoZoneValidationSeverity.INFO, "DATASET_NOT_OFFICIAL", "Dataset is not marked official.", field = "official")
-        }
         if (datasetInfo.isDummy) {
-            issues += issue(GeoZoneValidationSeverity.INFO, "DATASET_IS_DUMMY", "Dataset is marked as dummy/test data.", field = "dummy")
+            issues += issue(GeoZoneValidationSeverity.WARNING, "DATASET_IS_DUMMY", "Dataset is marked as dummy/test data.", field = "dummy")
         }
     }
 
@@ -190,6 +189,15 @@ object GeoZoneDatasetValidator {
     ) {
         val lower = geometry.lowerLimitMeters
         val upper = geometry.upperLimitMeters
+        if (geometry.altitudeUnit == GeoAltitudeUnit.UNKNOWN && (lower != null || upper != null)) {
+            issues += issue(GeoZoneValidationSeverity.WARNING, "ALTITUDE_UNIT_UNKNOWN", "Altitude unit is missing or unknown.", zoneId, "uomDimensions")
+        }
+        if (geometry.lowerVerticalReference == GeoVerticalReference.UNKNOWN && lower != null) {
+            issues += issue(GeoZoneValidationSeverity.WARNING, "LOWER_VERTICAL_REFERENCE_UNKNOWN", "Lower vertical reference is missing or unknown.", zoneId, "lowerVerticalReference")
+        }
+        if (geometry.upperVerticalReference == GeoVerticalReference.UNKNOWN && upper != null) {
+            issues += issue(GeoZoneValidationSeverity.WARNING, "UPPER_VERTICAL_REFERENCE_UNKNOWN", "Upper vertical reference is missing or unknown.", zoneId, "upperVerticalReference")
+        }
         if ((lower != null && lower < -500.0) || (upper != null && upper < -500.0)) {
             issues += issue(GeoZoneValidationSeverity.WARNING, "ALTITUDE_NEGATIVE_SUSPICIOUS", "Altitude limit is suspiciously negative.", zoneId, "altitude")
         }

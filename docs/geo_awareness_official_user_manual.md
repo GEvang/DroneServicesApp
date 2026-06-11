@@ -79,7 +79,7 @@ After import, confirm the following:
 - **Loaded datasets** is greater than 0.
 - **Total zones** matches the expected dataset size.
 - **Dataset validation** does not show errors.
-- The dataset is marked official when the operation requires official source data.
+- The dataset contents validate successfully and match the expected operational source.
 
 ## 5. Updating a Dataset
 
@@ -128,13 +128,12 @@ The **Health** chip summarizes whether geo-awareness data can be used normally.
 
 | Health state | Meaning | Operator action |
 | --- | --- | --- |
-| **AVAILABLE** | A valid official dataset is loaded and current. | Continue normal planning, while still verifying official restrictions. |
-| **DEGRADED** | Data has warnings or is not marked official. | Review validation details and confirm whether the dataset is acceptable. Upload may require acknowledgement. |
+| **AVAILABLE** | A valid dataset is loaded and current. | Continue normal planning, while still verifying official restrictions. |
+| **DEGRADED** | Data has validation warnings. | Review validation details and confirm whether the dataset is acceptable. Upload may require acknowledgement. |
 | **STALE** | One or more datasets may be older than the configured freshness period. | Update the dataset before flight or acknowledge the risk only when operationally justified. |
-| **DUMMY DATA** | Development or test data is loaded. | Do not use for real operations. Import official data. |
 | **UNAVAILABLE** | No usable geo-awareness dataset is loaded, or loading failed. | Import a valid dataset before relying on geo-awareness. |
 
-The app treats stale, degraded, unofficial, unavailable, and dummy data as conditions that require operator attention.
+The app treats stale, degraded, and unavailable data as health conditions that require operator attention. Dummy or test data is shown as a validation warning and dataset type, but it does not by itself change the health state.
 
 ## 9. Reviewing Dataset Validation
 
@@ -154,6 +153,8 @@ Select **View validation details** to inspect validation issues. The app may rep
 - Invalid polygon ring.
 - Missing zone geometry.
 - Invalid altitude range.
+- Unknown altitude unit.
+- Unknown lower or upper vertical reference.
 - Unknown restriction type.
 - Missing metadata such as version or country.
 - Duplicate zone IDs.
@@ -218,6 +219,19 @@ The app checks:
 - Route waypoint position inside zones.
 - Mission altitude overlap with zone altitude limits, when altitude limits are present.
 
+### Vertical Limits
+
+Geo-zone vertical limits may use either:
+
+- **AGL**: height above ground level.
+- **AMSL**: altitude above mean sea level.
+
+The app preserves the dataset vertical reference and altitude unit for each zone geometry. Meter values are used directly and foot values are converted to meters for checks.
+
+During planning, the app compares the mission height with AGL limits. If a zone uses AMSL limits and no mission AMSL altitude is available, the app treats the vertical filter conservatively and does not clear the conflict only because AMSL is missing.
+
+During live monitoring, the app uses drone relative altitude for AGL-style checks and MAVLink `GLOBAL_POSITION_INT.alt` telemetry for AMSL checks when available.
+
 ## 12. Upload Guard Behavior
 
 When the operator uploads a mission, the app evaluates the current mission plan against loaded geo-zones.
@@ -234,10 +248,13 @@ If the mission intersects a **PROHIBITED** zone:
 
 If the mission intersects a **REQ_AUTHORISATION** zone:
 
-- Upload is allowed only after acknowledgement.
-- The app shows **Geo-awareness authorization warning**.
-- Select **Proceed** only if the required authorization has been verified.
+- Upload is allowed only after pilot confirmation.
+- The app shows **Confirm UGZ authorization**.
+- The dialog lists the affected UGZ identifiers, zone names, and available authority information.
+- Select **Confirm authorization** only after the required authorization or notification has been completed with the responsible authority.
 - Select **Cancel** to stop the upload.
+
+The confirmation scope is the current flight only. The app logs the affected UGZ identifiers, the pilot declaration, and the current-flight scope. The confirmation is reset automatically when the drone is disarmed at the end of the flight.
 
 ### Conditional or Information Zone
 
@@ -249,7 +266,7 @@ If the mission intersects **CONDITIONAL** or **INFORMATION** zones:
 
 ### Data Health Warning
 
-If there are no plan conflicts but geo-awareness health is stale, degraded, unavailable, unofficial, or dummy, the app may show a health warning before upload.
+If there are no plan conflicts but geo-awareness health is stale, degraded, or unavailable, the app may show a health warning before upload.
 
 Select **Continue** only when the operator has verified official restrictions independently.
 
@@ -280,9 +297,11 @@ If live status shows **NO POS**, verify telemetry and GPS before relying on live
 
 ## 14. Event and Incident Records
 
-The app records geo-awareness events internally, including dataset import, update, removal, stale dataset detection, map layer changes, upload guard actions, and live geo-awareness changes.
+The app records geo-awareness events internally, including dataset import, update, removal, stale dataset detection, map layer changes, upload guard actions, UGZ authorization confirmations, authorization resets, and live geo-awareness changes.
 
 The current operator screen exposes an **Internal** section for encrypted geo incident logs.
+
+Encrypted geo-awareness event logs are retained in app-private internal storage for at least 90 days. They are rotated by date, stored encrypted, and are not deleted by export. The app cleanup process removes only logs older than 90 days.
 
 To export encrypted incident logs:
 
@@ -293,7 +312,7 @@ To export encrypted incident logs:
 
 If no encrypted incident logs exist, the app reports that no encrypted geo incident logs are stored on the device.
 
-Encrypted incident logs are intended for internal/debug handling by authorized personnel.
+Encrypted incident logs are intended for internal/debug handling by authorized personnel. Normal user-facing actions do not clear retained logs.
 
 ## 15. Recommended Pre-flight Procedure
 
@@ -303,7 +322,7 @@ Before every operation:
 2. Open **Geo-awareness**.
 3. Select **Refresh status**.
 4. Confirm health is **AVAILABLE**.
-5. Confirm the dataset is official and not stale.
+5. Confirm the dataset is valid, current, and from the expected operational source.
 6. Review validation details if any warnings appear.
 7. Enable **Show geo-zones on map**.
 8. Review the mission area, route, and survey path on the map.
@@ -320,7 +339,7 @@ The operator is responsible for:
 - Verifying DAGR/HCAA or responsible authority requirements before flight.
 - Confirming required authorization before proceeding in authorization-required zones.
 - Avoiding upload and flight in prohibited zones unless legally permitted by the responsible authority and company procedure.
-- Investigating stale, degraded, unofficial, or unavailable data states.
+- Investigating stale, degraded, or unavailable data states.
 - Preserving exported incident evidence when required by company procedure.
 
 ## 17. Troubleshooting
@@ -330,18 +349,19 @@ The operator is responsible for:
 | Health is **UNAVAILABLE** | No valid dataset is loaded. | Import a valid geo-zone JSON file. |
 | Import fails | File is invalid, empty, larger than 5 MB, missing `features`, or has validation errors. | Review the error dialog, correct the file, and import again. |
 | Dataset shows **STALE** | Imported dataset update time is older than the freshness threshold. | Import or update with the latest official dataset. |
-| Dataset shows **DEGRADED** | Dataset has warnings or is not marked official. | Review validation details and verify the source. |
+| Dataset shows **DEGRADED** | Dataset has validation warnings. | Review validation details and verify the source. |
 | Zones do not appear on the map | Overlay switch is off or no zones are loaded. | Enable **Show geo-zones on map** and confirm datasets are loaded. |
 | Live status shows **NO POS** | No usable telemetry position is available. | Verify drone connection, GPS fix, and telemetry. |
 | Upload is blocked | Mission intersects a prohibited zone. | Revise mission or verify official authority requirements outside the app. |
-| Upload requires acknowledgement | Mission intersects an authorization-required zone or data health warning applies. | Proceed only after official authorization or restriction verification. |
+| Upload requires acknowledgement | Mission intersects an authorization-required zone or data health warning applies. | Confirm only after official authorization or restriction verification. |
 
 ## 18. Important Limitations
 
-- Geo-awareness depends on the imported dataset. Missing, stale, unofficial, or incorrect source data affects results.
+- Geo-awareness depends on the imported dataset. Missing, stale, invalid, or incorrect source data affects results.
 - The app validates structure and geometry but cannot guarantee legal completeness of the dataset.
-- The app uses available mission altitude and zone altitude limits where present.
+- The app uses available mission height, drone relative altitude, AMSL telemetry, and zone altitude limits where present.
+- True terrain-derived AGL requires a terrain source and is not currently calculated beyond mission height or drone relative altitude.
 - Live geo-awareness depends on valid drone telemetry and GPS position.
 - The near-zone threshold is 100 meters.
+- Automatic authoritative DAGR/API retrieval is not implemented.
 - Operators must verify official restrictions before flight regardless of app status.
-

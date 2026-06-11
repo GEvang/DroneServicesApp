@@ -245,7 +245,7 @@ class GeoZoneRepository(
                 countries.size == 1 -> countries.first()
                 else -> countries.joinToString(", ")
             },
-            isOfficial = results.all { it.datasetInfo.isOfficial } && results.none { it.datasetInfo.isDummy },
+            isOfficial = results.none { it.datasetInfo.isDummy },
             isDummy = results.all { it.datasetInfo.isDummy },
             loadedAtMillis = loadedAtMillis,
             zoneCount = zones.size,
@@ -270,7 +270,7 @@ class GeoZoneRepository(
     ) {
         Log.d(
             TAG,
-            "Loaded geo-awareness dataset title=${datasetInfo.title} version=${datasetInfo.version} zones=${datasetInfo.zoneCount} official=${datasetInfo.isOfficial} dummy=${datasetInfo.isDummy}"
+            "Loaded geo-awareness dataset title=${datasetInfo.title} version=${datasetInfo.version} zones=${datasetInfo.zoneCount} validNonDummy=${datasetInfo.zoneCount > 0 && !datasetInfo.isDummy} dummy=${datasetInfo.isDummy}"
         )
         Log.d(
             TAG,

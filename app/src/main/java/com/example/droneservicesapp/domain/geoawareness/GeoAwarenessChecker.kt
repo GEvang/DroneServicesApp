@@ -11,6 +11,20 @@ class GeoAwarenessChecker {
         missionAltitudeMeters: Double?,
         zones: List<GeoZone>
     ): GeoAwarenessResult {
+        return checkMission(
+            missionPolygon = missionPolygon,
+            surveyPath = surveyPath,
+            altitudeContext = GeoAltitudeContext(aglMeters = missionAltitudeMeters),
+            zones = zones
+        )
+    }
+
+    fun checkMission(
+        missionPolygon: List<LatLon>?,
+        surveyPath: List<LatLon>?,
+        altitudeContext: GeoAltitudeContext?,
+        zones: List<GeoZone>
+    ): GeoAwarenessResult {
         val normalizedMissionPolygon = missionPolygon?.takeIf(::isValidMissionPolygon)
         val normalizedSurveyPath = surveyPath.orEmpty().takeIf { it.isNotEmpty() }.orEmpty()
 
@@ -35,7 +49,7 @@ class GeoAwarenessChecker {
                         GeoAwarenessGeometryUtils.polygonIntersectsGeometry(
                             polygon = normalizedMissionPolygon,
                             geometry = geometry,
-                            missionAltitudeMeters = missionAltitudeMeters
+                            altitudeContext = altitudeContext
                         )
                     if (missionAreaIntersects) {
                         missionAreaGeometryCount += 1
@@ -45,7 +59,7 @@ class GeoAwarenessChecker {
                         GeoAwarenessGeometryUtils.pathIntersectsGeometry(
                             path = normalizedSurveyPath,
                             geometry = geometry,
-                            missionAltitudeMeters = missionAltitudeMeters
+                            altitudeContext = altitudeContext
                         )
                     if (surveyPathIntersects) {
                         surveyPathGeometryCount += 1
@@ -56,7 +70,7 @@ class GeoAwarenessChecker {
                             GeoAwarenessGeometryUtils.pointInZone(
                                 point = waypoint,
                                 geometry = geometry,
-                                missionAltitudeMeters = missionAltitudeMeters
+                                altitudeContext = altitudeContext
                             )
                         }
                     if (waypointInside) {

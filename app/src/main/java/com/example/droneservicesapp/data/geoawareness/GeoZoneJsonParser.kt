@@ -4,9 +4,11 @@ import android.util.Log
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneApplicability
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneAuthority
+import com.example.droneservicesapp.domain.geoawareness.GeoAltitudeUnit
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneGeometry
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
+import com.example.droneservicesapp.domain.geoawareness.GeoVerticalReference
 import com.example.droneservicesapp.domain.model.LatLon
 import org.json.JSONArray
 import org.json.JSONObject
@@ -174,9 +176,23 @@ class GeoZoneJsonParser {
 
             val lowerLimit = geometry.optDoubleOrNull("lowerLimit")
             val upperLimit = geometry.optDoubleOrNull("upperLimit")
+            val altitudeUnit = GeoAltitudeUnit.fromRaw(optStringOrNull(geometry, "uomDimensions"))
+            val lowerVerticalReference = GeoVerticalReference.fromRaw(optStringOrNull(geometry, "lowerVerticalReference"))
+            val upperVerticalReference = GeoVerticalReference.fromRaw(optStringOrNull(geometry, "upperVerticalReference"))
+            val lowerLimitMeters = altitudeUnit.toMeters(lowerLimit)
+            val upperLimitMeters = altitudeUnit.toMeters(upperLimit)
             when (optStringOrNull(horizontalProjection, "type")) {
                 "Circle" -> {
-                    val parsed = parseCircle(horizontalProjection, lowerLimit, upperLimit)
+                    val parsed = parseCircle(
+                        horizontalProjection = horizontalProjection,
+                        lowerLimitMeters = lowerLimitMeters,
+                        upperLimitMeters = upperLimitMeters,
+                        lowerVerticalReference = lowerVerticalReference,
+                        upperVerticalReference = upperVerticalReference,
+                        originalLowerLimit = lowerLimit,
+                        originalUpperLimit = upperLimit,
+                        altitudeUnit = altitudeUnit
+                    )
                     if (parsed != null) {
                         geometries += parsed
                     } else {
@@ -184,7 +200,16 @@ class GeoZoneJsonParser {
                     }
                 }
                 "Polygon" -> {
-                    val parsed = parsePolygon(horizontalProjection, lowerLimit, upperLimit)
+                    val parsed = parsePolygon(
+                        horizontalProjection = horizontalProjection,
+                        lowerLimitMeters = lowerLimitMeters,
+                        upperLimitMeters = upperLimitMeters,
+                        lowerVerticalReference = lowerVerticalReference,
+                        upperVerticalReference = upperVerticalReference,
+                        originalLowerLimit = lowerLimit,
+                        originalUpperLimit = upperLimit,
+                        altitudeUnit = altitudeUnit
+                    )
                     if (parsed != null) {
                         geometries += parsed
                     } else {
@@ -200,7 +225,12 @@ class GeoZoneJsonParser {
     private fun parseCircle(
         horizontalProjection: JSONObject,
         lowerLimitMeters: Double?,
-        upperLimitMeters: Double?
+        upperLimitMeters: Double?,
+        lowerVerticalReference: GeoVerticalReference,
+        upperVerticalReference: GeoVerticalReference,
+        originalLowerLimit: Double?,
+        originalUpperLimit: Double?,
+        altitudeUnit: GeoAltitudeUnit
     ): GeoZoneGeometry.Circle? {
         val centerArray = horizontalProjection.optJSONArray("center") ?: return null
         if (centerArray.length() < 2) {
@@ -218,14 +248,24 @@ class GeoZoneJsonParser {
             center = LatLon(lat = lat, lon = lon),
             radiusMeters = radius,
             lowerLimitMeters = lowerLimitMeters,
-            upperLimitMeters = upperLimitMeters
+            upperLimitMeters = upperLimitMeters,
+            lowerVerticalReference = lowerVerticalReference,
+            upperVerticalReference = upperVerticalReference,
+            originalLowerLimit = originalLowerLimit,
+            originalUpperLimit = originalUpperLimit,
+            altitudeUnit = altitudeUnit
         )
     }
 
     private fun parsePolygon(
         horizontalProjection: JSONObject,
         lowerLimitMeters: Double?,
-        upperLimitMeters: Double?
+        upperLimitMeters: Double?,
+        lowerVerticalReference: GeoVerticalReference,
+        upperVerticalReference: GeoVerticalReference,
+        originalLowerLimit: Double?,
+        originalUpperLimit: Double?,
+        altitudeUnit: GeoAltitudeUnit
     ): GeoZoneGeometry.Polygon? {
         val coordinates = horizontalProjection.optJSONArray("coordinates") ?: return null
         val rings = mutableListOf<List<LatLon>>()
@@ -257,7 +297,12 @@ class GeoZoneJsonParser {
         return GeoZoneGeometry.Polygon(
             rings = rings,
             lowerLimitMeters = lowerLimitMeters,
-            upperLimitMeters = upperLimitMeters
+            upperLimitMeters = upperLimitMeters,
+            lowerVerticalReference = lowerVerticalReference,
+            upperVerticalReference = upperVerticalReference,
+            originalLowerLimit = originalLowerLimit,
+            originalUpperLimit = originalUpperLimit,
+            altitudeUnit = altitudeUnit
         )
     }
 
@@ -278,18 +323,13 @@ class GeoZoneJsonParser {
     ): GeoZoneDatasetInfo {
         val title = optStringOrNull(root, "title") ?: "Unknown geo-zone dataset"
         val description = optStringOrNull(root, "description")
-        val version = optStringOrNull(root, "version")
+        val version = optStringOrNull(root, "version") ?: extractVersionFromDescription(description)
         val source = optStringOrNull(root, "source") ?: fallbackSource
         val sourceUrl = optStringOrNull(root, "sourceUrl") ?: fallbackSourceUrl
         val country = optStringOrNull(root, "country") ?: resolveCountry(zones)
         val isDummy = sequenceOf(title, description, version)
             .filterNotNull()
             .any { it.contains("dummy", ignoreCase = true) } || zones.any { it.isDummy }
-        val officialDeclared = when (val value = root?.opt("official")) {
-            is Boolean -> value
-            is String -> value.equals("true", ignoreCase = true)
-            else -> false
-        }
         val circleGeometryCount = zones.sumOf { zone ->
             zone.geometries.count { geometry -> geometry is GeoZoneGeometry.Circle }
         }
@@ -304,13 +344,20 @@ class GeoZoneJsonParser {
             source = source,
             sourceUrl = sourceUrl,
             country = country,
-            isOfficial = officialDeclared && !isDummy,
+            isOfficial = !isDummy,
             isDummy = isDummy,
             loadedAtMillis = loadedAtMillis,
             zoneCount = zones.size,
             circleGeometryCount = circleGeometryCount,
             polygonGeometryCount = polygonGeometryCount
         )
+    }
+
+    private fun extractVersionFromDescription(description: String?): String? {
+        val text = description?.trim().orEmpty()
+        if (text.isEmpty()) return null
+        val match = Regex("""(?i)\bversion\s*:\s*([A-Za-z0-9._-]+)""").find(text)
+        return match?.groupValues?.getOrNull(1)?.takeIf { it.isNotBlank() }
     }
 
     private fun resolveCountry(zones: List<GeoZone>): String? {

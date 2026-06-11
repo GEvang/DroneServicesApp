@@ -21,7 +21,8 @@ class GeoIncidentLogger(
         datasetTitle: String?,
         datasetVersion: String?,
         healthState: String?,
-        source: String
+        source: String,
+        details: Map<String, String> = emptyMap()
     ) {
         if (zones.isEmpty()) return
         store.append(
@@ -35,7 +36,8 @@ class GeoIncidentLogger(
                 datasetVersion = datasetVersion,
                 healthState = healthState,
                 source = source,
-                messagePrefix = "Entered geo-zone"
+                messagePrefix = "Entered geo-zone",
+                details = details
             )
         )
     }
@@ -48,7 +50,8 @@ class GeoIncidentLogger(
         datasetTitle: String?,
         datasetVersion: String?,
         healthState: String?,
-        source: String
+        source: String,
+        details: Map<String, String> = emptyMap()
     ) {
         if (zones.isEmpty()) return
         store.append(
@@ -62,7 +65,8 @@ class GeoIncidentLogger(
                 datasetVersion = datasetVersion,
                 healthState = healthState,
                 source = source,
-                messagePrefix = "Exited geo-zone"
+                messagePrefix = "Exited geo-zone",
+                details = details
             )
         )
     }
@@ -77,7 +81,8 @@ class GeoIncidentLogger(
         datasetVersion: String?,
         healthState: String?,
         source: String,
-        messagePrefix: String
+        messagePrefix: String,
+        details: Map<String, String>
     ): GeoIncidentEvent {
         val timestampMillis = System.currentTimeMillis()
         val highestRestriction = zones.maxByOrNull { restrictionRank(it.restriction) }?.restriction?.name
@@ -99,7 +104,7 @@ class GeoIncidentLogger(
             healthState = healthState,
             source = source,
             message = "$messagePrefix: $zoneNamesJoined",
-            details = emptyMap()
+            details = details
         )
     }
 

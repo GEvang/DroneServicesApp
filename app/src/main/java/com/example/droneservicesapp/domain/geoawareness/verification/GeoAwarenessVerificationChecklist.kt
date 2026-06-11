@@ -157,12 +157,14 @@ object GeoAwarenessVerificationChecklist {
             steps = listOf(
                 "Plan mission over authorization zone.",
                 "Tap upload.",
-                "Cancel, then retry and Proceed."
+                "Cancel, then retry.",
+                "Confirm that authorization or notification has been completed for the listed UGZ."
             ),
-            expectedResult = "Cancel stops upload. Proceed continues upload.",
+            expectedResult = "Cancel stops upload. Confirm authorization continues upload for the current flight only.",
             evidenceToCapture = listOf(
                 "Dialog screenshots.",
-                "UPLOAD_ACK_REQUIRED, UPLOAD_CANCELLED, UPLOAD_ACKNOWLEDGED logs."
+                "UPLOAD_ACK_REQUIRED, UGZ_AUTHORIZATION_REQUIRED, UPLOAD_CANCELLED, UGZ_AUTHORIZATION_CONFIRMED, UPLOAD_ACKNOWLEDGED logs.",
+                "UGZ_AUTHORIZATION_RESET log after disarm/end of flight."
             ),
             category = "Upload guard"
         ),

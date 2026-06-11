@@ -150,6 +150,8 @@ class DroneViewModel : ViewModel() {
     val droneBatteryPercentage: MutableLiveData<Float> = stateStore.droneBatteryPercentage
     val gpsFixType: MutableLiveData<GpsFixType?> = stateStore.gpsFixType
     val droneGroundSpeedMetersPerSecond: MutableLiveData<Float> = stateStore.droneGroundSpeedMetersPerSecond
+    val droneVerticalSpeedMetersPerSecond: MutableLiveData<Float?> = stateStore.droneVerticalSpeedMetersPerSecond
+    val droneAltitudeAmslMeters: MutableLiveData<Double?> = stateStore.droneAltitudeAmslMeters
     val droneFrontDistance: MutableLiveData<Int> = stateStore.droneFrontDistance
     val droneBackDistance: MutableLiveData<Int> = stateStore.droneBackDistance
     val droneFlightMode: MutableLiveData<Int> = stateStore.droneFlightMode
