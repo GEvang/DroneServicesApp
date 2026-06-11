@@ -88,6 +88,7 @@ class GeoAwarenessFragment : Fragment() {
     private var latestRealDronePosition: LatLon? = null
     private var latestRealDroneAltitudeMeters: Double? = null
     private var latestRealDroneAltitudeAmslMeters: Double? = null
+    private var latestRealDroneGroundSpeedMetersPerSecond: Float? = null
     private var geoAwarenessHealth: GeoAwarenessHealth? = null
     private var geoAwarenessLoadError: Throwable? = null
     private var validationResult: GeoZoneValidationResult? = null
@@ -255,6 +256,10 @@ class GeoAwarenessFragment : Fragment() {
         }
         droneViewModel.droneAltitudeAmslMeters.observe(viewLifecycleOwner) { altitudeAmslMeters ->
             latestRealDroneAltitudeAmslMeters = altitudeAmslMeters
+            updateLiveStatus()
+        }
+        droneViewModel.droneGroundSpeedMetersPerSecond.observe(viewLifecycleOwner) { speed ->
+            latestRealDroneGroundSpeedMetersPerSecond = speed
             updateLiveStatus()
         }
     }
@@ -1299,7 +1304,8 @@ class GeoAwarenessFragment : Fragment() {
                 position = position,
                 zones = geoZones,
                 thresholdMeters = DEFAULT_NEAR_ZONE_THRESHOLD_METERS,
-                altitudeContext = altitudeContext
+                altitudeContext = altitudeContext,
+                groundSpeedMetersPerSecond = latestRealDroneGroundSpeedMetersPerSecond?.toDouble()
             )
             if (latestLiveProximity == null) {
                 liveStatusBinder?.bindClear()
@@ -1355,7 +1361,15 @@ class GeoAwarenessFragment : Fragment() {
                             appendLine("Nearest zone: ${proximity.nearestZone.name}")
                             appendLine("Restriction: ${proximity.restriction}")
                             appendLine("Distance: ${proximity.distanceMeters.toInt().coerceAtLeast(0)} m")
-                            appendLine("Warning threshold: ${DEFAULT_NEAR_ZONE_THRESHOLD_METERS.toInt()} m")
+                            appendLine("Configured threshold: ${proximity.configuredThresholdMeters.toInt()} m")
+                            appendLine("Effective threshold: ${proximity.effectiveThresholdMeters.toInt()} m")
+                            appendLine("Required warning time: ${proximity.requiredWarningSeconds} s")
+                            proximity.groundSpeedMetersPerSecond?.let { speed ->
+                                appendLine("Ground speed: ${"%.2f".format(Locale.US, speed)} m/s")
+                            }
+                            proximity.timeToBoundarySeconds?.let { seconds ->
+                                appendLine("Time to boundary: ${"%.2f".format(Locale.US, seconds)} s")
+                            }
                             if (!datasetInfo?.title.isNullOrBlank()) {
                                 appendLine("Dataset: ${datasetInfo?.title} (${datasetInfo?.version ?: "N/A"})")
                             }

@@ -289,7 +289,7 @@ Live status labels:
 | **LIVE GEO: NEAR CONDITIONAL** | Drone is outside but within the near-zone threshold of a conditional zone. |
 | **LIVE GEO: NEAR UNKNOWN** | Drone is outside but within the near-zone threshold of an unknown zone. |
 
-The near-zone warning threshold is 100 meters.
+The near-zone warning threshold is the greater of 100 meters or the current ground speed multiplied by 3 seconds. This provides an explicit 3-second approach-warning rule for live UGZ boundary proximity when ground speed telemetry is available.
 
 Tap the live status chip to see details. If the drone is inside zones, the app lists up to five zones and their restrictions. If a near-zone warning applies, the app shows the nearest zone, restriction, distance, threshold, dataset, and message.
 
@@ -362,6 +362,6 @@ The operator is responsible for:
 - The app uses available mission height, drone relative altitude, AMSL telemetry, and zone altitude limits where present.
 - True terrain-derived AGL requires a terrain source and is not currently calculated beyond mission height or drone relative altitude.
 - Live geo-awareness depends on valid drone telemetry and GPS position.
-- The near-zone threshold is 100 meters.
+- The near-zone threshold is the greater of 100 meters or current ground speed multiplied by 3 seconds.
 - Automatic authoritative DAGR/API retrieval is not implemented.
 - Operators must verify official restrictions before flight regardless of app status.

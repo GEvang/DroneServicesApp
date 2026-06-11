@@ -65,11 +65,18 @@ class LiveGeoAwarenessChecker {
         position: LatLon,
         zones: List<GeoZone>,
         thresholdMeters: Double = 100.0,
-        altitudeContext: GeoAltitudeContext? = null
+        altitudeContext: GeoAltitudeContext? = null,
+        groundSpeedMetersPerSecond: Double? = null,
+        requiredWarningSeconds: Double = REQUIRED_WARNING_SECONDS
     ): LiveGeoAwarenessProximityResult? {
         if (zones.isEmpty()) {
             return null
         }
+
+        val normalizedSpeed = groundSpeedMetersPerSecond
+            ?.takeIf { it.isFinite() && it > 0.0 }
+        val minimumWarningDistanceMeters = normalizedSpeed?.let { it * requiredWarningSeconds }
+        val effectiveThresholdMeters = maxOf(thresholdMeters, minimumWarningDistanceMeters ?: 0.0)
 
         val candidates = zones.mapNotNull { zone ->
             if (!isNearWarningRestriction(zone.restriction)) {
@@ -112,14 +119,22 @@ class LiveGeoAwarenessChecker {
                 .minOrNull()
                 ?: return@mapNotNull null
 
-            if (nearestDistance > thresholdMeters) {
+            if (nearestDistance > effectiveThresholdMeters) {
                 return@mapNotNull null
             }
 
+            val timeToBoundarySeconds = normalizedSpeed?.let { nearestDistance / it }
             LiveGeoAwarenessProximityResult(
                 nearestZone = zone,
                 distanceMeters = nearestDistance,
-                restriction = zone.restriction
+                restriction = zone.restriction,
+                configuredThresholdMeters = thresholdMeters,
+                effectiveThresholdMeters = effectiveThresholdMeters,
+                requiredWarningSeconds = requiredWarningSeconds,
+                minimumWarningDistanceMeters = minimumWarningDistanceMeters,
+                groundSpeedMetersPerSecond = normalizedSpeed,
+                timeToBoundarySeconds = timeToBoundarySeconds,
+                warningMeetsRequiredTime = timeToBoundarySeconds?.let { it >= requiredWarningSeconds }
             )
         }
 
@@ -152,5 +167,6 @@ class LiveGeoAwarenessChecker {
 
     companion object {
         private const val TAG = "LiveGeoAwarenessChecker"
+        const val REQUIRED_WARNING_SECONDS = 3.0
     }
 }

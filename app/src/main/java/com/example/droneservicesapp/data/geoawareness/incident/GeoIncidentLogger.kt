@@ -13,6 +13,34 @@ class GeoIncidentLogger(
     private val store: GeoIncidentEncryptedLogStore
 ) {
 
+    fun logApproachWarning(
+        zone: GeoZone,
+        latitude: Double?,
+        longitude: Double?,
+        altitudeMeters: Double?,
+        datasetTitle: String?,
+        datasetVersion: String?,
+        healthState: String?,
+        source: String,
+        details: Map<String, String> = emptyMap()
+    ) {
+        store.append(
+            buildEvent(
+                type = GeoIncidentEventType.GEO_ZONE_APPROACH_WARNING,
+                zones = listOf(zone),
+                latitude = latitude,
+                longitude = longitude,
+                altitudeMeters = altitudeMeters,
+                datasetTitle = datasetTitle,
+                datasetVersion = datasetVersion,
+                healthState = healthState,
+                source = source,
+                messagePrefix = "Approaching geo-zone",
+                details = details
+            )
+        )
+    }
+
     fun logZoneEntered(
         zones: List<GeoZone>,
         latitude: Double?,

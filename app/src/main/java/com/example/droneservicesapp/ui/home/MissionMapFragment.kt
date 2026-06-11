@@ -75,6 +75,7 @@ import org.osmdroid.tileprovider.cachemanager.CacheManager
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
+import java.util.Locale
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -131,6 +132,7 @@ class MissionMapFragment : Fragment() {
     private var lastHealthLogSignature: String? = null
     private var lastHealthState: GeoAwarenessHealthState? = null
     private var lastLiveZoneIdentityMap: Map<String, GeoZone> = emptyMap()
+    private var lastLiveProximityIdentity: String? = null
     private val authorizedUgzIdsForCurrentFlight = mutableSetOf<String>()
     private var lastRtkStreamingActive: Boolean? = null
     private var isDrawingModeActive = false
@@ -1887,6 +1889,28 @@ class MissionMapFragment : Fragment() {
         lastLiveZoneIdentityMap = currentZoneMap
     }
 
+    private fun logLiveProximityIfNeeded(
+        proximity: LiveGeoAwarenessProximityResult,
+        latitude: Double?,
+        longitude: Double?,
+        altitudeMeters: Double?
+    ) {
+        val identity = buildLiveProximityIdentity(proximity)
+        if (identity == lastLiveProximityIdentity) return
+        lastLiveProximityIdentity = identity
+        geoIncidentLogger.logApproachWarning(
+            zone = proximity.nearestZone,
+            latitude = latitude,
+            longitude = longitude,
+            altitudeMeters = altitudeMeters,
+            datasetTitle = geoZoneDatasetInfo?.title,
+            datasetVersion = geoZoneDatasetInfo?.version,
+            healthState = geoAwarenessHealth?.state?.name,
+            source = "live_drone",
+            details = liveVerificationDetails("approach_warning") + proximityEvidenceDetails(proximity)
+        )
+    }
+
     private fun liveVerificationDetails(alertStatus: String): Map<String, String> {
         return buildMap {
             put("verificationSchema", "prEN4709-003-7.1-live-behaviour-v1")
@@ -1903,8 +1927,30 @@ class MissionMapFragment : Fragment() {
         }
     }
 
+    private fun proximityEvidenceDetails(proximity: LiveGeoAwarenessProximityResult): Map<String, String> {
+        return buildMap {
+            put("approachWarningSchema", "prEN4709-003-3-second-approach-warning-v1")
+            put("nearestZoneId", proximity.nearestZone.id)
+            put("nearestZoneName", proximity.nearestZone.name)
+            put("nearestZoneRestriction", proximity.restriction.name)
+            put("distanceToBoundaryMeters", proximity.distanceMeters.toString())
+            put("configuredDistanceThresholdMeters", proximity.configuredThresholdMeters.toString())
+            put("effectiveWarningThresholdMeters", proximity.effectiveThresholdMeters.toString())
+            put("requiredWarningTimeSeconds", proximity.requiredWarningSeconds.toString())
+            proximity.minimumWarningDistanceMeters?.let { put("minimumSpeedBasedWarningDistanceMeters", it.toString()) }
+            proximity.groundSpeedMetersPerSecond?.let { put("groundSpeedMetersPerSecond", it.toString()) }
+            proximity.timeToBoundarySeconds?.let { put("timeToBoundarySeconds", it.toString()) }
+            proximity.warningMeetsRequiredTime?.let { put("warningMeetsRequiredTime", it.toString()) }
+            put("triggerRule", "distanceToBoundaryMeters <= max(configuredDistanceThresholdMeters, groundSpeedMetersPerSecond * requiredWarningTimeSeconds)")
+        }
+    }
+
     private fun buildLiveZoneIdentity(zone: GeoZone): String {
         return "${zone.id}|${zone.name}|${zone.restriction.name}"
+    }
+
+    private fun buildLiveProximityIdentity(proximity: LiveGeoAwarenessProximityResult): String {
+        return "${proximity.nearestZone.id}|${proximity.nearestZone.name}|${proximity.restriction.name}"
     }
 
     private fun showGeoAwarenessDialog(title: String, message: String) {
@@ -1925,6 +1971,7 @@ class MissionMapFragment : Fragment() {
         if (dronePosition == null) {
             latestLiveGeoZones = emptyList()
             latestLiveGeoProximity = null
+            lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("No drone position")
             return
         }
@@ -1932,12 +1979,14 @@ class MissionMapFragment : Fragment() {
         if (!loadGeoAwarenessZonesIfNeeded()) {
             latestLiveGeoZones = emptyList()
             latestLiveGeoProximity = null
+            lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
             return
         }
         if (geoAwarenessZones.isEmpty()) {
             latestLiveGeoZones = emptyList()
             latestLiveGeoProximity = null
+            lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
             return
         }
@@ -1966,12 +2015,20 @@ class MissionMapFragment : Fragment() {
                 altitudeContext = GeoAltitudeContext(
                     aglMeters = droneAltitudeMeters,
                     amslMeters = latestRealDroneAltitudeAmslMeters
-                )
+                ),
+                groundSpeedMetersPerSecond = latestRealDroneGroundSpeedMetersPerSecond?.toDouble()
             )
             latestLiveGeoProximity = nearestZone
             if (nearestZone == null) {
+                lastLiveProximityIdentity = null
                 liveGeoAwarenessStatusBinder?.bindClear()
             } else {
+                logLiveProximityIfNeeded(
+                    proximity = nearestZone,
+                    latitude = dronePosition.lat,
+                    longitude = dronePosition.lon,
+                    altitudeMeters = droneAltitudeMeters
+                )
                 liveGeoAwarenessStatusBinder?.bindNear(
                     zone = nearestZone.nearestZone,
                     distanceMeters = nearestZone.distanceMeters
@@ -1979,6 +2036,7 @@ class MissionMapFragment : Fragment() {
             }
         } else {
             latestLiveGeoProximity = null
+            lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindInsideMultiple(insideZones)
         }
 
@@ -2022,7 +2080,15 @@ class MissionMapFragment : Fragment() {
                     appendLine("Nearest zone: ${proximity.nearestZone.name}")
                     appendLine("Restriction: ${proximity.restriction}")
                     appendLine("Distance: ${proximity.distanceMeters.toInt().coerceAtLeast(0)} m")
-                    appendLine("Warning threshold: ${DEFAULT_NEAR_ZONE_THRESHOLD_METERS.toInt()} m")
+                    appendLine("Configured threshold: ${proximity.configuredThresholdMeters.toInt()} m")
+                    appendLine("Effective threshold: ${proximity.effectiveThresholdMeters.toInt()} m")
+                    appendLine("Required warning time: ${proximity.requiredWarningSeconds} s")
+                    proximity.groundSpeedMetersPerSecond?.let { speed ->
+                        appendLine("Ground speed: ${"%.2f".format(Locale.US, speed)} m/s")
+                    }
+                    proximity.timeToBoundarySeconds?.let { seconds ->
+                        appendLine("Time to boundary: ${"%.2f".format(Locale.US, seconds)} s")
+                    }
                     if (!geoZoneDatasetInfo?.title.isNullOrBlank()) {
                         appendLine("Dataset: ${geoZoneDatasetInfo?.title} (${geoZoneDatasetInfo?.version ?: "N/A"})")
                     }
