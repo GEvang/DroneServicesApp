@@ -65,6 +65,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -103,6 +104,7 @@ class GeoAwarenessFragment : Fragment() {
     private var lastTestRunResult: GeoAwarenessTestRunResult? = null
     private var datasetLoadInProgress: Boolean = false
     private var lastGeoZoneReloadToken: Long? = null
+    private var liveStatusJob: Job? = null
     private lateinit var verificationStatusStore: GeoAwarenessVerificationStatusStore
     private val importDatasetLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
@@ -198,7 +200,8 @@ class GeoAwarenessFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        refreshGeoAwarenessStatus(manual = false)
+        loadDatasetIfNeededAsync()
+        updateLiveStatus()
     }
 
     private fun observeSharedState() {
@@ -1281,6 +1284,7 @@ class GeoAwarenessFragment : Fragment() {
         val position = latestRealDronePosition
         val altitude = latestRealDroneAltitudeMeters
         if (position == null) {
+            liveStatusJob?.cancel()
             latestLiveZones = emptyList()
             latestLiveProximity = null
             liveStatusBinder?.bindUnknown(getString(R.string.geo_awareness_live_no_position))
@@ -1289,6 +1293,7 @@ class GeoAwarenessFragment : Fragment() {
 
         loadDatasetIfNeeded()
         if (geoZones.isEmpty()) {
+            liveStatusJob?.cancel()
             latestLiveZones = emptyList()
             latestLiveProximity = null
             liveStatusBinder?.bindUnknown("Geo-awareness unavailable")
@@ -1298,32 +1303,45 @@ class GeoAwarenessFragment : Fragment() {
             aglMeters = altitude,
             amslMeters = latestRealDroneAltitudeAmslMeters
         )
-        val zones = liveChecker.checkDronePosition(
-            dronePosition = position,
-            altitudeContext = altitudeContext,
-            zones = geoZones
-        )
-        latestLiveZones = zones
-        if (zones.isEmpty()) {
-            latestLiveProximity = liveChecker.findNearestZoneWithinThreshold(
-                position = position,
-                zones = geoZones,
-                thresholdMeters = DEFAULT_NEAR_ZONE_THRESHOLD_METERS,
-                altitudeContext = altitudeContext,
-                groundSpeedMetersPerSecond = latestRealDroneGroundSpeedMetersPerSecond?.toDouble(),
-                headingDegrees = latestRealDroneHeadingDegrees
-            )
-            if (latestLiveProximity == null) {
-                liveStatusBinder?.bindClear()
-            } else {
-                liveStatusBinder?.bindNear(
-                    zone = latestLiveProximity!!.nearestZone,
-                    distanceMeters = latestLiveProximity!!.distanceMeters
+        val zoneSnapshot = geoZones
+        val groundSpeed = latestRealDroneGroundSpeedMetersPerSecond?.toDouble()
+        val heading = latestRealDroneHeadingDegrees
+
+        liveStatusJob?.cancel()
+        liveStatusJob = viewLifecycleOwner.lifecycleScope.launch {
+            val result = withContext(Dispatchers.Default) {
+                val zones = liveChecker.checkDronePosition(
+                    dronePosition = position,
+                    altitudeContext = altitudeContext,
+                    zones = zoneSnapshot
                 )
+                val proximity = if (zones.isEmpty()) {
+                    liveChecker.findNearestZoneWithinThreshold(
+                        position = position,
+                        zones = zoneSnapshot,
+                        thresholdMeters = DEFAULT_NEAR_ZONE_THRESHOLD_METERS,
+                        altitudeContext = altitudeContext,
+                        groundSpeedMetersPerSecond = groundSpeed,
+                        headingDegrees = heading
+                    )
+                } else {
+                    null
+                }
+                zones to proximity
             }
-        } else {
-            latestLiveProximity = null
-            liveStatusBinder?.bindInsideMultiple(zones)
+            if (_binding == null) return@launch
+            val zones = result.first
+            val proximity = result.second
+            latestLiveZones = zones
+            latestLiveProximity = proximity
+            when {
+                zones.isNotEmpty() -> liveStatusBinder?.bindInsideMultiple(zones)
+                proximity != null -> liveStatusBinder?.bindNear(
+                    zone = proximity.nearestZone,
+                    distanceMeters = proximity.distanceMeters
+                )
+                else -> liveStatusBinder?.bindClear()
+            }
         }
     }
 
@@ -1982,6 +2000,8 @@ class GeoAwarenessFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        liveStatusJob?.cancel()
+        liveStatusJob = null
         liveStatusBinder = null
         super.onDestroyView()
         _binding = null

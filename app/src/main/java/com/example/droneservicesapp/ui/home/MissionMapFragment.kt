@@ -144,6 +144,7 @@ class MissionMapFragment : Fragment() {
     private var lastTracePosition: LatLon? = null
     private var flightTracePointCount: Int = 0
     private var initialCenterAttemptCount = 0
+    private var initialDroneCenterAttemptCount = 0
     private var lastGeoZoneReloadToken: Long = 0L
 
     companion object {
@@ -160,6 +161,7 @@ class MissionMapFragment : Fragment() {
         private const val MIN_VALID_ABS_COORDINATE = 1e-4
         private const val MIN_TRACE_POINT_DISTANCE_METERS = 2.0
         private const val DEFAULT_NEAR_ZONE_THRESHOLD_METERS = 100.0
+        private const val MAX_INITIAL_DRONE_CENTER_ATTEMPTS = 20
     }
 
     override fun onCreateView(
@@ -868,6 +870,12 @@ class MissionMapFragment : Fragment() {
 
         if (osmdroidMapController.hasDronePosition()) {
             centerOnDroneIfNeeded()
+            return
+        }
+
+        if (initialDroneCenterAttemptCount < MAX_INITIAL_DRONE_CENTER_ATTEMPTS) {
+            initialDroneCenterAttemptCount += 1
+            _binding?.root?.postDelayed({ centerInitialViewportIfNeeded() }, 1000L)
             return
         }
 
@@ -1933,6 +1941,13 @@ class MissionMapFragment : Fragment() {
             put("nearestZoneId", proximity.nearestZone.id)
             put("nearestZoneName", proximity.nearestZone.name)
             put("nearestZoneRestriction", proximity.restriction.name)
+            put("timeApplicabilityActive", "true")
+            put("timeApplicabilityRule", "inactive future/expired non-permanent UGZ windows are excluded before warning evaluation")
+            put("timeApplicabilityPermanent", proximity.nearestZone.applicability.any { it.permanent }.toString())
+            proximity.nearestZone.applicability.mapNotNull { it.startDateTime }.minOrNull()
+                ?.let { put("timeApplicabilityStartUtc", it) }
+            proximity.nearestZone.applicability.mapNotNull { it.endDateTime }.maxOrNull()
+                ?.let { put("timeApplicabilityEndUtc", it) }
             put("distanceToBoundaryMeters", proximity.distanceMeters.toString())
             put("configuredDistanceThresholdMeters", proximity.configuredThresholdMeters.toString())
             put("effectiveWarningThresholdMeters", proximity.effectiveThresholdMeters.toString())

@@ -1,0 +1,194 @@
+{
+  "title": "Rethymno UGZ applicability test zones",
+  "description": "Version: rethymno-applicability-test-001. Development-only test data for validating start/end/permanent UGZ applicability handling. Not official aviation data.",
+  "version": "rethymno-applicability-test-001",
+  "source": "Aigaio Skytech test data",
+  "sourceUrl": "https://dagr.hasp.gov.gr/",
+  "country": "GRC",
+  "features": [
+    {
+      "identifier": "GR-RTH-APP-ACTIVE-001",
+      "country": "GRC",
+      "name": "Rethymno Active Applicability Test Zone",
+      "type": "COMMON",
+      "restriction": "PROHIBITED",
+      "reason": ["OTHER"],
+      "otherReasonInfo": "Active applicability test zone",
+      "applicability": [
+        {
+          "startDateTime": "2026-06-15T00:00:00Z",
+          "endDateTime": "2026-06-16T23:59:59Z",
+          "permanent": "NO"
+        }
+      ],
+      "message": "TEST ONLY: This prohibited zone is active on 2026-06-15 and 2026-06-16.",
+      "zoneAuthority": [
+        {
+          "name": "Aigaio Skytech Test Authority",
+          "service": "Development Test Data",
+          "contactName": "N/A",
+          "siteURL": "https://dagr.hasp.gov.gr/",
+          "email": "N/A",
+          "phone": "N/A",
+          "purpose": "INFORMATION"
+        }
+      ],
+      "geometry": [
+        {
+          "upperLimit": 120,
+          "lowerLimit": 0,
+          "uomDimensions": "M",
+          "upperVerticalReference": "AGL",
+          "lowerVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Circle",
+            "center": [24.4710, 35.3722],
+            "radius": 180
+          }
+        }
+      ],
+      "extendedProperties": {
+        "color": "FF0000",
+        "arc": "DUMMY"
+      }
+    },
+    {
+      "identifier": "GR-RTH-APP-FUTURE-001",
+      "country": "GRC",
+      "name": "Rethymno Future Applicability Test Zone",
+      "type": "COMMON",
+      "restriction": "PROHIBITED",
+      "reason": ["OTHER"],
+      "otherReasonInfo": "Future applicability test zone",
+      "applicability": [
+        {
+          "startDateTime": "2030-01-01T00:00:00Z",
+          "endDateTime": "2030-01-02T23:59:59Z",
+          "permanent": "NO"
+        }
+      ],
+      "message": "TEST ONLY: This prohibited zone is future-dated and should not trigger warnings before 2030-01-01.",
+      "zoneAuthority": [
+        {
+          "name": "Aigaio Skytech Test Authority",
+          "service": "Development Test Data",
+          "contactName": "N/A",
+          "siteURL": "https://dagr.hasp.gov.gr/",
+          "email": "N/A",
+          "phone": "N/A",
+          "purpose": "INFORMATION"
+        }
+      ],
+      "geometry": [
+        {
+          "upperLimit": 120,
+          "lowerLimit": 0,
+          "uomDimensions": "M",
+          "upperVerticalReference": "AGL",
+          "lowerVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Circle",
+            "center": [24.4743, 35.3661],
+            "radius": 180
+          }
+        }
+      ],
+      "extendedProperties": {
+        "color": "AA0000",
+        "arc": "DUMMY"
+      }
+    },
+    {
+      "identifier": "GR-RTH-APP-EXPIRED-001",
+      "country": "GRC",
+      "name": "Rethymno Expired Applicability Test Zone",
+      "type": "COMMON",
+      "restriction": "PROHIBITED",
+      "reason": ["OTHER"],
+      "otherReasonInfo": "Expired applicability test zone",
+      "applicability": [
+        {
+          "startDateTime": "2020-01-01T00:00:00Z",
+          "endDateTime": "2020-01-02T23:59:59Z",
+          "permanent": "NO"
+        }
+      ],
+      "message": "TEST ONLY: This prohibited zone is expired and should not trigger warnings after 2020-01-02.",
+      "zoneAuthority": [
+        {
+          "name": "Aigaio Skytech Test Authority",
+          "service": "Development Test Data",
+          "contactName": "N/A",
+          "siteURL": "https://dagr.hasp.gov.gr/",
+          "email": "N/A",
+          "phone": "N/A",
+          "purpose": "INFORMATION"
+        }
+      ],
+      "geometry": [
+        {
+          "upperLimit": 120,
+          "lowerLimit": 0,
+          "uomDimensions": "M",
+          "upperVerticalReference": "AGL",
+          "lowerVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Circle",
+            "center": [24.4723, 35.3661],
+            "radius": 180
+          }
+        }
+      ],
+      "extendedProperties": {
+        "color": "880000",
+        "arc": "DUMMY"
+      }
+    },
+    {
+      "identifier": "GR-RTH-APP-PERMANENT-001",
+      "country": "GRC",
+      "name": "Rethymno Permanent Applicability Test Zone",
+      "type": "COMMON",
+      "restriction": "PROHIBITED",
+      "reason": ["OTHER"],
+      "otherReasonInfo": "Permanent applicability test zone",
+      "applicability": [
+        {
+          "startDateTime": "2030-01-01T00:00:00Z",
+          "endDateTime": "2030-01-02T23:59:59Z",
+          "permanent": "YES"
+        }
+      ],
+      "message": "TEST ONLY: This prohibited zone is permanent and should trigger warnings even though the date window is future-dated.",
+      "zoneAuthority": [
+        {
+          "name": "Aigaio Skytech Test Authority",
+          "service": "Development Test Data",
+          "contactName": "N/A",
+          "siteURL": "https://dagr.hasp.gov.gr/",
+          "email": "N/A",
+          "phone": "N/A",
+          "purpose": "INFORMATION"
+        }
+      ],
+      "geometry": [
+        {
+          "upperLimit": 120,
+          "lowerLimit": 0,
+          "uomDimensions": "M",
+          "upperVerticalReference": "AGL",
+          "lowerVerticalReference": "AGL",
+          "horizontalProjection": {
+            "type": "Circle",
+            "center": [24.4719, 35.3696],
+            "radius": 180
+          }
+        }
+      ],
+      "extendedProperties": {
+        "color": "CC0000",
+        "arc": "DUMMY"
+      }
+    }
+  ]
+}

@@ -185,10 +185,13 @@ Zone colors:
 | **INFORMATION** | Blue |
 | **UNKNOWN** | Gray |
 
+Zones that are inactive because their supported applicability date/time window is future or expired are shown with a dim gray overlay. They remain visible for operator context, but they do not trigger live inside-zone or approach warnings while inactive.
+
 Tap a displayed zone on the map to view details including:
 
 - Zone name.
 - Restriction.
+- Applicability status.
 - Message.
 - Authority, when available.
 - Altitude limits, when available.
@@ -299,7 +302,7 @@ Tap the live status chip to see details. If the drone is inside zones, the app l
 
 If live status shows **NO POS**, verify telemetry and GPS before relying on live geo-awareness.
 
-Time-limited UGZ applicability windows are parsed for display/evidence but are not currently enforced for active, future, or expired zone filtering. Operators must treat loaded zones as applicable unless verified otherwise with the responsible authority.
+Time-limited UGZ applicability windows are enforced when the dataset provides supported `startDateTime`, `endDateTime`, and `permanent` fields. Future and expired non-permanent zones are excluded from live inside-zone and approach-warning evaluation. Permanent zones and zones without applicability data are treated as active. If a date/time value uses an unsupported format, the app treats the zone as active rather than suppressing a warning.
 
 ## 14. Event and Incident Records
 
@@ -370,6 +373,6 @@ The operator is responsible for:
 - Live geo-awareness depends on valid drone telemetry and GPS position.
 - The near-zone threshold is the greater of 100 meters or current closing speed toward the UGZ boundary multiplied by 3 seconds.
 - The app is Geo-awareness Only and does not perform automatic geofencing recovery manoeuvres.
-- Time-limited UGZ applicability windows are not currently enforced.
+- Time-limited UGZ applicability supports explicit start/end date-time windows. Recurring weekday-only schedules are not supported unless the dataset provides them as explicit applicability date-time windows.
 - Automatic authoritative DAGR/API retrieval is not implemented.
 - Operators must verify official restrictions before flight regardless of app status.

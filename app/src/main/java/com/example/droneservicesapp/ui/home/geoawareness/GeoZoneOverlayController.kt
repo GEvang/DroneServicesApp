@@ -2,6 +2,7 @@ package com.example.droneservicesapp.ui.home.geoawareness
 
 import android.content.Context
 import android.graphics.Color
+import android.graphics.DashPathEffect
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.view.View
@@ -13,6 +14,8 @@ import androidx.appcompat.app.AlertDialog
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessGeometryUtils
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneApplicability
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneApplicabilityEvaluator
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneGeometry
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
 import com.example.droneservicesapp.domain.model.LatLon
@@ -83,11 +86,14 @@ class GeoZoneOverlayController(
         zone: GeoZone,
         points: List<GeoPoint>
     ) {
-        val style = styleFor(zone.restriction)
+        val activeNow = GeoZoneApplicabilityEvaluator.isActiveNow(zone)
+        val style = styleFor(zone.restriction, activeNow)
         val polygon = Polygon(mapView).apply {
             this.points = points
             outlinePaint.color = style.strokeColor
-            outlinePaint.strokeWidth = 3f
+            outlinePaint.strokeWidth = if (activeNow) 3f else 4f
+            outlinePaint.alpha = style.strokeAlpha
+            outlinePaint.pathEffect = style.pathEffect
             fillPaint.color = style.fillColor
             title = zone.name
             subDescription = zone.message
@@ -239,8 +245,8 @@ class GeoZoneOverlayController(
                 textSize = 15f
                 setTypeface(typeface, Typeface.BOLD)
             })
-            addView(TextView(context).apply {
-                text = "Restriction: ${match.zone.restriction}"
+        addView(TextView(context).apply {
+                text = "Restriction: ${match.zone.restriction} | ${formatApplicabilityStatus(match.zone)}"
                 setTextColor(Color.parseColor("#2C4063"))
                 textSize = 13f
                 setPadding(0, (6 * density).toInt(), 0, 0)
@@ -266,6 +272,8 @@ class GeoZoneOverlayController(
     private fun showZoneDetails(zone: GeoZone, geometry: GeoZoneGeometry) {
         val message = buildString {
             appendLine("Restriction: ${zone.restriction}")
+            appendLine("Applicability: ${formatApplicabilityStatus(zone)}")
+            formatApplicabilityWindow(zone)?.let { appendLine("Window: $it") }
             appendLine("Message: ${zone.message ?: "No message"}")
             appendLine("Authority: ${zone.authorities.firstOrNull()?.name ?: "N/A"}")
             append("Altitude: ${formatAltitude(geometry)}")
@@ -392,28 +400,77 @@ class GeoZoneOverlayController(
         }
     }
 
-    private fun styleFor(restriction: GeoZoneRestriction): ZoneStyle {
+    private fun styleFor(restriction: GeoZoneRestriction, activeNow: Boolean): ZoneStyle {
+        if (!activeNow) {
+            return ZoneStyle(
+                strokeColor = Color.rgb(31, 41, 55),
+                fillColor = Color.argb(58, 96, 108, 128),
+                strokeAlpha = 235,
+                pathEffect = DashPathEffect(floatArrayOf(18f, 10f), 0f)
+            )
+        }
         return when (restriction) {
             GeoZoneRestriction.PROHIBITED -> ZoneStyle(
                 strokeColor = Color.RED,
-                fillColor = Color.argb(55, 255, 0, 0)
+                fillColor = Color.argb(55, 255, 0, 0),
+                strokeAlpha = 255,
+                pathEffect = null
             )
             GeoZoneRestriction.REQ_AUTHORISATION -> ZoneStyle(
                 strokeColor = Color.rgb(255, 165, 0),
-                fillColor = Color.argb(55, 255, 165, 0)
+                fillColor = Color.argb(55, 255, 165, 0),
+                strokeAlpha = 255,
+                pathEffect = null
             )
             GeoZoneRestriction.CONDITIONAL -> ZoneStyle(
                 strokeColor = Color.YELLOW,
-                fillColor = Color.argb(55, 255, 255, 0)
+                fillColor = Color.argb(55, 255, 255, 0),
+                strokeAlpha = 255,
+                pathEffect = null
             )
             GeoZoneRestriction.INFORMATION -> ZoneStyle(
                 strokeColor = Color.BLUE,
-                fillColor = Color.argb(55, 0, 102, 255)
+                fillColor = Color.argb(55, 0, 102, 255),
+                strokeAlpha = 255,
+                pathEffect = null
             )
             GeoZoneRestriction.UNKNOWN -> ZoneStyle(
                 strokeColor = Color.GRAY,
-                fillColor = Color.argb(55, 128, 128, 128)
+                fillColor = Color.argb(55, 128, 128, 128),
+                strokeAlpha = 255,
+                pathEffect = null
             )
+        }
+    }
+
+    private fun formatApplicabilityStatus(zone: GeoZone): String {
+        return if (GeoZoneApplicabilityEvaluator.isActiveNow(zone)) {
+            "Active now"
+        } else {
+            "Inactive by date"
+        }
+    }
+
+    private fun formatApplicabilityWindow(zone: GeoZone): String? {
+        if (zone.applicability.isEmpty()) {
+            return "No applicability window specified; treated as active"
+        }
+        val permanentCount = zone.applicability.count { it.permanent }
+        val start = zone.applicability.mapNotNull(GeoZoneApplicability::startDateTime).minOrNull()
+        val end = zone.applicability.mapNotNull(GeoZoneApplicability::endDateTime).maxOrNull()
+        return buildString {
+            if (permanentCount > 0) {
+                append("Permanent")
+            } else {
+                append("Temporary")
+            }
+            if (!start.isNullOrBlank() || !end.isNullOrBlank()) {
+                append(" (")
+                append(start ?: "open start")
+                append(" to ")
+                append(end ?: "open end")
+                append(")")
+            }
         }
     }
 
@@ -427,7 +484,9 @@ class GeoZoneOverlayController(
 
     private data class ZoneStyle(
         val strokeColor: Int,
-        val fillColor: Int
+        val fillColor: Int,
+        val strokeAlpha: Int,
+        val pathEffect: DashPathEffect?
     )
 
     private data class ZoneTapMatch(

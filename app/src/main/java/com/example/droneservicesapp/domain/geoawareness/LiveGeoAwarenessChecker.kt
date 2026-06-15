@@ -22,7 +22,8 @@ class LiveGeoAwarenessChecker {
     fun checkDronePosition(
         dronePosition: LatLon?,
         altitudeContext: GeoAltitudeContext?,
-        zones: List<GeoZone>
+        zones: List<GeoZone>,
+        nowMillis: Long = System.currentTimeMillis()
     ): List<GeoZone> {
         if (dronePosition == null || zones.isEmpty()) {
             return emptyList()
@@ -30,6 +31,9 @@ class LiveGeoAwarenessChecker {
 
         val insideZones = mutableListOf<GeoZone>()
         for (zone in zones) {
+            if (!GeoZoneApplicabilityEvaluator.isActiveNow(zone, nowMillis)) {
+                continue
+            }
             val inside = zone.geometries.any { geometry ->
                 try {
                     GeoAwarenessGeometryUtils.pointInZone(
@@ -72,7 +76,8 @@ class LiveGeoAwarenessChecker {
         altitudeContext: GeoAltitudeContext? = null,
         groundSpeedMetersPerSecond: Double? = null,
         headingDegrees: Double? = null,
-        requiredWarningSeconds: Double = REQUIRED_WARNING_SECONDS
+        requiredWarningSeconds: Double = REQUIRED_WARNING_SECONDS,
+        nowMillis: Long = System.currentTimeMillis()
     ): LiveGeoAwarenessProximityResult? {
         if (zones.isEmpty()) {
             return null
@@ -90,6 +95,9 @@ class LiveGeoAwarenessChecker {
         }
 
         val candidates = zones.mapNotNull { zone ->
+            if (!GeoZoneApplicabilityEvaluator.isActiveNow(zone, nowMillis)) {
+                return@mapNotNull null
+            }
             if (!isNearWarningRestriction(zone.restriction)) {
                 return@mapNotNull null
             }
