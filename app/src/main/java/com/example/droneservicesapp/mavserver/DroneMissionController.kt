@@ -4,6 +4,7 @@ import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import com.example.droneservicesapp.core.util.Event
 import com.example.droneservicesapp.data.mavlink.MissionService
+import com.example.droneservicesapp.data.mavlink.MissionUploadResult
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import io.dronefleet.mavlink.common.MissionItemInt
 import io.reactivex.Single
@@ -19,8 +20,13 @@ internal class DroneMissionController(
     private val uploadProgressPercent: MutableLiveData<Int>,
     private val repoDisposables: CompositeDisposable,
 ) {
+    private val uploadLock = Any()
     @Volatile private var missionDownloadInProgress = false
     @Volatile private var lastDownloadAttemptMs: Long = 0L
+    @Volatile private var currentDownloadDisposable: Disposable? = null
+    @Volatile private var currentDownloadCancelToken: AtomicBoolean? = null
+    @Volatile private var uploadInProgress = false
+    @Volatile private var lastUploadFinishedMs: Long = 0L
     @Volatile private var currentUploadDisposable: Disposable? = null
     @Volatile private var currentUploadCancelToken: AtomicBoolean? = null
 
@@ -33,23 +39,54 @@ internal class DroneMissionController(
         debounceMs: Long,
         logTag: String,
     ) {
-        val now = System.currentTimeMillis()
-        if (now - lastDownloadAttemptMs < debounceMs) return
-        lastDownloadAttemptMs = now
+        synchronized(uploadLock) {
+            val now = System.currentTimeMillis()
+            if (now - lastDownloadAttemptMs < debounceMs) return
+            lastDownloadAttemptMs = now
 
-        if (missionDownloadInProgress) return
-        missionDownloadInProgress = true
+            if (uploadInProgress) {
+                Log.d(logTag, "Skipping mission download while upload is in progress")
+                return
+            }
 
-        repoDisposables.add(
-            Single.fromCallable { missionService.downloadMission() }
-                .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
-                .doFinally { missionDownloadInProgress = false }
-                .subscribe(
-                    { items -> missionItems.postValue(items) },
-                    { err -> Log.e(logTag, "downloadMission failed: ${err.message}", err) }
-                )
-        )
+            if (missionDownloadInProgress) return
+            missionDownloadInProgress = true
+        }
+
+        val token = AtomicBoolean(false)
+        currentDownloadCancelToken = token
+
+        val disposable = Single.fromCallable {
+            try {
+                missionService.downloadMission(cancel = token)
+            } catch (interrupted: InterruptedException) {
+                Log.d(logTag, "downloadMission interrupted during cancellation")
+                Thread.currentThread().interrupt()
+                ArrayList<MissionItemInt>()
+            }
+        }
+            .subscribeOn(Schedulers.io())
+            .observeOn(AndroidSchedulers.mainThread())
+            .doFinally {
+                synchronized(uploadLock) {
+                    if (currentDownloadCancelToken === token) {
+                        currentDownloadDisposable = null
+                        currentDownloadCancelToken = null
+                    }
+                    missionDownloadInProgress = false
+                }
+            }
+            .subscribe(
+                { items ->
+                    if (!token.get()) {
+                        missionItems.postValue(items)
+                    }
+                },
+                { err -> Log.e(logTag, "downloadMission failed: ${err.message}", err) }
+            )
+
+        currentDownloadDisposable = disposable
+        repoDisposables.add(disposable)
     }
 
     fun uploadMission(
@@ -58,10 +95,39 @@ internal class DroneMissionController(
         uploadTimeoutMs: Long,
         logTag: String,
     ) {
-        currentUploadCancelToken?.set(true)
-        currentUploadDisposable?.dispose()
-        currentUploadDisposable = null
-        currentUploadCancelToken = null
+        synchronized(uploadLock) {
+            if (uploadInProgress) {
+                val reason = "Mission upload already in progress. Wait for it to finish before retrying."
+                Log.w(logTag, reason)
+                activityVm.mapAction.postValue(
+                    Event(MainActivityViewModel.MapAction.UploadMissionFailed(reason))
+                )
+                return
+            }
+
+            val now = System.currentTimeMillis()
+            val remainingCooldownMs = UPLOAD_RETRY_COOLDOWN_MS - (now - lastUploadFinishedMs)
+            if (remainingCooldownMs > 0L) {
+                val seconds = ((remainingCooldownMs + 999L) / 1000L).coerceAtLeast(1L)
+                val reason = "Mission upload is resetting. Retry in ${seconds}s."
+                Log.w(logTag, reason)
+                activityVm.mapAction.postValue(
+                    Event(MainActivityViewModel.MapAction.UploadMissionFailed(reason))
+                )
+                return
+            }
+
+            if (missionDownloadInProgress) {
+                Log.w(logTag, "Cancelling mission download before starting upload")
+                currentDownloadCancelToken?.set(true)
+                currentDownloadDisposable?.dispose()
+                currentDownloadDisposable = null
+                currentDownloadCancelToken = null
+                missionDownloadInProgress = false
+            }
+
+            uploadInProgress = true
+        }
 
         uploadProgressPercent.postValue(0)
 
@@ -82,31 +148,35 @@ internal class DroneMissionController(
                 .subscribeOn(Schedulers.io())
                 .observeOn(AndroidSchedulers.mainThread())
                 .doFinally {
-                    if (currentUploadCancelToken === token) {
-                        if (token.get()) {
-                            uploadProgressPercent.postValue(0)
+                    synchronized(uploadLock) {
+                        if (currentUploadCancelToken === token) {
+                            if (token.get()) {
+                                uploadProgressPercent.postValue(0)
+                            }
+                            currentUploadDisposable = null
+                            currentUploadCancelToken = null
                         }
-                        currentUploadDisposable = null
-                        currentUploadCancelToken = null
+                        uploadInProgress = false
+                        lastUploadFinishedMs = System.currentTimeMillis()
                     }
                 }
                 .subscribe(
-                    { ok ->
-                        Log.i(logTag, "uploadMission result=$ok")
-                        if (ok) {
-                            uploadProgressPercent.postValue(100)
-                            activityVm.mapAction.postValue(
-                                Event(MainActivityViewModel.MapAction.UploadMissionSuccess)
-                            )
-                        } else {
-                            uploadProgressPercent.postValue(0)
-                            activityVm.mapAction.postValue(
-                                Event(
-                                    MainActivityViewModel.MapAction.UploadMissionFailed(
-                                        "Upload rejected or timed out"
-                                    )
+                    { result ->
+                        when (result) {
+                            MissionUploadResult.Success -> {
+                                Log.i(logTag, "uploadMission result=success")
+                                uploadProgressPercent.postValue(100)
+                                activityVm.mapAction.postValue(
+                                    Event(MainActivityViewModel.MapAction.UploadMissionSuccess)
                                 )
-                            )
+                            }
+                            is MissionUploadResult.Failure -> {
+                                Log.i(logTag, "uploadMission result=false reason=${result.reason}")
+                                uploadProgressPercent.postValue(0)
+                                activityVm.mapAction.postValue(
+                                    Event(MainActivityViewModel.MapAction.UploadMissionFailed(result.reason))
+                                )
+                            }
                         }
                     },
                     { err ->
@@ -127,9 +197,22 @@ internal class DroneMissionController(
     }
 
     fun clear() {
-        currentUploadCancelToken?.set(true)
-        currentUploadDisposable?.dispose()
-        currentUploadDisposable = null
-        currentUploadCancelToken = null
+        synchronized(uploadLock) {
+            currentUploadCancelToken?.set(true)
+            currentUploadDisposable?.dispose()
+            currentUploadDisposable = null
+            currentUploadCancelToken = null
+            currentDownloadCancelToken?.set(true)
+            currentDownloadDisposable?.dispose()
+            currentDownloadDisposable = null
+            currentDownloadCancelToken = null
+            missionDownloadInProgress = false
+            uploadInProgress = false
+            lastUploadFinishedMs = System.currentTimeMillis()
+        }
+    }
+
+    private companion object {
+        private const val UPLOAD_RETRY_COOLDOWN_MS = 10_000L
     }
 }

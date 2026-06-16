@@ -32,6 +32,8 @@ object MissionBuilder {
 
         val missionItems = ArrayList<MissionItemInt>()
         val waypointFrame = missionWaypointFrameFor(altitudeReferenceMode)
+        val commandFrame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
+        val missionYawDegrees = 90.0f - angleProgress
         var seq = 0
 
         logInfo(
@@ -67,26 +69,13 @@ object MissionBuilder {
                 targetComponent(targetComponentId)
             }.build()
 
-        // seq=0: HOME waypoint (required, marks home location)
+        // seq=0: TAKEOFF for generated Copter ground-start AUTO missions.
         missionItems.add(
             buildItem(
-                frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-                command = MavCmd.MAV_CMD_NAV_WAYPOINT,
-                currentFlag = 1,  // Only seq=0 should have current=1
-                p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = Float.NaN,
-                x = currentPos.latitude.toE7(),
-                y = currentPos.longitude.toE7(),
-                z = 0.0f  // Home is at ground level
-            )
-        )
-
-        // seq=1: TAKEOFF from home to mission altitude
-        missionItems.add(
-            buildItem(
-                frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
                 command = MavCmd.MAV_CMD_NAV_TAKEOFF,
-                currentFlag = 0,
-                p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = Float.NaN,
+                currentFlag = 1,
+                p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
                 x = currentPos.latitude.toE7(),
                 y = currentPos.longitude.toE7(),
                 z = alt
@@ -99,8 +88,7 @@ object MissionBuilder {
             if (i == 0) {
                 missionItems.add(
                     buildItem(
-                        // Non-positional DO_* commands should use MAV_FRAME_MISSION
-                        frame = MavFrame.MAV_FRAME_MISSION,
+                        frame = commandFrame,
                         command = MavCmd.MAV_CMD_DO_CHANGE_SPEED,
                         currentFlag = 0,
                         p1 = 1.0f, p2 = flightSpeed, p3 = 0.0f, p4 = 0.0f,
@@ -109,25 +97,14 @@ object MissionBuilder {
                 )
             }
 
-            // Set steady heading for each mission waypoint
-            missionItems.add(
-                buildItem(
-                    // Non-positional CONDITION_* commands should use MAV_FRAME_MISSION
-                    frame = MavFrame.MAV_FRAME_MISSION,
-                    command = MavCmd.MAV_CMD_CONDITION_YAW,
-                    currentFlag = 0,
-                    p1 = 90.0f - angleProgress, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
-                    x = 0, y = 0, z = 0.0f
-                )
-            )
-
-            // Add waypoint using the selected altitude reference frame.
+            // Add waypoint using the selected altitude reference frame. Desired survey
+            // yaw is encoded in param4 to avoid alternating CONDITION_YAW items.
             missionItems.add(
                 buildItem(
                     frame = waypointFrame,
                     command = MavCmd.MAV_CMD_NAV_WAYPOINT,
                     currentFlag = 0,
-                    p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = Float.NaN,
+                    p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = missionYawDegrees,
                     x = wp.latitude.toE7(),
                     y = wp.longitude.toE7(),
                     z = alt
@@ -138,8 +115,7 @@ object MissionBuilder {
             if (i == 0) {
                 missionItems.add(
                     buildItem(
-                        // Non-positional DO_* commands should use MAV_FRAME_MISSION
-                        frame = MavFrame.MAV_FRAME_MISSION,
+                        frame = commandFrame,
                         command = MavCmd.MAV_CMD_DO_SET_SERVO,
                         currentFlag = 0,
                         p1 = 5.0f, p2 = sprayerIntensityPWM, p3 = 0.0f, p4 = 0.0f,
@@ -152,8 +128,7 @@ object MissionBuilder {
         // Disable sprayer on Servo 5.
         missionItems.add(
             buildItem(
-                // Non-positional DO_* commands should use MAV_FRAME_MISSION
-                frame = MavFrame.MAV_FRAME_MISSION,
+                frame = commandFrame,
                 command = MavCmd.MAV_CMD_DO_SET_SERVO,
                 currentFlag = 0,
                 p1 = 5.0f, p2 = 1000.0f, p3 = 0.0f, p4 = 0.0f,
@@ -211,6 +186,7 @@ object MissionBuilder {
     ): ArrayList<MissionItemInt> {
         val missionItems = ArrayList<MissionItemInt>()
         val waypointFrame = missionWaypointFrameFor(altitudeReferenceMode)
+        val commandFrame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
         var seq = 0
 
         logInfo(
@@ -250,22 +226,10 @@ object MissionBuilder {
 
         missionItems.add(
             buildItem(
-                frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT,
-                command = MavCmd.MAV_CMD_NAV_WAYPOINT,
-                currentFlag = 1,
-                p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = Float.NaN,
-                x = currentLatitude.toE7(),
-                y = currentLongitude.toE7(),
-                z = 0.0f
-            )
-        )
-
-        missionItems.add(
-            buildItem(
-                frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
                 command = MavCmd.MAV_CMD_NAV_TAKEOFF,
-                currentFlag = 0,
-                p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = Float.NaN,
+                currentFlag = 1,
+                p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
                 x = currentLatitude.toE7(),
                 y = currentLongitude.toE7(),
                 z = firstAltitude
@@ -280,7 +244,7 @@ object MissionBuilder {
                 activeSpeed = waypoint.speedMetersPerSecond
                 missionItems.add(
                     buildItem(
-                        frame = MavFrame.MAV_FRAME_MISSION,
+                        frame = commandFrame,
                         command = MavCmd.MAV_CMD_DO_CHANGE_SPEED,
                         currentFlag = 0,
                         p1 = 1.0f, p2 = waypoint.speedMetersPerSecond.toFloat(), p3 = 0.0f, p4 = 0.0f,
@@ -296,7 +260,7 @@ object MissionBuilder {
             ) {
                 missionItems.add(
                     buildItem(
-                        frame = MavFrame.MAV_FRAME_MISSION,
+                        frame = commandFrame,
                         command = MavCmd.MAV_CMD_DO_SET_SERVO,
                         currentFlag = 0,
                         p1 = 5.0f,
@@ -313,7 +277,7 @@ object MissionBuilder {
             } else if (!waypoint.sprayEnabled && sprayerOn) {
                 missionItems.add(
                     buildItem(
-                        frame = MavFrame.MAV_FRAME_MISSION,
+                        frame = commandFrame,
                         command = MavCmd.MAV_CMD_DO_SET_SERVO,
                         currentFlag = 0,
                         p1 = 5.0f, p2 = 1000.0f, p3 = 0.0f, p4 = 0.0f,
@@ -329,7 +293,7 @@ object MissionBuilder {
                     frame = waypointFrame,
                     command = MavCmd.MAV_CMD_NAV_WAYPOINT,
                     currentFlag = 0,
-                    p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = Float.NaN,
+                    p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
                     x = waypoint.latitude.toE7(),
                     y = waypoint.longitude.toE7(),
                     z = waypoint.altitudeMeters.toFloat()
@@ -340,7 +304,7 @@ object MissionBuilder {
         if (sprayerOn) {
             missionItems.add(
                 buildItem(
-                    frame = MavFrame.MAV_FRAME_MISSION,
+                    frame = commandFrame,
                     command = MavCmd.MAV_CMD_DO_SET_SERVO,
                     currentFlag = 0,
                     p1 = 5.0f, p2 = 1000.0f, p3 = 0.0f, p4 = 0.0f,
@@ -362,12 +326,94 @@ object MissionBuilder {
         return missionItems
     }
 
+    fun buildMinimalTestMission(
+        currentLatitude: Double,
+        currentLongitude: Double,
+        altitudeMeters: Float,
+        targetSystemId: Int,
+        targetComponentId: Int
+    ): ArrayList<MissionItemInt> {
+        val missionItems = ArrayList<MissionItemInt>()
+        var seq = 0
+
+        fun nextSeq() = seq++
+
+        fun buildItem(
+            command: MavCmd,
+            currentFlag: Int,
+            p1: Float, p2: Float, p3: Float, p4: Float,
+            x: Int, y: Int, z: Float,
+            frame: MavFrame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
+        ): MissionItemInt =
+            MissionItemInt.builder().apply {
+                seq(nextSeq())
+                frame(frame)
+                command(command)
+                current(currentFlag)
+                autocontinue(1)
+                param1(p1)
+                param2(p2)
+                param3(p3)
+                param4(p4)
+                x(x)
+                y(y)
+                z(z)
+                missionType(MavMissionType.MAV_MISSION_TYPE_MISSION)
+                targetSystem(targetSystemId)
+                targetComponent(targetComponentId)
+            }.build()
+
+        missionItems.add(
+            buildItem(
+                command = MavCmd.MAV_CMD_NAV_TAKEOFF,
+                currentFlag = 1,
+                p1 = 0f, p2 = 0f, p3 = 0f, p4 = 0.0f,
+                x = currentLatitude.toE7(),
+                y = currentLongitude.toE7(),
+                z = altitudeMeters
+            )
+        )
+        missionItems.add(
+            buildItem(
+                command = MavCmd.MAV_CMD_NAV_WAYPOINT,
+                currentFlag = 0,
+                p1 = 0f, p2 = 0f, p3 = 0f, p4 = 0.0f,
+                x = (currentLatitude + 0.0001).toE7(),
+                y = currentLongitude.toE7(),
+                z = altitudeMeters
+            )
+        )
+        missionItems.add(
+            buildItem(
+                command = MavCmd.MAV_CMD_NAV_WAYPOINT,
+                currentFlag = 0,
+                p1 = 0f, p2 = 0f, p3 = 0f, p4 = 0.0f,
+                x = (currentLatitude + 0.0001).toE7(),
+                y = (currentLongitude + 0.0001).toE7(),
+                z = altitudeMeters
+            )
+        )
+        missionItems.add(
+            buildItem(
+                command = MavCmd.MAV_CMD_NAV_RETURN_TO_LAUNCH,
+                currentFlag = 0,
+                p1 = 0f, p2 = 0f, p3 = 0f, p4 = 0f,
+                x = 0,
+                y = 0,
+                z = 0f,
+                frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT
+            )
+        )
+
+        return missionItems
+    }
+
     private fun Double.toE7(): Int = (this * 1e7).toInt()
 
     fun missionWaypointFrameFor(mode: AltitudeReferenceMode): MavFrame {
         return when (mode) {
-            AltitudeReferenceMode.RELATIVE -> MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT
-            AltitudeReferenceMode.TERRAIN -> MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT
+            AltitudeReferenceMode.RELATIVE -> MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
+            AltitudeReferenceMode.TERRAIN -> MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT_INT
         }
     }
 
