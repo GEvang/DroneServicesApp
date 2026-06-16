@@ -741,6 +741,7 @@ class MissionMapFragment : Fragment() {
 
     private fun renderHomeMapUiState(state: HomeMapUiState) {
         isDrawingModeActive = state.interactionState.isDrawingEnabled
+        geoZoneOverlayController?.setZoneDetailsEnabled(!state.interactionState.isDrawingEnabled)
         osmdroidPolygonEditor.setEnabled(
             state.interactionState.isDrawingEnabled &&
                 activityViewModel.activePlanningWorkflow.value != PlanningWorkflow.POINTS
@@ -1359,6 +1360,44 @@ class MissionMapFragment : Fragment() {
                 )
                 showGeoAwarenessBlockedDialog(result)
             }
+            result.highestRestriction == GeoZoneRestriction.PROHIBITED -> {
+                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: prohibited acknowledgement required conflicts=${result.conflicts.size}")
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.UPLOAD_ACK_REQUIRED,
+                    severity = "WARNING",
+                    message = "Geo upload requires prohibited zone acknowledgement",
+                    category = "MISSION",
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = health.state.name,
+                    zoneIds = result.conflicts.map { it.zone.id }.distinct(),
+                    zoneNames = result.conflicts.map { it.zone.name }.distinct(),
+                    restriction = GeoZoneRestriction.PROHIBITED.name,
+                    latitude = latestRealDronePosition?.lat,
+                    longitude = latestRealDronePosition?.lon,
+                    altitudeMeters = latestRealDroneAltitudeMeters
+                )
+                showGeoAwarenessProhibitedAcknowledgementDialog(result, health) {
+                    Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after prohibited zone warning")
+                    geoEventLogger.logSimple(
+                        type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
+                        severity = "INFO",
+                        message = "User acknowledged prohibited geo-zone upload warning",
+                        category = "MISSION",
+                        datasetTitle = geoZoneDatasetInfo?.title,
+                        datasetVersion = geoZoneDatasetInfo?.version,
+                        healthState = health.state.name,
+                        zoneIds = result.conflicts.map { it.zone.id }.distinct(),
+                        zoneNames = result.conflicts.map { it.zone.name }.distinct(),
+                        restriction = GeoZoneRestriction.PROHIBITED.name,
+                        latitude = latestRealDronePosition?.lat,
+                        longitude = latestRealDronePosition?.lon,
+                        altitudeMeters = latestRealDroneAltitudeMeters,
+                        details = mapOf("pilotAcknowledgement" to "prohibited_zone_warning_seen")
+                    )
+                    onAllowed()
+                }
+            }
             result.requiresAcknowledgement -> {
                 val authorizationZones = authorizationRequiredZones(result)
                 val unconfirmedAuthorizationZones = authorizationZones
@@ -1495,6 +1534,52 @@ class MissionMapFragment : Fragment() {
             title = "Geo-awareness upload blocked",
             message = message
         )
+    }
+
+    private fun showGeoAwarenessProhibitedAcknowledgementDialog(
+        result: GeoAwarenessResult,
+        health: GeoAwarenessHealth,
+        onAcknowledged: () -> Unit
+    ) {
+        val prohibitedZones = result.conflicts
+            .map { it.zone }
+            .filter { it.restriction == GeoZoneRestriction.PROHIBITED }
+            .distinctBy { it.id }
+        val message = buildString {
+            appendLine("This mission intersects prohibited UAS geographical zone(s).")
+            appendLine("Geo-awareness is advisory in this application. Upload can continue only after the remote pilot acknowledges this warning and verifies official restrictions.")
+            appendLine()
+            prohibitedZones.forEach { zone ->
+                appendLine("- ${zone.name}")
+                appendLine("  UGZ ID: ${zone.id}")
+                zone.authorities.firstOrNull()?.let { authority ->
+                    appendLine("  Authority: ${authority.name ?: "Not specified"}")
+                    appendLine("  Purpose: ${authority.purpose ?: "Not specified"}")
+                }
+            }
+            appendLine()
+            append(buildGeoConflictSummary(result))
+        }
+        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
+            .setTitle("Prohibited geo-zone warning")
+            .setMessage(message)
+            .setPositiveButton("Acknowledge and upload") { _, _ ->
+                onAcknowledged()
+            }
+            .setNegativeButton("Cancel") { _, _ ->
+                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled prohibited zone warning")
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.UPLOAD_CANCELLED,
+                    severity = "INFO",
+                    message = "User cancelled prohibited geo-zone upload warning",
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = health.state.name
+                )
+            }
+            .show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
     }
 
     private fun showGeoAwarenessAcknowledgementDialog(

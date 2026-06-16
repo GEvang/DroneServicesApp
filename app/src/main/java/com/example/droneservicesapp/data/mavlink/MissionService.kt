@@ -224,7 +224,8 @@ class MissionService(
 
         val lastProgressMs = AtomicLong(System.currentTimeMillis())
         val lastSentSeq = AtomicInteger(-1)
-        // De-duplication: track the last processed sequence number
+        // Track progress, but still answer duplicate requests because ArduPilot may re-request
+        // an item when the previous response was lost on a noisy link.
         val lastProcessedSeq = AtomicInteger(-1)
 
         val resendCountAttempts = AtomicInteger(0)
@@ -241,8 +242,7 @@ class MissionService(
             .build()
 
         val startMs = System.currentTimeMillis()
-        // More forgiving than the previous 15s/500ms heuristic.
-        val totalTimeoutMs = maxOf(45_000L, items.size * 750L)
+        val totalTimeoutMs = maxOf(90_000L, items.size * 1_200L)
 
         try {
             // ---- MissionRequestInt ----
@@ -268,21 +268,18 @@ class MissionService(
                             "RX MISSION_REQUEST_INT seq=$seq from sys=${req.originSystemId} comp=${req.originComponentId}"
                         )
 
-                        // De-duplication check: skip if we've already processed this seq or earlier
                         if (seq <= lastProcessedSeq.get()) {
                             Log.d(
                                 "MissionUpload",
-                                "SKIP duplicate MISSION_REQUEST_INT seq=$seq (already processed seq=${lastProcessedSeq.get()})"
+                                "RX duplicate/older MISSION_REQUEST_INT seq=$seq; resending item"
                             )
-                            return@subscribe
                         }
 
                         if (seq in items.indices) {
                             val out = itemWithTargetsAndSeq(items[seq], seq, uploadTargetSystemId, uploadTargetComponentId)
                             client.send2(gcsSystemId, gcsComponentId, out)
                             lastSentSeq.set(seq)
-                            // Mark this sequence as processed immediately after sending
-                            lastProcessedSeq.set(seq)
+                            lastProcessedSeq.updateAndGet { previous -> maxOf(previous, seq) }
                             // CRITICAL: Reset progress timer after successful send so watchdog doesn't timeout
                             lastProgressMs.set(System.currentTimeMillis())
                             Log.i(
@@ -327,21 +324,18 @@ class MissionService(
                             "RX MISSION_REQUEST seq=$seq from sys=${req.originSystemId} comp=${req.originComponentId}"
                         )
 
-                        // De-duplication check: skip if we've already processed this seq or earlier
                         if (seq <= lastProcessedSeq.get()) {
                             Log.d(
                                 "MissionUpload",
-                                "SKIP duplicate MISSION_REQUEST seq=$seq (already processed seq=${lastProcessedSeq.get()})"
+                                "RX duplicate/older MISSION_REQUEST seq=$seq; resending item"
                             )
-                            return@subscribe
                         }
 
                         if (seq in items.indices) {
                             val out = itemIntToItemWithTargetsAndSeq(items[seq], seq, uploadTargetSystemId, uploadTargetComponentId)
                             client.send2(gcsSystemId, gcsComponentId, out)
                             lastSentSeq.set(seq)
-                            // Mark this sequence as processed immediately after sending
-                            lastProcessedSeq.set(seq)
+                            lastProcessedSeq.updateAndGet { previous -> maxOf(previous, seq) }
                             // CRITICAL: Reset progress timer after successful send so watchdog doesn't timeout
                             lastProgressMs.set(System.currentTimeMillis())
                             Log.i(

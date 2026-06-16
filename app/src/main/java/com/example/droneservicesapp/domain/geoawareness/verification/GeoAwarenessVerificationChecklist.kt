@@ -135,17 +135,19 @@ object GeoAwarenessVerificationChecklist {
         ),
         GeoAwarenessVerificationCase(
             id = "GA-010",
-            title = "Upload guard - prohibited blocked",
-            purpose = "Verify prohibited conflict blocks upload.",
+            title = "Upload guard - prohibited acknowledgement",
+            purpose = "Verify prohibited conflict requires pilot acknowledgement before upload.",
             preconditions = emptyList(),
             steps = listOf(
                 "Plan mission over prohibited zone.",
-                "Tap upload."
+                "Tap upload.",
+                "Cancel, then retry.",
+                "Acknowledge the prohibited geo-zone warning."
             ),
-            expectedResult = "Upload blocked dialog. MAVLink upload does not start.",
+            expectedResult = "Cancel stops upload. Acknowledge continues upload after the prohibited-zone warning.",
             evidenceToCapture = listOf(
-                "Dialog screenshot.",
-                "UPLOAD_BLOCKED log."
+                "Dialog screenshots.",
+                "UPLOAD_ACK_REQUIRED, UPLOAD_CANCELLED, and UPLOAD_ACKNOWLEDGED logs."
             ),
             category = "Upload guard"
         ),

@@ -39,6 +39,9 @@ class GeoAwarenessChecker {
         val conflicts = mutableListOf<GeoZoneConflict>()
 
         for (zone in zones) {
+            if (!GeoZoneApplicabilityEvaluator.isActiveNow(zone)) {
+                continue
+            }
             var missionAreaGeometryCount = 0
             var surveyPathGeometryCount = 0
             var waypointInsideGeometryCount = 0
@@ -109,8 +112,9 @@ class GeoAwarenessChecker {
         }
 
         val highestRestriction = highestRestriction(conflicts)
-        val canUpload = highestRestriction != GeoZoneRestriction.PROHIBITED
-        val requiresAcknowledgement = highestRestriction == GeoZoneRestriction.REQ_AUTHORISATION
+        val canUpload = true
+        val requiresAcknowledgement = highestRestriction == GeoZoneRestriction.PROHIBITED ||
+            highestRestriction == GeoZoneRestriction.REQ_AUTHORISATION
 
         return GeoAwarenessResult(
             conflicts = conflicts,

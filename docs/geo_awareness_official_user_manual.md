@@ -207,7 +207,7 @@ Planning chip labels:
 | Label | Meaning |
 | --- | --- |
 | **GEO: CLEAR** | No conflicts detected for the current mission plan. |
-| **GEO: PROHIBITED** | The mission intersects a prohibited zone. |
+| **GEO: PROHIBITED** | The mission intersects a prohibited zone. Upload requires pilot acknowledgement before continuing. |
 | **GEO: AUTH REQUIRED** | The mission intersects an authorization-required zone. |
 | **GEO: CONDITIONAL** | The mission intersects a conditional zone. |
 | **GEO: INFO** | The mission intersects an information zone. |
@@ -245,8 +245,8 @@ When the operator uploads a mission, the app evaluates the current mission plan 
 
 If the mission intersects a **PROHIBITED** zone:
 
-- Upload is blocked.
-- The app shows **Geo-awareness upload blocked**.
+- The app shows **Prohibited geo-zone warning**.
+- Upload continues only if the pilot acknowledges the warning.
 - The operator must cancel the upload and revise the plan or verify official restrictions outside the app.
 
 ### Authorization-required Zone
@@ -361,7 +361,7 @@ The operator is responsible for:
 | Dataset shows **DEGRADED** | Dataset has validation warnings. | Review validation details and verify the source. |
 | Zones do not appear on the map | Overlay switch is off or no zones are loaded. | Enable **Show geo-zones on map** and confirm datasets are loaded. |
 | Live status shows **NO POS** | No usable telemetry position is available. | Verify drone connection, GPS fix, and telemetry. |
-| Upload is blocked | Mission intersects a prohibited zone. | Revise mission or verify official authority requirements outside the app. |
+| Upload requires prohibited-zone acknowledgement | Mission intersects a prohibited zone. | Revise mission, or acknowledge only after verifying official authority requirements outside the app. |
 | Upload requires acknowledgement | Mission intersects an authorization-required zone or data health warning applies. | Confirm only after official authorization or restriction verification. |
 
 ## 18. Important Limitations

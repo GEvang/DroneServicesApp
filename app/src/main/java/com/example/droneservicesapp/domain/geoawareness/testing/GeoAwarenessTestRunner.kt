@@ -173,12 +173,13 @@ class GeoAwarenessTestRunner(
         )
         val pass = result.hasConflicts &&
             result.highestRestriction == GeoZoneRestriction.PROHIBITED &&
-            !result.canUpload
+            result.canUpload &&
+            result.requiresAcknowledgement
         return GeoAwarenessTestResult(
             id = "GA-TEST-006",
             name = "Mission checker prohibited conflict",
             status = if (pass) GeoAwarenessTestStatus.PASS else GeoAwarenessTestStatus.FAIL,
-            message = if (pass) "Mission checker blocked prohibited mission as expected." else "Mission checker did not block prohibited mission."
+            message = if (pass) "Mission checker requires acknowledgement for prohibited mission as expected." else "Mission checker did not require acknowledgement for prohibited mission."
         )
     }
 
@@ -329,7 +330,8 @@ class GeoAwarenessTestRunner(
             zones = authorizationZones
         )
         val clear = GeoAwarenessResult.clear()
-        val pass = !prohibited.canUpload &&
+        val pass = prohibited.canUpload &&
+            prohibited.requiresAcknowledgement &&
             authorization.requiresAcknowledgement &&
             authorization.canUpload &&
             clear.canUpload &&

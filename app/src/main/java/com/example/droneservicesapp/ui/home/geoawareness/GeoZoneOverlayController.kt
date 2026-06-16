@@ -34,6 +34,11 @@ class GeoZoneOverlayController(
 ) {
     private val overlays = mutableListOf<Overlay>()
     private var renderedZones: List<GeoZone> = emptyList()
+    private var zoneDetailsEnabled: Boolean = true
+
+    fun setZoneDetailsEnabled(enabled: Boolean) {
+        zoneDetailsEnabled = enabled
+    }
 
     fun renderZones(zones: List<GeoZone>) {
         clear()
@@ -98,6 +103,9 @@ class GeoZoneOverlayController(
             title = zone.name
             subDescription = zone.message
             setOnClickListener { _, _, eventPosition ->
+                if (!zoneDetailsEnabled) {
+                    return@setOnClickListener false
+                }
                 handleZoneTap(
                     tappedPoint = eventPosition?.let { LatLon(lat = it.latitude, lon = it.longitude) }
                 )
