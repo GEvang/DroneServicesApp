@@ -174,8 +174,8 @@ class LiveGeoAwarenessPanelBinder(
                 VerticalIndicator.NONE -> ""
             }
             when {
-                threat.verticalIndicator != VerticalIndicator.NONE -> placeVerticalMarker(marker, threat.verticalIndicator)
                 threat.bearingDegrees != null -> placeBearingMarker(marker, threat.bearingDegrees)
+                threat.verticalIndicator != VerticalIndicator.NONE -> placeVerticalMarker(marker, threat.verticalIndicator)
                 else -> marker.visibility = View.INVISIBLE
             }
         }
