@@ -15,6 +15,7 @@ import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
@@ -49,6 +50,8 @@ import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
 import com.example.droneservicesapp.mavserver.DroneViewModel
+import com.example.droneservicesapp.mavserver.GpsFixQuality
+import com.example.droneservicesapp.mavserver.TelemetryMapping
 import com.example.droneservicesapp.ui.home.binders.HomeMapChromeBinder
 import com.example.droneservicesapp.ui.home.binders.HomeMapModeEffectsBinder
 import com.example.droneservicesapp.ui.home.binders.HomeMapPanelsBinder
@@ -76,6 +79,9 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlin.math.atan2
 import kotlin.math.cos
 import kotlin.math.sin
@@ -146,6 +152,7 @@ class MissionMapFragment : Fragment() {
     private var initialCenterAttemptCount = 0
     private var initialDroneCenterAttemptCount = 0
     private var lastGeoZoneReloadToken: Long = 0L
+    private var geoZoneReloadInProgress: Boolean = false
 
     companion object {
         private const val DEFAULT_MAP_ZOOM = 18.0
@@ -529,6 +536,14 @@ class MissionMapFragment : Fragment() {
                 centerInitialViewportIfNeeded()
             }
 
+            updateLiveGeoAwarenessFromActiveSource()
+        }
+
+        droneViewModel.conStateLiveData.observe(viewLifecycleOwner) {
+            updateLiveGeoAwarenessFromActiveSource()
+        }
+
+        droneViewModel.gpsFixType.observe(viewLifecycleOwner) {
             updateLiveGeoAwarenessFromActiveSource()
         }
 
@@ -1066,27 +1081,40 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun reloadCurrentGeoAwarenessDataset() {
-        try {
-            val repository = buildGeoZoneRepository()
-            val loadResult = repository.loadCurrentDataset()
-            applyGeoZoneLoadResult(loadResult, repository.hasImportedDatasets())
-            logMultiDatasetLoadedIfNeeded(loadResult)
-            renderGeoAwarenessLayerIfVisible()
-            updateGeoAwarenessPlanningStatus()
-            updateLiveGeoAwarenessFromActiveSource()
-            geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
-        } catch (error: Exception) {
-            Log.e(GEO_ZONE_TOGGLE_TAG, "Failed to reload geo-awareness dataset", error)
-            geoAwarenessLoadError = error
-            geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
-                datasetInfo = geoZoneDatasetInfo,
-                zones = geoAwarenessZones,
-                datasetRecords = activityViewModel.geoZoneDatasetRecords.value.orEmpty(),
-                validationResult = geoZoneValidationResult,
-                loadError = error
-            )
-            activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
-            geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
+        if (geoZoneReloadInProgress) return
+        geoZoneReloadInProgress = true
+        val appContext = requireContext().applicationContext
+        lifecycleScope.launch {
+            try {
+                val reloadResult = withContext(Dispatchers.IO) {
+                    val repository = GeoZoneRepository(
+                        importedFileDataSource = GeoZoneImportedFileDataSource(appContext)
+                    )
+                    repository.loadCurrentDataset() to repository.hasImportedDatasets()
+                }
+                val (loadResult, importedActive) = reloadResult
+                if (_binding == null) return@launch
+                applyGeoZoneLoadResult(loadResult, importedActive)
+                logMultiDatasetLoadedIfNeeded(loadResult)
+                renderGeoAwarenessLayerIfVisible()
+                updateGeoAwarenessPlanningStatus()
+                updateLiveGeoAwarenessFromActiveSource()
+                geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
+            } catch (error: Exception) {
+                Log.e(GEO_ZONE_TOGGLE_TAG, "Failed to reload geo-awareness dataset", error)
+                geoAwarenessLoadError = error
+                geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
+                    datasetInfo = geoZoneDatasetInfo,
+                    zones = geoAwarenessZones,
+                    datasetRecords = activityViewModel.geoZoneDatasetRecords.value.orEmpty(),
+                    validationResult = geoZoneValidationResult,
+                    loadError = error
+                )
+                activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
+                geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
+            } finally {
+                geoZoneReloadInProgress = false
+            }
         }
     }
 
@@ -2042,10 +2070,14 @@ class MissionMapFragment : Fragment() {
             proximity.headingDegrees?.let { put("headingDegrees", it.toString()) }
             proximity.closingSpeedMetersPerSecond?.let { put("closingSpeedMetersPerSecond", it.toString()) }
             proximity.timeToBoundarySeconds?.let { put("timeToBoundarySeconds", it.toString()) }
+            proximity.verticalDistanceMeters?.let { put("verticalDistanceToBoundaryMeters", it.toString()) }
+            proximity.verticalClosingSpeedMetersPerSecond?.let { put("verticalClosingSpeedMetersPerSecond", it.toString()) }
+            proximity.verticalTimeToBoundarySeconds?.let { put("verticalTimeToBoundarySeconds", it.toString()) }
+            proximity.verticalBoundaryReference?.let { put("verticalBoundaryReference", it.name) }
             proximity.warningMeetsRequiredTime?.let { put("warningMeetsRequiredTime", it.toString()) }
             put("warningMode", proximity.warningMode)
             put("verticalRelevance", proximity.verticalRelevance.toString())
-            put("triggerRule", "distanceToBoundaryMeters <= configuredDistanceThresholdMeters OR timeToBoundarySeconds <= requiredWarningTimeSeconds when closingSpeedMetersPerSecond > 0")
+            put("triggerRule", "horizontal distanceToBoundaryMeters <= configuredDistanceThresholdMeters OR horizontal timeToBoundarySeconds <= requiredWarningTimeSeconds when closingSpeedMetersPerSecond > 0 OR verticalDistanceToBoundaryMeters <= verticalWarningBufferMeters OR verticalTimeToBoundarySeconds <= requiredWarningTimeSeconds when verticalClosingSpeedMetersPerSecond > 0")
         }
     }
 
@@ -2071,6 +2103,14 @@ class MissionMapFragment : Fragment() {
         droneAltitudeMeters: Double?
     ) {
         latestLiveDronePosition = dronePosition
+
+        liveGeoAwarenessDegradedReason()?.let { reason ->
+            latestLiveGeoZones = emptyList()
+            latestLiveGeoProximity = null
+            lastLiveProximityIdentity = null
+            liveGeoAwarenessStatusBinder?.bindDegraded(reason)
+            return
+        }
 
         if (dronePosition == null) {
             latestLiveGeoZones = emptyList()
@@ -2121,7 +2161,8 @@ class MissionMapFragment : Fragment() {
                     amslMeters = latestRealDroneAltitudeAmslMeters
                 ),
                 groundSpeedMetersPerSecond = latestRealDroneGroundSpeedMetersPerSecond?.toDouble(),
-                headingDegrees = latestRealDroneHeadingDegrees
+                headingDegrees = latestRealDroneHeadingDegrees,
+                verticalSpeedMetersPerSecond = latestRealDroneVerticalSpeedMetersPerSecond?.toDouble()
             )
             latestLiveGeoProximity = nearestZone
             if (nearestZone == null) {
@@ -2134,10 +2175,17 @@ class MissionMapFragment : Fragment() {
                     longitude = dronePosition.lon,
                     altitudeMeters = droneAltitudeMeters
                 )
-                liveGeoAwarenessStatusBinder?.bindNear(
-                    zone = nearestZone.nearestZone,
-                    distanceMeters = nearestZone.distanceMeters
-                )
+                if (nearestZone.warningMode.startsWith("VERTICAL")) {
+                    liveGeoAwarenessStatusBinder?.bindVerticalNear(
+                        zone = nearestZone.nearestZone,
+                        verticalDistanceMeters = nearestZone.verticalDistanceMeters
+                    )
+                } else {
+                    liveGeoAwarenessStatusBinder?.bindNear(
+                        zone = nearestZone.nearestZone,
+                        distanceMeters = nearestZone.distanceMeters
+                    )
+                }
             }
         } else {
             latestLiveGeoProximity = null
@@ -2197,6 +2245,15 @@ class MissionMapFragment : Fragment() {
                     proximity.timeToBoundarySeconds?.let { seconds ->
                         appendLine("Time to boundary: ${"%.2f".format(Locale.US, seconds)} s")
                     }
+                    proximity.verticalDistanceMeters?.let { distance ->
+                        appendLine("Vertical distance to limit: ${"%.2f".format(Locale.US, distance)} m")
+                    }
+                    proximity.verticalClosingSpeedMetersPerSecond?.let { speed ->
+                        appendLine("Vertical closing speed: ${"%.2f".format(Locale.US, speed)} m/s")
+                    }
+                    proximity.verticalTimeToBoundarySeconds?.let { seconds ->
+                        appendLine("Vertical time to limit: ${"%.2f".format(Locale.US, seconds)} s")
+                    }
                     appendLine("Warning mode: ${proximity.warningMode}")
                     if (!geoZoneDatasetInfo?.title.isNullOrBlank()) {
                         appendLine("Dataset: ${geoZoneDatasetInfo?.title} (${geoZoneDatasetInfo?.version ?: "N/A"})")
@@ -2234,5 +2291,21 @@ class MissionMapFragment : Fragment() {
 
     private fun updateLiveGeoAwarenessFromActiveSource() {
         updateLiveGeoAwarenessStatus(latestRealDronePosition, latestRealDroneAltitudeMeters)
+    }
+
+    private fun liveGeoAwarenessDegradedReason(): String? {
+        if (droneViewModel.conStateLiveData.value != true) {
+            return "Geo-awareness degraded: no drone link"
+        }
+        return when (TelemetryMapping.gpsFixQuality(droneViewModel.gpsFixType.value, isConnected = true)) {
+            GpsFixQuality.DISCONNECTED,
+            GpsFixQuality.NO_GPS,
+            GpsFixQuality.UNKNOWN -> "Geo-awareness degraded: GPS position is not reliable"
+            GpsFixQuality.FIX_2D,
+            GpsFixQuality.FIX_3D,
+            GpsFixQuality.DGPS,
+            GpsFixQuality.RTK_FLOAT,
+            GpsFixQuality.RTK_FIXED -> null
+        }
     }
 }

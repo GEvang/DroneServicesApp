@@ -307,6 +307,7 @@ class GeoAwarenessFragment : Fragment() {
         }
 
         datasetLoadInProgress = true
+        setDatasetBusyState(true, "Loading geo-zone dataset...")
         val appContext = requireContext().applicationContext
         lifecycleScope.launch {
             try {
@@ -325,6 +326,9 @@ class GeoAwarenessFragment : Fragment() {
                 }
             } finally {
                 datasetLoadInProgress = false
+                if (_binding != null) {
+                    setDatasetBusyState(false)
+                }
             }
         }
     }
@@ -1439,6 +1443,9 @@ class GeoAwarenessFragment : Fragment() {
     }
 
     private fun handleDatasetImport(uri: Uri, originalFileName: String?) {
+        if (datasetLoadInProgress) return
+        datasetLoadInProgress = true
+        setDatasetBusyState(true, "Importing geo-zone dataset...")
         geoEventLogger.logSimple(
             type = GeoAwarenessEventType.DATASET_IMPORT_STARTED,
             severity = "INFO",
@@ -1448,49 +1455,65 @@ class GeoAwarenessFragment : Fragment() {
                 originalFileName?.let { put("originalFileName", it) }
             }
         )
-
-        try {
-            val rawJson = readUtf8FromUri(uri)
-            val repository = buildRepository()
-            val loadResult = repository.importDataset(rawJson, originalFileName)
-            applyLoadedDataset(loadResult, importedActive = true)
-            lastGeoZoneReloadToken = activityViewModel.notifyGeoZoneDatasetReloaded()
-            geoEventLogger.logSimple(
-                type = GeoAwarenessEventType.DATASET_IMPORT_SUCCEEDED,
-                severity = "INFO",
-                message = "Geo-zone dataset import succeeded",
-                datasetTitle = loadResult.datasetInfo.title,
-                datasetVersion = loadResult.datasetInfo.version,
-                healthState = geoAwarenessHealth?.state?.name,
-                details = standardDatasetLogDetails(
-                    operation = "manual_import",
-                    loadResult = loadResult,
-                    requestedUri = uri.toString(),
-                    originalFileName = originalFileName
-                ) + mapOf(
-                    "addedDatasetTitle" to loadResult.datasetRecords.lastOrNull()?.displayName.orEmpty()
+        val appContext = requireContext().applicationContext
+        lifecycleScope.launch {
+            try {
+                val loadResult = withContext(Dispatchers.IO) {
+                    val rawJson = readUtf8FromUri(uri)
+                    buildRepository(appContext).importDataset(rawJson, originalFileName)
+                }
+                if (_binding == null) return@launch
+                applyLoadedDataset(loadResult, importedActive = true)
+                lastGeoZoneReloadToken = activityViewModel.notifyGeoZoneDatasetReloaded()
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.DATASET_IMPORT_SUCCEEDED,
+                    severity = "INFO",
+                    message = "Geo-zone dataset import succeeded",
+                    datasetTitle = loadResult.datasetInfo.title,
+                    datasetVersion = loadResult.datasetInfo.version,
+                    healthState = geoAwarenessHealth?.state?.name,
+                    details = standardDatasetLogDetails(
+                        operation = "manual_import",
+                        loadResult = loadResult,
+                        requestedUri = uri.toString(),
+                        originalFileName = originalFileName
+                    ) + mapOf(
+                        "addedDatasetTitle" to loadResult.datasetRecords.lastOrNull()?.displayName.orEmpty()
+                    )
                 )
-            )
-            refreshEventLogCount()
-            val warningSuffix = if (loadResult.validationResult.warningCount > 0) {
-                "\nValidation warnings: ${loadResult.validationResult.warningCount}"
-            } else {
-                ""
+                refreshEventLogCount()
+                val warningSuffix = if (loadResult.validationResult.warningCount > 0) {
+                    "\nValidation warnings: ${loadResult.validationResult.warningCount}"
+                } else {
+                    ""
+                }
+                showReadableDialog(
+                    title = "Import complete",
+                    message = "${getString(R.string.geo_awareness_import_success)}\n\nZones loaded: ${loadResult.datasetInfo.zoneCount}$warningSuffix"
+                )
+            } catch (error: GeoZoneDatasetValidationException) {
+                if (_binding != null) {
+                    showImportFailure(error, error.validationResult)
+                }
+            } catch (error: Exception) {
+                if (_binding != null) {
+                    showImportFailure(error, null)
+                }
+            } finally {
+                datasetLoadInProgress = false
+                if (_binding != null) {
+                    setDatasetBusyState(false)
+                }
             }
-            showReadableDialog(
-                title = "Import complete",
-                message = "${getString(R.string.geo_awareness_import_success)}\n\nZones loaded: ${loadResult.datasetInfo.zoneCount}$warningSuffix"
-            )
-        } catch (error: GeoZoneDatasetValidationException) {
-            showImportFailure(error, error.validationResult)
-        } catch (error: Exception) {
-            showImportFailure(error, null)
         }
     }
 
     private fun handleDatasetUpdate(uri: Uri, originalFileName: String?) {
         val storageFileName = pendingDatasetFileNameToUpdate
             ?: throw IllegalStateException("No imported dataset selected for update.")
+        if (datasetLoadInProgress) return
+        datasetLoadInProgress = true
+        setDatasetBusyState(true, "Updating geo-zone dataset...")
         geoEventLogger.logSimple(
             type = GeoAwarenessEventType.DATASET_UPDATE_STARTED,
             severity = "INFO",
@@ -1501,39 +1524,54 @@ class GeoAwarenessFragment : Fragment() {
                 originalFileName?.let { put("originalFileName", it) }
             }
         )
-
-        try {
-            val rawJson = readUtf8FromUri(uri)
-            val repository = buildRepository()
-            val loadResult = repository.updateImportedDataset(storageFileName, rawJson, originalFileName)
-            applyLoadedDataset(loadResult, importedActive = repository.hasImportedDatasets())
-            lastGeoZoneReloadToken = activityViewModel.notifyGeoZoneDatasetReloaded()
-            geoEventLogger.logSimple(
-                type = GeoAwarenessEventType.DATASET_UPDATE_SUCCEEDED,
-                severity = "INFO",
-                message = "Geo-zone dataset update succeeded",
-                datasetTitle = loadResult.datasetInfo.title,
-                datasetVersion = loadResult.datasetInfo.version,
-                healthState = geoAwarenessHealth?.state?.name,
-                details = standardDatasetLogDetails(
-                    operation = "manual_update",
-                    loadResult = loadResult,
-                    requestedUri = uri.toString(),
-                    originalFileName = originalFileName,
-                    storageFileName = storageFileName
-                ) + mapOf(
-                    "storageFileName" to storageFileName
+        val appContext = requireContext().applicationContext
+        lifecycleScope.launch {
+            try {
+                val updateResult = withContext(Dispatchers.IO) {
+                    val rawJson = readUtf8FromUri(uri)
+                    val repository = buildRepository(appContext)
+                    val loadResult = repository.updateImportedDataset(storageFileName, rawJson, originalFileName)
+                    loadResult to repository.hasImportedDatasets()
+                }
+                if (_binding == null) return@launch
+                val (loadResult, importedActive) = updateResult
+                applyLoadedDataset(loadResult, importedActive = importedActive)
+                lastGeoZoneReloadToken = activityViewModel.notifyGeoZoneDatasetReloaded()
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.DATASET_UPDATE_SUCCEEDED,
+                    severity = "INFO",
+                    message = "Geo-zone dataset update succeeded",
+                    datasetTitle = loadResult.datasetInfo.title,
+                    datasetVersion = loadResult.datasetInfo.version,
+                    healthState = geoAwarenessHealth?.state?.name,
+                    details = standardDatasetLogDetails(
+                        operation = "manual_update",
+                        loadResult = loadResult,
+                        requestedUri = uri.toString(),
+                        originalFileName = originalFileName,
+                        storageFileName = storageFileName
+                    ) + mapOf(
+                        "storageFileName" to storageFileName
+                    )
                 )
-            )
-            refreshEventLogCount()
-            Toast.makeText(requireContext(), "Dataset updated successfully", Toast.LENGTH_SHORT).show()
-        } catch (error: GeoZoneDatasetValidationException) {
-            showDatasetUpdateFailure(storageFileName, error, error.validationResult)
-        } catch (error: Exception) {
-            showDatasetUpdateFailure(storageFileName, error, null)
-        } finally {
-            pendingDatasetPickerMode = DatasetPickerMode.IMPORT_NEW
-            pendingDatasetFileNameToUpdate = null
+                refreshEventLogCount()
+                Toast.makeText(requireContext(), "Dataset updated successfully", Toast.LENGTH_SHORT).show()
+            } catch (error: GeoZoneDatasetValidationException) {
+                if (_binding != null) {
+                    showDatasetUpdateFailure(storageFileName, error, error.validationResult)
+                }
+            } catch (error: Exception) {
+                if (_binding != null) {
+                    showDatasetUpdateFailure(storageFileName, error, null)
+                }
+            } finally {
+                pendingDatasetPickerMode = DatasetPickerMode.IMPORT_NEW
+                pendingDatasetFileNameToUpdate = null
+                datasetLoadInProgress = false
+                if (_binding != null) {
+                    setDatasetBusyState(false)
+                }
+            }
         }
     }
 
@@ -1618,6 +1656,7 @@ class GeoAwarenessFragment : Fragment() {
     private fun refreshGeoAwarenessStatus(manual: Boolean) {
         if (datasetLoadInProgress) return
         datasetLoadInProgress = true
+        setDatasetBusyState(true, "Refreshing geo-zone status...")
         val appContext = requireContext().applicationContext
         lifecycleScope.launch {
             try {
@@ -1660,6 +1699,9 @@ class GeoAwarenessFragment : Fragment() {
                 }
             } finally {
                 datasetLoadInProgress = false
+                if (_binding != null) {
+                    setDatasetBusyState(false)
+                }
             }
         }
     }
@@ -1912,11 +1954,22 @@ class GeoAwarenessFragment : Fragment() {
         refreshEventLogCount()
     }
 
-    private fun buildRepository(): GeoZoneRepository {
-        val appContext = requireContext().applicationContext
+    private fun buildRepository(appContext: android.content.Context = requireContext().applicationContext): GeoZoneRepository {
         return GeoZoneRepository(
             importedFileDataSource = GeoZoneImportedFileDataSource(appContext)
         )
+    }
+
+    private fun setDatasetBusyState(isBusy: Boolean, message: String = "Loading geo-zone dataset...") {
+        if (_binding == null) return
+        binding.geoAwarenessLoadingOverlay.visibility = if (isBusy) View.VISIBLE else View.GONE
+        binding.geoAwarenessLoadingText.text = message
+        binding.geoAwarenessImportDatasetButton.isEnabled = !isBusy
+        binding.geoAwarenessResetDatasetButton.isEnabled = !isBusy
+        binding.geoAwarenessRefreshStatusButton.isEnabled = !isBusy
+        binding.geoAwarenessImportDatasetButton.alpha = if (isBusy) 0.6f else 1f
+        binding.geoAwarenessResetDatasetButton.alpha = if (isBusy) 0.6f else 1f
+        binding.geoAwarenessRefreshStatusButton.alpha = if (isBusy) 0.6f else 1f
     }
 
     private fun showValidationDetails() {
