@@ -66,6 +66,7 @@ import com.example.droneservicesapp.ui.home.components.OsmdroidRouteWaypointEdit
 import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessStatusViewBinder
 import com.example.droneservicesapp.ui.home.geoawareness.GeoZoneOverlayController
 import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoAwarenessPanelBinder
+import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoThreatUiModel
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
@@ -123,6 +124,7 @@ class MissionMapFragment : Fragment() {
     private var liveGeoAwarenessChecker: LiveGeoAwarenessChecker? = null
     private var latestLiveGeoZones: List<GeoZone> = emptyList()
     private var latestLiveGeoProximity: LiveGeoAwarenessProximityResult? = null
+    private var latestLiveGeoThreats: List<LiveGeoAwarenessProximityResult> = emptyList()
     private var liveGeoAwarenessStatusBinder: LiveGeoAwarenessPanelBinder? = null
     private var latestLiveDronePosition: LatLon? = null
     private var latestRealDronePosition: LatLon? = null
@@ -2110,6 +2112,7 @@ class MissionMapFragment : Fragment() {
         liveGeoAwarenessDegradedReason()?.let { reason ->
             latestLiveGeoZones = emptyList()
             latestLiveGeoProximity = null
+            latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindDegraded(reason)
             return
@@ -2118,6 +2121,7 @@ class MissionMapFragment : Fragment() {
         if (dronePosition == null) {
             latestLiveGeoZones = emptyList()
             latestLiveGeoProximity = null
+            latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("No drone position")
             return
@@ -2126,6 +2130,7 @@ class MissionMapFragment : Fragment() {
         if (!loadGeoAwarenessZonesIfNeeded()) {
             latestLiveGeoZones = emptyList()
             latestLiveGeoProximity = null
+            latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
             return
@@ -2133,6 +2138,7 @@ class MissionMapFragment : Fragment() {
         if (geoAwarenessZones.isEmpty()) {
             latestLiveGeoZones = emptyList()
             latestLiveGeoProximity = null
+            latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
             return
@@ -2155,7 +2161,7 @@ class MissionMapFragment : Fragment() {
         )
         latestLiveGeoZones = insideZones
         if (insideZones.isEmpty()) {
-            val nearestZone = liveGeoAwarenessChecker?.findNearestZoneWithinThreshold(
+            val nearThreats = liveGeoAwarenessChecker?.findZonesWithinThreshold(
                 position = dronePosition,
                 zones = geoAwarenessZones,
                 thresholdMeters = DEFAULT_NEAR_ZONE_THRESHOLD_METERS,
@@ -2166,8 +2172,10 @@ class MissionMapFragment : Fragment() {
                 groundSpeedMetersPerSecond = latestRealDroneGroundSpeedMetersPerSecond?.toDouble(),
                 headingDegrees = latestRealDroneHeadingDegrees,
                 verticalSpeedMetersPerSecond = latestRealDroneVerticalSpeedMetersPerSecond?.toDouble()
-            )
+            ).orEmpty()
+            val nearestZone = nearThreats.firstOrNull()
             latestLiveGeoProximity = nearestZone
+            latestLiveGeoThreats = nearThreats
             if (nearestZone == null) {
                 lastLiveProximityIdentity = null
                 liveGeoAwarenessStatusBinder?.bindClear()
@@ -2178,22 +2186,19 @@ class MissionMapFragment : Fragment() {
                     longitude = dronePosition.lon,
                     altitudeMeters = droneAltitudeMeters
                 )
-                if (nearestZone.warningMode.startsWith("VERTICAL")) {
-                    liveGeoAwarenessStatusBinder?.bindVerticalNear(
-                        zone = nearestZone.nearestZone,
-                        verticalDistanceMeters = nearestZone.verticalDistanceMeters,
-                        relationLabel = verticalRelationLabel(nearestZone)
-                    )
-                } else {
-                    liveGeoAwarenessStatusBinder?.bindNear(
-                        zone = nearestZone.nearestZone,
-                        distanceMeters = nearestZone.distanceMeters,
-                        directionLabel = horizontalDirectionLabel(dronePosition, nearestZone.nearestZone)
-                    )
-                }
+                val threatRows = nearThreats.take(3).map { it.toThreatUiModel(dronePosition) }
+                val hasMultipleThreats = nearThreats.size > 1
+                liveGeoAwarenessStatusBinder?.bindThreatSummary(
+                    statusLabel = if (hasMultipleThreats) "MULTIPLE" else restrictionBadgeLabel(nearestZone.restriction),
+                    statusColor = restrictionColorHex(nearestZone.restriction),
+                    threats = threatRows,
+                    remainingCount = (nearThreats.size - threatRows.size).coerceAtLeast(0),
+                    headingDegrees = latestRealDroneHeadingDegrees
+                )
             }
         } else {
             latestLiveGeoProximity = null
+            latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindInsideMultiple(insideZones)
         }
@@ -2374,6 +2379,74 @@ class MissionMapFragment : Fragment() {
             lowerLimit != null && lowerAltitude != null && lowerAltitude < lowerLimit -> "ABOVE"
             upperLimit != null && upperAltitude != null && upperAltitude > upperLimit -> "BELOW"
             else -> "ABOVE"
+        }
+    }
+
+    private fun LiveGeoAwarenessProximityResult.toThreatUiModel(dronePosition: LatLon): LiveGeoThreatUiModel {
+        val isVertical = warningMode.startsWith("VERTICAL")
+        val direction = horizontalDirectionLabel(dronePosition, nearestZone) ?: "--"
+        val distance = if (isVertical) {
+            formatLiveGeoDistance(distanceMeters)
+        } else {
+            formatLiveGeoDistance(distanceMeters)
+        }
+        val altitude = if (isVertical) {
+            val prefix = if (verticalRelationLabel(this) == "ABOVE") "↑ " else "↓ "
+            prefix + formatLiveGeoDistance(verticalDistanceMeters)
+        } else {
+            "--"
+        }
+        return LiveGeoThreatUiModel(
+            label = restrictionShortLabel(restriction),
+            colorHex = restrictionColorHex(restriction),
+            directionText = direction,
+            distanceText = distance,
+            altitudeText = altitude,
+            bearingDegrees = representativePoint(nearestZone)?.let { bearingDegrees(dronePosition, it) },
+            verticalIndicator = when {
+                !isVertical -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.NONE
+                verticalRelationLabel(this) == "ABOVE" -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.DOWN
+                else -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.UP
+            }
+        )
+    }
+
+    private fun restrictionShortLabel(restriction: GeoZoneRestriction): String {
+        return when (restriction) {
+            GeoZoneRestriction.PROHIBITED -> "PROHIBITED"
+            GeoZoneRestriction.REQ_AUTHORISATION -> "AUTH"
+            GeoZoneRestriction.CONDITIONAL -> "COND"
+            GeoZoneRestriction.INFORMATION -> "INFO"
+            GeoZoneRestriction.UNKNOWN -> "UNKNOWN"
+        }
+    }
+
+    private fun restrictionBadgeLabel(restriction: GeoZoneRestriction): String {
+        return when (restriction) {
+            GeoZoneRestriction.PROHIBITED -> "PROHIBITED"
+            GeoZoneRestriction.REQ_AUTHORISATION -> "AUTH REQUIRED"
+            GeoZoneRestriction.CONDITIONAL -> "CONDITIONAL"
+            GeoZoneRestriction.INFORMATION -> "INFO"
+            GeoZoneRestriction.UNKNOWN -> "UNKNOWN"
+        }
+    }
+
+    private fun restrictionColorHex(restriction: GeoZoneRestriction): String {
+        return when (restriction) {
+            GeoZoneRestriction.PROHIBITED -> "#FF4F45"
+            GeoZoneRestriction.REQ_AUTHORISATION -> "#FF972E"
+            GeoZoneRestriction.CONDITIONAL -> "#F4C73D"
+            GeoZoneRestriction.INFORMATION -> "#4C9DFF"
+            GeoZoneRestriction.UNKNOWN -> "#8D6E63"
+        }
+    }
+
+    private fun formatLiveGeoDistance(distanceMeters: Double?): String {
+        val value = distanceMeters?.takeIf { it.isFinite() } ?: return "--"
+        return if (value >= 1000.0) {
+            String.format(Locale.US, "%.1f km", value / 1000.0)
+        } else {
+            "${value.toInt().coerceAtLeast(0)} m"
         }
     }
 }

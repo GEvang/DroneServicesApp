@@ -1,66 +1,86 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_width="wrap_content"
+    android:layout_width="304dp"
     android:layout_height="wrap_content"
     android:background="@drawable/bg_live_geo_panel"
-    android:padding="16dp">
-
-    <View
-        android:id="@+id/live_geo_panel_dot"
-        android:layout_width="8dp"
-        android:layout_height="8dp"
-        android:background="@drawable/bg_live_geo_dot"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
+    android:padding="12dp">
 
     <TextView
         android:id="@+id/live_geo_panel_title"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
         android:fontFamily="@font/inter"
         android:text="LIVE GEO"
         android:textColor="#F3F7FF"
-        android:textSize="19sp"
+        android:textSize="15sp"
         android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="@id/live_geo_panel_dot"
-        app:layout_constraintStart_toEndOf="@id/live_geo_panel_dot"
-        app:layout_constraintTop_toTopOf="@id/live_geo_panel_dot" />
+        app:layout_constraintBottom_toBottomOf="@id/live_geo_status_badge"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toTopOf="@id/live_geo_status_badge" />
+
+    <TextView
+        android:id="@+id/live_geo_status_badge"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="12dp"
+        android:background="@drawable/bg_live_geo_ladder"
+        android:fontFamily="@font/inter"
+        android:paddingStart="12dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="12dp"
+        android:paddingBottom="6dp"
+        android:text="CLEAR"
+        android:textColor="#48D26D"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        app:layout_constraintStart_toEndOf="@id/live_geo_panel_title"
+        app:layout_constraintTop_toTopOf="parent" />
+
+    <View
+        android:id="@+id/live_geo_top_divider"
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_marginTop="12dp"
+        android:background="#18FFFFFF"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@id/live_geo_status_badge" />
 
     <FrameLayout
         android:id="@+id/live_geo_compass_frame"
-        android:layout_width="154dp"
-        android:layout_height="154dp"
-        android:layout_marginTop="18dp"
+        android:layout_width="220dp"
+        android:layout_height="220dp"
+        android:layout_marginTop="12dp"
+        app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/live_geo_panel_title">
+        app:layout_constraintTop_toBottomOf="@id/live_geo_top_divider">
 
         <View
-            android:layout_width="154dp"
-            android:layout_height="154dp"
+            android:layout_width="220dp"
+            android:layout_height="220dp"
             android:background="@drawable/bg_live_geo_ring" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="top|center_horizontal"
-            android:layout_marginTop="2dp"
+            android:layout_marginTop="4dp"
             android:fontFamily="@font/inter"
             android:text="N"
             android:textColor="#D7E0EF"
-            android:textSize="13sp"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical|end"
-            android:layout_marginEnd="3dp"
+            android:layout_marginEnd="6dp"
             android:fontFamily="@font/inter"
             android:text="E"
             android:textColor="#D7E0EF"
-            android:textSize="13sp"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
         <TextView
@@ -71,194 +91,314 @@
             android:fontFamily="@font/inter"
             android:text="S"
             android:textColor="#D7E0EF"
-            android:textSize="13sp"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_gravity="center_vertical|start"
-            android:layout_marginStart="4dp"
+            android:layout_marginStart="6dp"
             android:fontFamily="@font/inter"
             android:text="W"
             android:textColor="#D7E0EF"
-            android:textSize="13sp"
+            android:textSize="12sp"
             android:textStyle="bold" />
 
         <View
             android:id="@+id/live_geo_center_core"
-            android:layout_width="76dp"
-            android:layout_height="76dp"
+            android:layout_width="44dp"
+            android:layout_height="44dp"
             android:layout_gravity="center"
             android:background="@drawable/bg_live_geo_core" />
 
         <ImageView
             android:id="@+id/live_geo_center_icon"
-            android:layout_width="30dp"
-            android:layout_height="30dp"
-            android:layout_gravity="center_horizontal|center_vertical"
-            android:layout_marginTop="-14dp"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:layout_gravity="center"
             android:contentDescription="@null"
             android:scaleType="fitCenter"
             android:src="@drawable/drone_marker_36"
             android:tint="#FFFFFF" />
 
         <TextView
-            android:id="@+id/live_geo_center_value"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal|center_vertical"
-            android:layout_marginTop="26dp"
+            android:id="@+id/live_geo_forward_marker"
+            android:layout_width="12dp"
+            android:layout_height="12dp"
+            android:background="@drawable/bg_live_geo_dot"
             android:fontFamily="@font/inter"
-            android:text="CLEAR"
+            android:gravity="center"
+            android:text="^"
+            android:textColor="#0F141B"
+            android:textSize="9sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/live_geo_direction_marker_1"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:background="@drawable/bg_live_geo_dot"
+            android:fontFamily="@font/inter"
+            android:gravity="center"
             android:textColor="#FFFFFF"
-            android:textSize="23sp"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/live_geo_direction_marker_2"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:background="@drawable/bg_live_geo_dot"
+            android:fontFamily="@font/inter"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/live_geo_direction_marker_3"
+            android:layout_width="18dp"
+            android:layout_height="18dp"
+            android:background="@drawable/bg_live_geo_dot"
+            android:fontFamily="@font/inter"
+            android:gravity="center"
+            android:textColor="#FFFFFF"
+            android:textSize="12sp"
             android:textStyle="bold" />
     </FrameLayout>
 
     <LinearLayout
-        android:id="@+id/live_geo_vertical_ladder"
-        android:layout_width="48dp"
-        android:layout_height="154dp"
-        android:layout_marginStart="18dp"
-        android:background="@drawable/bg_live_geo_ladder"
-        android:gravity="center"
-        android:orientation="vertical"
-        android:paddingTop="10dp"
-        android:paddingBottom="10dp"
-        app:layout_constraintBottom_toBottomOf="@id/live_geo_compass_frame"
-        app:layout_constraintStart_toEndOf="@id/live_geo_compass_frame"
-        app:layout_constraintTop_toTopOf="@id/live_geo_compass_frame">
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/inter"
-            android:text="^"
-            android:textColor="#8EA0B6"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/inter"
-            android:text="^"
-            android:textColor="#8EA0B6"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <View
-            android:id="@+id/live_geo_vertical_marker"
-            android:layout_width="28dp"
-            android:layout_height="8dp"
-            android:layout_marginTop="18dp"
-            android:layout_marginBottom="18dp"
-            android:background="@drawable/bg_live_geo_marker" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/inter"
-            android:text="v"
-            android:textColor="#8EA0B6"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/inter"
-            android:text="v"
-            android:textColor="#8EA0B6"
-            android:textSize="12sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/live_geo_vertical_status_stack"
-        android:layout_width="wrap_content"
-        android:layout_height="154dp"
-        android:layout_marginStart="14dp"
-        android:orientation="vertical"
-        app:layout_constraintBottom_toBottomOf="@id/live_geo_compass_frame"
-        app:layout_constraintStart_toEndOf="@id/live_geo_vertical_ladder"
-        app:layout_constraintTop_toTopOf="@id/live_geo_compass_frame">
-
-        <TextView
-            android:id="@+id/live_geo_vertical_top_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/inter"
-            android:text="ABOVE"
-            android:textColor="#FF5D51"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/live_geo_vertical_top_value"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:fontFamily="@font/inter"
-            android:text="CLEAR"
-            android:textColor="#FF5D51"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-
-        <Space
-            android:layout_width="1dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
-
-        <TextView
-            android:id="@+id/live_geo_vertical_bottom_label"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:fontFamily="@font/inter"
-            android:text="BELOW"
-            android:textColor="#48D26D"
-            android:textSize="13sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/live_geo_vertical_bottom_value"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:fontFamily="@font/inter"
-            android:text="CLEAR"
-            android:textColor="#48D26D"
-            android:textSize="20sp"
-            android:textStyle="bold" />
-    </LinearLayout>
-
-    <TextView
-        android:id="@+id/live_geo_horizontal_line"
+        android:id="@+id/live_geo_threat_card"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="12dp"
-        android:fontFamily="@font/inter"
-        android:text="H: CLEAR"
-        android:textColor="#FF695E"
-        android:textSize="15sp"
-        android:textStyle="bold"
+        android:background="@drawable/bg_live_geo_ladder"
+        android:orientation="vertical"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/live_geo_compass_frame" />
+        app:layout_constraintTop_toBottomOf="@id/live_geo_compass_frame">
 
-    <TextView
-        android:id="@+id/live_geo_vertical_line"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="4dp"
-        android:fontFamily="@font/inter"
-        android:text="V: CLEAR"
-        android:textColor="#48D26D"
-        android:textSize="15sp"
-        android:textStyle="bold"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/live_geo_horizontal_line" />
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <View
+                android:id="@+id/live_geo_row_1_dot"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:background="@drawable/bg_live_geo_dot" />
+
+            <TextView
+                android:id="@+id/live_geo_row_1_label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1.2"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:fontFamily="@font/inter"
+                android:text="CLEAR"
+                android:textColor="#D7E0EF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/live_geo_row_1_direction"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.7"
+                android:fontFamily="@font/inter"
+                android:gravity="center"
+                android:text="--"
+                android:textColor="#D7E0EF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/live_geo_row_1_distance"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.9"
+                android:fontFamily="@font/inter"
+                android:gravity="center"
+                android:text="--"
+                android:textColor="#D7E0EF"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/live_geo_row_1_alt"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.9"
+                android:fontFamily="@font/inter"
+                android:gravity="end"
+                android:text="--"
+                android:textColor="#D7E0EF"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/live_geo_row_1_divider"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="#14FFFFFF" />
+
+        <LinearLayout
+            android:id="@+id/live_geo_row_2"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <View
+                android:id="@+id/live_geo_row_2_dot"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:background="@drawable/bg_live_geo_dot" />
+
+            <TextView
+                android:id="@+id/live_geo_row_2_label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1.2"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:fontFamily="@font/inter"
+                android:text="--"
+                android:textColor="#D7E0EF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/live_geo_row_2_direction"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.7"
+                android:fontFamily="@font/inter"
+                android:gravity="center"
+                android:text="--"
+                android:textColor="#D7E0EF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/live_geo_row_2_distance"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.9"
+                android:fontFamily="@font/inter"
+                android:gravity="center"
+                android:text="--"
+                android:textColor="#D7E0EF"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/live_geo_row_2_alt"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.9"
+                android:fontFamily="@font/inter"
+                android:gravity="end"
+                android:text="--"
+                android:textColor="#D7E0EF"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <View
+            android:id="@+id/live_geo_row_2_divider"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:layout_marginTop="8dp"
+            android:layout_marginBottom="8dp"
+            android:background="#14FFFFFF" />
+
+        <LinearLayout
+            android:id="@+id/live_geo_row_3"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <View
+                android:id="@+id/live_geo_row_3_dot"
+                android:layout_width="12dp"
+                android:layout_height="12dp"
+                android:background="@drawable/bg_live_geo_dot" />
+
+            <TextView
+                android:id="@+id/live_geo_row_3_label"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1.2"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:fontFamily="@font/inter"
+                android:text="--"
+                android:textColor="#D7E0EF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/live_geo_row_3_direction"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.7"
+                android:fontFamily="@font/inter"
+                android:gravity="center"
+                android:text="--"
+                android:textColor="#D7E0EF"
+                android:textSize="12sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:id="@+id/live_geo_row_3_distance"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.9"
+                android:fontFamily="@font/inter"
+                android:gravity="center"
+                android:text="--"
+                android:textColor="#D7E0EF"
+                android:textSize="12sp" />
+
+            <TextView
+                android:id="@+id/live_geo_row_3_alt"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="0.9"
+                android:fontFamily="@font/inter"
+                android:gravity="end"
+                android:text="--"
+                android:textColor="#D7E0EF"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <TextView
+            android:id="@+id/live_geo_more_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="10dp"
+            android:layout_marginStart="12dp"
+            android:fontFamily="@font/inter"
+            android:text="+0 more"
+            android:textColor="#AEBAD0"
+            android:textSize="12sp"
+            android:visibility="gone" />
+    </LinearLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

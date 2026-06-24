@@ -81,8 +81,34 @@ class LiveGeoAwarenessChecker {
         verticalWarningBufferMeters: Double = DEFAULT_VERTICAL_WARNING_BUFFER_METERS,
         nowMillis: Long = System.currentTimeMillis()
     ): LiveGeoAwarenessProximityResult? {
+        return findZonesWithinThreshold(
+            position = position,
+            zones = zones,
+            thresholdMeters = thresholdMeters,
+            altitudeContext = altitudeContext,
+            groundSpeedMetersPerSecond = groundSpeedMetersPerSecond,
+            headingDegrees = headingDegrees,
+            verticalSpeedMetersPerSecond = verticalSpeedMetersPerSecond,
+            requiredWarningSeconds = requiredWarningSeconds,
+            verticalWarningBufferMeters = verticalWarningBufferMeters,
+            nowMillis = nowMillis
+        ).firstOrNull()
+    }
+
+    fun findZonesWithinThreshold(
+        position: LatLon,
+        zones: List<GeoZone>,
+        thresholdMeters: Double = 100.0,
+        altitudeContext: GeoAltitudeContext? = null,
+        groundSpeedMetersPerSecond: Double? = null,
+        headingDegrees: Double? = null,
+        verticalSpeedMetersPerSecond: Double? = null,
+        requiredWarningSeconds: Double = REQUIRED_WARNING_SECONDS,
+        verticalWarningBufferMeters: Double = DEFAULT_VERTICAL_WARNING_BUFFER_METERS,
+        nowMillis: Long = System.currentTimeMillis()
+    ): List<LiveGeoAwarenessProximityResult> {
         if (zones.isEmpty()) {
-            return null
+            return emptyList()
         }
 
         val normalizedSpeed = groundSpeedMetersPerSecond
@@ -220,7 +246,7 @@ class LiveGeoAwarenessChecker {
             )
         }
 
-        return candidates.minWithOrNull(
+        return candidates.sortedWith(
             compareBy<LiveGeoAwarenessProximityResult> { restrictionRank(it.restriction) * -1 }
                 .thenBy { it.distanceMeters }
                 .thenBy { it.nearestZone.name }
