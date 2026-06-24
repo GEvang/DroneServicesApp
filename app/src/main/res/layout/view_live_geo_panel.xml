@@ -184,7 +184,7 @@
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
+            android:gravity="top"
             android:orientation="horizontal"
             android:paddingStart="12dp"
             android:paddingEnd="12dp">
@@ -193,55 +193,77 @@
                 android:id="@+id/live_geo_row_1_dot"
                 android:layout_width="12dp"
                 android:layout_height="12dp"
+                android:layout_marginTop="2dp"
                 android:background="@drawable/bg_live_geo_dot" />
 
-            <TextView
-                android:id="@+id/live_geo_row_1_label"
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:layout_weight="1.2"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:fontFamily="@font/inter"
-                android:text="CLEAR"
-                android:textColor="#D7E0EF"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+                android:layout_weight="1"
+                android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/live_geo_row_1_direction"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="0.7"
-                android:fontFamily="@font/inter"
-                android:gravity="center"
-                android:text="--"
-                android:textColor="#D7E0EF"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/live_geo_row_1_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:fontFamily="@font/inter"
+                    android:text="CLEAR"
+                    android:textColor="#D7E0EF"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/live_geo_row_1_distance"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="0.9"
-                android:fontFamily="@font/inter"
-                android:gravity="center"
-                android:text="--"
-                android:textColor="#D7E0EF"
-                android:textSize="12sp" />
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/live_geo_row_1_alt"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="0.9"
-                android:fontFamily="@font/inter"
-                android:gravity="end"
-                android:text="--"
-                android:textColor="#D7E0EF"
-                android:textSize="12sp" />
+                    <TextView
+                        android:id="@+id/live_geo_row_1_direction"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/inter"
+                        android:text="--"
+                        android:textColor="#D7E0EF"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/live_geo_row_1_distance"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:fontFamily="@font/inter"
+                        android:text="--"
+                        android:textColor="#D7E0EF"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/live_geo_row_1_alt"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:fontFamily="@font/inter"
+                        android:text="--"
+                        android:textColor="#D7E0EF"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/live_geo_row_1_vertical_arrow"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:fontFamily="@font/inter"
+                        android:text=""
+                        android:textColor="#D7E0EF"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
 
         <View
@@ -256,7 +278,7 @@
             android:id="@+id/live_geo_row_2"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
+            android:gravity="top"
             android:orientation="horizontal"
             android:paddingStart="12dp"
             android:paddingEnd="12dp">
@@ -265,55 +287,77 @@
                 android:id="@+id/live_geo_row_2_dot"
                 android:layout_width="12dp"
                 android:layout_height="12dp"
+                android:layout_marginTop="2dp"
                 android:background="@drawable/bg_live_geo_dot" />
 
-            <TextView
-                android:id="@+id/live_geo_row_2_label"
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:layout_weight="1.2"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:fontFamily="@font/inter"
-                android:text="--"
-                android:textColor="#D7E0EF"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+                android:layout_weight="1"
+                android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/live_geo_row_2_direction"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="0.7"
-                android:fontFamily="@font/inter"
-                android:gravity="center"
-                android:text="--"
-                android:textColor="#D7E0EF"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/live_geo_row_2_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:fontFamily="@font/inter"
+                    android:text="--"
+                    android:textColor="#D7E0EF"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/live_geo_row_2_distance"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="0.9"
-                android:fontFamily="@font/inter"
-                android:gravity="center"
-                android:text="--"
-                android:textColor="#D7E0EF"
-                android:textSize="12sp" />
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/live_geo_row_2_alt"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="0.9"
-                android:fontFamily="@font/inter"
-                android:gravity="end"
-                android:text="--"
-                android:textColor="#D7E0EF"
-                android:textSize="12sp" />
+                    <TextView
+                        android:id="@+id/live_geo_row_2_direction"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/inter"
+                        android:text="--"
+                        android:textColor="#D7E0EF"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/live_geo_row_2_distance"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:fontFamily="@font/inter"
+                        android:text="--"
+                        android:textColor="#D7E0EF"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/live_geo_row_2_alt"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:fontFamily="@font/inter"
+                        android:text="--"
+                        android:textColor="#D7E0EF"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/live_geo_row_2_vertical_arrow"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:fontFamily="@font/inter"
+                        android:text=""
+                        android:textColor="#D7E0EF"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
 
         <View
@@ -328,7 +372,7 @@
             android:id="@+id/live_geo_row_3"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:gravity="center_vertical"
+            android:gravity="top"
             android:orientation="horizontal"
             android:paddingStart="12dp"
             android:paddingEnd="12dp">
@@ -337,55 +381,77 @@
                 android:id="@+id/live_geo_row_3_dot"
                 android:layout_width="12dp"
                 android:layout_height="12dp"
+                android:layout_marginTop="2dp"
                 android:background="@drawable/bg_live_geo_dot" />
 
-            <TextView
-                android:id="@+id/live_geo_row_3_label"
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
-                android:layout_weight="1.2"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:fontFamily="@font/inter"
-                android:text="--"
-                android:textColor="#D7E0EF"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+                android:layout_weight="1"
+                android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/live_geo_row_3_direction"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="0.7"
-                android:fontFamily="@font/inter"
-                android:gravity="center"
-                android:text="--"
-                android:textColor="#D7E0EF"
-                android:textSize="12sp"
-                android:textStyle="bold" />
+                <TextView
+                    android:id="@+id/live_geo_row_3_label"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:fontFamily="@font/inter"
+                    android:text="--"
+                    android:textColor="#D7E0EF"
+                    android:textSize="12sp"
+                    android:textStyle="bold" />
 
-            <TextView
-                android:id="@+id/live_geo_row_3_distance"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="0.9"
-                android:fontFamily="@font/inter"
-                android:gravity="center"
-                android:text="--"
-                android:textColor="#D7E0EF"
-                android:textSize="12sp" />
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal">
 
-            <TextView
-                android:id="@+id/live_geo_row_3_alt"
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="0.9"
-                android:fontFamily="@font/inter"
-                android:gravity="end"
-                android:text="--"
-                android:textColor="#D7E0EF"
-                android:textSize="12sp" />
+                    <TextView
+                        android:id="@+id/live_geo_row_3_direction"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:fontFamily="@font/inter"
+                        android:text="--"
+                        android:textColor="#D7E0EF"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/live_geo_row_3_distance"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:fontFamily="@font/inter"
+                        android:text="--"
+                        android:textColor="#D7E0EF"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/live_geo_row_3_alt"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:fontFamily="@font/inter"
+                        android:text="--"
+                        android:textColor="#D7E0EF"
+                        android:textSize="11sp" />
+
+                    <TextView
+                        android:id="@+id/live_geo_row_3_vertical_arrow"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="10dp"
+                        android:fontFamily="@font/inter"
+                        android:text=""
+                        android:textColor="#D7E0EF"
+                        android:textSize="11sp"
+                        android:textStyle="bold" />
+                </LinearLayout>
+            </LinearLayout>
         </LinearLayout>
 
         <TextView

@@ -2385,28 +2385,25 @@ class MissionMapFragment : Fragment() {
     private fun LiveGeoAwarenessProximityResult.toThreatUiModel(dronePosition: LatLon): LiveGeoThreatUiModel {
         val isVertical = warningMode.startsWith("VERTICAL")
         val direction = horizontalDirectionLabel(dronePosition, nearestZone) ?: "--"
-        val distance = if (isVertical) {
-            formatLiveGeoDistance(distanceMeters)
-        } else {
-            formatLiveGeoDistance(distanceMeters)
-        }
-        val altitude = if (isVertical) {
-            val prefix = if (verticalRelationLabel(this) == "ABOVE") "↑ " else "↓ "
-            prefix + formatLiveGeoDistance(verticalDistanceMeters)
-        } else {
-            "--"
-        }
+        val distance = formatLiveGeoDistance(distanceMeters)
+        val altitude = if (isVertical) formatLiveGeoDistance(verticalDistanceMeters) else "--"
+        val zoneIsAboveDrone = verticalRelationLabel(this) == "ABOVE"
         return LiveGeoThreatUiModel(
             label = restrictionShortLabel(restriction),
             colorHex = restrictionColorHex(restriction),
             directionText = direction,
             distanceText = distance,
             altitudeText = altitude,
+            verticalArrowText = when {
+                !isVertical -> ""
+                zoneIsAboveDrone -> "\u2191"
+                else -> "\u2193"
+            },
             bearingDegrees = representativePoint(nearestZone)?.let { bearingDegrees(dronePosition, it) },
             verticalIndicator = when {
                 !isVertical -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.NONE
-                verticalRelationLabel(this) == "ABOVE" -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.DOWN
-                else -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.UP
+                zoneIsAboveDrone -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.UP
+                else -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.DOWN
             }
         )
     }
@@ -2450,3 +2447,4 @@ class MissionMapFragment : Fragment() {
         }
     }
 }
+
