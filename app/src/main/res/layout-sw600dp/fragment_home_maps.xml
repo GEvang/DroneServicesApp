@@ -271,22 +271,13 @@
             </LinearLayout>
         </FrameLayout>
 
-        <TextView
-            android:id="@+id/liveGeoAwarenessStatusChip"
+        <include
+            android:id="@+id/liveGeoAwarenessPanel"
+            layout="@layout/view_live_geo_panel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginEnd="@dimen/ds_space_md"
             android:layout_marginBottom="@dimen/ds_space_md"
-            android:fontFamily="@font/inter"
-            android:gravity="center"
-            android:paddingLeft="18dp"
-            android:paddingTop="10dp"
-            android:paddingRight="18dp"
-            android:paddingBottom="10dp"
-            android:text="LIVE GEO: NO POS"
-            android:textColor="@android:color/white"
-            android:textSize="15sp"
-            android:textStyle="bold"
             app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
             app:layout_constraintEnd_toEndOf="parent" />
 
@@ -307,7 +298,7 @@
             android:textSize="13sp"
             android:textStyle="bold"
             android:visibility="gone"
-            app:layout_constraintBottom_toTopOf="@id/liveGeoAwarenessStatusChip"
+            app:layout_constraintBottom_toTopOf="@id/liveGeoAwarenessPanel"
             app:layout_constraintEnd_toEndOf="parent" />
 
         <LinearLayout

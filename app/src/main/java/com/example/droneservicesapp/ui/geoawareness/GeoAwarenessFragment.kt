@@ -90,6 +90,7 @@ class GeoAwarenessFragment : Fragment() {
     private var latestRealDroneAltitudeMeters: Double? = null
     private var latestRealDroneAltitudeAmslMeters: Double? = null
     private var latestRealDroneGroundSpeedMetersPerSecond: Float? = null
+    private var latestRealDroneVerticalSpeedMetersPerSecond: Float? = null
     private var latestRealDroneHeadingDegrees: Double? = null
     private var geoAwarenessHealth: GeoAwarenessHealth? = null
     private var geoAwarenessLoadError: Throwable? = null
@@ -253,9 +254,15 @@ class GeoAwarenessFragment : Fragment() {
 
     private fun observeDroneLocation() {
         droneViewModel.droneLocationLiveData.observe(viewLifecycleOwner) { location ->
-            val usableLocation = location?.takeIf(::isUsableDroneLocation)
-            latestRealDronePosition = usableLocation?.let { LatLon(lat = it.latitude, lon = it.longitude) }
-            latestRealDroneAltitudeMeters = usableLocation?.altitude
+            syncLatestDroneLocationSnapshot(location)
+            updateLiveStatus()
+        }
+        droneViewModel.conStateLiveData.observe(viewLifecycleOwner) {
+            syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
+            updateLiveStatus()
+        }
+        droneViewModel.gpsFixType.observe(viewLifecycleOwner) {
+            syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
             updateLiveStatus()
         }
         droneViewModel.droneAltitudeAmslMeters.observe(viewLifecycleOwner) { altitudeAmslMeters ->
@@ -264,6 +271,10 @@ class GeoAwarenessFragment : Fragment() {
         }
         droneViewModel.droneGroundSpeedMetersPerSecond.observe(viewLifecycleOwner) { speed ->
             latestRealDroneGroundSpeedMetersPerSecond = speed
+            updateLiveStatus()
+        }
+        droneViewModel.droneVerticalSpeedMetersPerSecond.observe(viewLifecycleOwner) { speed ->
+            latestRealDroneVerticalSpeedMetersPerSecond = speed
             updateLiveStatus()
         }
         droneViewModel.droneHeading.observe(viewLifecycleOwner) { heading ->
@@ -331,6 +342,12 @@ class GeoAwarenessFragment : Fragment() {
                 }
             }
         }
+    }
+
+    private fun syncLatestDroneLocationSnapshot(location: Location?) {
+        val usableLocation = location?.takeIf(::isUsableDroneLocation)
+        latestRealDronePosition = usableLocation?.let { LatLon(lat = it.latitude, lon = it.longitude) }
+        latestRealDroneAltitudeMeters = usableLocation?.altitude
     }
 
     private fun applyDatasetLoadError(error: Throwable) {
@@ -1309,6 +1326,7 @@ class GeoAwarenessFragment : Fragment() {
         )
         val zoneSnapshot = geoZones
         val groundSpeed = latestRealDroneGroundSpeedMetersPerSecond?.toDouble()
+        val verticalSpeed = latestRealDroneVerticalSpeedMetersPerSecond?.toDouble()
         val heading = latestRealDroneHeadingDegrees
 
         liveStatusJob?.cancel()
@@ -1326,7 +1344,8 @@ class GeoAwarenessFragment : Fragment() {
                         thresholdMeters = DEFAULT_NEAR_ZONE_THRESHOLD_METERS,
                         altitudeContext = altitudeContext,
                         groundSpeedMetersPerSecond = groundSpeed,
-                        headingDegrees = heading
+                        headingDegrees = heading,
+                        verticalSpeedMetersPerSecond = verticalSpeed
                     )
                 } else {
                     null
@@ -1340,6 +1359,12 @@ class GeoAwarenessFragment : Fragment() {
             latestLiveProximity = proximity
             when {
                 zones.isNotEmpty() -> liveStatusBinder?.bindInsideMultiple(zones)
+                proximity != null && proximity.warningMode.startsWith("VERTICAL") -> {
+                    liveStatusBinder?.bindVerticalNear(
+                        zone = proximity.nearestZone,
+                        verticalDistanceMeters = proximity.verticalDistanceMeters
+                    )
+                }
                 proximity != null -> liveStatusBinder?.bindNear(
                     zone = proximity.nearestZone,
                     distanceMeters = proximity.distanceMeters

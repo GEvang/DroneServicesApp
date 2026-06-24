@@ -76,7 +76,9 @@ class LiveGeoAwarenessChecker {
         altitudeContext: GeoAltitudeContext? = null,
         groundSpeedMetersPerSecond: Double? = null,
         headingDegrees: Double? = null,
+        verticalSpeedMetersPerSecond: Double? = null,
         requiredWarningSeconds: Double = REQUIRED_WARNING_SECONDS,
+        verticalWarningBufferMeters: Double = DEFAULT_VERTICAL_WARNING_BUFFER_METERS,
         nowMillis: Long = System.currentTimeMillis()
     ): LiveGeoAwarenessProximityResult? {
         if (zones.isEmpty()) {
@@ -88,6 +90,8 @@ class LiveGeoAwarenessChecker {
         val normalizedHeading = headingDegrees
             ?.takeIf { it.isFinite() }
             ?.let { ((it % 360.0) + 360.0) % 360.0 }
+        val normalizedVerticalSpeed = verticalSpeedMetersPerSecond
+            ?.takeIf { it.isFinite() }
         val predictedPosition = if (normalizedSpeed != null && normalizedHeading != null) {
             projectPosition(position, normalizedHeading, normalizedSpeed * CLOSING_SPEED_LOOKAHEAD_SECONDS)
         } else {
@@ -117,41 +121,41 @@ class LiveGeoAwarenessChecker {
                 return@mapNotNull null
             }
 
-            val nearestDistance = zone.geometries
-                .filter { geometry ->
-                    GeoAwarenessGeometryUtils.altitudeOverlaps(
-                        altitudeContext = altitudeContext,
-                        zoneLowerMeters = geometry.lowerLimitMeters,
-                        zoneUpperMeters = geometry.upperLimitMeters,
-                        lowerReference = geometry.lowerVerticalReference,
-                        upperReference = geometry.upperVerticalReference
-                    )
+            val geometryCandidates = zone.geometries.mapNotNull geometryCandidate@{ geometry ->
+                val horizontalDistance = try {
+                    GeoAwarenessGeometryUtils.distanceMetersToGeometry(position, geometry)
+                } catch (error: Exception) {
+                    Log.w(TAG, "Skipping malformed geometry while checking proximity for ${zone.id}", error)
+                    null
+                } ?: return@geometryCandidate null
+                val verticalWarning = evaluateVerticalWarning(
+                    altitudeContext = altitudeContext,
+                    geometry = geometry,
+                    verticalSpeedMetersPerSecond = normalizedVerticalSpeed,
+                    requiredWarningSeconds = requiredWarningSeconds,
+                    verticalWarningBufferMeters = verticalWarningBufferMeters
+                )
+                if (!verticalWarning.relevant) {
+                    return@geometryCandidate null
                 }
-                .mapNotNull { geometry ->
-                    try {
-                        GeoAwarenessGeometryUtils.distanceMetersToGeometry(position, geometry)
-                    } catch (error: Exception) {
-                        Log.w(TAG, "Skipping malformed geometry while checking proximity for ${zone.id}", error)
-                        null
-                    }
-                }
-                .minOrNull()
-                ?: return@mapNotNull null
+                GeometryProximityCandidate(
+                    geometry = geometry,
+                    horizontalDistanceMeters = horizontalDistance,
+                    verticalWarning = verticalWarning
+                )
+            }
+
+            if (geometryCandidates.isEmpty()) {
+                return@mapNotNull null
+            }
+
+            val nearestDistance = geometryCandidates.minOf { it.horizontalDistanceMeters }
 
             val predictedDistance = predictedPosition?.let { nextPosition ->
-                zone.geometries
-                    .filter { geometry ->
-                        GeoAwarenessGeometryUtils.altitudeOverlaps(
-                            altitudeContext = altitudeContext,
-                            zoneLowerMeters = geometry.lowerLimitMeters,
-                            zoneUpperMeters = geometry.upperLimitMeters,
-                            lowerReference = geometry.lowerVerticalReference,
-                            upperReference = geometry.upperVerticalReference
-                        )
-                    }
-                    .mapNotNull { geometry ->
+                geometryCandidates
+                    .mapNotNull { candidate ->
                         try {
-                            GeoAwarenessGeometryUtils.distanceMetersToGeometry(nextPosition, geometry)
+                            GeoAwarenessGeometryUtils.distanceMetersToGeometry(nextPosition, candidate.geometry)
                         } catch (error: Exception) {
                             Log.w(TAG, "Skipping malformed geometry while checking predicted proximity for ${zone.id}", error)
                             null
@@ -159,16 +163,31 @@ class LiveGeoAwarenessChecker {
                     }
                     .minOrNull()
             }
+            val verticalWarning = geometryCandidates
+                .map { it.verticalWarning }
+                .minWithOrNull(
+                    compareBy<VerticalWarningEvaluation> { if (it.triggered) 0 else 1 }
+                        .thenBy { it.distanceMeters ?: Double.MAX_VALUE }
+                ) ?: VerticalWarningEvaluation(relevant = true)
             val closingSpeed = predictedDistance
                 ?.let { (nearestDistance - it) / CLOSING_SPEED_LOOKAHEAD_SECONDS }
                 ?.takeIf { it.isFinite() && it > 0.0 }
             val timeToBoundarySeconds = closingSpeed?.let { nearestDistance / it }
             val minimumWarningDistanceMeters = closingSpeed?.let { it * requiredWarningSeconds }
             val effectiveThresholdMeters = maxOf(thresholdMeters, minimumWarningDistanceMeters ?: 0.0)
-            val fixedDistanceTriggered = nearestDistance <= thresholdMeters
+            val nearestGeometry = geometryCandidates.minBy { it.horizontalDistanceMeters }.geometry
+            val horizontalFixedDistanceTriggered = nearestDistance <= thresholdMeters &&
+                GeoAwarenessGeometryUtils.altitudeOverlaps(
+                    altitudeContext = altitudeContext,
+                    zoneLowerMeters = nearestGeometry.lowerLimitMeters,
+                    zoneUpperMeters = nearestGeometry.upperLimitMeters,
+                    lowerReference = nearestGeometry.lowerVerticalReference,
+                    upperReference = nearestGeometry.upperVerticalReference
+                )
             val timeToBoundaryTriggered = timeToBoundarySeconds?.let { it <= requiredWarningSeconds } == true
+            val verticalWarningTriggered = verticalWarning.triggered && nearestDistance <= thresholdMeters
 
-            if (!fixedDistanceTriggered && !timeToBoundaryTriggered) {
+            if (!horizontalFixedDistanceTriggered && !timeToBoundaryTriggered && !verticalWarningTriggered) {
                 return@mapNotNull null
             }
 
@@ -184,13 +203,20 @@ class LiveGeoAwarenessChecker {
                 headingDegrees = normalizedHeading,
                 closingSpeedMetersPerSecond = closingSpeed,
                 timeToBoundarySeconds = timeToBoundarySeconds,
-                warningMeetsRequiredTime = timeToBoundarySeconds?.let { it >= requiredWarningSeconds },
+                verticalDistanceMeters = verticalWarning.distanceMeters,
+                verticalClosingSpeedMetersPerSecond = verticalWarning.closingSpeedMetersPerSecond,
+                verticalTimeToBoundarySeconds = verticalWarning.timeToBoundarySeconds,
+                verticalBoundaryReference = verticalWarning.reference,
+                warningMeetsRequiredTime = timeToBoundarySeconds?.let { it >= requiredWarningSeconds }
+                    ?: verticalWarning.timeToBoundarySeconds?.let { it >= requiredWarningSeconds },
                 warningMode = when {
+                    verticalWarningTriggered && verticalWarning.timeToBoundarySeconds != null -> "VERTICAL_TIME_TO_BOUNDARY"
+                    verticalWarningTriggered -> "VERTICAL_FIXED_DISTANCE"
                     timeToBoundaryTriggered -> "TIME_TO_BOUNDARY"
-                    fixedDistanceTriggered -> "FIXED_DISTANCE_100M"
+                    horizontalFixedDistanceTriggered -> "FIXED_DISTANCE_100M"
                     else -> "NONE"
                 },
-                verticalRelevance = true
+                verticalRelevance = verticalWarning.relevant
             )
         }
 
@@ -224,9 +250,84 @@ class LiveGeoAwarenessChecker {
     companion object {
         private const val TAG = "LiveGeoAwarenessChecker"
         const val REQUIRED_WARNING_SECONDS = 3.0
+        const val DEFAULT_VERTICAL_WARNING_BUFFER_METERS = 25.0
         private const val CLOSING_SPEED_LOOKAHEAD_SECONDS = 1.0
         private const val EARTH_RADIUS_METERS = 6_371_000.0
     }
+
+    private data class GeometryProximityCandidate(
+        val geometry: GeoZoneGeometry,
+        val horizontalDistanceMeters: Double,
+        val verticalWarning: VerticalWarningEvaluation
+    )
+
+    private data class VerticalWarningEvaluation(
+        val relevant: Boolean,
+        val triggered: Boolean = false,
+        val distanceMeters: Double? = null,
+        val closingSpeedMetersPerSecond: Double? = null,
+        val timeToBoundarySeconds: Double? = null,
+        val reference: GeoVerticalReference? = null
+    )
+
+    private fun evaluateVerticalWarning(
+        altitudeContext: GeoAltitudeContext?,
+        geometry: GeoZoneGeometry,
+        verticalSpeedMetersPerSecond: Double?,
+        requiredWarningSeconds: Double,
+        verticalWarningBufferMeters: Double
+    ): VerticalWarningEvaluation {
+        val overlaps = GeoAwarenessGeometryUtils.altitudeOverlaps(
+            altitudeContext = altitudeContext,
+            zoneLowerMeters = geometry.lowerLimitMeters,
+            zoneUpperMeters = geometry.upperLimitMeters,
+            lowerReference = geometry.lowerVerticalReference,
+            upperReference = geometry.upperVerticalReference
+        )
+        if (overlaps) {
+            return VerticalWarningEvaluation(relevant = true)
+        }
+
+        val lowerGap = geometry.lowerLimitMeters?.let { lower ->
+            altitudeContext?.altitudeFor(geometry.lowerVerticalReference)?.let { altitude ->
+                if (altitude < lower) VerticalGap(
+                    distanceMeters = lower - altitude,
+                    closingSpeedMetersPerSecond = verticalSpeedMetersPerSecond?.takeIf { it > 0.0 },
+                    reference = geometry.lowerVerticalReference
+                ) else null
+            }
+        }
+        val upperGap = geometry.upperLimitMeters?.let { upper ->
+            altitudeContext?.altitudeFor(geometry.upperVerticalReference)?.let { altitude ->
+                if (altitude > upper) VerticalGap(
+                    distanceMeters = altitude - upper,
+                    closingSpeedMetersPerSecond = verticalSpeedMetersPerSecond?.takeIf { it < 0.0 }?.let { -it },
+                    reference = geometry.upperVerticalReference
+                ) else null
+            }
+        }
+        val nearestGap = listOfNotNull(lowerGap, upperGap).minByOrNull { it.distanceMeters }
+            ?: return VerticalWarningEvaluation(relevant = false)
+        val timeToBoundarySeconds = nearestGap.closingSpeedMetersPerSecond
+            ?.let { nearestGap.distanceMeters / it }
+            ?.takeIf { it.isFinite() }
+        val timeTriggered = timeToBoundarySeconds?.let { it <= requiredWarningSeconds } == true
+        val fixedBufferTriggered = nearestGap.distanceMeters <= verticalWarningBufferMeters
+        return VerticalWarningEvaluation(
+            relevant = fixedBufferTriggered || timeTriggered,
+            triggered = fixedBufferTriggered || timeTriggered,
+            distanceMeters = nearestGap.distanceMeters,
+            closingSpeedMetersPerSecond = nearestGap.closingSpeedMetersPerSecond,
+            timeToBoundarySeconds = timeToBoundarySeconds,
+            reference = nearestGap.reference
+        )
+    }
+
+    private data class VerticalGap(
+        val distanceMeters: Double,
+        val closingSpeedMetersPerSecond: Double?,
+        val reference: GeoVerticalReference
+    )
 
     private fun projectPosition(position: LatLon, headingDegrees: Double, distanceMeters: Double): LatLon {
         if (distanceMeters <= 0.0) return position

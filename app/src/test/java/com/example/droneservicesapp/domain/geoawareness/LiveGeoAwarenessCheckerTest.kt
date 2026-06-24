@@ -130,6 +130,60 @@ class LiveGeoAwarenessCheckerTest {
     }
 
     @Test
+    fun verticalClimbTowardLowerBoundaryWithinThreeSecondsWarns() {
+        val result = checker.findNearestZoneWithinThreshold(
+            position = LatLon(lat = 0.0015, lon = 0.0),
+            zones = listOf(polygonZone(lowerMeters = 80.0, upperMeters = 120.0)),
+            thresholdMeters = 10.0,
+            altitudeContext = GeoAltitudeContext(aglMeters = 73.0),
+            groundSpeedMetersPerSecond = 0.0,
+            headingDegrees = null,
+            verticalSpeedMetersPerSecond = 3.0,
+            verticalWarningBufferMeters = 5.0
+        )
+
+        assertNotNull(result)
+        assertEquals("VERTICAL_TIME_TO_BOUNDARY", result!!.warningMode)
+        assertTrue(result.verticalTimeToBoundarySeconds!! <= 3.0)
+        assertEquals(7.0, result.verticalDistanceMeters!!, 0.2)
+    }
+
+    @Test
+    fun verticalDescentTowardUpperBoundaryWithinBufferWarnsInLevelLogic() {
+        val result = checker.findNearestZoneWithinThreshold(
+            position = LatLon(lat = 0.0015, lon = 0.0),
+            zones = listOf(polygonZone(lowerMeters = 80.0, upperMeters = 120.0)),
+            thresholdMeters = 10.0,
+            altitudeContext = GeoAltitudeContext(aglMeters = 135.0),
+            groundSpeedMetersPerSecond = 0.0,
+            headingDegrees = null,
+            verticalSpeedMetersPerSecond = 0.0,
+            verticalWarningBufferMeters = 20.0
+        )
+
+        assertNotNull(result)
+        assertEquals("VERTICAL_FIXED_DISTANCE", result!!.warningMode)
+        assertEquals(15.0, result.verticalDistanceMeters!!, 0.2)
+        assertNull(result.verticalTimeToBoundarySeconds)
+    }
+
+    @Test
+    fun outsideVerticalBufferDoesNotWarnEvenWhenHorizontallyInside() {
+        val result = checker.findNearestZoneWithinThreshold(
+            position = LatLon(lat = 0.0015, lon = 0.0),
+            zones = listOf(polygonZone(lowerMeters = 80.0, upperMeters = 120.0)),
+            thresholdMeters = 100.0,
+            altitudeContext = GeoAltitudeContext(aglMeters = 20.0),
+            groundSpeedMetersPerSecond = 0.0,
+            headingDegrees = null,
+            verticalSpeedMetersPerSecond = 0.0,
+            verticalWarningBufferMeters = 25.0
+        )
+
+        assertNull(result)
+    }
+
+    @Test
     fun insideRelevantZoneStillTriggersInsideWarning() {
         val zones = checker.checkDronePosition(
             dronePosition = LatLon(lat = 0.0015, lon = 0.0),

@@ -64,8 +64,8 @@ import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
 import com.example.droneservicesapp.ui.home.components.OsmdroidPolygonEditor
 import com.example.droneservicesapp.ui.home.components.OsmdroidRouteWaypointEditor
 import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessStatusViewBinder
-import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoAwarenessStatusViewBinder
 import com.example.droneservicesapp.ui.home.geoawareness.GeoZoneOverlayController
+import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoAwarenessPanelBinder
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
@@ -123,7 +123,7 @@ class MissionMapFragment : Fragment() {
     private var liveGeoAwarenessChecker: LiveGeoAwarenessChecker? = null
     private var latestLiveGeoZones: List<GeoZone> = emptyList()
     private var latestLiveGeoProximity: LiveGeoAwarenessProximityResult? = null
-    private var liveGeoAwarenessStatusBinder: LiveGeoAwarenessStatusViewBinder? = null
+    private var liveGeoAwarenessStatusBinder: LiveGeoAwarenessPanelBinder? = null
     private var latestLiveDronePosition: LatLon? = null
     private var latestRealDronePosition: LatLon? = null
     private var latestRealDroneAltitudeMeters: Double? = null
@@ -234,9 +234,8 @@ class MissionMapFragment : Fragment() {
             binding.geoAwarenessStatusChip
         )
         liveGeoAwarenessChecker = LiveGeoAwarenessChecker()
-        liveGeoAwarenessStatusBinder = LiveGeoAwarenessStatusViewBinder(
-            requireContext(),
-            binding.liveGeoAwarenessStatusChip
+        liveGeoAwarenessStatusBinder = LiveGeoAwarenessPanelBinder(
+            requireView().findViewById(R.id.liveGeoAwarenessPanel)
         )
         loadGeoAwarenessZonesIfNeeded()
         renderGeoAwarenessLayerIfVisible()
@@ -508,21 +507,9 @@ class MissionMapFragment : Fragment() {
 
     private fun observeDroneViewModel() {
         droneViewModel.droneLocationLiveData.observe(viewLifecycleOwner) { droneLocation ->
-            val livePosition = droneLocation?.takeIf(::isUsableDroneLocation)?.let {
-                LatLon(lat = it.latitude, lon = it.longitude)
-            }
-            val liveAltitudeMeters = droneLocation?.takeIf(::isUsableDroneLocation)?.altitude
-            latestRealDronePosition = livePosition
-            latestRealDroneAltitudeMeters = liveAltitudeMeters
-            latestRealDroneHorizontalAccuracyMeters = droneLocation
-                ?.takeIf(::isUsableDroneLocation)
-                ?.takeIf { it.hasAccuracy() }
-                ?.accuracy
-            latestRealDroneVerticalAccuracyMeters = droneLocation
-                ?.takeIf(::isUsableDroneLocation)
-                ?.takeIf { android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && it.hasVerticalAccuracy() }
-                ?.verticalAccuracyMeters
+            syncLatestDroneLocationSnapshot(droneLocation)
 
+            val livePosition = latestRealDronePosition
             if (livePosition != null) {
                 osmdroidMapController.updateDronePosition(
                     livePosition.lat,
@@ -540,10 +527,12 @@ class MissionMapFragment : Fragment() {
         }
 
         droneViewModel.conStateLiveData.observe(viewLifecycleOwner) {
+            syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
             updateLiveGeoAwarenessFromActiveSource()
         }
 
         droneViewModel.gpsFixType.observe(viewLifecycleOwner) {
+            syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
             updateLiveGeoAwarenessFromActiveSource()
         }
 
@@ -929,6 +918,20 @@ class MissionMapFragment : Fragment() {
             resetCurrentFlightUgzAuthorizations("disarmed")
         }
         wasDroneArmed = isArmed
+    }
+
+    private fun syncLatestDroneLocationSnapshot(droneLocation: android.location.Location?) {
+        val usableLocation = droneLocation?.takeIf(::isUsableDroneLocation)
+        latestRealDronePosition = usableLocation?.let {
+            LatLon(lat = it.latitude, lon = it.longitude)
+        }
+        latestRealDroneAltitudeMeters = usableLocation?.altitude
+        latestRealDroneHorizontalAccuracyMeters = usableLocation
+            ?.takeIf { it.hasAccuracy() }
+            ?.accuracy
+        latestRealDroneVerticalAccuracyMeters = usableLocation
+            ?.takeIf { android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && it.hasVerticalAccuracy() }
+            ?.verticalAccuracyMeters
     }
 
     private fun resetCurrentFlightUgzAuthorizations(reason: String) {
@@ -2178,12 +2181,14 @@ class MissionMapFragment : Fragment() {
                 if (nearestZone.warningMode.startsWith("VERTICAL")) {
                     liveGeoAwarenessStatusBinder?.bindVerticalNear(
                         zone = nearestZone.nearestZone,
-                        verticalDistanceMeters = nearestZone.verticalDistanceMeters
+                        verticalDistanceMeters = nearestZone.verticalDistanceMeters,
+                        relationLabel = verticalRelationLabel(nearestZone)
                     )
                 } else {
                     liveGeoAwarenessStatusBinder?.bindNear(
                         zone = nearestZone.nearestZone,
-                        distanceMeters = nearestZone.distanceMeters
+                        distanceMeters = nearestZone.distanceMeters,
+                        directionLabel = horizontalDirectionLabel(dronePosition, nearestZone.nearestZone)
                     )
                 }
             }
@@ -2306,6 +2311,69 @@ class MissionMapFragment : Fragment() {
             GpsFixQuality.DGPS,
             GpsFixQuality.RTK_FLOAT,
             GpsFixQuality.RTK_FIXED -> null
+        }
+    }
+
+    private fun horizontalDirectionLabel(
+        fromPosition: LatLon,
+        zone: GeoZone
+    ): String? {
+        val target = representativePoint(zone) ?: return null
+        val bearing = bearingDegrees(fromPosition, target)
+        return compassDirectionLabel(bearing)
+    }
+
+    private fun representativePoint(zone: GeoZone): LatLon? {
+        val geometry = zone.geometries.firstOrNull() ?: return null
+        return when (geometry) {
+            is com.example.droneservicesapp.domain.geoawareness.GeoZoneGeometry.Circle -> geometry.center
+            is com.example.droneservicesapp.domain.geoawareness.GeoZoneGeometry.Polygon -> {
+                val outerRing = geometry.rings.firstOrNull().orEmpty()
+                if (outerRing.isEmpty()) return null
+                val lat = outerRing.map { it.lat }.average()
+                val lon = outerRing.map { it.lon }.average()
+                LatLon(lat = lat, lon = lon)
+            }
+        }
+    }
+
+    private fun bearingDegrees(from: LatLon, to: LatLon): Double {
+        val startLat = Math.toRadians(from.lat)
+        val endLat = Math.toRadians(to.lat)
+        val deltaLon = Math.toRadians(to.lon - from.lon)
+        val y = sin(deltaLon) * cos(endLat)
+        val x = cos(startLat) * sin(endLat) - sin(startLat) * cos(endLat) * cos(deltaLon)
+        val bearing = Math.toDegrees(atan2(y, x))
+        return (bearing + 360.0) % 360.0
+    }
+
+    private fun compassDirectionLabel(bearingDegrees: Double): String {
+        val directions = listOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")
+        val index = (((bearingDegrees + 22.5) % 360.0) / 45.0).toInt()
+        return directions[index]
+    }
+
+    private fun verticalRelationLabel(proximity: LiveGeoAwarenessProximityResult): String {
+        val zone = proximity.nearestZone
+        val geometry = zone.geometries.firstOrNull() ?: return "ABOVE"
+        val aglAltitude = latestRealDroneAltitudeMeters
+        val amslAltitude = latestRealDroneAltitudeAmslMeters
+        val lowerAltitude = when (geometry.lowerVerticalReference) {
+            com.example.droneservicesapp.domain.geoawareness.GeoVerticalReference.AGL -> aglAltitude
+            com.example.droneservicesapp.domain.geoawareness.GeoVerticalReference.AMSL -> amslAltitude
+            com.example.droneservicesapp.domain.geoawareness.GeoVerticalReference.UNKNOWN -> aglAltitude ?: amslAltitude
+        }
+        val lowerLimit = geometry.lowerLimitMeters
+        val upperAltitude = when (geometry.upperVerticalReference) {
+            com.example.droneservicesapp.domain.geoawareness.GeoVerticalReference.AGL -> aglAltitude
+            com.example.droneservicesapp.domain.geoawareness.GeoVerticalReference.AMSL -> amslAltitude
+            com.example.droneservicesapp.domain.geoawareness.GeoVerticalReference.UNKNOWN -> aglAltitude ?: amslAltitude
+        }
+        val upperLimit = geometry.upperLimitMeters
+        return when {
+            lowerLimit != null && lowerAltitude != null && lowerAltitude < lowerLimit -> "ABOVE"
+            upperLimit != null && upperAltitude != null && upperAltitude > upperLimit -> "BELOW"
+            else -> "ABOVE"
         }
     }
 }

@@ -80,6 +80,43 @@ class LiveGeoAwarenessStatusViewBinder(
         }
     }
 
+    fun bindVerticalNear(zone: GeoZone, verticalDistanceMeters: Double?) {
+        val roundedMeters = verticalDistanceMeters?.toInt()?.coerceAtLeast(0)
+        val suffix = roundedMeters?.let { " - ${it} m" }.orEmpty()
+        when (zone.restriction) {
+            GeoZoneRestriction.PROHIBITED -> applyStyle(
+                text = "LIVE GEO: VERTICAL PROHIBITED$suffix",
+                backgroundColor = Color.parseColor("#E65100"),
+                textColor = Color.WHITE
+            )
+            GeoZoneRestriction.REQ_AUTHORISATION -> applyStyle(
+                text = "LIVE GEO: VERTICAL AUTH$suffix",
+                backgroundColor = Color.parseColor("#EF6C00"),
+                textColor = Color.WHITE
+            )
+            GeoZoneRestriction.CONDITIONAL -> applyStyle(
+                text = "LIVE GEO: VERTICAL CONDITIONAL$suffix",
+                backgroundColor = Color.parseColor("#F9A825"),
+                textColor = Color.parseColor("#212121")
+            )
+            GeoZoneRestriction.UNKNOWN -> applyStyle(
+                text = "LIVE GEO: VERTICAL UNKNOWN$suffix",
+                backgroundColor = Color.parseColor("#8D6E63"),
+                textColor = Color.WHITE
+            )
+            GeoZoneRestriction.INFORMATION -> bindClear()
+        }
+    }
+
+    fun bindDegraded(message: String) {
+        applyStyle(
+            text = "LIVE GEO: DEGRADED",
+            backgroundColor = Color.parseColor("#6D4C41"),
+            textColor = Color.WHITE
+        )
+        statusView.contentDescription = message
+    }
+
     fun bindUnknown(message: String) {
         applyStyle(
             text = "LIVE GEO: NO POS",
