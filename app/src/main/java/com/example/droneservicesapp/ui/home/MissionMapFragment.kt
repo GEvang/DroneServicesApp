@@ -2160,47 +2160,59 @@ class MissionMapFragment : Fragment() {
             altitudeMeters = droneAltitudeMeters
         )
         latestLiveGeoZones = insideZones
-        if (insideZones.isEmpty()) {
-            val nearThreats = liveGeoAwarenessChecker?.findZonesWithinThreshold(
-                position = dronePosition,
-                zones = geoAwarenessZones,
-                thresholdMeters = DEFAULT_NEAR_ZONE_THRESHOLD_METERS,
-                altitudeContext = GeoAltitudeContext(
-                    aglMeters = droneAltitudeMeters,
-                    amslMeters = latestRealDroneAltitudeAmslMeters
-                ),
-                groundSpeedMetersPerSecond = latestRealDroneGroundSpeedMetersPerSecond?.toDouble(),
-                headingDegrees = latestRealDroneHeadingDegrees,
-                verticalSpeedMetersPerSecond = latestRealDroneVerticalSpeedMetersPerSecond?.toDouble()
-            ).orEmpty()
-            val nearestZone = nearThreats.firstOrNull()
-            latestLiveGeoProximity = nearestZone
-            latestLiveGeoThreats = nearThreats
-            if (nearestZone == null) {
-                lastLiveProximityIdentity = null
-                liveGeoAwarenessStatusBinder?.bindClear()
-            } else {
+        val nearThreats = liveGeoAwarenessChecker?.findZonesWithinThreshold(
+            position = dronePosition,
+            zones = geoAwarenessZones,
+            thresholdMeters = DEFAULT_NEAR_ZONE_THRESHOLD_METERS,
+            altitudeContext = GeoAltitudeContext(
+                aglMeters = droneAltitudeMeters,
+                amslMeters = latestRealDroneAltitudeAmslMeters
+            ),
+            groundSpeedMetersPerSecond = latestRealDroneGroundSpeedMetersPerSecond?.toDouble(),
+            headingDegrees = latestRealDroneHeadingDegrees,
+            verticalSpeedMetersPerSecond = latestRealDroneVerticalSpeedMetersPerSecond?.toDouble()
+        ).orEmpty()
+        val nearestZone = nearThreats.firstOrNull()
+        latestLiveGeoProximity = nearestZone
+
+        if (insideZones.isEmpty() && nearestZone == null) {
+            latestLiveGeoThreats = emptyList()
+            lastLiveProximityIdentity = null
+            liveGeoAwarenessStatusBinder?.bindClear()
+        } else {
+            nearestZone?.let { proximity ->
                 logLiveProximityIfNeeded(
-                    proximity = nearestZone,
+                    proximity = proximity,
                     latitude = dronePosition.lat,
                     longitude = dronePosition.lon,
                     altitudeMeters = droneAltitudeMeters
                 )
-                val threatRows = nearThreats.take(3).map { it.toThreatUiModel(dronePosition) }
-                val hasMultipleThreats = nearThreats.size > 1
-                liveGeoAwarenessStatusBinder?.bindThreatSummary(
-                    statusLabel = if (hasMultipleThreats) "MULTIPLE" else restrictionBadgeLabel(nearestZone.restriction),
-                    statusColor = restrictionColorHex(nearestZone.restriction),
-                    threats = threatRows,
-                    remainingCount = (nearThreats.size - threatRows.size).coerceAtLeast(0),
-                    headingDegrees = latestRealDroneHeadingDegrees
-                )
             }
-        } else {
-            latestLiveGeoProximity = null
-            latestLiveGeoThreats = emptyList()
-            lastLiveProximityIdentity = null
-            liveGeoAwarenessStatusBinder?.bindInsideMultiple(insideZones)
+            val insideThreatRows = insideZones.map { zone -> zone.toInsideThreatUiModel(dronePosition) }
+            val dedupedNearThreats = nearThreats.filterNot { proximity ->
+                insideZones.any { inside -> inside.id == proximity.nearestZone.id }
+            }
+            val threatRows = (insideThreatRows + dedupedNearThreats.map { it.toThreatUiModel(dronePosition) })
+                .take(3)
+            val remainingCount = (insideThreatRows.size + dedupedNearThreats.size - threatRows.size).coerceAtLeast(0)
+            latestLiveGeoThreats = nearThreats
+            val highestInside = insideZones.maxByOrNull { restrictionPriority(it.restriction) }
+            val statusRestriction = highestInside?.restriction ?: nearestZone?.restriction
+            val statusLabel = when {
+                highestInside != null -> "IN ${restrictionShortLabel(highestInside.restriction)}"
+                threatRows.size > 1 -> "MULTIPLE"
+                statusRestriction != null -> restrictionBadgeLabel(statusRestriction)
+                else -> "CLEAR"
+            }
+            val statusColor = statusRestriction?.let(::restrictionColorHex) ?: "#48D26D"
+            liveGeoAwarenessStatusBinder?.bindThreatSummary(
+                statusLabel = statusLabel,
+                statusColor = statusColor,
+                threats = threatRows,
+                remainingCount = remainingCount,
+                headingDegrees = latestRealDroneHeadingDegrees,
+                borderColor = highestInside?.restriction?.let(::restrictionColorHex) ?: "#00000000"
+            )
         }
 
         Log.d(
@@ -2385,9 +2397,15 @@ class MissionMapFragment : Fragment() {
     private fun LiveGeoAwarenessProximityResult.toThreatUiModel(dronePosition: LatLon): LiveGeoThreatUiModel {
         val isVertical = warningMode.startsWith("VERTICAL")
         val direction = horizontalDirectionLabel(dronePosition, nearestZone) ?: "--"
-        val distance = formatLiveGeoDistance(distanceMeters)
-        val altitude = if (isVertical) formatLiveGeoDistance(verticalDistanceMeters) else "--"
+        val distance = "H: ${formatLiveGeoDistance(distanceMeters)}"
+        val altitude = if (isVertical) "V: ${formatLiveGeoDistance(verticalDistanceMeters)}" else "V: --"
         val zoneIsAboveDrone = verticalRelationLabel(this) == "ABOVE"
+        val normalizedRatio = (distanceMeters / effectiveThresholdMeters)
+            .takeIf { it.isFinite() }
+            ?.coerceIn(0.0, 1.0)
+            ?.toFloat()
+            ?: 1f
+        val radialRatio = 0.25f + (normalizedRatio * 0.75f)
         return LiveGeoThreatUiModel(
             label = restrictionShortLabel(restriction),
             colorHex = restrictionColorHex(restriction),
@@ -2399,12 +2417,25 @@ class MissionMapFragment : Fragment() {
                 zoneIsAboveDrone -> "\u2191"
                 else -> "\u2193"
             },
+            radialDistanceRatio = radialRatio,
             bearingDegrees = representativePoint(nearestZone)?.let { bearingDegrees(dronePosition, it) },
             verticalIndicator = when {
                 !isVertical -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.NONE
                 zoneIsAboveDrone -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.UP
                 else -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.DOWN
             }
+        )
+    }
+
+    private fun GeoZone.toInsideThreatUiModel(dronePosition: LatLon): LiveGeoThreatUiModel {
+        return LiveGeoThreatUiModel(
+            label = restrictionShortLabel(restriction),
+            colorHex = restrictionColorHex(restriction),
+            directionText = horizontalDirectionLabel(dronePosition, this) ?: "IN",
+            distanceText = "H: IN",
+            altitudeText = "V: IN",
+            radialDistanceRatio = 0.18f,
+            bearingDegrees = representativePoint(this)?.let { bearingDegrees(dronePosition, it) }
         )
     }
 
@@ -2435,6 +2466,16 @@ class MissionMapFragment : Fragment() {
             GeoZoneRestriction.CONDITIONAL -> "#F4C73D"
             GeoZoneRestriction.INFORMATION -> "#4C9DFF"
             GeoZoneRestriction.UNKNOWN -> "#8D6E63"
+        }
+    }
+
+    private fun restrictionPriority(restriction: GeoZoneRestriction): Int {
+        return when (restriction) {
+            GeoZoneRestriction.PROHIBITED -> 4
+            GeoZoneRestriction.REQ_AUTHORISATION -> 3
+            GeoZoneRestriction.CONDITIONAL -> 2
+            GeoZoneRestriction.INFORMATION -> 1
+            GeoZoneRestriction.UNKNOWN -> 0
         }
     }
 

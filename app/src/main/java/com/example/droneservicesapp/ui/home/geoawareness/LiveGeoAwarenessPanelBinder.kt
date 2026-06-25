@@ -19,6 +19,7 @@ data class LiveGeoThreatUiModel(
     val distanceText: String,
     val altitudeText: String,
     val verticalArrowText: String = "",
+    val radialDistanceRatio: Float = 1f,
     val bearingDegrees: Double? = null,
     val verticalIndicator: VerticalIndicator = VerticalIndicator.NONE
 )
@@ -30,6 +31,7 @@ class LiveGeoAwarenessPanelBinder(
 ) {
     private val statusBadge: TextView = rootView.findViewById(R.id.live_geo_status_badge)
     private val topDivider: View = rootView.findViewById(R.id.live_geo_top_divider)
+    private val compassHighlight: View = rootView.findViewById(R.id.live_geo_compass_highlight)
     private val centerCore: View = rootView.findViewById(R.id.live_geo_center_core)
     private val centerIcon: ImageView = rootView.findViewById(R.id.live_geo_center_icon)
     private val compassFrame: FrameLayout = rootView.findViewById(R.id.live_geo_compass_frame)
@@ -77,7 +79,8 @@ class LiveGeoAwarenessPanelBinder(
             statusLabel = "CLEAR",
             statusColor = "#48D26D",
             threats = emptyList(),
-            headingDegrees = null
+            headingDegrees = null,
+            borderColor = "#00000000"
         )
     }
 
@@ -89,8 +92,9 @@ class LiveGeoAwarenessPanelBinder(
                 label = restrictionShortLabel(zone.restriction),
                 colorHex = restrictionColor(zone.restriction),
                 directionText = "IN",
-                distanceText = "INSIDE",
-                altitudeText = "--"
+                distanceText = "H: IN",
+                altitudeText = "V: --",
+                radialDistanceRatio = 0.18f
             )
         }
         bindThreatSummary(
@@ -98,7 +102,8 @@ class LiveGeoAwarenessPanelBinder(
             statusColor = color,
             threats = rows,
             remainingCount = (zones.size - rows.size).coerceAtLeast(0),
-            headingDegrees = null
+            headingDegrees = null,
+            borderColor = color
         )
     }
 
@@ -107,13 +112,15 @@ class LiveGeoAwarenessPanelBinder(
         statusColor: String,
         threats: List<LiveGeoThreatUiModel>,
         remainingCount: Int = 0,
-        headingDegrees: Double? = null
+        headingDegrees: Double? = null,
+        borderColor: String = "#00000000"
     ) {
         rootView.visibility = View.VISIBLE
         setThreatContentVisible(threats.isNotEmpty())
         statusBadge.text = statusLabel
         statusBadge.setTextColor(Color.parseColor(statusColor))
         tintShape(statusBadge.background, statusColor, 0.22f)
+        tintStroke(compassHighlight.background, borderColor)
         tintShape(centerCore.background, darken(statusColor))
         centerIcon.setColorFilter(Color.parseColor("#FFFFFF"))
 
@@ -144,7 +151,8 @@ class LiveGeoAwarenessPanelBinder(
             statusLabel = "DEGRADED",
             statusColor = "#FFB26B",
             threats = emptyList(),
-            headingDegrees = null
+            headingDegrees = null,
+            borderColor = "#00000000"
         )
     }
 
@@ -153,7 +161,8 @@ class LiveGeoAwarenessPanelBinder(
             statusLabel = "UNKNOWN",
             statusColor = "#AAB5C6",
             threats = emptyList(),
-            headingDegrees = null
+            headingDegrees = null,
+            borderColor = "#00000000"
         )
     }
 
@@ -174,7 +183,7 @@ class LiveGeoAwarenessPanelBinder(
                 VerticalIndicator.NONE -> ""
             }
             when {
-                threat.bearingDegrees != null -> placeBearingMarker(marker, threat.bearingDegrees)
+                threat.bearingDegrees != null -> placeBearingMarker(marker, threat.bearingDegrees, threat.radialDistanceRatio)
                 threat.verticalIndicator != VerticalIndicator.NONE -> placeVerticalMarker(marker, threat.verticalIndicator)
                 else -> marker.visibility = View.INVISIBLE
             }
@@ -199,11 +208,14 @@ class LiveGeoAwarenessPanelBinder(
         }
     }
 
-    private fun placeBearingMarker(marker: TextView, bearingDegrees: Double) {
+    private fun placeBearingMarker(marker: TextView, bearingDegrees: Double, radialDistanceRatio: Float) {
         compassFrame.post {
             val centerX = compassFrame.width / 2f
             val centerY = compassFrame.height / 2f
-            val radius = (compassFrame.width.coerceAtMost(compassFrame.height) / 2f) - 24f
+            val maxRadius = (compassFrame.width.coerceAtMost(compassFrame.height) / 2f) - 24f
+            val minRadius = 32f
+            val clampedRatio = radialDistanceRatio.coerceIn(0.18f, 1f)
+            val radius = minRadius + (maxRadius - minRadius) * clampedRatio
             val radians = Math.toRadians(bearingDegrees - 90.0)
             marker.x = centerX + radius * cos(radians).toFloat() - marker.width / 2f
             marker.y = centerY + radius * sin(radians).toFloat() - marker.height / 2f
@@ -280,6 +292,10 @@ class LiveGeoAwarenessPanelBinder(
         (background as? GradientDrawable)?.setColor(tinted)
     }
 
+    private fun tintStroke(background: android.graphics.drawable.Drawable?, color: String) {
+        (background as? GradientDrawable)?.setStroke(2, Color.parseColor(color))
+    }
+
     private data class RowBinding(
         val dot: View,
         val label: TextView,
@@ -319,8 +335,8 @@ class LiveGeoAwarenessPanelBinder(
                 label.text = "CLEAR"
                 label.setTextColor(Color.parseColor("#48D26D"))
                 direction.text = "--"
-                distance.text = "--"
-                altitude.text = "--"
+                distance.text = "H: --"
+                altitude.text = "V: --"
                 verticalArrow.text = ""
                 (dot.background as? GradientDrawable)?.setColor(Color.parseColor("#48D26D"))
             }

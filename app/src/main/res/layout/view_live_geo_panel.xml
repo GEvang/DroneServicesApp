@@ -57,6 +57,13 @@
         app:layout_constraintTop_toBottomOf="@id/live_geo_top_divider">
 
         <View
+            android:id="@+id/live_geo_compass_highlight"
+            android:layout_width="220dp"
+            android:layout_height="220dp"
+            android:background="@drawable/bg_live_geo_compass_highlight" />
+
+        <View
+            android:id="@+id/live_geo_compass_ring"
             android:layout_width="220dp"
             android:layout_height="220dp"
             android:background="@drawable/bg_live_geo_ring" />
@@ -238,7 +245,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
                         android:fontFamily="@font/inter"
-                        android:text="--"
+                        android:text="H: --"
                         android:textColor="#D7E0EF"
                         android:textSize="11sp" />
 
@@ -248,7 +255,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
                         android:fontFamily="@font/inter"
-                        android:text="--"
+                        android:text="V: --"
                         android:textColor="#D7E0EF"
                         android:textSize="11sp" />
 
@@ -332,7 +339,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
                         android:fontFamily="@font/inter"
-                        android:text="--"
+                        android:text="H: --"
                         android:textColor="#D7E0EF"
                         android:textSize="11sp" />
 
@@ -342,7 +349,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
                         android:fontFamily="@font/inter"
-                        android:text="--"
+                        android:text="V: --"
                         android:textColor="#D7E0EF"
                         android:textSize="11sp" />
 
@@ -426,7 +433,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
                         android:fontFamily="@font/inter"
-                        android:text="--"
+                        android:text="H: --"
                         android:textColor="#D7E0EF"
                         android:textSize="11sp" />
 
@@ -436,7 +443,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
                         android:fontFamily="@font/inter"
-                        android:text="--"
+                        android:text="V: --"
                         android:textColor="#D7E0EF"
                         android:textSize="11sp" />
 
