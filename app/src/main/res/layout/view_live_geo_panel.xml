@@ -189,10 +189,13 @@
         app:layout_constraintTop_toBottomOf="@id/live_geo_compass_frame">
 
         <LinearLayout
+            android:id="@+id/live_geo_row_1"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:gravity="top"
             android:orientation="horizontal"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
             android:paddingStart="12dp"
             android:paddingEnd="12dp">
 
@@ -287,6 +290,8 @@
             android:layout_height="wrap_content"
             android:gravity="top"
             android:orientation="horizontal"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
             android:paddingStart="12dp"
             android:paddingEnd="12dp">
 
@@ -381,6 +386,8 @@
             android:layout_height="wrap_content"
             android:gravity="top"
             android:orientation="horizontal"
+            android:paddingTop="4dp"
+            android:paddingBottom="4dp"
             android:paddingStart="12dp"
             android:paddingEnd="12dp">
 

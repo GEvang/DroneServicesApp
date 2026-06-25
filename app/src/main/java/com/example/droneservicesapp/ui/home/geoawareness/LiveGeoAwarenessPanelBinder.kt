@@ -21,7 +21,9 @@ data class LiveGeoThreatUiModel(
     val verticalArrowText: String = "",
     val radialDistanceRatio: Float = 1f,
     val bearingDegrees: Double? = null,
-    val verticalIndicator: VerticalIndicator = VerticalIndicator.NONE
+    val verticalIndicator: VerticalIndicator = VerticalIndicator.NONE,
+    val showCompassMarker: Boolean = true,
+    val isInsideZone: Boolean = false
 )
 
 enum class VerticalIndicator { NONE, UP, DOWN }
@@ -44,6 +46,7 @@ class LiveGeoAwarenessPanelBinder(
     )
     private val rowBindings: List<RowBinding> = listOf(
         RowBinding(
+            container = rootView.findViewById(R.id.live_geo_row_1),
             dot = rootView.findViewById(R.id.live_geo_row_1_dot),
             label = rootView.findViewById(R.id.live_geo_row_1_label),
             direction = rootView.findViewById(R.id.live_geo_row_1_direction),
@@ -53,6 +56,7 @@ class LiveGeoAwarenessPanelBinder(
             divider = rootView.findViewById(R.id.live_geo_row_1_divider)
         ),
         RowBinding(
+            container = rootView.findViewById(R.id.live_geo_row_2),
             dot = rootView.findViewById(R.id.live_geo_row_2_dot),
             label = rootView.findViewById(R.id.live_geo_row_2_label),
             direction = rootView.findViewById(R.id.live_geo_row_2_direction),
@@ -62,6 +66,7 @@ class LiveGeoAwarenessPanelBinder(
             divider = rootView.findViewById(R.id.live_geo_row_2_divider)
         ),
         RowBinding(
+            container = rootView.findViewById(R.id.live_geo_row_3),
             dot = rootView.findViewById(R.id.live_geo_row_3_dot),
             label = rootView.findViewById(R.id.live_geo_row_3_label),
             direction = rootView.findViewById(R.id.live_geo_row_3_direction),
@@ -94,7 +99,9 @@ class LiveGeoAwarenessPanelBinder(
                 directionText = "IN",
                 distanceText = "H: IN",
                 altitudeText = "V: --",
-                radialDistanceRatio = 0.18f
+                radialDistanceRatio = 0.18f,
+                showCompassMarker = false,
+                isInsideZone = true
             )
         }
         bindThreatSummary(
@@ -175,6 +182,10 @@ class LiveGeoAwarenessPanelBinder(
         markerViews.forEach { it.visibility = View.INVISIBLE }
         threats.take(markerViews.size).forEachIndexed { index, threat ->
             val marker = markerViews[index]
+            if (!threat.showCompassMarker) {
+                marker.visibility = View.INVISIBLE
+                return@forEachIndexed
+            }
             marker.visibility = View.VISIBLE
             tintShape(marker.background, threat.colorHex)
             marker.text = when (threat.verticalIndicator) {
@@ -243,8 +254,8 @@ class LiveGeoAwarenessPanelBinder(
     private fun restrictionShortLabel(restriction: GeoZoneRestriction): String {
         return when (restriction) {
             GeoZoneRestriction.PROHIBITED -> "PROHIBITED"
-            GeoZoneRestriction.REQ_AUTHORISATION -> "AUTH"
-            GeoZoneRestriction.CONDITIONAL -> "COND"
+            GeoZoneRestriction.REQ_AUTHORISATION -> "AUTH REQUIRED"
+            GeoZoneRestriction.CONDITIONAL -> "CONDITIONAL"
             GeoZoneRestriction.INFORMATION -> "INFO"
             GeoZoneRestriction.UNKNOWN -> "UNKNOWN"
         }
@@ -293,10 +304,13 @@ class LiveGeoAwarenessPanelBinder(
     }
 
     private fun tintStroke(background: android.graphics.drawable.Drawable?, color: String) {
-        (background as? GradientDrawable)?.setStroke(2, Color.parseColor(color))
+        val parsedColor = Color.parseColor(color)
+        val strokeWidthPx = if (Color.alpha(parsedColor) == 0) 0 else 6
+        (background as? GradientDrawable)?.setStroke(strokeWidthPx, parsedColor)
     }
 
     private data class RowBinding(
+        val container: View,
         val dot: View,
         val label: TextView,
         val direction: TextView,
@@ -314,6 +328,7 @@ class LiveGeoAwarenessPanelBinder(
             verticalArrow.visibility = View.VISIBLE
             divider?.visibility = View.VISIBLE
             (dot.background as? GradientDrawable)?.setColor(Color.parseColor(threat.colorHex))
+            container.background = insideHighlight(threat.colorHex.takeIf { threat.isInsideZone })
             label.text = threat.label
             label.setTextColor(Color.parseColor(threat.colorHex))
             direction.text = threat.directionText
@@ -331,6 +346,7 @@ class LiveGeoAwarenessPanelBinder(
             altitude.visibility = visibility
             verticalArrow.visibility = visibility
             divider?.visibility = if (keepVisible) View.VISIBLE else View.GONE
+            container.background = null
             if (keepVisible) {
                 label.text = "CLEAR"
                 label.setTextColor(Color.parseColor("#48D26D"))
@@ -339,6 +355,16 @@ class LiveGeoAwarenessPanelBinder(
                 altitude.text = "V: --"
                 verticalArrow.text = ""
                 (dot.background as? GradientDrawable)?.setColor(Color.parseColor("#48D26D"))
+            }
+        }
+
+        private fun insideHighlight(colorHex: String?): GradientDrawable? {
+            if (colorHex.isNullOrBlank()) return null
+            return GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = 18f
+                setColor(Color.TRANSPARENT)
+                setStroke(3, Color.parseColor(colorHex))
             }
         }
     }

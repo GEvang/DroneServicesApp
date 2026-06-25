@@ -315,6 +315,6 @@ class HomeTelemetryCoordinator(
         val speed = speedMetersPerSecond
             ?.takeIf { TelemetryMapping.isValidGroundSpeedMetersPerSecond(it) }
             ?: 0f
-        return "SPD: ${String.format(Locale.US, "%.1f", speed)}"
+        return "SPD: ${String.format(Locale.US, "%.1f", speed)} m/s"
     }
 }

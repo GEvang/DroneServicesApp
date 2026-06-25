@@ -2201,7 +2201,7 @@ class MissionMapFragment : Fragment() {
             val statusLabel = when {
                 highestInside != null -> "IN ${restrictionShortLabel(highestInside.restriction)}"
                 threatRows.size > 1 -> "MULTIPLE"
-                statusRestriction != null -> restrictionBadgeLabel(statusRestriction)
+                statusRestriction != null -> nearRestrictionBadgeLabel(statusRestriction)
                 else -> "CLEAR"
             }
             val statusColor = statusRestriction?.let(::restrictionColorHex) ?: "#48D26D"
@@ -2423,7 +2423,8 @@ class MissionMapFragment : Fragment() {
                 !isVertical -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.NONE
                 zoneIsAboveDrone -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.UP
                 else -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.DOWN
-            }
+            },
+            showCompassMarker = true
         )
     }
 
@@ -2435,15 +2436,17 @@ class MissionMapFragment : Fragment() {
             distanceText = "H: IN",
             altitudeText = "V: IN",
             radialDistanceRatio = 0.18f,
-            bearingDegrees = representativePoint(this)?.let { bearingDegrees(dronePosition, it) }
+            bearingDegrees = null,
+            showCompassMarker = false,
+            isInsideZone = true
         )
     }
 
     private fun restrictionShortLabel(restriction: GeoZoneRestriction): String {
         return when (restriction) {
             GeoZoneRestriction.PROHIBITED -> "PROHIBITED"
-            GeoZoneRestriction.REQ_AUTHORISATION -> "AUTH"
-            GeoZoneRestriction.CONDITIONAL -> "COND"
+            GeoZoneRestriction.REQ_AUTHORISATION -> "AUTH REQUIRED"
+            GeoZoneRestriction.CONDITIONAL -> "CONDITIONAL"
             GeoZoneRestriction.INFORMATION -> "INFO"
             GeoZoneRestriction.UNKNOWN -> "UNKNOWN"
         }
@@ -2456,6 +2459,16 @@ class MissionMapFragment : Fragment() {
             GeoZoneRestriction.CONDITIONAL -> "CONDITIONAL"
             GeoZoneRestriction.INFORMATION -> "INFO"
             GeoZoneRestriction.UNKNOWN -> "UNKNOWN"
+        }
+    }
+
+    private fun nearRestrictionBadgeLabel(restriction: GeoZoneRestriction): String {
+        return when (restriction) {
+            GeoZoneRestriction.PROHIBITED -> "NEAR PROHIBITED"
+            GeoZoneRestriction.REQ_AUTHORISATION -> "NEAR AUTH REQUIRED"
+            GeoZoneRestriction.CONDITIONAL -> "NEAR CONDITIONAL"
+            GeoZoneRestriction.INFORMATION -> "INFO"
+            GeoZoneRestriction.UNKNOWN -> "NEAR UNKNOWN"
         }
     }
 
