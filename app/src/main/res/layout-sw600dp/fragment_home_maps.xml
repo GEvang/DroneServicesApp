@@ -20,7 +20,7 @@
 
         <FrameLayout
             android:id="@+id/mission_params_side_view"
-            android:layout_width="wrap_content"
+            android:layout_width="@dimen/tablet_left_panel_width"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/ds_space_md"
             android:layout_marginTop="@dimen/ds_space_md"
@@ -31,13 +31,13 @@
             <include
                 android:id="@+id/home_left_panel"
                 layout="@layout/mission_params_side_view"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
         </FrameLayout>
 
         <FrameLayout
             android:id="@+id/planning_panel_container"
-            android:layout_width="@dimen/tablet_side_panel_width"
+            android:layout_width="@dimen/tablet_right_panel_width"
             android:layout_height="wrap_content"
             android:layout_marginEnd="@dimen/ds_space_md"
             android:layout_marginTop="@dimen/tablet_right_panel_compact_top_margin"

@@ -13,6 +13,8 @@ class MissionParamsViews(
     rootView: View,
 ) {
     val panelRoot: View = rootView.findViewById(R.id.mission_params_side_view)
+    val sprayModeSection: View = panelRoot.findViewById(R.id.spray_mode_section)
+    val surveyModeSection: View = panelRoot.findViewById(R.id.survey_mode_section)
 
     val altitudeReferenceRelativeButton: TextView =
         panelRoot.findViewById(R.id.altitude_reference_relative_button)
@@ -22,6 +24,42 @@ class MissionParamsViews(
         panelRoot.findViewById(R.id.altitude_reference_warning)
 
     val presetSelector: TextView = rootView.findViewById(R.id.spray_preset_selector)
+
+    val surveyStripSpacingValue: EditText = rootView.findViewById(R.id.survey_strip_spacing_value)
+    val surveyStripSpacingSeekbar: SeekBar = rootView.findViewById(R.id.survey_strip_spacing_seekbar)
+    val surveyStripSpacingSliderRow: LinearLayout = rootView.findViewById(R.id.survey_strip_spacing_slider_row)
+    val surveyStripSpacingMinusButton: View = panelRoot.findViewById(R.id.btn_survey_strip_spacing_minus)
+    val surveyStripSpacingPlusButton: View = panelRoot.findViewById(R.id.btn_survey_strip_spacing_plus)
+
+    val surveyHeightValue: EditText = rootView.findViewById(R.id.survey_height_value)
+    val surveyHeightSeekbar: SeekBar = rootView.findViewById(R.id.survey_height_seekbar)
+    val surveyHeightSliderRow: LinearLayout = rootView.findViewById(R.id.survey_height_slider_row)
+    val surveyHeightMinusButton: View = panelRoot.findViewById(R.id.btn_survey_height_minus)
+    val surveyHeightPlusButton: View = panelRoot.findViewById(R.id.btn_survey_height_plus)
+
+    val surveyOverlapValue: EditText = rootView.findViewById(R.id.survey_overlap_value)
+    val surveyOverlapSeekbar: SeekBar = rootView.findViewById(R.id.survey_overlap_seekbar)
+    val surveyOverlapSliderRow: LinearLayout = rootView.findViewById(R.id.survey_overlap_slider_row)
+    val surveyOverlapMinusButton: View = panelRoot.findViewById(R.id.btn_survey_overlap_minus)
+    val surveyOverlapPlusButton: View = panelRoot.findViewById(R.id.btn_survey_overlap_plus)
+
+    val surveyGridAngleValue: EditText = rootView.findViewById(R.id.survey_grid_angle_value)
+    val surveyGridAngleSeekbar: SeekBar = rootView.findViewById(R.id.survey_grid_angle_seekbar)
+    val surveyGridAngleSliderRow: LinearLayout = rootView.findViewById(R.id.survey_grid_angle_slider_row)
+    val surveyGridAngleMinusButton: View = panelRoot.findViewById(R.id.btn_survey_grid_angle_minus)
+    val surveyGridAnglePlusButton: View = panelRoot.findViewById(R.id.btn_survey_grid_angle_plus)
+
+    val surveyTerrainSegmentValue: EditText = rootView.findViewById(R.id.survey_terrain_segment_value)
+    val surveyTerrainSegmentSeekbar: SeekBar = rootView.findViewById(R.id.survey_terrain_segment_seekbar)
+    val surveyTerrainSegmentSliderRow: LinearLayout = rootView.findViewById(R.id.survey_terrain_segment_slider_row)
+    val surveyTerrainSegmentMinusButton: View = panelRoot.findViewById(R.id.btn_survey_terrain_segment_minus)
+    val surveyTerrainSegmentPlusButton: View = panelRoot.findViewById(R.id.btn_survey_terrain_segment_plus)
+
+    val surveyCanopySmoothingValue: EditText = rootView.findViewById(R.id.survey_canopy_smoothing_value)
+    val surveyCanopySmoothingSeekbar: SeekBar = rootView.findViewById(R.id.survey_canopy_smoothing_seekbar)
+    val surveyCanopySmoothingSliderRow: LinearLayout = rootView.findViewById(R.id.survey_canopy_smoothing_slider_row)
+    val surveyCanopySmoothingMinusButton: View = panelRoot.findViewById(R.id.btn_survey_canopy_smoothing_minus)
+    val surveyCanopySmoothingPlusButton: View = panelRoot.findViewById(R.id.btn_survey_canopy_smoothing_plus)
 
     val angleValue: EditText = rootView.findViewById(R.id.line_angle_value)
     val angleSeekbar: SeekBar = rootView.findViewById(R.id.line_angle_seekbar)
@@ -51,6 +89,8 @@ class MissionParamsViews(
     val flightTimeValue: TextView = rootView.findViewById(R.id.flight_time)
     val speedMinusButton: ImageButton = rootView.findViewById(R.id.minus_button)
     val speedPlusButton: ImageButton = rootView.findViewById(R.id.plus_button)
+    val flightTimeLabel: TextView = rootView.findViewById(R.id.flight_time_label)
+    val speedTimeRow: View = rootView.findViewById(R.id.speed_time_row)
 
     val uploadMissionButton: Button = rootView.findViewById(R.id.uploadMission)
     val saveMissionButton: Button = rootView.findViewById(R.id.save_mission)

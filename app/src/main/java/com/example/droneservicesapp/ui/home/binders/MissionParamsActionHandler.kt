@@ -6,6 +6,7 @@ import android.widget.Toast
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.mavlink.MissionBuilder
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
@@ -35,6 +36,7 @@ class MissionParamsActionHandler(
         val sprayer = activityViewModel.sprayerProgress.value
         val speed = activityViewModel.flightSpeed.value
         val angle = activityViewModel.angleProgress.value
+        val operationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
         val altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value ?: AltitudeReferenceMode.RELATIVE
 
         when {
@@ -80,17 +82,30 @@ class MissionParamsActionHandler(
             )
         } else {
             val validatedPath = path ?: return
-            MissionBuilder.buildSurveyMission(
-                waypoints = ArrayList(validatedPath),
-                currentPos = validatedDroneLoc,
-                alt = validatedAlt.toFloat(),
-                sprayerIntensity = validatedSprayer.toInt(),
-                flightSpeed = validatedSpeed.toFloat(),
-                angleProgress = validatedAngle.toFloat(),
-                targetSystemId = droneViewModel.getTargetSystemId(),
-                targetComponentId = droneViewModel.getTargetComponentId(),
-                altitudeReferenceMode = altitudeReferenceMode
-            )
+            if (operationMode == PlanningOperationMode.SPRAY) {
+                MissionBuilder.buildSprayAreaMission(
+                    waypoints = ArrayList(validatedPath),
+                    currentPos = validatedDroneLoc,
+                    alt = validatedAlt.toFloat(),
+                    sprayerIntensity = validatedSprayer.toInt(),
+                    flightSpeed = validatedSpeed.toFloat(),
+                    angleProgress = validatedAngle.toFloat(),
+                    targetSystemId = droneViewModel.getTargetSystemId(),
+                    targetComponentId = droneViewModel.getTargetComponentId(),
+                    altitudeReferenceMode = altitudeReferenceMode
+                )
+            } else {
+                MissionBuilder.buildSurveyAreaMission(
+                    waypoints = ArrayList(validatedPath),
+                    currentPos = validatedDroneLoc,
+                    alt = (activityViewModel.surveyHeightAboveTerrain.value ?: validatedAlt).toFloat(),
+                    flightSpeed = validatedSpeed.toFloat(),
+                    angleProgress = (activityViewModel.surveyGridAngle.value ?: validatedAngle).toFloat(),
+                    targetSystemId = droneViewModel.getTargetSystemId(),
+                    targetComponentId = droneViewModel.getTargetComponentId(),
+                    altitudeReferenceMode = altitudeReferenceMode
+                )
+            }
         }
 
         val proceedWithUpload = {

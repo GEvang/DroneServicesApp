@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.survey.SprayPresets
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 
@@ -27,6 +28,7 @@ class MissionParamsPreferencesBridge(
         )
         loadPreference(R.string.flight_speed_pref, activityViewModel.flightSpeed, "1")
         loadSelectedPresetPreference()
+        loadSurveyGridPreferences()
     }
 
     fun saveFromViewModel() {
@@ -51,6 +53,7 @@ class MissionParamsPreferencesBridge(
         )
         saveDoublePreference(R.string.flight_speed_pref, activityViewModel.flightSpeed.value ?: 1.0)
         saveSelectedPresetPreference()
+        saveSurveyGridPreferences()
     }
 
     private fun loadPreference(
@@ -109,6 +112,64 @@ class MissionParamsPreferencesBridge(
             .putString(
                 context.getString(R.string.survey_spray_preset_pref),
                 SprayPresets.byId(activityViewModel.selectedSprayPresetId.value).id
+            )
+            .apply()
+    }
+
+    private fun loadSurveyGridPreferences() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
+        activityViewModel.updateSurveyStripSpacing(
+            prefs.getString(context.getString(R.string.survey_strip_spacing_pref), "8")
+                ?.toIntOrNull() ?: 8
+        )
+        activityViewModel.updateSurveyHeightAboveTerrain(
+            prefs.getString(context.getString(R.string.survey_height_above_terrain_pref), "5")
+                ?.toIntOrNull() ?: 5
+        )
+        activityViewModel.updateSurveyOverlap(
+            prefs.getString(context.getString(R.string.survey_overlap_pref), "20")
+                ?.toIntOrNull() ?: 20
+        )
+        activityViewModel.updateSurveyGridAngle(
+            prefs.getString(context.getString(R.string.survey_grid_angle_pref), "0")
+                ?.toIntOrNull() ?: 0
+        )
+        activityViewModel.updateSurveyTerrainSegment(
+            prefs.getString(context.getString(R.string.survey_terrain_segment_pref), "2.5")
+                ?.toDoubleOrNull() ?: 2.5
+        )
+        activityViewModel.updateSurveyCanopySmoothing(
+            prefs.getString(context.getString(R.string.survey_canopy_smoothing_pref), "5")
+                ?.toIntOrNull() ?: 5
+        )
+    }
+
+    private fun saveSurveyGridPreferences() {
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
+        prefs.edit()
+            .putString(
+                context.getString(R.string.survey_strip_spacing_pref),
+                (activityViewModel.surveyStripSpacing.value?.toInt() ?: 8).toString()
+            )
+            .putString(
+                context.getString(R.string.survey_height_above_terrain_pref),
+                (activityViewModel.surveyHeightAboveTerrain.value?.toInt() ?: 5).toString()
+            )
+            .putString(
+                context.getString(R.string.survey_overlap_pref),
+                (activityViewModel.surveyOverlapPercent.value?.toInt() ?: 20).toString()
+            )
+            .putString(
+                context.getString(R.string.survey_grid_angle_pref),
+                (activityViewModel.surveyGridAngle.value?.toInt() ?: 0).toString()
+            )
+            .putString(
+                context.getString(R.string.survey_terrain_segment_pref),
+                (activityViewModel.surveyTerrainSegment.value ?: 2.5).toString()
+            )
+            .putString(
+                context.getString(R.string.survey_canopy_smoothing_pref),
+                (activityViewModel.surveyCanopySmoothing.value?.toInt() ?: 5).toString()
             )
             .apply()
     }

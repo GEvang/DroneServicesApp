@@ -12,6 +12,7 @@ import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.data.storage.MissionXmlParser
+import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import java.io.File
 
@@ -118,7 +119,9 @@ class MissionLoadController(
     }
 
     private fun refreshList(): Pair<List<File>, List<String>> {
-        val files = store.listMissionFiles()
+        val files = store.listMissionFiles(
+            activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
+        )
 
         val names = files.map { file ->
             val lastDotIndex = file.name.lastIndexOf('.')

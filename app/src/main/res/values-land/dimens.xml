@@ -50,18 +50,18 @@
     <dimen name="phone_map_hud_text_size_small">8sp</dimen>
     <dimen name="phone_map_hud_status_text_size">11sp</dimen>
 
-    <dimen name="phone_map_panel_left_width">228dp</dimen>
-    <dimen name="phone_map_panel_right_width">208dp</dimen>
-    <dimen name="phone_map_panel_max_height">224dp</dimen>
-    <dimen name="phone_map_panel_label_text_size">9sp</dimen>
-    <dimen name="phone_map_panel_value_text_size">9sp</dimen>
-    <dimen name="phone_map_panel_title_text_size">11sp</dimen>
-    <dimen name="phone_map_panel_tab_height">28dp</dimen>
-    <dimen name="phone_map_panel_button_height">28dp</dimen>
-    <dimen name="phone_map_panel_button_height_tall">34dp</dimen>
-    <dimen name="phone_map_panel_slider_row_height">30dp</dimen>
-    <dimen name="phone_map_panel_slider_frame_small">28dp</dimen>
-    <dimen name="phone_map_panel_slider_frame_large">32dp</dimen>
+    <dimen name="phone_map_panel_left_width">292dp</dimen>
+    <dimen name="phone_map_panel_right_width">248dp</dimen>
+    <dimen name="phone_map_panel_max_height">300dp</dimen>
+    <dimen name="phone_map_panel_label_text_size">11sp</dimen>
+    <dimen name="phone_map_panel_value_text_size">11sp</dimen>
+    <dimen name="phone_map_panel_title_text_size">13sp</dimen>
+    <dimen name="phone_map_panel_tab_height">34dp</dimen>
+    <dimen name="phone_map_panel_button_height">34dp</dimen>
+    <dimen name="phone_map_panel_button_height_tall">38dp</dimen>
+    <dimen name="phone_map_panel_slider_row_height">36dp</dimen>
+    <dimen name="phone_map_panel_slider_frame_small">32dp</dimen>
+    <dimen name="phone_map_panel_slider_frame_large">36dp</dimen>
 
     <dimen name="phone_map_bottom_dock_width">500dp</dimen>
     <dimen name="phone_map_bottom_dock_outer_height">68dp</dimen>

@@ -7,9 +7,11 @@ import android.view.View
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.core.view.isVisible
 import androidx.lifecycle.LifecycleOwner
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.survey.SprayPresets
 import com.example.droneservicesapp.ui.home.model.MissionParamsUiState
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
@@ -22,10 +24,17 @@ class MissionParamsRenderer(
     private val stateMapper: MissionParamsStateMapper,
 ) {
     private var missionParamsUiState = MissionParamsUiState(
+        operationMode = PlanningOperationMode.SURVEY,
         angle = 1,
         lineDistance = 1,
         altitude = 2,
         sprayerIntensity = 0,
+        surveyStripSpacing = 8,
+        surveyHeightAboveTerrain = 5,
+        surveyOverlap = 20,
+        surveyGridAngle = 0,
+        surveyTerrainSegment = 2.5,
+        surveyCanopySmoothing = 5,
         flightSpeed = 1.0,
         estimatedFlightMinutes = 1,
         altitudeReferenceMode = AltitudeReferenceMode.RELATIVE
@@ -35,6 +44,8 @@ class MissionParamsRenderer(
         missionParamsUiState = stateMapper.currentUiState()
         renderFlightSummary(missionParamsUiState)
         renderPreset(activityViewModel.selectedSprayPresetId.value)
+        renderMode(missionParamsUiState.operationMode)
+        renderSurveyValues(missionParamsUiState)
         bindPresetSelector()
         bindAltitudeReferenceSelector()
         renderAltitudeReference(missionParamsUiState.altitudeReferenceMode)
@@ -57,6 +68,38 @@ class MissionParamsRenderer(
 
         activityViewModel.selectedSprayPresetId.observe(lifecycleOwner) { presetId ->
             renderPreset(presetId)
+        }
+
+        activityViewModel.planningOperationMode.observe(lifecycleOwner) { mode ->
+            val operationMode = mode ?: PlanningOperationMode.SURVEY
+            missionParamsUiState = missionParamsUiState.copy(operationMode = operationMode)
+            renderMode(operationMode)
+        }
+
+        bindSurveyField(activityViewModel.surveyStripSpacing) { value ->
+            missionParamsUiState = missionParamsUiState.copy(surveyStripSpacing = value)
+            views.surveyStripSpacingValue.setText(value.toString())
+        }
+        bindSurveyField(activityViewModel.surveyHeightAboveTerrain) { value ->
+            missionParamsUiState = missionParamsUiState.copy(surveyHeightAboveTerrain = value)
+            views.surveyHeightValue.setText(value.toString())
+        }
+        bindSurveyField(activityViewModel.surveyOverlapPercent) { value ->
+            missionParamsUiState = missionParamsUiState.copy(surveyOverlap = value)
+            views.surveyOverlapValue.setText(value.toString())
+        }
+        bindSurveyField(activityViewModel.surveyGridAngle) { value ->
+            missionParamsUiState = missionParamsUiState.copy(surveyGridAngle = value)
+            views.surveyGridAngleValue.setText(value.toString())
+        }
+        activityViewModel.surveyTerrainSegment.observe(lifecycleOwner) { value ->
+            val segment = value ?: 2.5
+            missionParamsUiState = missionParamsUiState.copy(surveyTerrainSegment = segment)
+            views.surveyTerrainSegmentValue.setText(formatDecimal(segment))
+        }
+        bindSurveyField(activityViewModel.surveyCanopySmoothing) { value ->
+            missionParamsUiState = missionParamsUiState.copy(surveyCanopySmoothing = value)
+            views.surveyCanopySmoothingValue.setText(value.toString())
         }
     }
 
@@ -111,6 +154,23 @@ class MissionParamsRenderer(
         views.presetSelector.text = SprayPresets.byId(presetId).label
     }
 
+    private fun renderMode(mode: PlanningOperationMode) {
+        val isSurvey = mode == PlanningOperationMode.SURVEY
+        views.surveyModeSection.isVisible = isSurvey
+        views.sprayModeSection.isVisible = !isSurvey
+        views.flightTimeLabel.isVisible = !isSurvey
+        views.speedTimeRow.isVisible = !isSurvey
+    }
+
+    private fun renderSurveyValues(state: MissionParamsUiState) {
+        views.surveyStripSpacingValue.setText(state.surveyStripSpacing.toString())
+        views.surveyHeightValue.setText(state.surveyHeightAboveTerrain.toString())
+        views.surveyOverlapValue.setText(state.surveyOverlap.toString())
+        views.surveyGridAngleValue.setText(state.surveyGridAngle.toString())
+        views.surveyTerrainSegmentValue.setText(formatDecimal(state.surveyTerrainSegment))
+        views.surveyCanopySmoothingValue.setText(state.surveyCanopySmoothing.toString())
+    }
+
     private fun renderAltitudeReference(mode: AltitudeReferenceMode) {
         val selectedTextColor = if (views.panelRoot.resources.getBoolean(R.bool.config_tablet_planning_dock)) {
             R.color.ds_color_shell_active
@@ -148,5 +208,22 @@ class MissionParamsRenderer(
                 if (selected) selectedTextColor else R.color.ds_color_text_primary
             )
         )
+    }
+
+    private fun bindSurveyField(
+        liveData: androidx.lifecycle.LiveData<Double>,
+        onChanged: (Int) -> Unit,
+    ) {
+        liveData.observe(lifecycleOwner) { value ->
+            onChanged(value?.toInt() ?: 0)
+        }
+    }
+
+    private fun formatDecimal(value: Double): String {
+        return if (value % 1.0 == 0.0) {
+            value.toInt().toString()
+        } else {
+            String.format(Locale.US, "%.1f", value)
+        }
     }
 }

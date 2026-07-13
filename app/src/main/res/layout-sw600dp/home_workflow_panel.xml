@@ -3,10 +3,10 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/home_workflow_panel"
     style="@style/Widget.DroneServices.Panel.MapRight"
-    android:layout_width="@dimen/tablet_side_panel_width"
+    android:layout_width="@dimen/tablet_right_panel_width"
     android:layout_height="wrap_content"
-    android:maxWidth="352dp"
-    android:minWidth="@dimen/tablet_side_panel_width"
+    android:maxWidth="@dimen/tablet_right_panel_width"
+    android:minWidth="@dimen/tablet_right_panel_width"
     android:orientation="vertical">
 
     <LinearLayout

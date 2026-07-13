@@ -8,9 +8,11 @@ import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.model.RouteWaypoint
+import com.example.droneservicesapp.domain.model.SurveyGridParams
 import com.google.android.gms.maps.model.LatLng
 import java.io.File
 import java.io.InputStream
+import java.util.Locale
 import javax.xml.parsers.DocumentBuilderFactory
 import javax.xml.transform.TransformerFactory
 import javax.xml.transform.dom.DOMSource
@@ -29,16 +31,35 @@ class MissionFileStore(
             }
             return dir
         }
+
+    private fun modeDir(mode: PlanningOperationMode): File {
+        val dir = File(baseDir, mode.name.lowercase(Locale.ROOT))
+        if (!dir.exists()) {
+            dir.mkdirs()
+        }
+        return dir
+    }
     
     /**
      * List all mission files in the mission directory.
      */
-    fun listMissionFiles(): List<File> {
-        val dir = baseDir
-        return dir.listFiles()
-            ?.filter { it.isFile && it.name.endsWith(context.getString(R.string.DroneServicesFilePageSuffix)) }
-            ?.toList()
-            ?: emptyList()
+    fun listMissionFiles(mode: PlanningOperationMode? = null): List<File> {
+        val suffix = context.getString(R.string.DroneServicesFilePageSuffix)
+        val scopedFiles = buildList {
+            if (mode == null) {
+                addAll(baseDir.listFiles()
+                    ?.filter { it.isFile && it.name.endsWith(suffix) }
+                    .orEmpty())
+            } else {
+                addAll(modeDir(mode).listFiles()
+                    ?.filter { it.isFile && it.name.endsWith(suffix) }
+                    .orEmpty())
+                addAll(baseDir.listFiles()
+                    ?.filter { it.isFile && it.name.endsWith(suffix) && readOperationMode(it) == mode }
+                    .orEmpty())
+            }
+        }
+        return scopedFiles.distinctBy { it.absolutePath }.sortedBy { it.name.lowercase(Locale.ROOT) }
     }
     
     /**
@@ -64,6 +85,7 @@ class MissionFileStore(
         flightSpeed: Double,
         planningWorkflow: PlanningWorkflow = PlanningWorkflow.AREA,
         planningOperationMode: PlanningOperationMode = PlanningOperationMode.SURVEY,
+        surveyGridParams: SurveyGridParams? = null,
         routeWaypoints: List<RouteWaypoint> = emptyList(),
         fileName: String,
         overwrite: Boolean
@@ -74,7 +96,7 @@ class MissionFileStore(
             return false
         }
         
-        val dir = baseDir
+        val dir = modeDir(planningOperationMode)
         val suffix = context.getString(R.string.DroneServicesFilePageSuffix)
         val normalizedName = fileName.trim()
         val file = File(dir, normalizedName.plus(suffix))
@@ -136,6 +158,32 @@ class MissionFileStore(
             val missionSpeed = doc.createElement("flightSpeed")
             missionSpeed.textContent = flightSpeed.toString()
             root.appendChild(missionSpeed)
+
+            surveyGridParams?.let { survey ->
+                val stripSpacing = doc.createElement("surveyStripSpacing")
+                stripSpacing.textContent = survey.stripSpacingMeters.toString()
+                root.appendChild(stripSpacing)
+
+                val heightAboveTerrain = doc.createElement("surveyHeightAboveTerrain")
+                heightAboveTerrain.textContent = survey.heightAboveTerrainMeters.toString()
+                root.appendChild(heightAboveTerrain)
+
+                val overlap = doc.createElement("surveyOverlapPercent")
+                overlap.textContent = survey.overlapPercent.toString()
+                root.appendChild(overlap)
+
+                val gridAngle = doc.createElement("surveyGridAngle")
+                gridAngle.textContent = survey.gridAngleDegrees.toString()
+                root.appendChild(gridAngle)
+
+                val terrainSegment = doc.createElement("surveyTerrainSegment")
+                terrainSegment.textContent = survey.terrainSegmentMeters.toString()
+                root.appendChild(terrainSegment)
+
+                val canopySmoothing = doc.createElement("surveyCanopySmoothing")
+                canopySmoothing.textContent = survey.canopySmoothingMeters.toString()
+                root.appendChild(canopySmoothing)
+            }
             
             // LatLng list
             val latLnglst = doc.createElement("LatLngList")
@@ -219,6 +267,20 @@ class MissionFileStore(
      */
     fun openMissionInputStream(file: File): InputStream {
         return file.inputStream()
+    }
+
+    fun readOperationMode(file: File): PlanningOperationMode? {
+        return runCatching {
+            val factory = DocumentBuilderFactory.newInstance()
+            val builder = factory.newDocumentBuilder()
+            val doc = builder.parse(file)
+            val nodes = doc.getElementsByTagName("operationMode")
+            if (nodes.length == 0) {
+                null
+            } else {
+                PlanningOperationMode.valueOf(nodes.item(0).textContent)
+            }
+        }.getOrNull()
     }
     
     /**

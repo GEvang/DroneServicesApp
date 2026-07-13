@@ -127,17 +127,35 @@ class MissionSaveController(
                 return@setOnClickListener
             }
 
+            val operationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
+            val savedLineDistance = if (operationMode == PlanningOperationMode.SURVEY) {
+                activityViewModel.surveyStripSpacing.value!!.toInt()
+            } else {
+                activityViewModel.lineDistanceProgress.value!!.toInt()
+            }
+            val savedAngle = if (operationMode == PlanningOperationMode.SURVEY) {
+                activityViewModel.surveyGridAngle.value!!.toInt()
+            } else {
+                activityViewModel.angleProgress.value!!.toInt()
+            }
+            val savedAltitude = if (operationMode == PlanningOperationMode.SURVEY) {
+                activityViewModel.surveyHeightAboveTerrain.value!!.toInt()
+            } else {
+                activityViewModel.flightAltProgress.value!!.toInt()
+            }
+
             val isSaved = store.saveMissionXml(
                 polygon = vertices,
-                lineDist = activityViewModel.lineDistanceProgress.value!!.toInt(),
-                angleDeg = activityViewModel.angleProgress.value!!.toInt(),
-                alt = activityViewModel.flightAltProgress.value!!.toInt(),
+                lineDist = savedLineDistance,
+                angleDeg = savedAngle,
+                alt = savedAltitude,
                 altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value
                     ?: AltitudeReferenceMode.RELATIVE,
                 sprayerPct = activityViewModel.sprayerProgress.value!!.toInt(),
                 flightSpeed = activityViewModel.flightSpeed.value ?: 1.0,
                 planningWorkflow = workflow,
-                planningOperationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY,
+                planningOperationMode = operationMode,
+                surveyGridParams = activityViewModel.surveyGridParams.value,
                 routeWaypoints = routeWaypoints,
                 fileName = trimmedFileName,
                 overwrite = overrideFile

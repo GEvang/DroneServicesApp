@@ -14,6 +14,7 @@ import com.example.droneservicesapp.domain.model.MissionParams
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.model.RouteWaypoint
+import com.example.droneservicesapp.domain.model.SurveyGridParams
 import com.example.droneservicesapp.domain.survey.SprayPresets
 import com.google.android.gms.maps.model.LatLng
 
@@ -99,6 +100,34 @@ class MainActivityViewModel : ViewModel() {
     // ✅ Scoped to the ViewModel
     val missionParams: MutableLiveData<MissionParams> by lazy {
         MutableLiveData(MissionParams())
+    }
+
+    val surveyGridParams: MutableLiveData<SurveyGridParams> by lazy {
+        MutableLiveData(SurveyGridParams())
+    }
+
+    val surveyStripSpacing: MutableLiveData<Double> by lazy {
+        MutableLiveData(surveyGridParams.value?.stripSpacingMeters?.toDouble() ?: 8.0)
+    }
+
+    val surveyHeightAboveTerrain: MutableLiveData<Double> by lazy {
+        MutableLiveData(surveyGridParams.value?.heightAboveTerrainMeters?.toDouble() ?: 5.0)
+    }
+
+    val surveyOverlapPercent: MutableLiveData<Double> by lazy {
+        MutableLiveData(surveyGridParams.value?.overlapPercent?.toDouble() ?: 20.0)
+    }
+
+    val surveyGridAngle: MutableLiveData<Double> by lazy {
+        MutableLiveData(surveyGridParams.value?.gridAngleDegrees?.toDouble() ?: 0.0)
+    }
+
+    val surveyTerrainSegment: MutableLiveData<Double> by lazy {
+        MutableLiveData(surveyGridParams.value?.terrainSegmentMeters ?: 2.5)
+    }
+
+    val surveyCanopySmoothing: MutableLiveData<Double> by lazy {
+        MutableLiveData(surveyGridParams.value?.canopySmoothingMeters?.toDouble() ?: 5.0)
     }
 
     // ✅ Survey path from mission planning (separate from pure area model)
@@ -220,6 +249,54 @@ class MainActivityViewModel : ViewModel() {
         planningOperationMode.value = mode
     }
 
+    fun updateSurveyStripSpacing(value: Int) {
+        val normalized = value.coerceIn(2, 50)
+        surveyStripSpacing.value = normalized.toDouble()
+        updateSurveyGridParams {
+            copy(stripSpacingMeters = normalized)
+        }
+    }
+
+    fun updateSurveyHeightAboveTerrain(value: Int) {
+        val normalized = value.coerceIn(2, 120)
+        surveyHeightAboveTerrain.value = normalized.toDouble()
+        updateSurveyGridParams {
+            copy(heightAboveTerrainMeters = normalized)
+        }
+    }
+
+    fun updateSurveyOverlap(value: Int) {
+        val normalized = value.coerceIn(0, 95)
+        surveyOverlapPercent.value = normalized.toDouble()
+        updateSurveyGridParams {
+            copy(overlapPercent = normalized)
+        }
+    }
+
+    fun updateSurveyGridAngle(value: Int) {
+        val normalized = value.coerceIn(0, 90)
+        surveyGridAngle.value = normalized.toDouble()
+        updateSurveyGridParams {
+            copy(gridAngleDegrees = normalized)
+        }
+    }
+
+    fun updateSurveyTerrainSegment(value: Double) {
+        val normalized = value.coerceIn(0.5, 20.0)
+        surveyTerrainSegment.value = normalized
+        updateSurveyGridParams {
+            copy(terrainSegmentMeters = normalized)
+        }
+    }
+
+    fun updateSurveyCanopySmoothing(value: Int) {
+        val normalized = value.coerceIn(0, 30)
+        surveyCanopySmoothing.value = normalized.toDouble()
+        updateSurveyGridParams {
+            copy(canopySmoothingMeters = normalized)
+        }
+    }
+
     fun addRouteWaypoint(latitude: Double, longitude: Double) {
         val existing = routeWaypoints.value.orEmpty()
         val index = existing.size + 1
@@ -258,6 +335,10 @@ class MainActivityViewModel : ViewModel() {
 
     private fun updateMissionParams(update: MissionParams.() -> MissionParams) {
         missionParams.value = (missionParams.value ?: MissionParams()).update()
+    }
+
+    private fun updateSurveyGridParams(update: SurveyGridParams.() -> SurveyGridParams) {
+        surveyGridParams.value = (surveyGridParams.value ?: SurveyGridParams()).update()
     }
 
     private fun renumberRouteWaypoints(waypoints: List<RouteWaypoint>): List<RouteWaypoint> {

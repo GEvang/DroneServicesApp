@@ -167,6 +167,12 @@
     <string name="survey_altitude_reference_pref" translatable="false">missionAltitudeReference</string>
     <string name="survey_spray_preset_pref" translatable="false">missionSprayPreset</string>
     <string name="survey_sprayer_intensity_pref" translatable="false">sprayerIntensity</string>
+    <string name="survey_strip_spacing_pref" translatable="false">surveyStripSpacing</string>
+    <string name="survey_height_above_terrain_pref" translatable="false">surveyHeightAboveTerrain</string>
+    <string name="survey_overlap_pref" translatable="false">surveyOverlap</string>
+    <string name="survey_grid_angle_pref" translatable="false">surveyGridAngle</string>
+    <string name="survey_terrain_segment_pref" translatable="false">surveyTerrainSegment</string>
+    <string name="survey_canopy_smoothing_pref" translatable="false">surveyCanopySmoothing</string>
     <string name="language_pref" translatable="false">language_pref</string>
 
     <string name="nav_header_desc" translatable="false">Drone Services Sprayer Application</string>
@@ -294,4 +300,11 @@
     <string name="cache_directory_not_found">Cache directory not found</string>
     <string name="offline_map_cache_cleared">Offline map cache cleared</string>
     <string name="failed_to_clear_cache">Failed to clear cache (some files may be locked)</string>
+    <string name="survey_grid_title">Survey Grid</string>
+    <string name="survey_strip_spacing">Strip spacing</string>
+    <string name="survey_height_above_terrain">Height above terrain</string>
+    <string name="survey_overlap">Overlap</string>
+    <string name="survey_grid_angle">Grid angle</string>
+    <string name="survey_terrain_segment">Terrain segment</string>
+    <string name="survey_canopy_smoothing">Canopy smoothing</string>
 </resources>

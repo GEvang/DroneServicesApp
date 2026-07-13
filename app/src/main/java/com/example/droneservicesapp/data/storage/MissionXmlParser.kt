@@ -5,6 +5,7 @@ import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.model.RouteWaypoint
+import com.example.droneservicesapp.domain.model.SurveyGridParams
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
 import org.xmlpull.v1.XmlPullParser
@@ -31,6 +32,12 @@ class MissionXmlParser(
         var flightSpeed = 1.0
         var missionType = PlanningWorkflow.AREA
         var operationMode = PlanningOperationMode.SURVEY
+        var surveyStripSpacing = -1
+        var surveyHeightAboveTerrain = -1
+        var surveyOverlapPercent = -1
+        var surveyGridAngle = -1
+        var surveyTerrainSegment = -1.0
+        var surveyCanopySmoothing = -1
         val latLngList = ArrayList<LatLng>()
         val routeWaypoints = ArrayList<RouteWaypoint>()
 
@@ -50,6 +57,12 @@ class MissionXmlParser(
                         "sprayerIntensityPercentage" ->
                             sprayerIntensityPercentage = parser.nextText().toInt()
                         "flightSpeed" -> flightSpeed = parser.nextText().toDouble()
+                        "surveyStripSpacing" -> surveyStripSpacing = parser.nextText().toInt()
+                        "surveyHeightAboveTerrain" -> surveyHeightAboveTerrain = parser.nextText().toInt()
+                        "surveyOverlapPercent" -> surveyOverlapPercent = parser.nextText().toInt()
+                        "surveyGridAngle" -> surveyGridAngle = parser.nextText().toInt()
+                        "surveyTerrainSegment" -> surveyTerrainSegment = parser.nextText().toDouble()
+                        "surveyCanopySmoothing" -> surveyCanopySmoothing = parser.nextText().toInt()
 
                         "LatLngList" -> {
                             while (parser.next() != XmlPullParser.END_TAG) {
@@ -124,8 +137,27 @@ class MissionXmlParser(
             activityViewModel.sprayerProgress.postValue(sprayerIntensityPercentage.toDouble())
         }
         activityViewModel.flightSpeed.postValue(flightSpeed)
+        if (surveyStripSpacing >= 0) activityViewModel.updateSurveyStripSpacing(surveyStripSpacing)
+        if (surveyHeightAboveTerrain >= 0) activityViewModel.updateSurveyHeightAboveTerrain(surveyHeightAboveTerrain)
+        if (surveyOverlapPercent >= 0) activityViewModel.updateSurveyOverlap(surveyOverlapPercent)
+        if (surveyGridAngle >= 0) activityViewModel.updateSurveyGridAngle(surveyGridAngle)
+        if (surveyTerrainSegment >= 0.0) activityViewModel.updateSurveyTerrainSegment(surveyTerrainSegment)
+        if (surveyCanopySmoothing >= 0) activityViewModel.updateSurveyCanopySmoothing(surveyCanopySmoothing)
         activityViewModel.setPlanningOperationMode(operationMode)
         activityViewModel.setPlanningWorkflow(missionType)
+        activityViewModel.surveyGridParams.postValue(
+            SurveyGridParams(
+                stripSpacingMeters = surveyStripSpacing.takeIf { it >= 0 }
+                    ?: lineDistance.takeIf { it >= 0 } ?: 8,
+                heightAboveTerrainMeters = surveyHeightAboveTerrain.takeIf { it >= 0 }
+                    ?: altitude.takeIf { it >= 0 } ?: 5,
+                overlapPercent = surveyOverlapPercent.takeIf { it >= 0 } ?: 20,
+                gridAngleDegrees = surveyGridAngle.takeIf { it >= 0 }
+                    ?: angleDegrees.takeIf { it >= 0 } ?: 0,
+                terrainSegmentMeters = surveyTerrainSegment.takeIf { it >= 0.0 } ?: 2.5,
+                canopySmoothingMeters = surveyCanopySmoothing.takeIf { it >= 0 } ?: 5
+            )
+        )
         activityViewModel.setPolygonVertices(latLngList)
         activityViewModel.setRouteWaypoints(routeWaypoints)
         activityViewModel.surveyPath.postValue(emptyList())

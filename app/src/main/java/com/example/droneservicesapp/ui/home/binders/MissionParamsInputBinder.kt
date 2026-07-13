@@ -54,6 +54,50 @@ class MissionParamsInputBinder(
             target = activityViewModel.sprayerProgress,
             updateValue = activityViewModel::updateSprayIntensity
         )
+        bindSeekbar(
+            touchTarget = views.surveyStripSpacingSliderRow,
+            seekbar = views.surveyStripSpacingSeekbar,
+            valueView = views.surveyStripSpacingValue,
+            target = activityViewModel.surveyStripSpacing,
+            updateValue = activityViewModel::updateSurveyStripSpacing
+        )
+        bindSeekbar(
+            touchTarget = views.surveyHeightSliderRow,
+            seekbar = views.surveyHeightSeekbar,
+            valueView = views.surveyHeightValue,
+            target = activityViewModel.surveyHeightAboveTerrain,
+            updateValue = activityViewModel::updateSurveyHeightAboveTerrain
+        )
+        bindSeekbar(
+            touchTarget = views.surveyOverlapSliderRow,
+            seekbar = views.surveyOverlapSeekbar,
+            valueView = views.surveyOverlapValue,
+            target = activityViewModel.surveyOverlapPercent,
+            updateValue = activityViewModel::updateSurveyOverlap
+        )
+        bindSeekbar(
+            touchTarget = views.surveyGridAngleSliderRow,
+            seekbar = views.surveyGridAngleSeekbar,
+            valueView = views.surveyGridAngleValue,
+            target = activityViewModel.surveyGridAngle,
+            updateValue = activityViewModel::updateSurveyGridAngle
+        )
+        bindSeekbar(
+            touchTarget = views.surveyCanopySmoothingSliderRow,
+            seekbar = views.surveyCanopySmoothingSeekbar,
+            valueView = views.surveyCanopySmoothingValue,
+            target = activityViewModel.surveyCanopySmoothing,
+            updateValue = activityViewModel::updateSurveyCanopySmoothing
+        )
+        bindDecimalSeekbar(
+            touchTarget = views.surveyTerrainSegmentSliderRow,
+            seekbar = views.surveyTerrainSegmentSeekbar,
+            valueView = views.surveyTerrainSegmentValue,
+            target = activityViewModel.surveyTerrainSegment,
+            step = 0.5,
+            minValue = 0.5,
+            updateValue = activityViewModel::updateSurveyTerrainSegment
+        )
     }
 
     private fun bindSpeedButtons() {
@@ -88,6 +132,36 @@ class MissionParamsInputBinder(
             views.sprayerMinusButton,
             views.sprayerPlusButton,
             views.sprayerSeekbar
+        )
+        bindIncrementButtons(
+            views.surveyStripSpacingMinusButton,
+            views.surveyStripSpacingPlusButton,
+            views.surveyStripSpacingSeekbar
+        )
+        bindIncrementButtons(
+            views.surveyHeightMinusButton,
+            views.surveyHeightPlusButton,
+            views.surveyHeightSeekbar
+        )
+        bindIncrementButtons(
+            views.surveyOverlapMinusButton,
+            views.surveyOverlapPlusButton,
+            views.surveyOverlapSeekbar
+        )
+        bindIncrementButtons(
+            views.surveyGridAngleMinusButton,
+            views.surveyGridAnglePlusButton,
+            views.surveyGridAngleSeekbar
+        )
+        bindIncrementButtons(
+            views.surveyTerrainSegmentMinusButton,
+            views.surveyTerrainSegmentPlusButton,
+            views.surveyTerrainSegmentSeekbar
+        )
+        bindIncrementButtons(
+            views.surveyCanopySmoothingMinusButton,
+            views.surveyCanopySmoothingPlusButton,
+            views.surveyCanopySmoothingSeekbar
         )
     }
 
@@ -153,6 +227,44 @@ class MissionParamsInputBinder(
         })
     }
 
+    private fun bindDecimalSeekbar(
+        touchTarget: View,
+        seekbar: SeekBar,
+        valueView: EditText,
+        target: MutableLiveData<Double>,
+        step: Double,
+        minValue: Double,
+        updateValue: (Double) -> Unit,
+    ) {
+        var suppressChange = false
+        val initialValue = target.value ?: minValue
+        seekbar.progress = (((initialValue - minValue) / step).toInt()).coerceAtLeast(0)
+        valueView.setText(formatDecimal(initialValue))
+        bindExpandedTouchTarget(touchTarget, seekbar)
+
+        target.observe(lifecycleOwner) { value ->
+            val current = value ?: return@observe
+            val progress = (((current - minValue) / step).toInt()).coerceAtLeast(0)
+            suppressChange = true
+            seekbar.progress = progress
+            valueView.setText(formatDecimal(current))
+            suppressChange = false
+        }
+
+        seekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                if (suppressChange) return
+                val value = minValue + (progress * step)
+                valueView.setText(formatDecimal(value))
+                updateValue(value)
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
+
+            override fun onStopTrackingTouch(seekBar: SeekBar) = Unit
+        })
+    }
+
     private fun bindExpandedTouchTarget(touchTarget: View, seekbar: SeekBar) {
         touchTarget.setOnTouchListener { _, event ->
             if (event.actionMasked == MotionEvent.ACTION_DOWN) {
@@ -178,6 +290,14 @@ class MissionParamsInputBinder(
             }
 
             handled
+        }
+    }
+
+    private fun formatDecimal(value: Double): String {
+        return if (value % 1.0 == 0.0) {
+            value.toInt().toString()
+        } else {
+            String.format(java.util.Locale.US, "%.1f", value)
         }
     }
 }

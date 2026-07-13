@@ -26,6 +26,28 @@ object MissionBuilder {
         targetSystemId: Int,
         targetComponentId: Int,
         altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE
+    ): ArrayList<MissionItemInt> = buildSprayAreaMission(
+        waypoints = waypoints,
+        currentPos = currentPos,
+        alt = alt,
+        sprayerIntensity = sprayerIntensity,
+        flightSpeed = flightSpeed,
+        angleProgress = angleProgress,
+        targetSystemId = targetSystemId,
+        targetComponentId = targetComponentId,
+        altitudeReferenceMode = altitudeReferenceMode
+    )
+
+    fun buildSprayAreaMission(
+        waypoints: ArrayList<LatLng>,
+        currentPos: Location,
+        alt: Float,
+        sprayerIntensity: Int,
+        flightSpeed: Float,
+        angleProgress: Float,
+        targetSystemId: Int,
+        targetComponentId: Int,
+        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE
     ): ArrayList<MissionItemInt> {
 
         val sprayerIntensityPWM = servo5PwmForSprayerIntensity(sprayerIntensity)
@@ -157,6 +179,100 @@ object MissionBuilder {
                         "missionType: ${item.missionType()}  "
             )
         }
+
+        return missionItems
+    }
+
+    fun buildSurveyAreaMission(
+        waypoints: ArrayList<LatLng>,
+        currentPos: Location,
+        alt: Float,
+        flightSpeed: Float,
+        angleProgress: Float,
+        targetSystemId: Int,
+        targetComponentId: Int,
+        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE
+    ): ArrayList<MissionItemInt> {
+        val missionItems = ArrayList<MissionItemInt>()
+        val waypointFrame = missionWaypointFrameFor(altitudeReferenceMode)
+        val commandFrame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
+        val missionYawDegrees = 90.0f - angleProgress
+        var seq = 0
+
+        fun nextSeq() = seq++
+
+        fun buildItem(
+            frame: MavFrame,
+            command: MavCmd,
+            currentFlag: Int,
+            p1: Float, p2: Float, p3: Float, p4: Float,
+            x: Int, y: Int, z: Float
+        ): MissionItemInt =
+            MissionItemInt.builder().apply {
+                seq(nextSeq())
+                frame(frame)
+                command(command)
+                current(currentFlag)
+                autocontinue(1)
+                param1(p1)
+                param2(p2)
+                param3(p3)
+                param4(p4)
+                x(x)
+                y(y)
+                z(z)
+                missionType(MavMissionType.MAV_MISSION_TYPE_MISSION)
+                targetSystem(targetSystemId)
+                targetComponent(targetComponentId)
+            }.build()
+
+        missionItems.add(
+            buildItem(
+                frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
+                command = MavCmd.MAV_CMD_NAV_TAKEOFF,
+                currentFlag = 1,
+                p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
+                x = currentPos.latitude.toE7(),
+                y = currentPos.longitude.toE7(),
+                z = alt
+            )
+        )
+
+        if (waypoints.isNotEmpty()) {
+            missionItems.add(
+                buildItem(
+                    frame = commandFrame,
+                    command = MavCmd.MAV_CMD_DO_CHANGE_SPEED,
+                    currentFlag = 0,
+                    p1 = 1.0f, p2 = flightSpeed, p3 = 0.0f, p4 = 0.0f,
+                    x = 0, y = 0, z = 0.0f
+                )
+            )
+        }
+
+        waypoints.forEach { wp ->
+            missionItems.add(
+                buildItem(
+                    frame = waypointFrame,
+                    command = MavCmd.MAV_CMD_NAV_WAYPOINT,
+                    currentFlag = 0,
+                    p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = missionYawDegrees,
+                    x = wp.latitude.toE7(),
+                    y = wp.longitude.toE7(),
+                    z = alt
+                )
+            )
+        }
+
+        missionItems.add(
+            buildItem(
+                frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT,
+                command = MavCmd.MAV_CMD_NAV_RETURN_TO_LAUNCH,
+                currentFlag = 0,
+                p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
+                x = 0, y = 0, z = 0.0f
+            )
+        )
 
         return missionItems
     }

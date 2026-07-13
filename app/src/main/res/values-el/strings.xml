@@ -70,6 +70,12 @@
     <string name="survey_altitude_pref">missionAlt</string>
     <string name="survey_sprayer_intensity_pref">sprayerIntensity</string>
     <string name="survey_spray_preset_pref">missionSprayPreset</string>
+    <string name="survey_strip_spacing_pref">surveyStripSpacing</string>
+    <string name="survey_height_above_terrain_pref">surveyHeightAboveTerrain</string>
+    <string name="survey_overlap_pref">surveyOverlap</string>
+    <string name="survey_grid_angle_pref">surveyGridAngle</string>
+    <string name="survey_terrain_segment_pref">surveyTerrainSegment</string>
+    <string name="survey_canopy_smoothing_pref">surveyCanopySmoothing</string>
     <string name="language_pref">language_pref</string>
 
     <string name="nav_header_desc">Εφαρμογή Drone Services Sprayer</string>
@@ -199,4 +205,11 @@
     <string name="mission_operation_mode_title">Λειτουργία</string>
     <string name="mission_operation_mode_survey">Τοπογράφηση</string>
     <string name="mission_operation_mode_spray">Ψεκασμός</string>
+    <string name="survey_grid_title">Survey Grid</string>
+    <string name="survey_strip_spacing">Strip spacing</string>
+    <string name="survey_height_above_terrain">Height above terrain</string>
+    <string name="survey_overlap">Overlap</string>
+    <string name="survey_grid_angle">Grid angle</string>
+    <string name="survey_terrain_segment">Terrain segment</string>
+    <string name="survey_canopy_smoothing">Canopy smoothing</string>
 </resources>
