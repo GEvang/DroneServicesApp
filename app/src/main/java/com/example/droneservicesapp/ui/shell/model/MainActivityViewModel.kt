@@ -212,7 +212,7 @@ class MainActivityViewModel : ViewModel() {
     }
 
     fun updateMissionAngle(value: Int, markCustom: Boolean = true) {
-        angleProgress.value = value.coerceIn(0, 90).toDouble()
+        angleProgress.value = value.coerceIn(0, 180).toDouble()
         updateMissionParams { copy(angle = angleProgress.value ?: 0.0) }
         markPresetCustomIfNeeded(markCustom)
     }
@@ -224,8 +224,8 @@ class MainActivityViewModel : ViewModel() {
     }
 
     fun updateAltitude(value: Int, markCustom: Boolean = true) {
-        flightAltProgress.value = value.coerceIn(2, 20).toDouble()
-        updateMissionParams { copy(altitude = flightAltProgress.value ?: 2.0) }
+        flightAltProgress.value = value.coerceIn(0, 20).toDouble()
+        updateMissionParams { copy(altitude = flightAltProgress.value ?: 0.0) }
         markPresetCustomIfNeeded(markCustom)
     }
 
@@ -274,7 +274,7 @@ class MainActivityViewModel : ViewModel() {
     }
 
     fun updateSurveyGridAngle(value: Int) {
-        val normalized = value.coerceIn(0, 90)
+        val normalized = value.coerceIn(0, 180)
         surveyGridAngle.value = normalized.toDouble()
         updateSurveyGridParams {
             copy(gridAngleDegrees = normalized)

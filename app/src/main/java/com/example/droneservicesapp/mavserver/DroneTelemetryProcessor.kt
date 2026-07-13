@@ -19,6 +19,7 @@ import io.dronefleet.mavlink.common.VfrHud
 import io.dronefleet.mavlink.minimal.Heartbeat
 import io.dronefleet.mavlink.minimal.MavAutopilot
 import io.dronefleet.mavlink.minimal.MavType
+import kotlin.math.abs
 import kotlin.math.pow
 
 internal class DroneTelemetryProcessor(
@@ -119,7 +120,7 @@ internal class DroneTelemetryProcessor(
                     ?.toFloat()
                     ?.times(10.0f.pow(-3))
                     ?: 0.0f
-                val batteryFraction = TelemetryMapping.batteryFractionFromRaw(payload.batteryRemaining())
+                val batteryFraction = TelemetryMapping.batteryFractionFromVoltage(batteryVoltage)
                 val sprayerPercent = TelemetryMapping.displayPercentFromRaw(voltages.getOrNull(1)?.toFloat())
                     ?: TelemetryMapping.UNKNOWN_PERCENT
                 stateStore.droneBatteryVoltage.postValue(batteryVoltage)
@@ -127,10 +128,11 @@ internal class DroneTelemetryProcessor(
                 stateStore.liquidLevel.postValue(sprayerPercent.toFloat())
                 logMappingSummary(
                     key = "battery-sprayer",
-                    "batteryRaw=${payload.batteryRemaining()} batteryDisplay=${TelemetryMapping.displayPercentFromFraction(batteryFraction)?.let { "$it%" } ?: "--%"} " +
+                    "batteryVoltage=${String.format(java.util.Locale.US, "%.1f", batteryVoltage)}V " +
+                        "batteryDisplay=${TelemetryMapping.formatBatteryText(batteryVoltage, batteryFraction)} " +
                         "sprayerRaw=${voltages.getOrNull(1)} sprayerDisplay=${TelemetryMapping.displayPercentFromRaw(voltages.getOrNull(1)?.toFloat())?.let { "$it%" } ?: "--%"}"
                 )
-                handleBatteryLevel(payload.batteryRemaining().toInt())
+                handleBatteryLevel(TelemetryMapping.displayPercentFromFraction(batteryFraction) ?: -1)
             }
             is RcChannels -> {
                 stateStore.rcRSSI.postValue(payload.rssi() * 100.0F / 255.0F)
@@ -216,12 +218,26 @@ internal class DroneTelemetryProcessor(
     }
 
     private fun handleGlobalPosition(position: GlobalPositionInt) {
+        val relativeAltitudeMeters = position.relativeAlt().toDouble() * 10.0.pow(-3.0)
+        val altitudeAmslMeters = position.alt().toDouble() * 10.0.pow(-3.0)
+        val isRtkFixed = stateStore.gpsFixType.value == GpsFixType.GPS_FIX_TYPE_RTK_FIXED
+        val isArmed = stateStore.armedState.value == true
+        if (isRtkFixed && !isArmed) {
+            runtimeState.rtkGroundAltitudeOffsetMeters = altitudeAmslMeters
+        }
+        val adjustedAltitudeMeters = if (isRtkFixed) {
+            val offset = runtimeState.rtkGroundAltitudeOffsetMeters ?: altitudeAmslMeters
+            val adjusted = altitudeAmslMeters - offset
+            if (!isArmed && abs(adjusted) < 0.5) 0.0 else adjusted
+        } else {
+            relativeAltitudeMeters
+        }
         val location = Location("").apply {
             latitude = position.lat().toDouble() * 10.0.pow(-7.0)
             longitude = position.lon().toDouble() * 10.0.pow(-7.0)
-            altitude = position.relativeAlt().toDouble() * 10.0.pow(-3.0)
+            altitude = adjustedAltitudeMeters
         }
-        stateStore.droneAltitudeAmslMeters.postValue(position.alt().toDouble() * 10.0.pow(-3.0))
+        stateStore.droneAltitudeAmslMeters.postValue(altitudeAmslMeters)
         stateStore.droneVerticalSpeedMetersPerSecond.postValue(position.vz().toFloat() / 100.0f)
         runtimeState.lastDroneLocation = Location(location)
         stateStore.droneHeading.postValue(position.hdg().toDouble() / 100.0)

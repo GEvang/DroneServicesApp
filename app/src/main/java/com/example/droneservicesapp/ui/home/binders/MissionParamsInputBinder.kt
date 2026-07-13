@@ -8,7 +8,9 @@ import android.widget.EditText
 import android.widget.SeekBar
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
+import com.example.droneservicesapp.mavserver.TelemetryMapping
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
+import java.util.Locale
 
 class MissionParamsInputBinder(
     private val views: MissionParamsViews,
@@ -47,13 +49,7 @@ class MissionParamsInputBinder(
             target = activityViewModel.flightAltProgress,
             updateValue = activityViewModel::updateAltitude
         )
-        bindSeekbar(
-            touchTarget = views.sprayerSliderRow,
-            seekbar = views.sprayerSeekbar,
-            valueView = views.sprayerValue,
-            target = activityViewModel.sprayerProgress,
-            updateValue = activityViewModel::updateSprayIntensity
-        )
+        bindSprayerSeekbar()
         bindSeekbar(
             touchTarget = views.surveyStripSpacingSliderRow,
             seekbar = views.surveyStripSpacingSeekbar,
@@ -299,5 +295,44 @@ class MissionParamsInputBinder(
         } else {
             String.format(java.util.Locale.US, "%.1f", value)
         }
+    }
+
+    private fun bindSprayerSeekbar() {
+        var suppressChange = false
+        val initial = activityViewModel.sprayerProgress.value ?: 0.0
+        views.sprayerSeekbar.progress = initial.toInt()
+        views.sprayerValue.setText(formatPlaceholderLiters(initial))
+        bindExpandedTouchTarget(views.sprayerSliderRow, views.sprayerSeekbar)
+
+        activityViewModel.sprayerProgress.observe(lifecycleOwner) { value ->
+            val raw = value ?: 0.0
+            val progress = raw.toInt()
+            val formatted = formatPlaceholderLiters(raw)
+            if (views.sprayerSeekbar.progress == progress &&
+                views.sprayerValue.text.toString() == formatted
+            ) {
+                return@observe
+            }
+            suppressChange = true
+            views.sprayerSeekbar.progress = progress
+            views.sprayerValue.setText(formatted)
+            suppressChange = false
+        }
+
+        views.sprayerSeekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                if (suppressChange) return
+                views.sprayerValue.setText(formatPlaceholderLiters(progress.toDouble()))
+                activityViewModel.updateSprayIntensity(progress)
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
+            override fun onStopTrackingTouch(seekBar: SeekBar) = Unit
+        })
+    }
+
+    private fun formatPlaceholderLiters(rawPercent: Double): String {
+        val liters = TelemetryMapping.placeholderSprayLiters(rawPercent.toFloat()) ?: 0.0
+        return String.format(Locale.US, "%.1f", liters)
     }
 }

@@ -115,6 +115,29 @@
                     android:text="@string/rtk_gps_debug_default"
                     style="@style/TextAppearance.DroneServices.StatusValue" />
             </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_shell_status_segment"
+                android:orientation="vertical"
+                android:padding="@dimen/ds_space_md">
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/rtk_base_coordinates"
+                    style="@style/TextAppearance.DroneServices.StatusLabel" />
+
+                <TextView
+                    android:id="@+id/rtk_base_coordinates_value"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_xs"
+                    android:text="@string/rtk_base_coordinates_unknown"
+                    style="@style/TextAppearance.DroneServices.StatusValue" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout

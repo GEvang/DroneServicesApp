@@ -8,11 +8,13 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.graphics.Rect
 import android.graphics.drawable.BitmapDrawable
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.example.droneservicesapp.R
 import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.SphericalUtil
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
@@ -20,6 +22,7 @@ import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import kotlin.math.atan2
+import kotlin.math.max
 
 /**
  * osmdroid equivalent of the parts of MapController that are:
@@ -43,6 +46,7 @@ class OsmdroidMapController(
     private var droneMarker: Marker? = null
     private var surveyPolyline: Polyline? = null
     private val surveyDirectionMarkers = mutableListOf<Marker>()
+    private val surveyInfoMarkers = mutableListOf<Marker>()
     private var homeMarker: Marker? = null
     private var flightTracePolyline: Polyline? = null
     private val flightTracePoints = mutableListOf<GeoPoint>()
@@ -213,7 +217,7 @@ class OsmdroidMapController(
         requestMapRedraw()
     }
 
-    fun setSurveyPath(path: List<LatLng>) {
+    fun setSurveyPath(path: List<LatLng>, areaVertices: List<LatLng> = emptyList()) {
         if (surveyPolyline == null) {
             surveyPolyline = Polyline(mapView).apply {
                 outlinePaint.color = ContextCompat.getColor(context, R.color.ds_color_shell_active)
@@ -225,12 +229,14 @@ class OsmdroidMapController(
         val geoPoints = path.map { GeoPoint(it.latitude, it.longitude) }
         surveyPolyline?.setPoints(geoPoints)
         renderSurveyDirectionMarkers(geoPoints)
+        renderSurveyInfoMarkers(path, areaVertices)
         requestMapRedraw()
     }
 
     fun clearSurveyPath() {
         surveyPolyline?.setPoints(emptyList())
         clearSurveyDirectionMarkers()
+        clearSurveyInfoMarkers()
         requestMapRedraw()
     }
 
@@ -292,6 +298,55 @@ class OsmdroidMapController(
         surveyDirectionMarkers.clear()
     }
 
+    private fun renderSurveyInfoMarkers(path: List<LatLng>, areaVertices: List<LatLng>) {
+        clearSurveyInfoMarkers()
+        if (path.size < 2) return
+
+        val segments = if (path.size % 2 == 0) {
+            path.chunked(2).mapNotNull { pair -> pair.takeIf { it.size == 2 } }
+        } else {
+            path.zipWithNext().map { listOf(it.first, it.second) }
+        }
+
+        segments.forEach { segment ->
+            val from = segment[0]
+            val to = segment[1]
+            val midpoint = LatLng(
+                (from.latitude + to.latitude) / 2.0,
+                (from.longitude + to.longitude) / 2.0
+            )
+            val marker = Marker(mapView).apply {
+                position = GeoPoint(midpoint.latitude, midpoint.longitude)
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                icon = createTextMarkerIcon(formatDistanceLabel(SphericalUtil.computeDistanceBetween(from, to)))
+            }
+            surveyInfoMarkers += marker
+            mapView.overlays.add(marker)
+        }
+
+        if (areaVertices.size >= 3) {
+            val centroid = LatLng(
+                areaVertices.map { it.latitude }.average(),
+                areaVertices.map { it.longitude }.average()
+            )
+            val marker = Marker(mapView).apply {
+                position = GeoPoint(centroid.latitude, centroid.longitude)
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                icon = createTextMarkerIcon(
+                    text = "Area ${formatAreaLabel(SphericalUtil.computeArea(areaVertices))}",
+                    emphasized = true
+                )
+            }
+            surveyInfoMarkers += marker
+            mapView.overlays.add(marker)
+        }
+    }
+
+    private fun clearSurveyInfoMarkers() {
+        mapView.overlays.removeAll(surveyInfoMarkers)
+        surveyInfoMarkers.clear()
+    }
+
     private fun createDirectionArrowIcon(): BitmapDrawable {
         val density = context.resources.displayMetrics.density
         val size = (26 * density).toInt()
@@ -325,6 +380,48 @@ class OsmdroidMapController(
         canvas.drawPath(path, strokePaint)
 
         return BitmapDrawable(context.resources, bitmap)
+    }
+
+    private fun createTextMarkerIcon(text: String, emphasized: Boolean = false): BitmapDrawable {
+        val density = context.resources.displayMetrics.density
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textSize = (if (emphasized) 13f else 12f) * density
+            isFakeBoldText = true
+        }
+        val bounds = Rect()
+        textPaint.getTextBounds(text, 0, text.length, bounds)
+        val horizontalPadding = (10f * density).toInt()
+        val verticalPadding = (6f * density).toInt()
+        val width = max(bounds.width() + horizontalPadding * 2, (60f * density).toInt())
+        val height = bounds.height() + verticalPadding * 2
+        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = if (emphasized) Color.argb(235, 40, 115, 255) else Color.argb(220, 24, 28, 36)
+            style = Paint.Style.FILL
+        }
+        val radius = 10f * density
+        canvas.drawRoundRect(0f, 0f, width.toFloat(), height.toFloat(), radius, radius, backgroundPaint)
+        val baseline = height / 2f - (textPaint.descent() + textPaint.ascent()) / 2f
+        canvas.drawText(text, horizontalPadding.toFloat(), baseline, textPaint)
+        return BitmapDrawable(context.resources, bitmap)
+    }
+
+    private fun formatDistanceLabel(distanceMeters: Double): String {
+        return if (distanceMeters >= 1000.0) {
+            String.format(java.util.Locale.US, "%.1f km", distanceMeters / 1000.0)
+        } else {
+            "${distanceMeters.toInt().coerceAtLeast(0)} m"
+        }
+    }
+
+    private fun formatAreaLabel(areaSquareMeters: Double): String {
+        return if (areaSquareMeters >= 10_000.0) {
+            String.format(java.util.Locale.US, "%.2f ha", areaSquareMeters / 10_000.0)
+        } else {
+            "${areaSquareMeters.toInt().coerceAtLeast(0)} m2"
+        }
     }
 
     private fun screenVectorRotationDegrees(from: GeoPoint, to: GeoPoint): Float {

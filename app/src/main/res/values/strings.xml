@@ -141,6 +141,7 @@
     <string name="erase">Erase</string>
     <string name="cancel">Cancel</string>
     <string name="decline">Decline</string>
+    <string name="confirm">Confirm</string>
     <string name="clear">Clear</string>
     <string name="upload_mission">Upload Mission</string>
     <string name="exit">Exit</string>
@@ -204,6 +205,9 @@
     <string name="rtk_forwarding_status">Forwarding Status</string>
     <string name="rtk_gps_debug_status">ArduPilot GPS Debug</string>
     <string name="rtk_gps_debug_default">Fix: -- | Sats: -- | Last GPS: --</string>
+    <string name="rtk_base_coordinates">RTK Base Coordinates</string>
+    <string name="rtk_base_coordinates_unknown">Not available</string>
+    <string name="rtk_base_coordinates_format">Lat: %1$s, Lon: %2$s</string>
     <string name="rtk_gps_debug_summary">Src: %1$s | Fix: %2$s | Sats: %3$s | HDOP: %4$s | EPH: %5$s | Last GPS: %6$s</string>
     <string name="rtk_keep_awake_hint">RTK auto-runs when mountpoint, internet, drone, and GPS prerequisites are ready. This screen stays awake while open.</string>
     <string name="rtk_keep_alive_notification_title">RTK forwarding active</string>
@@ -247,6 +251,8 @@
     <string name="unknown_percentage" translatable="false">\?%</string>
     <string name="unknown_value" translatable="false">\?</string>
     <string name="sprayer_intensity">Sprayer Intensity</string>
+    <string name="spray_liters">Spray Liters</string>
+    <string name="liters_short">L</string>
     <string name="debug_sprayer">Debug Sprayer</string>
     <string name="debug_sprayer_pwm">Servo 5 PWM</string>
     <string name="debug_sprayer_pwm_1000">1000</string>

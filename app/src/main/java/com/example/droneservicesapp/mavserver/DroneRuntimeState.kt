@@ -19,6 +19,7 @@ internal class DroneRuntimeState {
     @Volatile var lastInferredFlightState: String = "UNKNOWN"
     @Volatile var lastSpeedSourceRank: Int = Int.MAX_VALUE
     @Volatile var lastSpeedSourceUpdatedMs: Long = 0L
+    @Volatile var rtkGroundAltitudeOffsetMeters: Double? = null
     val lastTelemetryMappingSummaries: ConcurrentHashMap<String, String> = ConcurrentHashMap()
     @Volatile var mavlinkMessagesDisposable: Disposable? = null
 

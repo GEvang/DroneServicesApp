@@ -23,7 +23,9 @@ import com.example.droneservicesapp.data.rtk.RtkPreferences
 import com.example.droneservicesapp.data.rtk.RtkValidator
 import com.example.droneservicesapp.databinding.FragmentRtkBinding
 import com.example.droneservicesapp.mavserver.DroneViewModel
+import com.example.droneservicesapp.ui.common.RtkTonePlayer
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class RtkFragment : Fragment() {
     companion object {
@@ -37,6 +39,7 @@ class RtkFragment : Fragment() {
     private lateinit var droneViewModel: DroneViewModel
     private val ntripClient = NtripClient()
     private var isPopulatingForm = false
+    private var lastStreamingActive: Boolean? = null
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -115,6 +118,7 @@ class RtkFragment : Fragment() {
             config.lastStatusMessage.ifBlank { getString(R.string.rtk_connection_not_tested) },
             config.lastFetchSucceeded
         )
+        updateBaseCoordinates(config.selectedMountpoint)
         isPopulatingForm = false
     }
 
@@ -299,6 +303,15 @@ class RtkFragment : Fragment() {
     private fun observeForwardingState() {
         droneViewModel.rtkForwardingState.observe(viewLifecycleOwner) { state ->
             Log.i(TAG, "state observed=${state.javaClass.simpleName}")
+            val streaming = state is RtkForwardingState.Streaming
+            if (lastStreamingActive != null && lastStreamingActive != streaming) {
+                if (streaming) {
+                    RtkTonePlayer.playConnectedTone()
+                } else {
+                    RtkTonePlayer.playDisconnectedTone()
+                }
+            }
+            lastStreamingActive = streaming
             binding.rtkForwardingStatusValue.text = state.toDisplayString()
             binding.rtkForwardingStatusValue.setTextColor(
                 ContextCompat.getColor(requireContext(), forwardingStateColor(state))
@@ -306,6 +319,9 @@ class RtkFragment : Fragment() {
         }
         droneViewModel.rtkGpsDebugStatus.observe(viewLifecycleOwner) { status ->
             binding.rtkGpsDebugValue.text = status
+        }
+        droneViewModel.selectedRtkMountpoint.observe(viewLifecycleOwner) { mountpoint ->
+            updateBaseCoordinates(mountpoint)
         }
     }
 
@@ -380,6 +396,17 @@ class RtkFragment : Fragment() {
     private fun setBusyState(isBusy: Boolean) {
         binding.fetchMountpointsButton.isEnabled = !isBusy
         binding.testConnectionButton.isEnabled = !isBusy
+    }
+
+    private fun updateBaseCoordinates(mountpoint: RtkMountpoint?) {
+        binding.rtkBaseCoordinatesValue.text = when {
+            mountpoint?.hasCoordinates == true -> getString(
+                R.string.rtk_base_coordinates_format,
+                String.format(Locale.US, "%.6f", mountpoint.latitude),
+                String.format(Locale.US, "%.6f", mountpoint.longitude)
+            )
+            else -> getString(R.string.rtk_base_coordinates_unknown)
+        }
     }
 
     override fun onDestroyView() {

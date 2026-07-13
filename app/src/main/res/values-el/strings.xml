@@ -52,6 +52,7 @@
     <string name="erase">Καθαρισμός</string>
     <string name="cancel">Ακύρωση</string>
     <string name="decline">Απόρριψη</string>
+    <string name="confirm">Επιβεβαίωση</string>
     <string name="upload_mission">Ανέβασμα Αποστολής</string>
     <string name="exit">Έξοδος</string>
     <string name="flight_altitude">Ύψος πτήσης</string>
@@ -107,6 +108,9 @@
     <string name="rtk_forwarding_status">Κατάσταση προώθησης</string>
     <string name="rtk_gps_debug_status">Έλεγχος GPS ArduPilot</string>
     <string name="rtk_gps_debug_default">Fix: -- | Δορυφόροι: -- | Τελευταίο GPS: --</string>
+    <string name="rtk_base_coordinates">Συντεταγμένες βάσης RTK</string>
+    <string name="rtk_base_coordinates_unknown">Μη διαθέσιμο</string>
+    <string name="rtk_base_coordinates_format">Lat: %1$s, Lon: %2$s</string>
     <string name="rtk_gps_debug_summary">Πηγή: %1$s | Fix: %2$s | Δορυφόροι: %3$s | HDOP: %4$s | EPH: %5$s | Τελευταίο GPS: %6$s</string>
     <string name="rtk_keep_awake_hint">Το RTK ξεκινά αυτόματα όταν mountpoint, internet, drone και GPS είναι έτοιμα. Αυτή η οθόνη παραμένει ενεργή όσο είναι ανοιχτή.</string>
     <string name="rtk_keep_alive_notification_title">Η προώθηση RTK είναι ενεργή</string>
@@ -150,6 +154,8 @@
     <string name="unknown_percentage">\?%</string>
     <string name="unknown_value">\?</string>
     <string name="sprayer_intensity">Ένταση ψεκασμού</string>
+    <string name="spray_liters">Λίτρα ψεκασμού</string>
+    <string name="liters_short">L</string>
     <string name="unknown_value_three_questionmarks">\???</string>
     <string name="percentage_symbol">%</string>
     <string name="m">m</string>

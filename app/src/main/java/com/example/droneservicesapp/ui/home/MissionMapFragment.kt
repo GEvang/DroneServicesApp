@@ -73,6 +73,7 @@ import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
+import com.example.droneservicesapp.ui.common.RtkTonePlayer
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.material.snackbar.Snackbar
 import com.google.maps.android.SphericalUtil
@@ -274,7 +275,9 @@ class MissionMapFragment : Fragment() {
             activityViewModel = activityViewModel,
             droneViewModel = droneViewModel,
             beforeUploadGuard = { onAllowed ->
-                handleGeoAwarenessBeforeUpload(onAllowed)
+                handleGeoAwarenessBeforeUpload {
+                    showMissionUploadSummaryDialog(onAllowed)
+                }
             }
         )
 
@@ -596,6 +599,13 @@ class MissionMapFragment : Fragment() {
             val streaming = state is RtkForwardingState.Streaming
             if (lastRtkStreamingActive == streaming) {
                 return@observe
+            }
+            if (lastRtkStreamingActive != null) {
+                if (streaming) {
+                    RtkTonePlayer.playConnectedTone()
+                } else {
+                    RtkTonePlayer.playDisconnectedTone()
+                }
             }
             lastRtkStreamingActive = streaming
             geoEventLogger.logSimple(
@@ -921,7 +931,7 @@ class MissionMapFragment : Fragment() {
         }
 
         activityViewModel.surveyPath.postValue(gmsPath)
-        osmdroidMapController.setSurveyPath(gmsPath)
+        osmdroidMapController.setSurveyPath(gmsPath, area.vertices)
     }
 
     private fun drawSurveyGridMissionOnMap() {
@@ -952,7 +962,65 @@ class MissionMapFragment : Fragment() {
         }
 
         activityViewModel.surveyPath.postValue(gmsPath)
-        osmdroidMapController.setSurveyPath(gmsPath)
+        osmdroidMapController.setSurveyPath(gmsPath, area.vertices)
+    }
+
+    private fun showMissionUploadSummaryDialog(onConfirmed: () -> Unit) {
+        val workflow = activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA
+        val missionPath = when (workflow) {
+            PlanningWorkflow.AREA -> activityViewModel.surveyPath.value.orEmpty()
+            PlanningWorkflow.POINTS -> activityViewModel.routeWaypoints.value.orEmpty().map {
+                LatLng(it.latitude, it.longitude)
+            }
+        }
+        val lineCount = when {
+            missionPath.size < 2 -> 0
+            missionPath.size % 2 == 0 -> missionPath.size / 2
+            else -> missionPath.size - 1
+        }
+        val totalDistanceMeters = missionPath.zipWithNext().sumOf { (from, to) ->
+            SphericalUtil.computeDistanceBetween(from, to)
+        }
+        val areaVertices = activityViewModel.missionArea.value?.vertices.orEmpty()
+        val areaMeters = if (areaVertices.size >= 3) SphericalUtil.computeArea(areaVertices) else 0.0
+        val altitudeMeters = activityViewModel.flightAltProgress.value ?: 0.0
+        val speedMetersPerSecond = activityViewModel.flightSpeed.value ?: 1.0
+        val mode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
+
+        val message = buildString {
+            appendLine("Mode: ${mode.name.lowercase().replaceFirstChar { it.uppercase() }}")
+            appendLine("Workflow: ${workflow.name.lowercase().replaceFirstChar { it.uppercase() }}")
+            if (areaMeters > 0.0) appendLine("Area: ${formatMissionArea(areaMeters)}")
+            appendLine("Path length: ${formatMissionDistance(totalDistanceMeters)}")
+            appendLine("Lines: $lineCount")
+            appendLine("Altitude: ${altitudeMeters.toInt()} m")
+            appendLine("Speed: ${String.format(Locale.US, "%.1f", speedMetersPerSecond)} m/s")
+        }
+
+        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
+            .setTitle("Mission summary")
+            .setMessage(message)
+            .setNegativeButton(R.string.decline, null)
+            .setPositiveButton(R.string.confirm) { _, _ -> onConfirmed() }
+            .show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+    }
+
+    private fun formatMissionDistance(distanceMeters: Double): String {
+        return if (distanceMeters >= 1000.0) {
+            String.format(Locale.US, "%.2f km", distanceMeters / 1000.0)
+        } else {
+            "${distanceMeters.toInt().coerceAtLeast(0)} m"
+        }
+    }
+
+    private fun formatMissionArea(areaSquareMeters: Double): String {
+        return if (areaSquareMeters >= 10_000.0) {
+            String.format(Locale.US, "%.2f ha", areaSquareMeters / 10_000.0)
+        } else {
+            "${areaSquareMeters.toInt().coerceAtLeast(0)} m2"
+        }
     }
 
     override fun onDestroyView() {

@@ -180,35 +180,6 @@
                     android:textSize="@dimen/phone_map_hud_text_size"
                     android:textStyle="bold" />
 
-                <View
-                    android:layout_width="1dp"
-                    android:layout_height="16dp"
-                    android:layout_marginStart="5dp"
-                    android:layout_marginEnd="5dp"
-                    android:background="@drawable/bg_hud_divider" />
-
-                <ImageView
-                    android:id="@+id/ivTank"
-                    android:layout_width="@dimen/phone_map_hud_icon_size"
-                    android:layout_height="@dimen/phone_map_hud_icon_size"
-                    android:contentDescription="@null"
-                    android:src="@drawable/ic_sprayer_image"
-                    app:tint="@android:color/white" />
-
-                <TextView
-                    android:id="@+id/sprayer_flow_text"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_marginStart="3dp"
-                    android:layout_weight="0.45"
-                    android:ellipsize="end"
-                    android:fontFamily="@font/inter"
-                    android:maxLines="1"
-                    android:text="@string/unknown_percentage"
-                    android:textColor="@android:color/white"
-                    android:textSize="@dimen/phone_map_hud_text_size"
-                    android:textStyle="bold" />
-
                 <ImageView
                     android:id="@+id/drone_battery_image"
                     android:layout_width="@dimen/phone_map_hud_icon_size"

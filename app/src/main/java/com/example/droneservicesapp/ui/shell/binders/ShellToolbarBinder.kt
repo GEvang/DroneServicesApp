@@ -37,7 +37,6 @@ class ShellToolbarBinder(
             activity,
             if (state.isArmed) R.color.ds_color_shell_active else R.color.ds_color_shell_warning
         )
-        val tankColor = ContextCompat.getColor(activity, resolveTankColorRes(state.sprayerText))
         val batteryColor = ContextCompat.getColor(activity, state.batteryColorRes)
         val gpsColor = ContextCompat.getColor(activity, resolveGpsColorRes(state.gpsFixQuality))
         val secondaryText = ContextCompat.getColor(activity, R.color.text_secondary)
@@ -53,12 +52,6 @@ class ShellToolbarBinder(
             setTextColor(gpsColor)
         }
         toolbar.findViewById<ImageView>(R.id.ivGps).setColorFilter(gpsColor)
-
-        toolbar.findViewById<TextView>(R.id.sprayer_flow_text).apply {
-            text = state.sprayerText
-            setTextColor(tankColor)
-        }
-        toolbar.findViewById<ImageView>(R.id.ivTank).setColorFilter(tankColor)
 
         toolbar.findViewById<TextView>(R.id.drone_arm_text).apply {
             text = state.armedText.uppercase()
@@ -85,15 +78,6 @@ class ShellToolbarBinder(
 
     private fun formatAltitudeText(altitudeText: String): String {
         return if (altitudeText.startsWith("ALT:")) altitudeText else "ALT: $altitudeText"
-    }
-
-    private fun resolveTankColorRes(sprayerText: String): Int {
-        val percent = sprayerText.filter { it.isDigit() }.toIntOrNull() ?: return android.R.color.white
-        return when {
-            percent <= 20 -> R.color.ds_color_shell_danger
-            percent <= 45 -> R.color.ds_color_shell_warning
-            else -> android.R.color.white
-        }
     }
 
     private fun resolveGpsColorRes(quality: GpsFixQuality): Int {

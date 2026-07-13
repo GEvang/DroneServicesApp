@@ -159,7 +159,7 @@
                     android:layout_width="0dp"
                     android:layout_height="28dp"
                     android:layout_weight="1"
-                    android:max="90"
+                    android:max="180"
                     android:progress="0"
                     android:splitTrack="false"
                     android:thumb="@drawable/seekbar_thumb_dji"
@@ -266,7 +266,7 @@
                     android:layout_height="28dp"
                     android:layout_weight="1"
                     android:max="20"
-                    android:min="2"
+                    android:min="0"
                     android:progress="10"
                     android:splitTrack="false"
                     android:thumb="@drawable/seekbar_thumb_dji"
@@ -414,7 +414,7 @@
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
-                    android:text="@string/sprayer_intensity"
+                    android:text="@string/spray_liters"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel" />
 
                 <LinearLayout
@@ -439,7 +439,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginStart="4dp"
-                        android:text="@string/percentage_symbol"
+                        android:text="@string/liters_short"
                         style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel" />
                 </LinearLayout>
             </LinearLayout>
@@ -902,7 +902,7 @@
                     android:layout_width="0dp"
                     android:layout_height="28dp"
                     android:layout_weight="1"
-                    android:max="90"
+                    android:max="180"
                     android:progress="0"
                     android:splitTrack="false"
                     android:thumb="@drawable/seekbar_thumb_dji"

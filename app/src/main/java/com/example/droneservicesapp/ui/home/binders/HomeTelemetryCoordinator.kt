@@ -48,22 +48,12 @@ class HomeTelemetryCoordinator(
 
         droneViewModel.droneBatteryPercentage.observe(lifecycleOwner) { batteryPercentage ->
             if (droneViewModel.conStateLiveData.value != true) return@observe
+            updateBatteryTelemetry(batteryPercentage, droneViewModel.droneBatteryVoltage.value)
+        }
 
-            val iconRes = when {
-                batteryPercentage < 0.0F -> R.drawable.ic_baseline_battery_alert_24
-                batteryPercentage >= 1.0F -> R.drawable.ic_baseline_battery_full_24
-                batteryPercentage >= 0.7F -> R.drawable.ic_baseline_battery_6_bar_24
-                batteryPercentage >= 0.4F -> R.drawable.ic_baseline_battery_4_bar_24
-                batteryPercentage >= 0.25F -> R.drawable.ic_baseline_battery_3_bar_24
-                else -> R.drawable.ic_baseline_battery_2_bar_24
-            }
-            update { state ->
-                state.copy(
-                    batteryText = formatBatteryText(batteryPercentage),
-                    batteryIconRes = iconRes,
-                    batteryColorRes = resolveBatteryColorRes(batteryPercentage)
-                )
-            }
+        droneViewModel.droneBatteryVoltage.observe(lifecycleOwner) { batteryVoltage ->
+            if (droneViewModel.conStateLiveData.value != true) return@observe
+            updateBatteryTelemetry(droneViewModel.droneBatteryPercentage.value, batteryVoltage)
         }
 
         droneViewModel.droneLocationLiveData.observe(lifecycleOwner) { location ->
@@ -154,15 +144,8 @@ class HomeTelemetryCoordinator(
         val isConnected = droneViewModel.conStateLiveData.value == true
         val armed = droneViewModel.armedState.value == true
         val batteryPercentage = droneViewModel.droneBatteryPercentage.value
-        val batteryIconRes = when {
-            batteryPercentage == null || batteryPercentage < 0.0F -> R.drawable.ic_baseline_battery_alert_24
-            batteryPercentage >= 1.0F -> R.drawable.ic_baseline_battery_full_24
-            batteryPercentage >= 0.7F -> R.drawable.ic_baseline_battery_6_bar_24
-            batteryPercentage >= 0.4F -> R.drawable.ic_baseline_battery_4_bar_24
-            batteryPercentage >= 0.25F -> R.drawable.ic_baseline_battery_3_bar_24
-            else -> R.drawable.ic_baseline_battery_2_bar_24
-        }
-        val batteryText = formatBatteryText(batteryPercentage)
+        val batteryIconRes = resolveBatteryIconRes(batteryPercentage)
+        val batteryText = formatBatteryText(droneViewModel.droneBatteryVoltage.value, batteryPercentage)
         val uploadProgress = droneViewModel.uploadProgressPercent.value ?: 0
         val batteryColorRes = resolveBatteryColorRes(batteryPercentage)
         val currentLocation = droneViewModel.droneLocationLiveData.value
@@ -206,12 +189,12 @@ class HomeTelemetryCoordinator(
             gpsStatusText = "No GPS",
             gpsFixQuality = GpsFixQuality.DISCONNECTED,
             rtkMountpointText = "RTK Mountpoint: Not connected",
-            batteryText = "--%",
+            batteryText = "--.-V --%",
             batteryIconRes = R.drawable.ic_baseline_battery_alert_24,
             batteryColorRes = R.color.ds_color_shell_unselected,
             altitudeText = "--",
             speedText = "SPD: 0.0",
-            sprayerText = "--%",
+            sprayerText = "--.-L",
             armedText = activity.getString(R.string.disarmed),
             isArmed = false,
             showUploadProgress = false,
@@ -303,12 +286,36 @@ class HomeTelemetryCoordinator(
         Log.d(TAG, summary)
     }
 
-    private fun formatBatteryText(batteryPercentage: Float?): String {
-        return TelemetryMapping.displayPercentFromFraction(batteryPercentage)?.let { "$it%" } ?: "--%"
+    private fun formatBatteryText(batteryVoltage: Float?, batteryPercentage: Float?): String {
+        return TelemetryMapping.formatBatteryText(batteryVoltage, batteryPercentage)
     }
 
     private fun formatSprayerText(sprayerPercentage: Float?): String {
-        return TelemetryMapping.displayPercentFromRaw(sprayerPercentage)?.let { "$it%" } ?: "--%"
+        return TelemetryMapping.placeholderSprayLiters(sprayerPercentage)
+            ?.let { String.format(Locale.US, "%.1fL", it) }
+            ?: "--.-L"
+    }
+
+    private fun updateBatteryTelemetry(batteryPercentage: Float?, batteryVoltage: Float?) {
+        val iconRes = resolveBatteryIconRes(batteryPercentage)
+        update { state ->
+            state.copy(
+                batteryText = formatBatteryText(batteryVoltage, batteryPercentage),
+                batteryIconRes = iconRes,
+                batteryColorRes = resolveBatteryColorRes(batteryPercentage)
+            )
+        }
+    }
+
+    private fun resolveBatteryIconRes(batteryPercentage: Float?): Int {
+        return when {
+            batteryPercentage == null || batteryPercentage < 0.0F -> R.drawable.ic_baseline_battery_alert_24
+            batteryPercentage >= 1.0F -> R.drawable.ic_baseline_battery_full_24
+            batteryPercentage >= 0.7F -> R.drawable.ic_baseline_battery_6_bar_24
+            batteryPercentage >= 0.4F -> R.drawable.ic_baseline_battery_4_bar_24
+            batteryPercentage >= 0.25F -> R.drawable.ic_baseline_battery_3_bar_24
+            else -> R.drawable.ic_baseline_battery_2_bar_24
+        }
     }
 
     private fun formatSpeedText(speedMetersPerSecond: Float?): String {
