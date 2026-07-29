@@ -221,6 +221,36 @@
                         android:textSize="@dimen/phone_map_bottom_dock_text_size" />
                 </LinearLayout>
 
+                <LinearLayout
+                    android:id="@+id/utility_obstacles_button"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="@dimen/phone_map_bottom_dock_item_spacing"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_phone_dock_item"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical">
+
+                    <ImageView
+                        android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
+                        android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                        android:contentDescription="@null"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/obstacle"
+                        android:tint="@color/ds_color_shell_unselected" />
+
+                    <TextView
+                        style="@style/TextAppearance.DroneServices.BottomNavInactive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="2dp"
+                        android:text="@string/map_dock_obstacles"
+                        android:textColor="@color/ds_color_shell_unselected"
+                        android:textSize="@dimen/phone_map_bottom_dock_text_size" />
+                </LinearLayout>
+
                 <Space
                     android:layout_width="@dimen/phone_map_bottom_dock_center_spacer_width"
                     android:layout_height="1dp" />
@@ -317,6 +347,15 @@
                     android:textStyle="bold" />
             </LinearLayout>
         </FrameLayout>
+
+        <include
+            layout="@layout/home_obstacle_panel"
+            android:layout_width="@dimen/phone_map_panel_right_width"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/phone_map_overlay_card_margin"
+            android:layout_marginBottom="@dimen/ds_space_sm"
+            app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <LinearLayout
             android:id="@+id/home_telemetry_legacy_container"

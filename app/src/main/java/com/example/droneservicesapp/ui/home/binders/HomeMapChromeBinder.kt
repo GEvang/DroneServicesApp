@@ -24,12 +24,14 @@ class HomeMapChromeBinder(
         onDownloadOffline: () -> Unit,
         onCenterOnUser: () -> Unit,
         onCenterOnDrone: () -> Unit,
+        onToggleObstacles: () -> Unit,
         onOpenSettings: () -> Unit,
         onTogglePlanning: () -> Unit,
     ) {
         binding.utilityDownloadButton.setOnClickListener { onDownloadOffline() }
         binding.utilityCenterOperatorButton.setOnClickListener { onCenterOnUser() }
         binding.utilityCenterDroneButton.setOnClickListener { onCenterOnDrone() }
+        binding.utilityObstaclesButton.setOnClickListener { onToggleObstacles() }
         binding.utilitySettingsButton.setOnClickListener { onOpenSettings() }
         binding.utilityPlanningButton.setOnClickListener { onTogglePlanning() }
     }
@@ -37,6 +39,7 @@ class HomeMapChromeBinder(
     fun renderOverlayControls(state: MapOverlayControlsUiState) {
         binding.utilityCenterOperatorButton.isVisible = state.showMyLocationButton
         binding.utilityCenterDroneButton.isVisible = state.showDroneLocationButton
+        binding.utilityObstaclesButton.isVisible = state.showDroneLocationButton
         binding.utilityDownloadButton.isVisible = state.showDownloadOfflineButton
     }
 

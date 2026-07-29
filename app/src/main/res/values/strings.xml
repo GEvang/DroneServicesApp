@@ -118,6 +118,14 @@
     <string name="points">Points</string>
     <string name="draw_area">Draw Area</string>
     <string name="clear_area">Clear Area</string>
+    <string name="add_forbidden_area">Add Forbidden Area</string>
+    <string name="finish_forbidden_polygon">Finish Forbidden Polygon</string>
+    <string name="clear_forbidden_areas">Clear Forbidden Areas</string>
+    <string name="forbidden_areas">Forbidden Areas</string>
+    <string name="map_dock_obstacles">Obstacles</string>
+    <string name="obstacle_shape_circle">Circle</string>
+    <string name="obstacle_shape_polygon">Polygon</string>
+    <string name="obstacle_radius_format">Radius: %1$d m</string>
     <string name="add_route_points">Tap Map to Add Points</string>
     <string name="clear_route">Clear Route</string>
     <string name="undo_route_point">Undo Last Point</string>

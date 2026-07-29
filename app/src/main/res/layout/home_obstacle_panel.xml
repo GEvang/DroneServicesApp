@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/home_obstacle_panel"
+    style="@style/Widget.DroneServices.Panel.MapRight"
+    android:layout_width="@dimen/phone_map_panel_right_width"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:visibility="gone">
+
+    <TextView
+        style="@style/TextAppearance.DroneServices.PhoneMapPanelTitle"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/forbidden_areas" />
+
+    <LinearLayout
+        android:id="@+id/right_panel_obstacle_mode_row"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_md"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/right_panel_obstacle_circle_button"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/phone_map_panel_tab_height"
+            android:layout_weight="1"
+            android:background="@drawable/bg_ds_panel_pill_active"
+            android:fontFamily="@font/inter"
+            android:gravity="center"
+            android:text="@string/obstacle_shape_circle"
+            android:textColor="@color/ds_color_shell_selected_content"
+            android:textSize="@dimen/phone_map_panel_label_text_size"
+            android:textStyle="bold" />
+
+        <TextView
+            android:id="@+id/right_panel_obstacle_polygon_button"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/phone_map_panel_tab_height"
+            android:layout_marginStart="@dimen/ds_space_sm"
+            android:layout_weight="1"
+            android:background="@drawable/bg_ds_panel_pill_inactive"
+            android:fontFamily="@font/inter"
+            android:gravity="center"
+            android:text="@string/obstacle_shape_polygon"
+            android:textColor="@color/ds_color_text_primary"
+            android:textSize="@dimen/phone_map_panel_label_text_size" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/right_panel_obstacle_radius_label"
+        style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:text="Radius: 5 m" />
+
+    <SeekBar
+        android:id="@+id/right_panel_obstacle_radius_seekbar"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:max="98"
+        android:progress="3" />
+
+    <TextView
+        android:id="@+id/right_panel_add_obstacle_button"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/phone_map_panel_button_height"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:background="@drawable/bg_ds_panel_pill_inactive"
+        android:fontFamily="@font/inter"
+        android:gravity="center"
+        android:text="@string/add_forbidden_area"
+        android:textColor="@color/ds_color_text_primary"
+        android:textSize="@dimen/phone_map_panel_label_text_size" />
+
+    <TextView
+        android:id="@+id/right_panel_clear_obstacles_button"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/phone_map_panel_button_height"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:background="@drawable/bg_ds_panel_pill_inactive"
+        android:fontFamily="@font/inter"
+        android:gravity="center"
+        android:text="@string/clear_forbidden_areas"
+        android:textColor="@color/ds_color_text_primary"
+        android:textSize="@dimen/phone_map_panel_label_text_size" />
+</LinearLayout>

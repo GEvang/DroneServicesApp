@@ -10,6 +10,8 @@ import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.MissionArea
+import com.example.droneservicesapp.domain.model.MissionObstacle
+import com.example.droneservicesapp.domain.model.MissionObstacleShape
 import com.example.droneservicesapp.domain.model.MissionParams
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
@@ -135,6 +137,14 @@ class MainActivityViewModel : ViewModel() {
         MutableLiveData(emptyList())
     }
 
+    val missionObstacles: MutableLiveData<List<MissionObstacle>> by lazy {
+        MutableLiveData(emptyList())
+    }
+
+    val obstacleRadiusMeters: MutableLiveData<Double> by lazy {
+        MutableLiveData(5.0)
+    }
+
     val activePlanningWorkflow: MutableLiveData<PlanningWorkflow> by lazy {
         MutableLiveData(PlanningWorkflow.AREA)
     }
@@ -186,6 +196,50 @@ class MainActivityViewModel : ViewModel() {
         val a = missionArea.value ?: return
         a.vertices.clear()
         missionArea.postValue(a)
+    }
+
+    fun addMissionObstacle(latitude: Double, longitude: Double, radiusMeters: Double) {
+        val obstacle = MissionObstacle(
+            id = "obstacle-${System.nanoTime()}",
+            shape = MissionObstacleShape.CIRCLE,
+            center = com.example.droneservicesapp.domain.model.LatLon(latitude, longitude),
+            radiusMeters = radiusMeters.coerceIn(2.0, 100.0)
+        )
+        missionObstacles.value = missionObstacles.value.orEmpty() + obstacle
+    }
+
+    fun addPolygonMissionObstacle(vertices: List<LatLng>) {
+        if (vertices.size < 3) return
+        val obstacle = MissionObstacle(
+            id = "obstacle-${System.nanoTime()}",
+            shape = MissionObstacleShape.POLYGON,
+            vertices = vertices.map { com.example.droneservicesapp.domain.model.LatLon(it.latitude, it.longitude) }
+        )
+        missionObstacles.value = missionObstacles.value.orEmpty() + obstacle
+    }
+
+    fun updateObstacleRadius(value: Int) {
+        val radius = value.coerceIn(2, 100).toDouble()
+        obstacleRadiusMeters.value = radius
+        updateLastCircleObstacleRadius(radius)
+    }
+
+    private fun updateLastCircleObstacleRadius(radiusMeters: Double) {
+        val obstacles = missionObstacles.value.orEmpty()
+        val lastCircleIndex = obstacles.indexOfLast { it.shape == MissionObstacleShape.CIRCLE }
+        if (lastCircleIndex == -1) return
+
+        missionObstacles.value = obstacles.mapIndexed { index, obstacle ->
+            if (index == lastCircleIndex) obstacle.copy(radiusMeters = radiusMeters) else obstacle
+        }
+    }
+
+    fun removeMissionObstacle(id: String) {
+        missionObstacles.value = missionObstacles.value.orEmpty().filterNot { it.id == id }
+    }
+
+    fun clearMissionObstacles() {
+        missionObstacles.value = emptyList()
     }
 
     fun sendAction(action: MapAction) {

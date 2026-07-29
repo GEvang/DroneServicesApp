@@ -177,6 +177,18 @@
                 android:src="@drawable/drone_marker_36"
                 android:tint="@android:color/white" />
 
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/utility_obstacles_button"
+                android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
+                android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                android:layout_marginStart="@dimen/phone_map_bottom_dock_item_spacing"
+                android:background="@drawable/bg_bottom_dock_button"
+                android:contentDescription="@string/forbidden_areas"
+                android:padding="@dimen/phone_map_bottom_dock_icon_padding"
+                android:scaleType="centerInside"
+                android:src="@drawable/obstacle"
+                android:tint="@android:color/white" />
+
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/utility_planning_button"
                 android:layout_width="wrap_content"
@@ -217,6 +229,15 @@
                 android:src="@drawable/ic_menu_settings"
                 android:tint="@android:color/white" />
         </LinearLayout>
+
+        <include
+            layout="@layout/home_obstacle_panel"
+            android:layout_width="@dimen/phone_map_panel_right_width"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/phone_map_overlay_card_margin"
+            android:layout_marginBottom="@dimen/ds_space_sm"
+            app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
+            app:layout_constraintEnd_toEndOf="parent" />
 
         <LinearLayout
             android:id="@+id/home_telemetry_legacy_container"

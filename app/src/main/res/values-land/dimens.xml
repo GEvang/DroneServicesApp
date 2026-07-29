@@ -63,10 +63,10 @@
     <dimen name="phone_map_panel_slider_frame_small">32dp</dimen>
     <dimen name="phone_map_panel_slider_frame_large">36dp</dimen>
 
-    <dimen name="phone_map_bottom_dock_width">500dp</dimen>
+    <dimen name="phone_map_bottom_dock_width">560dp</dimen>
     <dimen name="phone_map_bottom_dock_outer_height">68dp</dimen>
     <dimen name="phone_map_bottom_dock_center_size">68dp</dimen>
-    <dimen name="phone_map_bottom_dock_center_spacer_width">78dp</dimen>
+    <dimen name="phone_map_bottom_dock_center_spacer_width">112dp</dimen>
     <dimen name="phone_map_bottom_dock_icon_size">20dp</dimen>
     <dimen name="phone_map_bottom_dock_icon_padding">6dp</dimen>
     <dimen name="phone_map_bottom_dock_button_height">32dp</dimen>

@@ -168,6 +168,38 @@
                         android:textSize="@dimen/tablet_bottom_dock_label_text_size" />
                 </LinearLayout>
 
+                <LinearLayout
+                    android:id="@+id/utility_obstacles_button"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="@dimen/ds_space_sm"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tablet_dock_item"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:paddingTop="5dp"
+                    android:paddingBottom="5dp">
+
+                    <ImageView
+                        android:layout_width="@dimen/tablet_bottom_dock_icon_size"
+                        android:layout_height="@dimen/tablet_bottom_dock_icon_size"
+                        android:contentDescription="@null"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/obstacle"
+                        android:tint="@color/ds_color_shell_unselected" />
+
+                    <TextView
+                        style="@style/TextAppearance.DroneServices.BottomNavInactive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="@string/map_dock_obstacles"
+                        android:textColor="@color/ds_color_shell_unselected"
+                        android:textSize="@dimen/tablet_bottom_dock_label_text_size" />
+                </LinearLayout>
+
                 <Space
                     android:layout_width="@dimen/tablet_bottom_center_spacer_width"
                     android:layout_height="1dp" />
@@ -278,6 +310,15 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="@dimen/ds_space_md"
             android:layout_marginBottom="@dimen/ds_space_md"
+            app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
+            app:layout_constraintEnd_toEndOf="parent" />
+
+        <include
+            layout="@layout/home_obstacle_panel"
+            android:layout_width="@dimen/tablet_right_panel_width"
+            android:layout_height="wrap_content"
+            android:layout_marginEnd="@dimen/ds_space_md"
+            android:layout_marginBottom="@dimen/ds_space_sm"
             app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
             app:layout_constraintEnd_toEndOf="parent" />
 
