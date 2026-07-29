@@ -229,7 +229,7 @@ class OsmdroidMapController(
         val geoPoints = path.map { GeoPoint(it.latitude, it.longitude) }
         surveyPolyline?.setPoints(geoPoints)
         renderSurveyDirectionMarkers(geoPoints)
-        renderSurveyInfoMarkers(path, areaVertices)
+        renderSurveyInfoMarkers(areaVertices)
         requestMapRedraw()
     }
 
@@ -298,17 +298,10 @@ class OsmdroidMapController(
         surveyDirectionMarkers.clear()
     }
 
-    private fun renderSurveyInfoMarkers(path: List<LatLng>, areaVertices: List<LatLng>) {
+    private fun renderSurveyInfoMarkers(areaVertices: List<LatLng>) {
         clearSurveyInfoMarkers()
-        if (path.size < 2) return
 
-        val segments = if (path.size % 2 == 0) {
-            path.chunked(2).mapNotNull { pair -> pair.takeIf { it.size == 2 } }
-        } else {
-            path.zipWithNext().map { listOf(it.first, it.second) }
-        }
-
-        segments.forEach { segment ->
+        perimeterSegments(areaVertices).forEach { segment ->
             val from = segment[0]
             val to = segment[1]
             val midpoint = LatLng(
@@ -339,6 +332,16 @@ class OsmdroidMapController(
             }
             surveyInfoMarkers += marker
             mapView.overlays.add(marker)
+        }
+    }
+
+    private fun perimeterSegments(vertices: List<LatLng>): List<List<LatLng>> {
+        if (vertices.size < 2) return emptyList()
+        val openSegments = vertices.zipWithNext().map { (from, to) -> listOf(from, to) }
+        return if (vertices.size >= 3) {
+            openSegments + listOf(listOf(vertices.last(), vertices.first()))
+        } else {
+            openSegments
         }
     }
 

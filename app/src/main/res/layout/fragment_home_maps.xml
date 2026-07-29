@@ -52,28 +52,6 @@
             app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
             app:layout_constraintEnd_toEndOf="parent" />
 
-        <TextView
-            android:id="@+id/geoAwarenessStatusChip"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/ds_space_sm"
-            android:layout_marginEnd="@dimen/phone_map_overlay_card_margin"
-            android:background="@drawable/bg_bottom_dock_button"
-            android:fontFamily="@font/inter"
-            android:gravity="center"
-            android:paddingLeft="10dp"
-            android:paddingTop="6dp"
-            android:paddingRight="10dp"
-            android:paddingBottom="6dp"
-            android:text="GEO: CLEAR"
-            android:textColor="@android:color/white"
-            android:textSize="@dimen/phone_map_live_geo_text_size"
-            android:textStyle="bold"
-            android:visibility="gone"
-            app:layout_constraintBottom_toTopOf="@id/liveGeoAwarenessPanel"
-            app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintVertical_bias="1.0" />
-
         <androidx.core.widget.NestedScrollView
             android:id="@+id/mission_params_side_view"
             android:layout_width="wrap_content"
