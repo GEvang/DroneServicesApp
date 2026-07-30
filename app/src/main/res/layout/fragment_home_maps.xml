@@ -205,7 +205,12 @@
                 android:textAllCaps="false"
                 android:textColor="@android:color/white"
                 android:textSize="@dimen/phone_map_bottom_dock_text_size"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                app:icon="@drawable/mission_planning"
+                app:iconGravity="textStart"
+                app:iconPadding="8dp"
+                app:iconSize="30dp"
+                app:iconTint="@android:color/white" />
 
             <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/utility_download_button"

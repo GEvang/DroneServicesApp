@@ -329,11 +329,11 @@
                 android:orientation="vertical">
 
                 <ImageView
-                    android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
-                    android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
                     android:contentDescription="@null"
                     android:scaleType="fitCenter"
-                    android:src="@drawable/drone_marker_36"
+                    android:src="@drawable/mission_planning"
                     android:tint="@color/ds_color_shell_active" />
 
                 <TextView

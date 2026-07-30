@@ -284,11 +284,11 @@
                 android:paddingBottom="12dp">
 
                 <ImageView
-                    android:layout_width="@dimen/tablet_bottom_dock_icon_size"
-                    android:layout_height="@dimen/tablet_bottom_dock_icon_size"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
                     android:contentDescription="@null"
                     android:scaleType="fitCenter"
-                    android:src="@drawable/drone_marker_36"
+                    android:src="@drawable/mission_planning"
                     android:tint="@color/ds_color_shell_active" />
 
                 <TextView
