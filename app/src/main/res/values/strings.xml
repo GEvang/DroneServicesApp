@@ -107,6 +107,7 @@
     <string name="map_dock_operator">Operator</string>
     <string name="map_dock_drone">Drone</string>
     <string name="map_dock_offline">Offline</string>
+    <string name="map_dock_relocation">Relocation</string>
     <string name="more">More</string>
     <string name="relative">Relative</string>
     <string name="terrain">Terrain</string>

@@ -18,6 +18,15 @@
         android:layout_height="match_parent"
         android:focusableInTouchMode="true">
 
+        <include
+            android:id="@+id/home_top_status_strip"
+            layout="@layout/home_top_status_strip"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
         <FrameLayout
             android:id="@+id/mission_params_side_view"
             android:layout_width="@dimen/tablet_left_panel_width"
@@ -26,7 +35,7 @@
             android:layout_marginTop="@dimen/ds_space_md"
             android:visibility="gone"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent">
+            app:layout_constraintTop_toBottomOf="@id/home_top_status_strip">
 
             <include
                 android:id="@+id/home_left_panel"
@@ -45,7 +54,7 @@
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/home_top_status_strip"
             app:layout_constraintVertical_bias="0.28">
 
             <include
@@ -73,6 +82,23 @@
             android:textStyle="bold"
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <TextView
+            android:id="@+id/home_mission_summary_card"
+            style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="@dimen/ds_space_md"
+            android:background="@drawable/bg_ds_overlay_card"
+            android:fontFamily="@font/inter"
+            android:lineSpacingExtra="3dp"
+            android:minWidth="260dp"
+            android:padding="14dp"
+            android:textColor="@color/ds_color_text_primary"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
@@ -205,6 +231,38 @@
                     android:layout_height="1dp" />
 
                 <LinearLayout
+                    android:id="@+id/utility_relocation_button"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tablet_dock_item"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:orientation="vertical"
+                    android:gravity="center"
+                    android:paddingTop="5dp"
+                    android:paddingBottom="5dp">
+
+                    <ImageView
+                        android:layout_width="@dimen/tablet_bottom_dock_icon_size"
+                        android:layout_height="@dimen/tablet_bottom_dock_icon_size"
+                        android:contentDescription="@null"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/ic_menu_map"
+                        android:tint="@color/ds_color_shell_unselected" />
+
+                    <TextView
+                        style="@style/TextAppearance.DroneServices.BottomNavInactive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="@string/map_dock_relocation"
+                        android:textColor="@color/ds_color_shell_unselected"
+                        android:textSize="@dimen/tablet_bottom_dock_label_text_size" />
+                </LinearLayout>
+
+                <LinearLayout
                     android:id="@+id/utility_download_button"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
@@ -310,6 +368,7 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="@dimen/ds_space_md"
             android:layout_marginBottom="@dimen/ds_space_md"
+            android:visibility="gone"
             app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
             app:layout_constraintEnd_toEndOf="parent" />
 

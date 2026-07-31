@@ -401,7 +401,11 @@ class OsmdroidMapController(
         val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = if (emphasized) Color.argb(235, 40, 115, 255) else Color.argb(220, 24, 28, 36)
+            color = if (emphasized) {
+                ContextCompat.getColor(context, R.color.ds_color_shell_active_dim)
+            } else {
+                Color.argb(228, 12, 21, 29)
+            }
             style = Paint.Style.FILL
         }
         val radius = 10f * density

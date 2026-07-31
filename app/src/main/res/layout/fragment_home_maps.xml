@@ -18,6 +18,15 @@
         android:layout_height="match_parent"
         android:focusableInTouchMode="true">
 
+        <include
+            android:id="@+id/home_top_status_strip"
+            layout="@layout/home_top_status_strip"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
+
         <androidx.core.widget.NestedScrollView
             android:id="@+id/planning_panel_container"
             android:layout_width="wrap_content"
@@ -32,7 +41,7 @@
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintHeight_max="@dimen/phone_map_panel_max_height"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/home_top_status_strip"
             app:layout_constraintVertical_bias="0.0">
 
             <include
@@ -49,6 +58,7 @@
             android:layout_height="wrap_content"
             android:layout_marginEnd="@dimen/phone_map_overlay_card_margin"
             android:layout_marginBottom="@dimen/ds_space_sm"
+            android:visibility="gone"
             app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
             app:layout_constraintEnd_toEndOf="parent" />
 
@@ -66,7 +76,7 @@
             app:layout_constraintBottom_toTopOf="@id/home_draw_action_bar"
             app:layout_constraintHeight_max="@dimen/phone_map_panel_max_height"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toTopOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/home_top_status_strip"
             app:layout_constraintVertical_bias="1.0">
 
             <include
@@ -94,6 +104,23 @@
             android:textStyle="bold"
             android:visibility="gone"
             app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent" />
+
+        <TextView
+            android:id="@+id/home_mission_summary_card"
+            style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="88dp"
+            android:background="@drawable/bg_ds_overlay_card"
+            android:fontFamily="@font/inter"
+            android:lineSpacingExtra="3dp"
+            android:minWidth="220dp"
+            android:padding="12dp"
+            android:textColor="@color/ds_color_text_primary"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
@@ -187,6 +214,18 @@
                 android:padding="@dimen/phone_map_bottom_dock_icon_padding"
                 android:scaleType="centerInside"
                 android:src="@drawable/obstacle"
+                android:tint="@android:color/white" />
+
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/utility_relocation_button"
+                android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
+                android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                android:layout_marginStart="@dimen/phone_map_bottom_dock_item_spacing"
+                android:background="@drawable/bg_bottom_dock_button"
+                android:contentDescription="@string/map_dock_relocation"
+                android:padding="@dimen/phone_map_bottom_dock_icon_padding"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_menu_map"
                 android:tint="@android:color/white" />
 
             <com.google.android.material.button.MaterialButton

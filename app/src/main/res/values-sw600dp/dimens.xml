@@ -7,7 +7,7 @@
     <dimen name="tablet_side_panel_min_height">560dp</dimen>
     <dimen name="tablet_right_panel_compact_top_margin">88dp</dimen>
     <dimen name="tablet_right_panel_compact_bottom_margin">144dp</dimen>
-    <dimen name="tablet_bottom_dock_width">700dp</dimen>
+    <dimen name="tablet_bottom_dock_width">800dp</dimen>
     <dimen name="tablet_bottom_dock_outer_height">96dp</dimen>
     <dimen name="tablet_bottom_dock_height">80dp</dimen>
     <dimen name="tablet_bottom_dock_margin_bottom">14dp</dimen>
@@ -15,7 +15,7 @@
     <dimen name="tablet_bottom_dock_padding_vertical">8dp</dimen>
     <dimen name="tablet_bottom_dock_icon_size">28dp</dimen>
     <dimen name="tablet_bottom_center_tab_size">96dp</dimen>
-    <dimen name="tablet_bottom_center_spacer_width">136dp</dimen>
+    <dimen name="tablet_bottom_center_spacer_width">120dp</dimen>
     <dimen name="tablet_bottom_dock_label_text_size">12sp</dimen>
     <dimen name="tablet_bottom_center_label_text_size">13sp</dimen>
 

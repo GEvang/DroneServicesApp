@@ -7,6 +7,7 @@ import androidx.core.content.ContextCompat
 import android.widget.ImageView
 import android.widget.TextView
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.mavserver.GpsFixQuality
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryUiState
 
 class HomeMapTelemetryBinder(
@@ -18,6 +19,7 @@ class HomeMapTelemetryBinder(
     }
 
     fun render(state: HomeTelemetryUiState) {
+        renderTopStatusStrip(state)
         renderDistance(
             distance = state.frontDistanceMeters,
             textViewId = R.id.front_dist,
@@ -28,6 +30,57 @@ class HomeMapTelemetryBinder(
             textViewId = R.id.back_dist,
             colorIndex = 2
         )
+    }
+
+    private fun renderTopStatusStrip(state: HomeTelemetryUiState) {
+        val context = rootView.context
+        val connectionColor = ContextCompat.getColor(
+            context,
+            if (state.isConnected) R.color.ds_color_shell_active else R.color.ds_color_shell_danger
+        )
+        rootView.findViewById<TextView?>(R.id.top_connection_text)?.apply {
+            text = state.connectionText.uppercase()
+            setTextColor(connectionColor)
+        }
+        rootView.findViewById<ImageView?>(R.id.top_connection_icon)?.setColorFilter(connectionColor)
+        val gpsColor = ContextCompat.getColor(context, gpsStatusColor(state.gpsFixQuality))
+        rootView.findViewById<TextView?>(R.id.top_gps_text)?.apply {
+            text = "GPS: ${state.gpsStatusText}"
+            setTextColor(gpsColor)
+        }
+        rootView.findViewById<ImageView?>(R.id.top_gps_icon)?.setColorFilter(gpsColor)
+        rootView.findViewById<TextView?>(R.id.top_rtk_text)?.text = state.rtkMountpointText
+        rootView.findViewById<TextView?>(R.id.top_armed_text)?.apply {
+            text = state.armedText.uppercase()
+            setTextColor(
+                ContextCompat.getColor(
+                    context,
+                    if (state.isArmed) R.color.ds_color_shell_active else R.color.ds_color_shell_warning
+                )
+            )
+        }
+        rootView.findViewById<TextView?>(R.id.top_speed_text)?.text = state.speedText.removeSuffix(" m/s")
+        rootView.findViewById<TextView?>(R.id.top_altitude_text)?.text = "ALT: ${state.altitudeText}"
+        rootView.findViewById<ImageView?>(R.id.top_battery_icon)?.apply {
+            setImageResource(state.batteryIconRes)
+            setColorFilter(ContextCompat.getColor(context, state.batteryColorRes))
+        }
+        rootView.findViewById<TextView?>(R.id.top_battery_text)?.apply {
+            text = state.batteryText
+            setTextColor(ContextCompat.getColor(context, state.batteryColorRes))
+        }
+    }
+
+    private fun gpsStatusColor(quality: GpsFixQuality): Int {
+        return when (quality) {
+            GpsFixQuality.DISCONNECTED,
+            GpsFixQuality.NO_GPS -> R.color.ds_color_shell_danger
+            GpsFixQuality.RTK_FLOAT,
+            GpsFixQuality.RTK_FIXED -> R.color.ds_color_shell_active
+            GpsFixQuality.FIX_2D -> R.color.gps_2d_orange
+            GpsFixQuality.UNKNOWN -> R.color.gps_unknown_gray
+            else -> R.color.ds_color_shell_warning
+        }
     }
 
     private fun renderDistance(

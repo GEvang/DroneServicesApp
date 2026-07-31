@@ -57,6 +57,25 @@
         <item name="android:textSize">12sp</item>
     </style>
 
+    <style name="TextAppearance.DroneServices.MapStatusValue" parent="TextAppearance.DroneServices.CaptionStrong">
+        <item name="android:textSize">13sp</item>
+        <item name="android:textColor">@color/ds_color_text_primary</item>
+    </style>
+
+    <style name="TextAppearance.DroneServices.MapStatusValueLarge" parent="TextAppearance.DroneServices.MapStatusValue">
+        <item name="android:textSize">15sp</item>
+    </style>
+
+    <style name="TextAppearance.DroneServices.MapStatusMetric" parent="TextAppearance.DroneServices.BodyStrong">
+        <item name="android:textSize">15sp</item>
+        <item name="android:textColor">@color/ds_color_text_primary</item>
+    </style>
+
+    <style name="TextAppearance.DroneServices.MapStatusSubvalue" parent="TextAppearance.DroneServices.Caption">
+        <item name="android:textSize">11sp</item>
+        <item name="android:textColor">@color/ds_color_shell_unselected</item>
+    </style>
+
     <style name="TextAppearance.DroneServices.PhoneMapPanelTitle" parent="TextAppearance.DroneServices.MapPanelTitle">
         <item name="android:textSize">@dimen/phone_map_panel_title_text_size</item>
     </style>

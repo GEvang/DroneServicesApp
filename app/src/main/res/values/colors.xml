@@ -29,7 +29,7 @@
     <color name="icon_on_dark">@color/text_primary</color>
     <color name="icon_on_gold">#141416</color>
 
-    <color name="slider_active">#1E88E5</color>       <!-- blue -->
+    <color name="slider_active">#29DCD0</color>
     <color name="slider_inactive">#2A2F35</color>     <!-- dark track -->
     <color name="slider_thumb">#FFFFFF</color>        <!-- white knob -->
     <color name="slider_pill_bg">#1F2328</color>      <!-- pill container -->
@@ -51,15 +51,15 @@
     <color name="ds_color_control_neutral">@color/slider_end_btn_bg</color>
     <color name="ds_color_shell_scrim">#B30B0B0D</color>
     <color name="ds_color_surface_elevated">#1B1B22</color>
-    <color name="ds_color_shell_overlay">#B8141618</color>
-    <color name="ds_color_shell_overlay_strong">#D0101214</color>
-    <color name="ds_color_shell_stroke">#4DFFFFFF</color>
-    <color name="ds_color_shell_active">#46F29C</color>
-    <color name="ds_color_shell_active_dim">#2ACB7E</color>
+    <color name="ds_color_shell_overlay">#D80A1218</color>
+    <color name="ds_color_shell_overlay_strong">#F0060D12</color>
+    <color name="ds_color_shell_stroke">#66FFFFFF</color>
+    <color name="ds_color_shell_active">#29E6DA</color>
+    <color name="ds_color_shell_active_dim">#22BDB5</color>
     <color name="ds_color_shell_warning">#E4A640</color>
     <color name="ds_color_shell_danger">#FF5B5B</color>
-    <color name="ds_color_shell_selected_surface">#F2F2F3</color>
-    <color name="ds_color_shell_selected_content">#111315</color>
+    <color name="ds_color_shell_selected_surface">#3329E6DA</color>
+    <color name="ds_color_shell_selected_content">#29E6DA</color>
     <color name="ds_color_shell_unselected">#C9D0D6</color>
 
     <color name="gps_no_fix_red">#FF5B5B</color>

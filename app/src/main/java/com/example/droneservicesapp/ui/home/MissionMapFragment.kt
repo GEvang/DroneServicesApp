@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup.MarginLayoutParams
 import android.view.ViewGroup
+import android.widget.ImageView
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
@@ -241,15 +242,11 @@ class MissionMapFragment : Fragment() {
         geoZoneOverlayController = GeoZoneOverlayController(requireContext(), mapView)
         geoAwarenessChecker = GeoAwarenessChecker()
         liveGeoAwarenessChecker = LiveGeoAwarenessChecker()
-        liveGeoAwarenessStatusBinder = LiveGeoAwarenessPanelBinder(
-            requireView().findViewById(R.id.liveGeoAwarenessPanel)
-        )
+        requireView().findViewById<View?>(R.id.liveGeoAwarenessPanel)?.visibility = View.GONE
+        liveGeoAwarenessStatusBinder = null
         loadGeoAwarenessZonesIfNeeded()
         renderGeoAwarenessLayerIfVisible()
-        liveGeoAwarenessStatusBinder?.bindUnknown("No drone position")
-        liveGeoAwarenessStatusBinder?.setOnClickListener(View.OnClickListener {
-            showLiveGeoAwarenessDetails()
-        })
+        updateTopLiveGeoStatus("UNKNOWN", "#AAB5C6")
         updateGeoAwarenessPlanningStatus()
     }
 
@@ -459,11 +456,30 @@ class MissionMapFragment : Fragment() {
             cancelObstaclePlacement()
         }
         panel.visibility = if (show) View.VISIBLE else View.GONE
+        setObstacleDockSelected(show)
     }
 
     private fun hideObstaclePanel() {
         requireView().findViewById<View>(R.id.home_obstacle_panel).visibility = View.GONE
+        setObstacleDockSelected(false)
         cancelObstaclePlacement()
+    }
+
+    private fun setObstacleDockSelected(selected: Boolean) {
+        val button = view?.findViewById<View>(R.id.utility_obstacles_button) ?: return
+        button.isSelected = selected
+        val color = ContextCompat.getColor(
+            requireContext(),
+            if (selected) R.color.ds_color_shell_active else R.color.ds_color_shell_unselected
+        )
+        if (button is ViewGroup) {
+            for (index in 0 until button.childCount) {
+                when (val child = button.getChildAt(index)) {
+                    is ImageView -> child.setColorFilter(color)
+                    is TextView -> child.setTextColor(color)
+                }
+            }
+        }
     }
 
     private fun startAreaDrawing() {
@@ -626,6 +642,43 @@ class MissionMapFragment : Fragment() {
         routeSummary.text = getString(R.string.route_summary_format, waypoints.size)
     }
 
+    private fun updateMissionSummaryCard() {
+        val summaryCard = view?.findViewById<TextView?>(R.id.home_mission_summary_card) ?: return
+        val areaVertices = activityViewModel.missionArea.value?.vertices.orEmpty()
+        val missionPath = activityViewModel.surveyPath.value.orEmpty()
+        if (areaVertices.size < 3 || missionPath.size < 2) {
+            summaryCard.visibility = View.GONE
+            return
+        }
+
+        val areaMeters = SphericalUtil.computeArea(areaVertices)
+        val passes = when {
+            missionPath.size % 2 == 0 -> missionPath.size / 2
+            else -> missionPath.size - 1
+        }.coerceAtLeast(0)
+        val totalDistanceMeters = missionPath.zipWithNext().sumOf { (from, to) ->
+            SphericalUtil.computeDistanceBetween(from, to)
+        }
+        val speedMetersPerSecond = (activityViewModel.flightSpeed.value ?: 1.0).coerceAtLeast(0.1)
+        val estimatedSeconds = (totalDistanceMeters / speedMetersPerSecond).toInt().coerceAtLeast(0)
+        val altitudeMeters = activityViewModel.flightAltProgress.value ?: 0.0
+
+        summaryCard.text = buildString {
+            append("Area: ${formatMissionArea(areaMeters)}")
+            append("   |   Passes: $passes")
+            append("   |   Time: ${formatEstimatedTime(estimatedSeconds)}")
+            appendLine()
+            append("ALT (AGL): ${altitudeMeters.toInt()} m")
+        }
+        summaryCard.visibility = View.VISIBLE
+    }
+
+    private fun formatEstimatedTime(totalSeconds: Int): String {
+        val minutes = totalSeconds / 60
+        val seconds = totalSeconds % 60
+        return String.format(Locale.US, "%02d:%02d", minutes, seconds)
+    }
+
     private fun updateRouteEditorEnabled() {
         if (!::osmdroidRouteWaypointEditor.isInitialized) return
         osmdroidRouteWaypointEditor.setEnabled(
@@ -708,6 +761,7 @@ class MissionMapFragment : Fragment() {
             mapViewModel.setMissionAreaAvailable(vertices.size >= 3 || hasRoute)
             osmdroidPolygonEditor.setVertices(vertices)
             updateGeoAwarenessPlanningStatus()
+            updateMissionSummaryCard()
         }
 
         activityViewModel.missionObstacles.observe(viewLifecycleOwner) { obstacles ->
@@ -810,6 +864,7 @@ class MissionMapFragment : Fragment() {
                 )
             }
             updateGeoAwarenessPlanningStatus()
+            updateMissionSummaryCard()
         })
 
         activityViewModel.surveyStripSpacing.observe(viewLifecycleOwner) { spacing ->
@@ -876,6 +931,7 @@ class MissionMapFragment : Fragment() {
             val hasRoute = activityViewModel.routeWaypoints.value.orEmpty().size >= 2
             mapViewModel.setMissionAreaAvailable(hasPolygon || hasRoute || !surveyPath.isNullOrEmpty())
             updateGeoAwarenessPlanningStatus()
+            updateMissionSummaryCard()
         }
 
         activityViewModel.routeWaypoints.observe(viewLifecycleOwner) { waypoints ->
@@ -1183,6 +1239,7 @@ class MissionMapFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        showShellToolbar()
         geoZoneOverlayController?.clear()
         osmdroidObstacleEditor.clear()
         geoZoneOverlayController = null
@@ -1196,16 +1253,26 @@ class MissionMapFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
-        requireActivity().findViewById<Toolbar>(R.id.customToolbar)?.navigationIcon = null
+        hideShellToolbar()
         mapView.onResume()
         osmdroidMapController.onResume()
         binding.root.post { centerInitialViewportIfNeeded() }
     }
 
     override fun onPause() {
+        showShellToolbar()
         osmdroidMapController.onPause()
         mapView.onPause()
         super.onPause()
+    }
+
+    private fun hideShellToolbar() {
+        requireActivity().findViewById<Toolbar>(R.id.customToolbar)?.navigationIcon = null
+        requireActivity().findViewById<View?>(R.id.appBarMain)?.visibility = View.GONE
+    }
+
+    private fun showShellToolbar() {
+        activity?.findViewById<View?>(R.id.appBarMain)?.visibility = View.VISIBLE
     }
 
     private fun centerInitialViewportIfNeeded() {
@@ -2387,6 +2454,7 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindDegraded(reason)
+            updateTopLiveGeoStatus("DEGRADED", "#FFB26B")
             return
         }
 
@@ -2396,6 +2464,7 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("No drone position")
+            updateTopLiveGeoStatus("UNKNOWN", "#AAB5C6")
             return
         }
 
@@ -2405,6 +2474,7 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
+            updateTopLiveGeoStatus("UNKNOWN", "#AAB5C6")
             return
         }
         if (geoAwarenessZones.isEmpty()) {
@@ -2413,6 +2483,7 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
+            updateTopLiveGeoStatus("UNKNOWN", "#AAB5C6")
             return
         }
 
@@ -2451,6 +2522,7 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindClear()
+            updateTopLiveGeoStatus("CLEAR", "#48D26D")
         } else {
             nearestZone?.let { proximity ->
                 logLiveProximityIfNeeded(
@@ -2485,12 +2557,19 @@ class MissionMapFragment : Fragment() {
                 headingDegrees = latestRealDroneHeadingDegrees,
                 borderColor = highestInside?.restriction?.let(::restrictionColorHex) ?: "#00000000"
             )
+            updateTopLiveGeoStatus(statusLabel, statusColor)
         }
 
         Log.d(
             LIVE_GEO_AWARENESS_TAG,
             "Live geo-awareness updated: inside=${insideZones.size} highest=${insideZones.firstOrNull()?.restriction}"
         )
+    }
+
+    private fun updateTopLiveGeoStatus(label: String, colorHex: String) {
+        val statusView = view?.findViewById<TextView?>(R.id.top_live_geo_status_text) ?: return
+        statusView.text = label
+        statusView.setTextColor(android.graphics.Color.parseColor(colorHex))
     }
 
     private fun showLiveGeoAwarenessDetails() {
