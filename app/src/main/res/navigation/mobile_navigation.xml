@@ -34,6 +34,12 @@
         tools:layout="@layout/fragment_point_cloud_viewer" />
 
     <fragment
+        android:id="@+id/nav_ortho_preview"
+        android:name="com.example.droneservicesapp.ui.ortho.OrthoPreviewFragment"
+        android:label="@string/ortho_title"
+        tools:layout="@layout/fragment_ortho_preview" />
+
+    <fragment
         android:id="@+id/nav_debug"
         android:name="com.example.droneservicesapp.ui.debug.DebugFragment"
         android:label="@string/debug_title"

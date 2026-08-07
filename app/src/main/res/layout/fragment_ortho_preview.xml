@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ds_color_background"
+    tools:context=".ui.ortho.OrthoPreviewFragment">
+
+    <org.osmdroid.views.MapView
+        android:id="@+id/ortho_map"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:layout_width="340dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="@dimen/ds_space_lg"
+        android:background="@drawable/bg_ds_overlay_card"
+        android:orientation="vertical"
+        android:padding="@dimen/ds_space_md">
+
+        <TextView
+            android:id="@+id/ortho_status_text"
+            style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/ds_color_text_primary"
+            tools:text="Load an ortho image and world file" />
+
+        <TextView
+            android:id="@+id/ortho_stats_text"
+            style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_sm"
+            android:textColor="@color/ds_color_text_secondary"
+            tools:text="Image: --" />
+
+        <ProgressBar
+            android:id="@+id/ortho_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_sm"
+            android:indeterminate="true"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_md"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/ortho_load_image_button"
+                style="@style/Widget.DroneServices.Button.MapLight"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/ortho_load_image" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/ortho_load_world_button"
+                style="@style/Widget.DroneServices.Button.MapDark"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/ds_space_sm"
+                android:layout_weight="1"
+                android:text="@string/ortho_load_world" />
+        </LinearLayout>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/ortho_clear_button"
+            style="@style/Widget.DroneServices.Button.MapDark"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_sm"
+            android:text="@string/ortho_clear" />
+
+        <TextView
+            style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_md"
+            android:text="@string/ortho_opacity"
+            android:textColor="@color/ds_color_text_secondary" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/ortho_opacity_slider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:value="0.85"
+            android:valueFrom="0"
+            android:valueTo="1"
+            android:stepSize="0.05" />
+    </LinearLayout>
+</FrameLayout>

@@ -82,6 +82,7 @@ class MainActivity : AppCompatActivity() {
                 R.id.nav_rtk,
                 R.id.nav_geo_awareness,
                 R.id.nav_point_cloud,
+                R.id.nav_ortho_preview,
                 R.id.nav_debug
             ),
             drawerLayout
