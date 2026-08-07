@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.ui.home.binders
 
 import android.content.Context
+import android.location.Location
 import android.view.View
 import androidx.lifecycle.LifecycleOwner
 import com.example.droneservicesapp.mavserver.DroneViewModel
@@ -12,6 +13,7 @@ class MissionParamsController(
     lifecycleOwner: LifecycleOwner,
     activityViewModel: MainActivityViewModel,
     droneViewModel: DroneViewModel,
+    droneLocationProvider: (() -> Location?)? = null,
     beforeUploadGuard: (((onAllowed: () -> Unit) -> Unit))? = null,
 ) {
     private var isBound = false
@@ -35,6 +37,7 @@ class MissionParamsController(
         views = views,
         activityViewModel = activityViewModel,
         droneViewModel = droneViewModel,
+        droneLocationProvider = droneLocationProvider,
         preferencesBridge = preferencesBridge,
         beforeUploadGuard = beforeUploadGuard
     )

@@ -231,7 +231,7 @@
                     android:layout_height="1dp" />
 
                 <LinearLayout
-                    android:id="@+id/utility_relocation_button"
+                    android:id="@+id/utility_offset_button"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_marginEnd="@dimen/ds_space_sm"
@@ -257,7 +257,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="3dp"
-                        android:text="@string/map_dock_relocation"
+                        android:text="@string/map_dock_offset"
                         android:textColor="@color/ds_color_shell_unselected"
                         android:textSize="@dimen/tablet_bottom_dock_label_text_size" />
                 </LinearLayout>

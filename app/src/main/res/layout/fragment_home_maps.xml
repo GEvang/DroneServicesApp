@@ -217,12 +217,12 @@
                 android:tint="@android:color/white" />
 
             <androidx.appcompat.widget.AppCompatImageButton
-                android:id="@+id/utility_relocation_button"
+                android:id="@+id/utility_offset_button"
                 android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
                 android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
                 android:layout_marginStart="@dimen/phone_map_bottom_dock_item_spacing"
                 android:background="@drawable/bg_bottom_dock_button"
-                android:contentDescription="@string/map_dock_relocation"
+                android:contentDescription="@string/map_dock_offset"
                 android:padding="@dimen/phone_map_bottom_dock_icon_padding"
                 android:scaleType="centerInside"
                 android:src="@drawable/ic_menu_map"

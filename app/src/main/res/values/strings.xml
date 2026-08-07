@@ -148,7 +148,9 @@
     <string name="map_dock_operator">Operator</string>
     <string name="map_dock_drone">Drone</string>
     <string name="map_dock_offline">Offline</string>
-    <string name="map_dock_relocation">Relocation</string>
+    <string name="map_dock_offset">Offset</string>
+    <string name="drone_offset_drag_prompt">Drag the drone icon to the correct map position</string>
+    <string name="drone_offset_applied">Drone map offset applied</string>
     <string name="more">More</string>
     <string name="relative">Relative</string>
     <string name="terrain">Terrain</string>

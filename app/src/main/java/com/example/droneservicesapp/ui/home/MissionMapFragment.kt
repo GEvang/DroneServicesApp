@@ -133,7 +133,10 @@ class MissionMapFragment : Fragment() {
     private var latestLiveGeoThreats: List<LiveGeoAwarenessProximityResult> = emptyList()
     private var liveGeoAwarenessStatusBinder: LiveGeoAwarenessPanelBinder? = null
     private var latestLiveDronePosition: LatLon? = null
+    private var latestRawDronePosition: LatLon? = null
     private var latestRealDronePosition: LatLon? = null
+    private var droneOffsetLatitude = 0.0
+    private var droneOffsetLongitude = 0.0
     private var latestRealDroneAltitudeMeters: Double? = null
     private var latestRealDroneAltitudeAmslMeters: Double? = null
     private var latestRealDroneHorizontalAccuracyMeters: Float? = null
@@ -274,6 +277,7 @@ class MissionMapFragment : Fragment() {
             lifecycleOwner = viewLifecycleOwner,
             activityViewModel = activityViewModel,
             droneViewModel = droneViewModel,
+            droneLocationProvider = ::currentOffsetDroneLocation,
             beforeUploadGuard = { onAllowed ->
                 handleGeoAwarenessBeforeUpload {
                     showMissionUploadSummaryDialog(onAllowed)
@@ -319,7 +323,11 @@ class MissionMapFragment : Fragment() {
                 }
             },
             onToggleObstacles = {
+                cancelDroneOffsetAdjustment()
                 toggleObstaclePanel()
+            },
+            onStartDroneOffset = {
+                startDroneOffsetAdjustment()
             },
             onCyclePreviewMode = {
                 findNavController().navigate(R.id.nav_ortho_preview)
@@ -330,6 +338,7 @@ class MissionMapFragment : Fragment() {
                     .openDrawer(GravityCompat.START)
             },
             onTogglePlanning = {
+                cancelDroneOffsetAdjustment()
                 hideObstaclePanel()
                 mapViewModel.togglePlanningPanelVisible()
             }
@@ -469,18 +478,55 @@ class MissionMapFragment : Fragment() {
         cancelObstaclePlacement()
     }
 
+    private fun cancelDroneOffsetAdjustment() {
+        osmdroidMapController.cancelDroneOffsetAdjustment()
+        setOffsetDockSelected(false)
+    }
+
+    private fun startDroneOffsetAdjustment() {
+        if (droneViewModel.conStateLiveData.value != true) {
+            Toast.makeText(context, getString(R.string.no_conn_msg), Toast.LENGTH_LONG).show()
+            return
+        }
+        hideObstaclePanel()
+        mapViewModel.setPlanningPanelVisible(false)
+        val started = osmdroidMapController.startDroneOffsetAdjustment { latitudeOffset, longitudeOffset ->
+            droneOffsetLatitude = latitudeOffset
+            droneOffsetLongitude = longitudeOffset
+            syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
+            updateLiveGeoAwarenessFromActiveSource()
+            setOffsetDockSelected(false)
+            Toast.makeText(requireContext(), getString(R.string.drone_offset_applied), Toast.LENGTH_SHORT).show()
+        }
+        if (started) {
+            setOffsetDockSelected(true)
+            Toast.makeText(requireContext(), getString(R.string.drone_offset_drag_prompt), Toast.LENGTH_LONG).show()
+        }
+    }
+
     private fun setObstacleDockSelected(selected: Boolean) {
-        val button = view?.findViewById<View>(R.id.utility_obstacles_button) ?: return
+        setDockButtonSelected(R.id.utility_obstacles_button, selected)
+    }
+
+    private fun setOffsetDockSelected(selected: Boolean) {
+        setDockButtonSelected(R.id.utility_offset_button, selected)
+    }
+
+    private fun setDockButtonSelected(buttonId: Int, selected: Boolean) {
+        val button = view?.findViewById<View>(buttonId) ?: return
         button.isSelected = selected
         val color = ContextCompat.getColor(
             requireContext(),
             if (selected) R.color.ds_color_shell_active else R.color.ds_color_shell_unselected
         )
-        if (button is ViewGroup) {
-            for (index in 0 until button.childCount) {
-                when (val child = button.getChildAt(index)) {
-                    is ImageView -> child.setColorFilter(color)
-                    is TextView -> child.setTextColor(color)
+        when (button) {
+            is ImageView -> button.setColorFilter(color)
+            is ViewGroup -> {
+                for (index in 0 until button.childCount) {
+                    when (val child = button.getChildAt(index)) {
+                        is ImageView -> child.setColorFilter(color)
+                        is TextView -> child.setTextColor(color)
+                    }
                 }
             }
         }
@@ -708,14 +754,15 @@ class MissionMapFragment : Fragment() {
         droneViewModel.droneLocationLiveData.observe(viewLifecycleOwner) { droneLocation ->
             syncLatestDroneLocationSnapshot(droneLocation)
 
-            val livePosition = latestRealDronePosition
-            if (livePosition != null) {
+            val rawPosition = latestRawDronePosition
+            val correctedPosition = latestRealDronePosition
+            if (rawPosition != null && correctedPosition != null) {
                 osmdroidMapController.updateDronePosition(
-                    livePosition.lat,
-                    livePosition.lon
+                    rawPosition.lat,
+                    rawPosition.lon
                 )
-                maybeSetPendingHomeMarker(livePosition)
-                maybeAppendFlightTrace(livePosition)
+                maybeSetPendingHomeMarker(correctedPosition)
+                maybeAppendFlightTrace(correctedPosition)
                 centerOnDroneIfNeeded()
             } else {
                 osmdroidMapController.setDroneVisible(false)
@@ -1243,6 +1290,7 @@ class MissionMapFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        cancelDroneOffsetAdjustment()
         showShellToolbar()
         geoZoneOverlayController?.clear()
         osmdroidObstacleEditor.release()
@@ -1264,6 +1312,7 @@ class MissionMapFragment : Fragment() {
     }
 
     override fun onPause() {
+        cancelDroneOffsetAdjustment()
         showShellToolbar()
         osmdroidMapController.onPause()
         mapView.onPause()
@@ -1332,9 +1381,10 @@ class MissionMapFragment : Fragment() {
 
     private fun syncLatestDroneLocationSnapshot(droneLocation: android.location.Location?) {
         val usableLocation = droneLocation?.takeIf(::isUsableDroneLocation)
-        latestRealDronePosition = usableLocation?.let {
+        latestRawDronePosition = usableLocation?.let {
             LatLon(lat = it.latitude, lon = it.longitude)
         }
+        latestRealDronePosition = latestRawDronePosition?.let(::applyDroneOffset)
         latestRealDroneAltitudeMeters = usableLocation?.altitude
         latestRealDroneHorizontalAccuracyMeters = usableLocation
             ?.takeIf { it.hasAccuracy() }
@@ -1342,6 +1392,21 @@ class MissionMapFragment : Fragment() {
         latestRealDroneVerticalAccuracyMeters = usableLocation
             ?.takeIf { android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && it.hasVerticalAccuracy() }
             ?.verticalAccuracyMeters
+    }
+
+    private fun applyDroneOffset(position: LatLon): LatLon {
+        return LatLon(
+            lat = position.lat + droneOffsetLatitude,
+            lon = position.lon + droneOffsetLongitude
+        )
+    }
+
+    private fun currentOffsetDroneLocation(): android.location.Location? {
+        val source = droneViewModel.droneLocationLiveData.value?.takeIf(::isUsableDroneLocation) ?: return null
+        return android.location.Location(source).apply {
+            latitude = source.latitude + droneOffsetLatitude
+            longitude = source.longitude + droneOffsetLongitude
+        }
     }
 
     private fun resetCurrentFlightUgzAuthorizations(reason: String) {

@@ -25,6 +25,7 @@ class HomeMapChromeBinder(
         onCenterOnUser: () -> Unit,
         onCenterOnDrone: () -> Unit,
         onToggleObstacles: () -> Unit,
+        onStartDroneOffset: () -> Unit,
         onCyclePreviewMode: () -> Unit,
         onOpenSettings: () -> Unit,
         onTogglePlanning: () -> Unit,
@@ -33,6 +34,7 @@ class HomeMapChromeBinder(
         binding.utilityCenterOperatorButton.setOnClickListener { onCenterOnUser() }
         binding.utilityCenterDroneButton.setOnClickListener { onCenterOnDrone() }
         binding.utilityObstaclesButton.setOnClickListener { onToggleObstacles() }
+        binding.utilityOffsetButton.setOnClickListener { onStartDroneOffset() }
         binding.previewModeCycleButton.setOnClickListener { onCyclePreviewMode() }
         binding.utilitySettingsButton.setOnClickListener { onOpenSettings() }
         binding.utilityPlanningButton.setOnClickListener { onTogglePlanning() }
@@ -42,6 +44,7 @@ class HomeMapChromeBinder(
         binding.utilityCenterOperatorButton.isVisible = state.showMyLocationButton
         binding.utilityCenterDroneButton.isVisible = state.showDroneLocationButton
         binding.utilityObstaclesButton.isVisible = state.showDroneLocationButton
+        binding.utilityOffsetButton.isVisible = state.showDroneLocationButton
         binding.utilityDownloadButton.isVisible = state.showDownloadOfflineButton
     }
 

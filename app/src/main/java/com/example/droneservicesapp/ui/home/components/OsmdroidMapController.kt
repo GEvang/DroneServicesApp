@@ -10,6 +10,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.drawable.BitmapDrawable
+import android.util.Log
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.example.droneservicesapp.R
@@ -23,6 +24,7 @@ import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import kotlin.math.atan2
 import kotlin.math.max
+import kotlin.math.roundToInt
 
 /**
  * osmdroid equivalent of the parts of MapController that are:
@@ -36,6 +38,7 @@ class OsmdroidMapController(
     private val mapView: MapView
 ) {
     companion object {
+        private const val MISSION_MEASUREMENTS_TAG = "MissionMeasurements"
         private const val POSITION_EPSILON = 1e-7
         private const val HEADING_EPSILON_DEGREES = 0.5f
         private const val MIN_VALID_ABS_COORDINATE = 1e-4
@@ -44,6 +47,11 @@ class OsmdroidMapController(
 
     private var myLocationOverlay: MyLocationNewOverlay? = null
     private var droneMarker: Marker? = null
+    private var latestRawDronePosition: GeoPoint? = null
+    private var droneOffsetLatitude = 0.0
+    private var droneOffsetLongitude = 0.0
+    private var isDroneOffsetDragActive = false
+    private var isDraggingDroneOffset = false
     private var surveyPolyline: Polyline? = null
     private val surveyDirectionMarkers = mutableListOf<Marker>()
     private val surveyInfoMarkers = mutableListOf<Marker>()
@@ -62,8 +70,9 @@ class OsmdroidMapController(
             position = GeoPoint(0.0, 0.0)
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             isEnabled = false
+            isDraggable = false
             setVisible(false)
-            icon = ContextCompat.getDrawable(context, R.drawable.drone_marker_36)
+            icon = createDroneMarkerIcon(isOffsetActive = false)
         }
         mapView.overlays.add(droneMarker)
 
@@ -118,6 +127,12 @@ class OsmdroidMapController(
         val changed = droneMarker?.let { marker ->
             val wasVisible = marker.isEnabled
             marker.isEnabled = visible
+            if (!visible) {
+                marker.isDraggable = false
+                isDroneOffsetDragActive = false
+                isDraggingDroneOffset = false
+                marker.icon = createDroneMarkerIcon(isOffsetActive = false)
+            }
             marker.setVisible(visible)
             wasVisible != visible
         } ?: false
@@ -130,17 +145,23 @@ class OsmdroidMapController(
         if (!isValidMapPoint(latitude, longitude)) {
             return
         }
+        latestRawDronePosition = GeoPoint(latitude, longitude)
+        if (isDraggingDroneOffset) {
+            return
+        }
 
+        val displayedLatitude = latitude + droneOffsetLatitude
+        val displayedLongitude = longitude + droneOffsetLongitude
         val changed = droneMarker?.let { marker ->
             val current = marker.position
             val positionChanged =
                 current == null ||
-                    kotlin.math.abs(current.latitude - latitude) > POSITION_EPSILON ||
-                    kotlin.math.abs(current.longitude - longitude) > POSITION_EPSILON
+                    kotlin.math.abs(current.latitude - displayedLatitude) > POSITION_EPSILON ||
+                    kotlin.math.abs(current.longitude - displayedLongitude) > POSITION_EPSILON
             if (!positionChanged && marker.isEnabled) {
                 return@let false
             }
-            marker.position = GeoPoint(latitude, longitude)
+            marker.position = GeoPoint(displayedLatitude, displayedLongitude)
             val visibilityChanged = !marker.isEnabled
             marker.isEnabled = true
             marker.setVisible(true)
@@ -149,6 +170,68 @@ class OsmdroidMapController(
         if (changed) {
             requestMapRedraw()
         }
+    }
+
+    fun startDroneOffsetAdjustment(onOffsetApplied: (latitudeOffset: Double, longitudeOffset: Double) -> Unit): Boolean {
+        val marker = droneMarker
+        val rawPosition = latestRawDronePosition
+        if (
+            marker == null ||
+            rawPosition == null ||
+            !marker.isEnabled ||
+            !isValidMapPoint(rawPosition.latitude, rawPosition.longitude)
+        ) {
+            Toast.makeText(context, context.getString(R.string.drone_location_not_available_yet), Toast.LENGTH_SHORT).show()
+            return false
+        }
+
+        isDroneOffsetDragActive = true
+        marker.isDraggable = true
+        marker.icon = createDroneMarkerIcon(isOffsetActive = true)
+        marker.setOnMarkerDragListener(object : Marker.OnMarkerDragListener {
+            override fun onMarkerDrag(marker: Marker?) {}
+
+            override fun onMarkerDragStart(marker: Marker?) {
+                isDraggingDroneOffset = true
+            }
+
+            override fun onMarkerDragEnd(marker: Marker?) {
+                if (marker == null) {
+                    isDraggingDroneOffset = false
+                    isDroneOffsetDragActive = false
+                    return
+                }
+                val latestRaw = latestRawDronePosition
+                if (latestRaw == null) {
+                    isDraggingDroneOffset = false
+                    isDroneOffsetDragActive = false
+                    marker.isDraggable = false
+                    marker.icon = createDroneMarkerIcon(isOffsetActive = false)
+                    return
+                }
+                droneOffsetLatitude = marker.position.latitude - latestRaw.latitude
+                droneOffsetLongitude = marker.position.longitude - latestRaw.longitude
+                isDraggingDroneOffset = false
+                isDroneOffsetDragActive = false
+                marker.isDraggable = false
+                marker.icon = createDroneMarkerIcon(isOffsetActive = false)
+                onOffsetApplied(droneOffsetLatitude, droneOffsetLongitude)
+                requestMapRedraw()
+            }
+        })
+        centerOnDrone()
+        return true
+    }
+
+    fun cancelDroneOffsetAdjustment() {
+        if (!isDroneOffsetDragActive && !isDraggingDroneOffset) return
+        isDroneOffsetDragActive = false
+        isDraggingDroneOffset = false
+        droneMarker?.let { marker ->
+            marker.isDraggable = false
+            marker.icon = createDroneMarkerIcon(isOffsetActive = false)
+        }
+        requestMapRedraw()
     }
 
     fun updateDroneHeadingDegrees(headingDeg: Float) {
@@ -300,6 +383,7 @@ class OsmdroidMapController(
 
     private fun renderSurveyInfoMarkers(areaVertices: List<LatLng>) {
         clearSurveyInfoMarkers()
+        logMissionMeasurements(areaVertices)
 
         perimeterSegments(areaVertices).forEach { segment ->
             val from = segment[0]
@@ -385,6 +469,38 @@ class OsmdroidMapController(
         return BitmapDrawable(context.resources, bitmap)
     }
 
+    private fun createDroneMarkerIcon(isOffsetActive: Boolean): BitmapDrawable {
+        val density = context.resources.displayMetrics.density
+        val sizeDp = if (isOffsetActive) 76f else 44f
+        val droneSizeDp = if (isOffsetActive) 40f else 36f
+        val size = (sizeDp * density).toInt()
+        val droneSize = (droneSizeDp * density).toInt()
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val center = size / 2f
+
+        if (isOffsetActive) {
+            val fillPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(42, 41, 230, 218)
+                style = Paint.Style.FILL
+            }
+            val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = ContextCompat.getColor(context, R.color.ds_color_shell_active)
+                strokeWidth = 3f * density
+                style = Paint.Style.STROKE
+            }
+            canvas.drawCircle(center, center, center - 5f * density, fillPaint)
+            canvas.drawCircle(center, center, center - 5f * density, strokePaint)
+        }
+
+        val droneDrawable = ContextCompat.getDrawable(context, R.drawable.drone_marker_36)
+        val left = ((size - droneSize) / 2f).toInt()
+        val top = ((size - droneSize) / 2f).toInt()
+        droneDrawable?.setBounds(left, top, left + droneSize, top + droneSize)
+        droneDrawable?.draw(canvas)
+        return BitmapDrawable(context.resources, bitmap)
+    }
+
     private fun createTextMarkerIcon(text: String, emphasized: Boolean = false): BitmapDrawable {
         val density = context.resources.displayMetrics.density
         val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -419,7 +535,7 @@ class OsmdroidMapController(
         return if (distanceMeters >= 1000.0) {
             String.format(java.util.Locale.US, "%.1f km", distanceMeters / 1000.0)
         } else {
-            "${distanceMeters.toInt().coerceAtLeast(0)} m"
+            "${distanceMeters.roundToInt().coerceAtLeast(0)} m"
         }
     }
 
@@ -427,8 +543,37 @@ class OsmdroidMapController(
         return if (areaSquareMeters >= 10_000.0) {
             String.format(java.util.Locale.US, "%.2f ha", areaSquareMeters / 10_000.0)
         } else {
-            "${areaSquareMeters.toInt().coerceAtLeast(0)} m2"
+            "${areaSquareMeters.roundToInt().coerceAtLeast(0)} m\u00b2"
         }
+    }
+
+    private fun logMissionMeasurements(areaVertices: List<LatLng>) {
+        if (areaVertices.size < 2) return
+
+        val segments = perimeterSegments(areaVertices)
+        val sideLengths = segments.map { (from, to) ->
+            SphericalUtil.computeDistanceBetween(from, to)
+        }
+        val areaSquareMeters = if (areaVertices.size >= 3) {
+            SphericalUtil.computeArea(areaVertices)
+        } else {
+            0.0
+        }
+
+        val verticesText = areaVertices.mapIndexed { index, vertex ->
+            "${index + 1}=(${String.format(java.util.Locale.US, "%.8f", vertex.latitude)}, " +
+                "${String.format(java.util.Locale.US, "%.8f", vertex.longitude)})"
+        }.joinToString("; ")
+        val sideText = sideLengths.mapIndexed { index, meters ->
+            "${index + 1}=${String.format(java.util.Locale.US, "%.2f m", meters)}"
+        }.joinToString("; ")
+
+        Log.d(
+            MISSION_MEASUREMENTS_TAG,
+            "vertices=${areaVertices.size} [$verticesText] sides=[$sideText] " +
+                "perimeter=${String.format(java.util.Locale.US, "%.2f m", sideLengths.sum())} " +
+                "area=${String.format(java.util.Locale.US, "%.2f m2", areaSquareMeters)}"
+        )
     }
 
     private fun screenVectorRotationDegrees(from: GeoPoint, to: GeoPoint): Float {

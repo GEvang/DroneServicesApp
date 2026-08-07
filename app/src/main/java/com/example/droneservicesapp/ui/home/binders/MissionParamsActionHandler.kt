@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.ui.home.binders
 
 import android.content.Context
+import android.location.Location
 import android.util.Log
 import android.widget.Toast
 import com.example.droneservicesapp.R
@@ -16,6 +17,7 @@ class MissionParamsActionHandler(
     private val views: MissionParamsViews,
     private val activityViewModel: MainActivityViewModel,
     private val droneViewModel: DroneViewModel,
+    private val droneLocationProvider: (() -> Location?)? = null,
     private val preferencesBridge: MissionParamsPreferencesBridge,
     private val beforeUploadGuard: (((onAllowed: () -> Unit) -> Unit))? = null,
 ) {
@@ -28,7 +30,7 @@ class MissionParamsActionHandler(
 
     private fun uploadMission() {
         val connected = droneViewModel.conStateLiveData.value == true
-        val droneLoc = droneViewModel.droneLocationLiveData.value
+        val droneLoc = droneLocationProvider?.invoke() ?: droneViewModel.droneLocationLiveData.value
         val path = activityViewModel.surveyPath.value
         val routeWaypoints = activityViewModel.routeWaypoints.value.orEmpty()
         val workflow = activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA
