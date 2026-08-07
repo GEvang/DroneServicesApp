@@ -405,6 +405,28 @@
             </LinearLayout>
         </FrameLayout>
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/preview_mode_cycle_button"
+            style="@style/Widget.DroneServices.Button.MapDark"
+            android:layout_width="wrap_content"
+            android:layout_height="44dp"
+            android:layout_marginStart="@dimen/ds_space_lg"
+            android:layout_marginTop="@dimen/ds_space_lg"
+            android:elevation="10dp"
+            android:minWidth="128dp"
+            android:minHeight="44dp"
+            android:paddingStart="16dp"
+            android:paddingEnd="18dp"
+            android:text="@string/preview_mode_next_ortho"
+            android:textAllCaps="false"
+            app:icon="@drawable/ic_ortho_24"
+            app:iconGravity="textStart"
+            app:iconPadding="8dp"
+            app:iconSize="20dp"
+            app:iconTint="@color/ds_color_text_primary"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/home_top_status_strip" />
+
         <include
             layout="@layout/home_obstacle_panel"
             android:layout_width="@dimen/phone_map_panel_right_width"

@@ -24,6 +24,12 @@
     <string name="point_cloud_color_rgb">RGB</string>
     <string name="point_cloud_color_height">height</string>
     <string name="point_cloud_stats">Visible: %1$d / Total: %2$d\nBounds: %3$.1f x %4$.1f x %5$.1f m\nColor: %6$s</string>
+    <string name="preview_mode_map">Map</string>
+    <string name="preview_mode_ortho">Ortho</string>
+    <string name="preview_mode_3d">3D</string>
+    <string name="preview_mode_next_ortho">Ortho</string>
+    <string name="preview_mode_next_3d">3D</string>
+    <string name="preview_mode_next_map">Map</string>
     <string name="ortho_title">Ortho Preview</string>
     <string name="ortho_load_image">Load .TIF</string>
     <string name="ortho_load_world">Load .TFW</string>

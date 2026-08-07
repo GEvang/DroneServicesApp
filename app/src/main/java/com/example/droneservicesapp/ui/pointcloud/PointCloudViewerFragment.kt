@@ -11,6 +11,7 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.pointcloud.PlyPointCloudParser
 import com.example.droneservicesapp.data.pointcloud.PointCloudData
@@ -37,6 +38,9 @@ class PointCloudViewerFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        binding.pointCloudPreviewCycleButton.setOnClickListener {
+            findNavController().navigate(R.id.nav_maps_home)
+        }
         binding.pointCloudLoadButton.setOnClickListener { openPointCloudPicker() }
         binding.pointCloudResetButton.setOnClickListener { binding.pointCloudGlView.resetCamera() }
         binding.pointCloudSizeSlider.addOnChangeListener { _, value, _ ->

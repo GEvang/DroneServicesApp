@@ -21,11 +21,24 @@
         android:orientation="vertical"
         android:padding="@dimen/ds_space_md">
 
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/point_cloud_preview_cycle_button"
+            style="@style/Widget.DroneServices.Button.MapDark"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/preview_mode_next_map"
+            android:textAllCaps="false"
+            app:icon="@drawable/ic_menu_map"
+            app:iconGravity="textStart"
+            app:iconPadding="8dp"
+            app:iconTint="@color/ds_color_text_primary" />
+
         <TextView
             android:id="@+id/point_cloud_status_text"
             style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_md"
             android:textColor="@color/ds_color_text_primary"
             tools:text="No point cloud loaded" />
 

@@ -20,6 +20,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.findNavController
 import androidx.preference.PreferenceManager
 import androidx.appcompat.widget.Toolbar
 import androidx.drawerlayout.widget.DrawerLayout
@@ -319,6 +320,9 @@ class MissionMapFragment : Fragment() {
             },
             onToggleObstacles = {
                 toggleObstaclePanel()
+            },
+            onCyclePreviewMode = {
+                findNavController().navigate(R.id.nav_ortho_preview)
             },
             onOpenSettings = {
                 requireActivity()

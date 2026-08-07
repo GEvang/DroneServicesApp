@@ -11,6 +11,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
+import androidx.navigation.fragment.findNavController
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.ortho.OrthoBounds
 import com.example.droneservicesapp.data.ortho.SimpleTiffDecoder
@@ -55,6 +56,9 @@ class OrthoPreviewFragment : Fragment() {
         binding.orthoMap.controller.setZoom(DEFAULT_ZOOM)
         binding.orthoMap.controller.setCenter(GeoPoint(DEFAULT_LAT, DEFAULT_LON))
 
+        binding.orthoPreviewCycleButton.setOnClickListener {
+            findNavController().navigate(R.id.nav_point_cloud)
+        }
         binding.orthoLoadImageButton.setOnClickListener { openFilePicker(REQUEST_OPEN_TIFF) }
         binding.orthoLoadWorldButton.setOnClickListener { openFilePicker(REQUEST_OPEN_WORLD) }
         binding.orthoClearButton.setOnClickListener { clearOverlay() }
