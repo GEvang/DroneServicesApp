@@ -125,6 +125,20 @@ class OsmdroidObstacleEditor(
         mapView.invalidate()
     }
 
+    fun release() {
+        mode = Mode.IDLE
+        mapView.overlays.removeAll(draftMarkers)
+        draftMarkers.clear()
+        draftPoints.clear()
+        mapView.overlays.removeAll(obstacleOverlays.values)
+        obstacleOverlays.clear()
+        draftPolygon?.let { mapView.overlays.remove(it) }
+        draftPolygon = null
+        eventsOverlay?.let { mapView.overlays.remove(it) }
+        eventsOverlay = null
+        mapView.invalidate()
+    }
+
     private fun addDraftPoint(point: GeoPoint) {
         draftPoints += point
         val marker = Marker(mapView).apply {
@@ -148,10 +162,13 @@ class OsmdroidObstacleEditor(
     }
 
     private fun clearDraft() {
+        val hadDraftPoints = draftPoints.isNotEmpty()
         mapView.overlays.removeAll(draftMarkers)
         draftMarkers.clear()
         draftPoints.clear()
-        draftPolygon?.points = ArrayList()
+        if (hadDraftPoints) {
+            draftPolygon?.points = ArrayList()
+        }
         draftPolygon?.isEnabled = false
         draftPolygon?.setVisible(false)
         mapView.invalidate()

@@ -26,6 +26,11 @@
             android:title="@string/menu_geo_awareness" />
 
         <item
+            android:id="@+id/nav_point_cloud"
+            android:icon="@drawable/ic_point_cloud_24"
+            android:title="@string/menu_point_cloud" />
+
+        <item
             android:id="@+id/nav_debug"
             android:icon="@drawable/ic_menu_settings"
             android:title="@string/menu_debug" />

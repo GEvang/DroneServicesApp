@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ds_color_background"
+    tools:context=".ui.pointcloud.PointCloudViewerFragment">
+
+    <com.example.droneservicesapp.ui.pointcloud.PointCloudGlView
+        android:id="@+id/point_cloud_gl_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+    <LinearLayout
+        android:layout_width="320dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="top|start"
+        android:layout_margin="@dimen/ds_space_lg"
+        android:background="@drawable/bg_ds_overlay_card"
+        android:orientation="vertical"
+        android:padding="@dimen/ds_space_md">
+
+        <TextView
+            android:id="@+id/point_cloud_status_text"
+            style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textColor="@color/ds_color_text_primary"
+            tools:text="No point cloud loaded" />
+
+        <TextView
+            android:id="@+id/point_cloud_stats_text"
+            style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_sm"
+            android:textColor="@color/ds_color_text_secondary"
+            tools:text="Visible: -- / Total: --" />
+
+        <ProgressBar
+            android:id="@+id/point_cloud_progress"
+            style="?android:attr/progressBarStyleHorizontal"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_sm"
+            android:indeterminate="true"
+            android:visibility="gone" />
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_md"
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/point_cloud_load_button"
+                style="@style/Widget.DroneServices.Button.MapLight"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/point_cloud_load" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/point_cloud_reset_button"
+                style="@style/Widget.DroneServices.Button.MapDark"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/ds_space_sm"
+                android:text="@string/point_cloud_reset" />
+        </LinearLayout>
+
+        <TextView
+            style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_md"
+            android:text="@string/point_cloud_point_size"
+            android:textColor="@color/ds_color_text_secondary" />
+
+        <com.google.android.material.slider.Slider
+            android:id="@+id/point_cloud_size_slider"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:value="2.5"
+            android:valueFrom="1"
+            android:valueTo="8"
+            android:stepSize="0.5" />
+    </LinearLayout>
+</FrameLayout>

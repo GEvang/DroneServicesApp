@@ -1241,7 +1241,7 @@ class MissionMapFragment : Fragment() {
     override fun onDestroyView() {
         showShellToolbar()
         geoZoneOverlayController?.clear()
-        osmdroidObstacleEditor.clear()
+        osmdroidObstacleEditor.release()
         geoZoneOverlayController = null
         geoAwarenessChecker = null
         liveGeoAwarenessStatusBinder = null
