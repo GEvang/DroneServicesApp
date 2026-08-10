@@ -87,7 +87,7 @@ class OrthoPreviewFragment : Fragment() {
         }
         if (restorePreviewAsset()) {
             renderStatus()
-        } else {
+        } else if (!restorePersistedPreviewAsset()) {
             renderStatus()
         }
     }

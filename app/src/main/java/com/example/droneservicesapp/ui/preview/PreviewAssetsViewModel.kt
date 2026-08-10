@@ -83,6 +83,8 @@ class PreviewAssetsViewModel : ViewModel() {
         pendingMapFocus = focus
     }
 
+    fun hasPendingMapFocusRequest(): Boolean = pendingMapFocus != null
+
     fun consumeMapFocusRequest(): PreviewMapFocus? {
         val focus = pendingMapFocus
         pendingMapFocus = null

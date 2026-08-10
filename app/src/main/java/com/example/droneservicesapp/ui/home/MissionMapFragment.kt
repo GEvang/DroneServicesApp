@@ -85,7 +85,6 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.maps.android.SphericalUtil
 import io.dronefleet.mavlink.common.MavCmd
 import org.osmdroid.tileprovider.cachemanager.CacheManager
-import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
@@ -95,10 +94,16 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlin.math.PI
+import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.ln
+import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sin
 import kotlin.math.sqrt
+import kotlin.math.tan
 
 class MissionMapFragment : Fragment() {
     private var _binding: FragmentHomeMapsBinding? = null
@@ -193,6 +198,14 @@ class MissionMapFragment : Fragment() {
         private const val PREVIEW_MAP_FIT_PADDING_PX = 96
         private const val MIN_PREVIEW_MAP_SPAN_METERS = 10.0
         private const val TERRAIN_SURVEY_REDRAW_DEBOUNCE_MS = 250L
+        private const val TILE_SIZE_PX = 256.0
+        private const val MIN_MAP_VIEWPORT_PX = 320
+        private const val MIN_PREVIEW_BOUNDS_SPAN_DEGREES = 0.000001
+        private const val MIN_PREVIEW_MERCATOR_SPAN = 0.000001
+        private const val MIN_MERCATOR_LATITUDE = -85.05112878
+        private const val MAX_MERCATOR_LATITUDE = 85.05112878
+        private const val MIN_PREVIEW_MAP_ZOOM = 2.0
+        private const val MAX_PREVIEW_MAP_ZOOM = 21.0
     }
 
     override fun onCreateView(
@@ -1370,6 +1383,9 @@ class MissionMapFragment : Fragment() {
     private fun centerInitialViewportIfNeeded() {
         if (_binding == null) return
         if (hasCenteredToDrone) return
+        if (previewAssetsViewModel.hasPendingMapFocusRequest()) {
+            if (focusPreviewAssetOnMapIfRequested()) return
+        }
 
         if (osmdroidMapController.hasDronePosition()) {
             centerOnDroneIfNeeded()
@@ -1408,11 +1424,7 @@ class MissionMapFragment : Fragment() {
 
     private fun focusOrthoOnMap(): Boolean {
         val bounds = previewAssetsViewModel.orthoAsset?.bounds ?: return false
-        mapView.zoomToBoundingBox(
-            BoundingBox(bounds.maxLat, bounds.maxLon, bounds.minLat, bounds.minLon),
-            true,
-            PREVIEW_MAP_FIT_PADDING_PX
-        )
+        focusPreviewBoundsOnMap(bounds.minLat, bounds.maxLat, bounds.minLon, bounds.maxLon)
         mapView.invalidate()
         return true
     }
@@ -1430,17 +1442,51 @@ class MissionMapFragment : Fragment() {
         val maxLat = corners.maxOf { it.first }
         val minLon = corners.minOf { it.second }
         val maxLon = corners.maxOf { it.second }
-        mapView.zoomToBoundingBox(
-            BoundingBox(maxLat, maxLon, minLat, minLon),
-            true,
-            PREVIEW_MAP_FIT_PADDING_PX
-        )
+        focusPreviewBoundsOnMap(minLat, maxLat, minLon, maxLon)
         mapView.invalidate()
         return true
     }
 
+    private fun focusPreviewBoundsOnMap(
+        minLat: Double,
+        maxLat: Double,
+        minLon: Double,
+        maxLon: Double
+    ) {
+        val centerLat = (minLat + maxLat) / 2.0
+        val centerLon = (minLon + maxLon) / 2.0
+        mapView.controller.setZoom(calculateSafePreviewZoom(minLat, maxLat, minLon, maxLon))
+        mapView.controller.setCenter(GeoPoint(centerLat, centerLon))
+    }
+
+    private fun calculateSafePreviewZoom(
+        minLat: Double,
+        maxLat: Double,
+        minLon: Double,
+        maxLon: Double
+    ): Double {
+        val lonSpan = (maxLon - minLon).coerceAtLeast(MIN_PREVIEW_BOUNDS_SPAN_DEGREES)
+        val mercatorSpan = abs(mercatorY(maxLat) - mercatorY(minLat))
+            .coerceAtLeast(MIN_PREVIEW_MERCATOR_SPAN)
+        val mapWidth = max(mapView.width - PREVIEW_MAP_FIT_PADDING_PX * 2, MIN_MAP_VIEWPORT_PX)
+        val mapHeight = max(mapView.height - PREVIEW_MAP_FIT_PADDING_PX * 2, MIN_MAP_VIEWPORT_PX)
+        val lonZoom = log2(mapWidth * 360.0 / (TILE_SIZE_PX * lonSpan))
+        val latZoom = log2(mapHeight * 2.0 * PI / (TILE_SIZE_PX * mercatorSpan))
+        return min(lonZoom, latZoom).coerceIn(MIN_PREVIEW_MAP_ZOOM, MAX_PREVIEW_MAP_ZOOM)
+    }
+
+    private fun mercatorY(latitude: Double): Double {
+        val radians = Math.toRadians(latitude.coerceIn(MIN_MERCATOR_LATITUDE, MAX_MERCATOR_LATITUDE))
+        return ln(tan(PI / 4.0 + radians / 2.0))
+    }
+
+    private fun log2(value: Double): Double = ln(value) / ln(2.0)
+
     private fun centerOnDroneIfNeeded() {
         if (hasCenteredToDrone) return
+        if (previewAssetsViewModel.hasPendingMapFocusRequest()) {
+            if (focusPreviewAssetOnMapIfRequested()) return
+        }
 
         if (osmdroidMapController.centerOnDrone()) {
             hasCenteredToDrone = true

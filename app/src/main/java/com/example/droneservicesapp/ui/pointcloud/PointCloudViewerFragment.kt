@@ -45,8 +45,12 @@ class PointCloudViewerFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.pointCloudPreviewCycleButton.setOnClickListener {
             previewAssetsViewModel.requestMapFocus(PreviewMapFocus.POINT_CLOUD)
-            findNavController().navigate(R.id.nav_maps_home)
+            val navController = findNavController()
+            if (!navController.popBackStack(R.id.nav_maps_home, false)) {
+                navController.navigate(R.id.nav_maps_home)
+            }
         }
+        binding.pointCloudBottomUtilityDock.bringToFront()
         binding.pointCloudLoadButton.setOnClickListener { openPointCloudPicker() }
         binding.pointCloudResetButton.setOnClickListener { binding.pointCloudGlView.resetCamera() }
         binding.pointCloudSizeSlider.addOnChangeListener { _, value, _ ->
@@ -58,6 +62,7 @@ class PointCloudViewerFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         binding.pointCloudGlView.onResume()
+        binding.pointCloudBottomUtilityDock.bringToFront()
     }
 
     override fun onPause() {
