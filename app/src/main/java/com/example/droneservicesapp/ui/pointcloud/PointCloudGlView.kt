@@ -12,6 +12,7 @@ import java.nio.ByteOrder
 import java.nio.FloatBuffer
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
+import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.max
 import kotlin.math.min
@@ -58,9 +59,11 @@ class PointCloudGlView @JvmOverloads constructor(
             MotionEvent.ACTION_DOWN -> {
                 previousX = event.x
                 previousY = event.y
+                previousDistance = 0f
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
                 if (event.pointerCount >= 2) {
+                    parent?.requestDisallowInterceptTouchEvent(true)
                     previousDistance = pointerDistance(event)
                     previousCenterX = pointerCenterX(event)
                     previousCenterY = pointerCenterY(event)
@@ -70,14 +73,17 @@ class PointCloudGlView @JvmOverloads constructor(
                 if (event.pointerCount >= 2) {
                     val distance = pointerDistance(event)
                     if (previousDistance > 0f) {
-                        val scale = previousDistance / distance.coerceAtLeast(1f)
+                        val scale = (previousDistance / distance.coerceAtLeast(1f))
+                            .coerceIn(MIN_PINCH_SCALE, MAX_PINCH_SCALE)
                         queueEvent { pointRenderer.zoom(scale) }
                     }
                     val centerX = pointerCenterX(event)
                     val centerY = pointerCenterY(event)
                     val dx = centerX - previousCenterX
                     val dy = centerY - previousCenterY
-                    queueEvent { pointRenderer.pan(dx, dy) }
+                    if (abs(dx) > TOUCH_EPSILON || abs(dy) > TOUCH_EPSILON) {
+                        queueEvent { pointRenderer.pan(dx, dy) }
+                    }
                     previousDistance = distance
                     previousCenterX = centerX
                     previousCenterY = centerY
@@ -89,8 +95,17 @@ class PointCloudGlView @JvmOverloads constructor(
                     previousY = event.y
                 }
             }
+            MotionEvent.ACTION_POINTER_UP -> {
+                previousDistance = 0f
+                val remainingIndex = if (event.actionIndex == 0) 1 else 0
+                if (remainingIndex < event.pointerCount) {
+                    previousX = event.getX(remainingIndex)
+                    previousY = event.getY(remainingIndex)
+                }
+            }
             MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                 previousDistance = 0f
+                parent?.requestDisallowInterceptTouchEvent(false)
             }
         }
         return true
@@ -105,6 +120,12 @@ class PointCloudGlView @JvmOverloads constructor(
     private fun pointerCenterX(event: MotionEvent): Float = (event.getX(0) + event.getX(1)) / 2f
 
     private fun pointerCenterY(event: MotionEvent): Float = (event.getY(0) + event.getY(1)) / 2f
+
+    companion object {
+        private const val MIN_PINCH_SCALE = 0.92f
+        private const val MAX_PINCH_SCALE = 1.08f
+        private const val TOUCH_EPSILON = 0.5f
+    }
 }
 
 private class PointCloudRenderer : GLSurfaceView.Renderer {

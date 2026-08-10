@@ -274,27 +274,30 @@
                 android:tint="@android:color/white" />
         </LinearLayout>
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/preview_mode_cycle_button"
-            style="@style/Widget.DroneServices.Button.MapDark"
+        <LinearLayout
+            android:id="@+id/preview_mode_bottom_dock"
             android:layout_width="wrap_content"
-            android:layout_height="44dp"
-            android:layout_marginStart="@dimen/ds_space_lg"
-            android:layout_marginTop="@dimen/ds_space_lg"
-            android:elevation="10dp"
-            android:minWidth="128dp"
-            android:minHeight="44dp"
-            android:paddingStart="16dp"
-            android:paddingEnd="18dp"
-            android:text="@string/preview_mode_next_ortho"
-            android:textAllCaps="false"
-            app:icon="@drawable/ic_ortho_24"
-            app:iconGravity="textStart"
-            app:iconPadding="8dp"
-            app:iconSize="20dp"
-            app:iconTint="@color/ds_color_text_primary"
-            app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/home_top_status_strip" />
+            android:layout_height="wrap_content"
+            android:layout_marginStart="@dimen/phone_map_overlay_card_margin"
+            android:layout_marginBottom="@dimen/preview_mode_rail_bottom_margin"
+            android:background="@drawable/bg_preview_mode_rail"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            app:layout_constraintBottom_toBottomOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/preview_mode_cycle_button"
+                android:layout_width="@dimen/preview_mode_switch_size"
+                android:layout_height="@dimen/preview_mode_switch_size"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/preview_mode_next_ortho"
+                android:elevation="10dp"
+                android:padding="@dimen/preview_mode_switch_padding"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_ortho_24"
+                android:tint="@android:color/white" />
+        </LinearLayout>
 
         <include
             layout="@layout/home_obstacle_panel"

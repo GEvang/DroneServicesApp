@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.ui.ortho
 
 import android.app.Activity
+import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
@@ -9,6 +10,7 @@ import android.provider.OpenableColumns
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
@@ -18,6 +20,7 @@ import com.example.droneservicesapp.data.ortho.SimpleTiffDecoder
 import com.example.droneservicesapp.data.ortho.WorldFileParser
 import com.example.droneservicesapp.databinding.FragmentOrthoPreviewBinding
 import com.example.droneservicesapp.ui.home.components.EsriWorldImageryTileSource
+import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -29,6 +32,7 @@ class OrthoPreviewFragment : Fragment() {
 
     private var _binding: FragmentOrthoPreviewBinding? = null
     private val binding get() = _binding!!
+    private val previewAssetsViewModel: PreviewAssetsViewModel by activityViewModels()
     private val tiffDecoder = SimpleTiffDecoder()
     private val worldFileParser = WorldFileParser()
     private var bitmap: Bitmap? = null
@@ -62,11 +66,19 @@ class OrthoPreviewFragment : Fragment() {
         binding.orthoLoadImageButton.setOnClickListener { openFilePicker(REQUEST_OPEN_TIFF) }
         binding.orthoLoadWorldButton.setOnClickListener { openFilePicker(REQUEST_OPEN_WORLD) }
         binding.orthoClearButton.setOnClickListener { clearOverlay() }
+        binding.orthoZoomToButton.setOnClickListener { zoomToOrthoBounds() }
+        binding.orthoBackgroundSwitch.setOnCheckedChangeListener { _, isChecked ->
+            setBackgroundTilesEnabled(isChecked)
+        }
         binding.orthoOpacitySlider.addOnChangeListener { _, value, _ ->
             overlay?.opacity = value
             binding.orthoMap.invalidate()
         }
-        renderStatus()
+        if (restorePreviewAsset()) {
+            renderStatus()
+        } else if (!restorePersistedPreviewAsset()) {
+            renderStatus()
+        }
     }
 
     override fun onResume() {
@@ -92,6 +104,7 @@ class OrthoPreviewFragment : Fragment() {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != Activity.RESULT_OK) return
         val uri = data?.data ?: return
+        persistReadPermission(uri, data.flags)
         when (requestCode) {
             REQUEST_OPEN_TIFF -> loadTiff(uri)
             REQUEST_OPEN_WORLD -> loadWorldFile(uri)
@@ -102,6 +115,7 @@ class OrthoPreviewFragment : Fragment() {
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
             addCategory(Intent.CATEGORY_OPENABLE)
             type = "*/*"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
         }
         startActivityForResult(intent, requestCode)
     }
@@ -124,6 +138,8 @@ class OrthoPreviewFragment : Fragment() {
             result.onSuccess {
                 bitmap = it
                 bitmapFileName = fileName
+                previewAssetsViewModel.setOrthoImage(it, fileName, uri)
+                saveOrthoImageReference(uri, fileName)
                 if (bounds == null) {
                     binding.orthoStatusText.text = getString(R.string.ortho_load_world_next)
                 }
@@ -159,6 +175,8 @@ class OrthoPreviewFragment : Fragment() {
             result.onSuccess {
                 bounds = it
                 worldFileName = fileName
+                previewAssetsViewModel.setOrthoBounds(it, fileName, uri)
+                saveOrthoWorldReference(uri, fileName)
                 renderOverlayIfReady()
                 renderStatus()
             }.onFailure {
@@ -183,6 +201,25 @@ class OrthoPreviewFragment : Fragment() {
         binding.orthoMap.invalidate()
     }
 
+    private fun zoomToOrthoBounds() {
+        val imageBounds = bounds
+        if (imageBounds == null) {
+            binding.orthoStatusText.text = getString(R.string.ortho_load_world_next)
+            return
+        }
+        binding.orthoMap.zoomToBoundingBox(
+            BoundingBox(imageBounds.maxLat, imageBounds.maxLon, imageBounds.minLat, imageBounds.minLon),
+            true,
+            MAP_FIT_PADDING_PX
+        )
+        binding.orthoMap.invalidate()
+    }
+
+    private fun setBackgroundTilesEnabled(isEnabled: Boolean) {
+        binding.orthoMap.overlayManager.tilesOverlay?.isEnabled = isEnabled
+        binding.orthoMap.invalidate()
+    }
+
     private fun clearOverlay() {
         overlay?.let { binding.orthoMap.overlays.remove(it) }
         overlay = null
@@ -190,8 +227,63 @@ class OrthoPreviewFragment : Fragment() {
         bounds = null
         bitmapFileName = null
         worldFileName = null
+        previewAssetsViewModel.clearOrtho()
+        clearPersistedOrthoReference()
         binding.orthoMap.invalidate()
         renderStatus()
+    }
+
+    private fun restorePreviewAsset(): Boolean {
+        val asset = previewAssetsViewModel.orthoAsset ?: return false
+        bitmap = asset.bitmap
+        bitmapFileName = asset.bitmapFileName
+        bounds = asset.bounds
+        worldFileName = asset.worldFileName
+        renderOverlayIfReady()
+        return true
+    }
+
+    private fun restorePersistedPreviewAsset(): Boolean {
+        val preferences = previewPreferences()
+        val imageUri = preferences.getString(KEY_ORTHO_IMAGE_URI, null)?.let(Uri::parse) ?: return false
+        val imageName = preferences.getString(KEY_ORTHO_IMAGE_NAME, null) ?: getString(R.string.ortho_unknown_image)
+        val worldUri = preferences.getString(KEY_ORTHO_WORLD_URI, null)?.let(Uri::parse)
+        val savedWorldName = preferences.getString(KEY_ORTHO_WORLD_NAME, null)
+
+        setLoading(true, getString(R.string.ortho_loading_image, imageName))
+        viewLifecycleOwner.lifecycleScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    val decodedBitmap = requireContext().contentResolver.openInputStream(imageUri)?.use(tiffDecoder::decode)
+                        ?: error("Could not open image file.")
+                    val decodedBounds = if (worldUri != null) {
+                        requireContext().contentResolver.openInputStream(worldUri)?.use { stream ->
+                            worldFileParser.parse(stream, decodedBitmap.width, decodedBitmap.height)
+                        }
+                    } else {
+                        null
+                    }
+                    decodedBitmap to decodedBounds
+                }
+            }
+            if (_binding == null) return@launch
+            setLoading(false)
+            result.onSuccess { (decodedBitmap, decodedBounds) ->
+                bitmap = decodedBitmap
+                bitmapFileName = imageName
+                bounds = decodedBounds
+                worldFileName = if (decodedBounds != null) savedWorldName else null
+                previewAssetsViewModel.setOrthoImage(decodedBitmap, imageName, imageUri)
+                if (decodedBounds != null && worldUri != null && savedWorldName != null) {
+                    previewAssetsViewModel.setOrthoBounds(decodedBounds, savedWorldName, worldUri)
+                }
+                renderOverlayIfReady()
+                renderStatus()
+            }.onFailure {
+                _binding?.orthoStatusText?.text = getString(R.string.ortho_load_failed, it.message ?: it.javaClass.simpleName)
+            }
+        }
+        return true
     }
 
     private fun renderStatus() {
@@ -233,7 +325,45 @@ class OrthoPreviewFragment : Fragment() {
         }
     }
 
+    private fun persistReadPermission(uri: Uri, flags: Int) {
+        val readFlags = flags and Intent.FLAG_GRANT_READ_URI_PERMISSION
+        if (readFlags == 0) return
+        runCatching {
+            requireContext().contentResolver.takePersistableUriPermission(uri, readFlags)
+        }
+    }
+
+    private fun saveOrthoImageReference(uri: Uri, fileName: String) {
+        previewPreferences().edit()
+            .putString(KEY_ORTHO_IMAGE_URI, uri.toString())
+            .putString(KEY_ORTHO_IMAGE_NAME, fileName)
+            .apply()
+    }
+
+    private fun saveOrthoWorldReference(uri: Uri, fileName: String) {
+        previewPreferences().edit()
+            .putString(KEY_ORTHO_WORLD_URI, uri.toString())
+            .putString(KEY_ORTHO_WORLD_NAME, fileName)
+            .apply()
+    }
+
+    private fun clearPersistedOrthoReference() {
+        previewPreferences().edit()
+            .remove(KEY_ORTHO_IMAGE_URI)
+            .remove(KEY_ORTHO_IMAGE_NAME)
+            .remove(KEY_ORTHO_WORLD_URI)
+            .remove(KEY_ORTHO_WORLD_NAME)
+            .apply()
+    }
+
+    private fun previewPreferences() = requireContext().getSharedPreferences(PREVIEW_PREFS, Context.MODE_PRIVATE)
+
     companion object {
+        private const val PREVIEW_PREFS = "preview_assets"
+        private const val KEY_ORTHO_IMAGE_URI = "ortho_image_uri"
+        private const val KEY_ORTHO_IMAGE_NAME = "ortho_image_name"
+        private const val KEY_ORTHO_WORLD_URI = "ortho_world_uri"
+        private const val KEY_ORTHO_WORLD_NAME = "ortho_world_name"
         private const val REQUEST_OPEN_TIFF = 2301
         private const val REQUEST_OPEN_WORLD = 2302
         private const val DEFAULT_LAT = 35.35824717735152

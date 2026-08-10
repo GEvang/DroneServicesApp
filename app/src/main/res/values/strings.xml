@@ -34,6 +34,8 @@
     <string name="ortho_load_image">Load .TIF</string>
     <string name="ortho_load_world">Load .TFW</string>
     <string name="ortho_clear">Clear ortho</string>
+    <string name="ortho_zoom_to">Zoom to ortho</string>
+    <string name="ortho_background">Background</string>
     <string name="ortho_opacity">Opacity</string>
     <string name="ortho_empty_state">Load an ortho .tif image, then its .tfw world file.</string>
     <string name="ortho_stats_empty">Image: --</string>

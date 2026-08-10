@@ -21,24 +21,11 @@
         android:orientation="vertical"
         android:padding="@dimen/ds_space_md">
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/point_cloud_preview_cycle_button"
-            style="@style/Widget.DroneServices.Button.MapDark"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="@string/preview_mode_next_map"
-            android:textAllCaps="false"
-            app:icon="@drawable/ic_menu_map"
-            app:iconGravity="textStart"
-            app:iconPadding="8dp"
-            app:iconTint="@color/ds_color_text_primary" />
-
         <TextView
             android:id="@+id/point_cloud_status_text"
             style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginTop="@dimen/ds_space_md"
             android:textColor="@color/ds_color_text_primary"
             tools:text="No point cloud loaded" />
 
@@ -100,5 +87,29 @@
             android:valueFrom="1"
             android:valueTo="8"
             android:stepSize="0.5" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/point_cloud_bottom_utility_dock"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="bottom|start"
+        android:layout_marginStart="@dimen/phone_map_overlay_card_margin"
+        android:layout_marginBottom="@dimen/preview_mode_rail_bottom_margin"
+        android:background="@drawable/bg_preview_mode_rail"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/point_cloud_preview_cycle_button"
+            android:layout_width="@dimen/preview_mode_switch_size"
+            android:layout_height="@dimen/preview_mode_switch_size"
+            android:background="@android:color/transparent"
+            android:contentDescription="@string/preview_mode_next_map"
+            android:elevation="10dp"
+            android:padding="@dimen/preview_mode_switch_padding"
+            android:scaleType="centerInside"
+            android:src="@drawable/ic_menu_map"
+            android:tint="@android:color/white" />
     </LinearLayout>
 </FrameLayout>

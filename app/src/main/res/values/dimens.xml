@@ -65,6 +65,9 @@
 
     <dimen name="phone_map_bottom_dock_icon_size">36dp</dimen>
     <dimen name="phone_map_bottom_dock_icon_padding">8dp</dimen>
+    <dimen name="preview_mode_switch_size">44dp</dimen>
+    <dimen name="preview_mode_switch_padding">1dp</dimen>
+    <dimen name="preview_mode_rail_bottom_margin">84dp</dimen>
     <dimen name="phone_map_bottom_dock_button_height">40dp</dimen>
     <dimen name="phone_map_bottom_dock_primary_min_width">104dp</dimen>
     <dimen name="phone_map_bottom_dock_padding_horizontal">6dp</dimen>
