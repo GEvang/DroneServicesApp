@@ -23,6 +23,7 @@ import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import kotlin.math.atan2
+import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.roundToInt
 
@@ -43,6 +44,7 @@ class OsmdroidMapController(
         private const val HEADING_EPSILON_DEGREES = 0.5f
         private const val MIN_VALID_ABS_COORDINATE = 1e-4
         private const val MAX_FLIGHT_TRACE_POINTS = 5000
+        private const val MAX_SURVEY_DIRECTION_MARKERS = 80
     }
 
     private var myLocationOverlay: MyLocationNewOverlay? = null
@@ -55,6 +57,7 @@ class OsmdroidMapController(
     private var surveyPolyline: Polyline? = null
     private val surveyDirectionMarkers = mutableListOf<Marker>()
     private val surveyInfoMarkers = mutableListOf<Marker>()
+    private var directionArrowIcon: BitmapDrawable? = null
     private var homeMarker: Marker? = null
     private var flightTracePolyline: Polyline? = null
     private val flightTracePoints = mutableListOf<GeoPoint>()
@@ -355,11 +358,16 @@ class OsmdroidMapController(
             path.zipWithNext().map { listOf(it.first, it.second) }
         }
 
-        segments.forEach { segment ->
+        val markerStep = ceil(segments.size / MAX_SURVEY_DIRECTION_MARKERS.toDouble())
+            .roundToInt()
+            .coerceAtLeast(1)
+
+        segments.forEachIndexed { index, segment ->
+            if (index % markerStep != 0) return@forEachIndexed
             val from = segment[0]
             val to = segment[1]
             if (!isValidMapPoint(from.latitude, from.longitude) || !isValidMapPoint(to.latitude, to.longitude)) {
-                return@forEach
+                return@forEachIndexed
             }
 
             val marker = Marker(mapView).apply {
@@ -368,7 +376,7 @@ class OsmdroidMapController(
                     (from.longitude + to.longitude) / 2.0
                 )
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                icon = createDirectionArrowIcon()
+                icon = directionArrowIcon ?: createDirectionArrowIcon().also { directionArrowIcon = it }
                 rotation = screenVectorRotationDegrees(from, to)
             }
             surveyDirectionMarkers += marker

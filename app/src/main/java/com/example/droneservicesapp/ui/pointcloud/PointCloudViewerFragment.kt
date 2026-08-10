@@ -18,6 +18,7 @@ import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.pointcloud.PlyPointCloudParser
 import com.example.droneservicesapp.data.pointcloud.PointCloudData
 import com.example.droneservicesapp.databinding.FragmentPointCloudViewerBinding
+import com.example.droneservicesapp.ui.preview.PreviewMapFocus
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -43,6 +44,7 @@ class PointCloudViewerFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
         binding.pointCloudPreviewCycleButton.setOnClickListener {
+            previewAssetsViewModel.requestMapFocus(PreviewMapFocus.POINT_CLOUD)
             findNavController().navigate(R.id.nav_maps_home)
         }
         binding.pointCloudLoadButton.setOnClickListener { openPointCloudPicker() }

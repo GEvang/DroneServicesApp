@@ -5,11 +5,14 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.data.ortho.OrthoBounds
 import com.example.droneservicesapp.data.pointcloud.PointCloudData
+import com.example.droneservicesapp.domain.terrain.PointCloudTerrainModel
 
 data class OrthoPreviewAsset(
     val bitmap: Bitmap,
     val bitmapFileName: String,
     val bitmapUri: Uri,
+    val sourceWidth: Int = bitmap.width,
+    val sourceHeight: Int = bitmap.height,
     val bounds: OrthoBounds? = null,
     val worldFileName: String? = null,
     val worldFileUri: Uri? = null,
@@ -21,6 +24,11 @@ data class PointCloudPreviewAsset(
     val uri: Uri,
 )
 
+enum class PreviewMapFocus {
+    ORTHO,
+    POINT_CLOUD
+}
+
 class PreviewAssetsViewModel : ViewModel() {
     var orthoAsset: OrthoPreviewAsset? = null
         private set
@@ -28,11 +36,24 @@ class PreviewAssetsViewModel : ViewModel() {
     var pointCloudAsset: PointCloudPreviewAsset? = null
         private set
 
-    fun setOrthoImage(bitmap: Bitmap, bitmapFileName: String, bitmapUri: Uri) {
+    var pointCloudTerrainModel: PointCloudTerrainModel? = null
+        private set
+
+    private var pendingMapFocus: PreviewMapFocus? = null
+
+    fun setOrthoImage(
+        bitmap: Bitmap,
+        bitmapFileName: String,
+        bitmapUri: Uri,
+        sourceWidth: Int = bitmap.width,
+        sourceHeight: Int = bitmap.height
+    ) {
         orthoAsset = OrthoPreviewAsset(
             bitmap = bitmap,
             bitmapFileName = bitmapFileName,
             bitmapUri = bitmapUri,
+            sourceWidth = sourceWidth,
+            sourceHeight = sourceHeight,
         )
     }
 
@@ -55,5 +76,16 @@ class PreviewAssetsViewModel : ViewModel() {
             fileName = fileName,
             uri = uri,
         )
+        pointCloudTerrainModel = PointCloudTerrainModel(pointCloud)
+    }
+
+    fun requestMapFocus(focus: PreviewMapFocus) {
+        pendingMapFocus = focus
+    }
+
+    fun consumeMapFocusRequest(): PreviewMapFocus? {
+        val focus = pendingMapFocus
+        pendingMapFocus = null
+        return focus
     }
 }

@@ -17,6 +17,7 @@ import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
@@ -75,6 +76,8 @@ import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoThreatUiModel
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
+import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
+import com.example.droneservicesapp.ui.preview.PreviewMapFocus
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.example.droneservicesapp.ui.common.RtkTonePlayer
 import com.google.android.gms.maps.model.LatLng
@@ -82,11 +85,14 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.maps.android.SphericalUtil
 import io.dronefleet.mavlink.common.MavCmd
 import org.osmdroid.tileprovider.cachemanager.CacheManager
+import org.osmdroid.util.BoundingBox
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.atan2
@@ -101,6 +107,7 @@ class MissionMapFragment : Fragment() {
 
     private lateinit var droneViewModel: DroneViewModel
     private lateinit var activityViewModel: MainActivityViewModel
+    private val previewAssetsViewModel: PreviewAssetsViewModel by activityViewModels()
     private lateinit var homeTelemetryViewModel: HomeTelemetryViewModel
     private lateinit var mapViewModel: MissionMapViewModel
 
@@ -166,6 +173,7 @@ class MissionMapFragment : Fragment() {
     private var geoZoneReloadInProgress: Boolean = false
     private var obstaclePlacementMode: Boolean = false
     private var selectedObstacleMode: OsmdroidObstacleEditor.Mode = OsmdroidObstacleEditor.Mode.CIRCLE
+    private var terrainSurveyJob: Job? = null
 
     companion object {
         private const val DEFAULT_MAP_ZOOM = 18.0
@@ -182,6 +190,9 @@ class MissionMapFragment : Fragment() {
         private const val MIN_TRACE_POINT_DISTANCE_METERS = 2.0
         private const val DEFAULT_NEAR_ZONE_THRESHOLD_METERS = 100.0
         private const val MAX_INITIAL_DRONE_CENTER_ATTEMPTS = 20
+        private const val PREVIEW_MAP_FIT_PADDING_PX = 96
+        private const val MIN_PREVIEW_MAP_SPAN_METERS = 10.0
+        private const val TERRAIN_SURVEY_REDRAW_DEBOUNCE_MS = 250L
     }
 
     override fun onCreateView(
@@ -1202,16 +1213,38 @@ class MissionMapFragment : Fragment() {
 
     private fun drawSurveyGridMissionOnMap() {
         osmdroidMapController.clearSurveyPath()
+        terrainSurveyJob?.cancel()
 
         val area = activityViewModel.missionArea.value ?: return
         val polygonLatLon = area.vertices.map { LatLon(it.latitude, it.longitude) }
-        val planner = SurveyGridPlanner()
-        val pathLatLon = planner.buildSurveyPath(
-            polygon = polygonLatLon,
-            params = activityViewModel.surveyGridParams.value ?: return,
-            obstacles = activityViewModel.missionObstacles.value.orEmpty()
-        )
+        val params = activityViewModel.surveyGridParams.value ?: return
+        val obstacles = activityViewModel.missionObstacles.value.orEmpty()
+        val terrainModel = previewAssetsViewModel.pointCloudTerrainModel
+            ?.takeIf { it.isGeoreferenced && obstacles.isEmpty() }
 
+        if (terrainModel != null) {
+            terrainSurveyJob = viewLifecycleOwner.lifecycleScope.launch {
+                delay(TERRAIN_SURVEY_REDRAW_DEBOUNCE_MS)
+                val pathLatLon = withContext(Dispatchers.Default) {
+                    terrainModel.buildTerrainSurveyPath(
+                        polygon = polygonLatLon,
+                        params = params
+                    ).map { it.latLon }
+                }
+                renderSurveyPath(pathLatLon, area.vertices)
+            }
+            return
+        }
+
+        val pathLatLon = SurveyGridPlanner().buildSurveyPath(
+            polygon = polygonLatLon,
+            params = params,
+            obstacles = obstacles
+        )
+        renderSurveyPath(pathLatLon, area.vertices)
+    }
+
+    private fun renderSurveyPath(pathLatLon: List<LatLon>, areaVertices: List<LatLng>) {
         if (pathLatLon.isEmpty()) {
             activityViewModel.surveyPath.postValue(emptyList())
             return
@@ -1221,7 +1254,7 @@ class MissionMapFragment : Fragment() {
         updateFlightDistance(gmsPath)
 
         activityViewModel.surveyPath.postValue(gmsPath)
-        osmdroidMapController.setSurveyPath(gmsPath, area.vertices)
+        osmdroidMapController.setSurveyPath(gmsPath, areaVertices)
     }
 
     private fun updateFlightDistance(path: List<LatLng>) {
@@ -1290,6 +1323,8 @@ class MissionMapFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        terrainSurveyJob?.cancel()
+        terrainSurveyJob = null
         cancelDroneOffsetAdjustment()
         showShellToolbar()
         geoZoneOverlayController?.clear()
@@ -1308,7 +1343,11 @@ class MissionMapFragment : Fragment() {
         hideShellToolbar()
         mapView.onResume()
         osmdroidMapController.onResume()
-        binding.root.post { centerInitialViewportIfNeeded() }
+        binding.root.post {
+            if (!focusPreviewAssetOnMapIfRequested()) {
+                centerInitialViewportIfNeeded()
+            }
+        }
     }
 
     override fun onPause() {
@@ -1352,6 +1391,52 @@ class MissionMapFragment : Fragment() {
             initialCenterAttemptCount += 1
             _binding?.root?.postDelayed({ centerInitialViewportIfNeeded() }, 1000L)
         }
+    }
+
+    private fun focusPreviewAssetOnMapIfRequested(): Boolean {
+        val focus = previewAssetsViewModel.consumeMapFocusRequest() ?: return false
+        val centered = when (focus) {
+            PreviewMapFocus.POINT_CLOUD -> focusPointCloudOnMap() || focusOrthoOnMap()
+            PreviewMapFocus.ORTHO -> focusOrthoOnMap() || focusPointCloudOnMap()
+        }
+        if (centered) {
+            hasCenteredToDrone = true
+            hasCenteredInitialViewport = true
+        }
+        return centered
+    }
+
+    private fun focusOrthoOnMap(): Boolean {
+        val bounds = previewAssetsViewModel.orthoAsset?.bounds ?: return false
+        mapView.zoomToBoundingBox(
+            BoundingBox(bounds.maxLat, bounds.maxLon, bounds.minLat, bounds.minLon),
+            true,
+            PREVIEW_MAP_FIT_PADDING_PX
+        )
+        mapView.invalidate()
+        return true
+    }
+
+    private fun focusPointCloudOnMap(): Boolean {
+        val pointCloud = previewAssetsViewModel.pointCloudAsset?.pointCloud ?: return false
+        val frame = pointCloud.coordinateFrame ?: return false
+        val halfSpanX = (pointCloud.bounds.spanX / 2f).toDouble().coerceAtLeast(MIN_PREVIEW_MAP_SPAN_METERS)
+        val halfSpanY = (pointCloud.bounds.spanY / 2f).toDouble().coerceAtLeast(MIN_PREVIEW_MAP_SPAN_METERS)
+        val corners = listOf(
+            frame.localToLatLon(-halfSpanX, -halfSpanY),
+            frame.localToLatLon(halfSpanX, halfSpanY)
+        )
+        val minLat = corners.minOf { it.first }
+        val maxLat = corners.maxOf { it.first }
+        val minLon = corners.minOf { it.second }
+        val maxLon = corners.maxOf { it.second }
+        mapView.zoomToBoundingBox(
+            BoundingBox(maxLat, maxLon, minLat, minLon),
+            true,
+            PREVIEW_MAP_FIT_PADDING_PX
+        )
+        mapView.invalidate()
+        return true
     }
 
     private fun centerOnDroneIfNeeded() {

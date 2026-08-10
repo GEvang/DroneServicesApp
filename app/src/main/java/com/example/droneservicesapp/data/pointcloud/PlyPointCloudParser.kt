@@ -148,11 +148,12 @@ class PlyPointCloudParser(
         totalCount: Int,
         state: ParseState
     ): PointCloudData {
-        val bounds = if (state.isLikelyWgs84()) {
+        val conversion = if (state.isLikelyWgs84()) {
             convertWgs84PositionsToLocalMeters(positions, displayedCount, state)
         } else {
-            state.toBounds()
+            PointCloudConversion(state.toBounds(), null)
         }
+        val bounds = conversion.bounds
         centerPositions(positions, displayedCount, bounds)
         if (!state.hasRgb) {
             applyHeightColors(positions, colors, displayedCount)
@@ -163,7 +164,8 @@ class PlyPointCloudParser(
             totalPointCount = totalCount,
             displayedPointCount = displayedCount,
             bounds = bounds,
-            hasRgb = state.hasRgb
+            hasRgb = state.hasRgb,
+            coordinateFrame = conversion.coordinateFrame
         )
     }
 
@@ -171,7 +173,7 @@ class PlyPointCloudParser(
         positions: FloatArray,
         displayedCount: Int,
         state: ParseState
-    ): PointCloudBounds {
+    ): PointCloudConversion {
         val lon0 = state.centerX
         val lat0 = state.centerY
         val cosLat = kotlin.math.cos(Math.toRadians(lat0.toDouble())).toFloat()
@@ -186,13 +188,24 @@ class PlyPointCloudParser(
         val maxLocalX = (state.maxX - lon0) * METERS_PER_DEGREE * cosLat
         val minLocalY = (state.minY - lat0) * METERS_PER_DEGREE
         val maxLocalY = (state.maxY - lat0) * METERS_PER_DEGREE
-        return PointCloudBounds(
+        val bounds = PointCloudBounds(
             minX = minOf(minLocalX, maxLocalX),
             maxX = maxOf(minLocalX, maxLocalX),
             minY = minOf(minLocalY, maxLocalY),
             maxY = maxOf(minLocalY, maxLocalY),
             minZ = state.minZ,
             maxZ = state.maxZ
+        )
+        val centeredOriginLat = lat0 + bounds.centerY / METERS_PER_DEGREE
+        val centeredOriginLon = lon0 + bounds.centerX / (METERS_PER_DEGREE * cosLat.coerceAtLeast(1e-6f))
+        val centeredOriginAlt = bounds.centerZ.toDouble()
+        return PointCloudConversion(
+            bounds = bounds,
+            coordinateFrame = PointCloudCoordinateFrame(
+                originLat = centeredOriginLat.toDouble(),
+                originLon = centeredOriginLon.toDouble(),
+                originAltMeters = centeredOriginAlt
+            )
         )
     }
 
@@ -319,6 +332,11 @@ class PlyPointCloudParser(
         val format: PlyFormat,
         val vertexCount: Int,
         val vertexProperties: List<PlyProperty>
+    )
+
+    private data class PointCloudConversion(
+        val bounds: PointCloudBounds,
+        val coordinateFrame: PointCloudCoordinateFrame?
     )
 
     private data class PlyProperty(val name: String, val type: PlyScalarType)
