@@ -1082,6 +1082,10 @@ class MissionMapFragment : Fragment() {
             updatePointCloudMissionOverlay()
         }
 
+        activityViewModel.terrainSurveyWaypoints.observe(viewLifecycleOwner) {
+            updatePointCloudMissionOverlay()
+        }
+
         activityViewModel.routeWaypoints.observe(viewLifecycleOwner) { waypoints ->
             osmdroidRouteWaypointEditor.setWaypoints(waypoints.orEmpty())
             val hasPolygon = (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
@@ -1433,19 +1437,21 @@ class MissionMapFragment : Fragment() {
         }
 
         val surveyPoints = activityViewModel.surveyPath.value.orEmpty()
+        val surveyZValues = pointCloudSurveyZValues(surveyPoints)
         addPointCloudOpenLineStrip(
             source = surveyPoints,
             z = overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP,
+            zValues = surveyZValues,
             color = POINT_CLOUD_SURVEY_PATH_COLOR,
             vertices = lineVertices,
             colors = lineColors
         ) { point ->
             frame.latLonToLocal(point.latitude, point.longitude)
         }
-        surveyPoints.forEach { point ->
+        surveyPoints.forEachIndexed { index, point ->
             addPointCloudMissionVertex(
                 point = point,
-                z = overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 1.5f,
+                z = surveyZValues?.getOrNull(index) ?: overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 1.5f,
                 color = POINT_CLOUD_SURVEY_POINT_COLOR,
                 vertices = pointVertices,
                 colors = pointColors
@@ -1456,6 +1462,7 @@ class MissionMapFragment : Fragment() {
         addPointCloudDirectionArrows(
             source = surveyPoints,
             z = overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 1.7f,
+            zValues = surveyZValues,
             arrowSizeMeters = max(pointCloud.bounds.maxSpan * 0.012f, MIN_POINT_CLOUD_ARROW_SIZE_METERS),
             vertices = lineVertices,
             colors = lineColors
@@ -1502,21 +1509,29 @@ class MissionMapFragment : Fragment() {
         convert: (LatLng) -> Pair<Double, Double>
     ) {
         if (source.size < 3) return
-        addPointCloudOpenLineStrip(source + source.first(), z, color, vertices, colors, convert)
+        addPointCloudOpenLineStrip(
+            source = source + source.first(),
+            z = z,
+            color = color,
+            vertices = vertices,
+            colors = colors,
+            convert = convert
+        )
     }
 
     private fun addPointCloudOpenLineStrip(
         source: List<LatLng>,
         z: Float,
+        zValues: List<Float>? = null,
         color: FloatArray,
         vertices: MutableList<Float>,
         colors: MutableList<Float>,
         convert: (LatLng) -> Pair<Double, Double>
     ) {
         if (source.size < 2) return
-        source.zipWithNext().forEach { (from, to) ->
-            addPointCloudMissionVertex(from, z, color, vertices, colors, convert)
-            addPointCloudMissionVertex(to, z, color, vertices, colors, convert)
+        source.zipWithNext().forEachIndexed { index, (from, to) ->
+            addPointCloudMissionVertex(from, zValues?.getOrNull(index) ?: z, color, vertices, colors, convert)
+            addPointCloudMissionVertex(to, zValues?.getOrNull(index + 1) ?: z, color, vertices, colors, convert)
         }
     }
 
@@ -1535,6 +1550,7 @@ class MissionMapFragment : Fragment() {
     private fun addPointCloudDirectionArrows(
         source: List<LatLng>,
         z: Float,
+        zValues: List<Float>? = null,
         arrowSizeMeters: Float,
         vertices: MutableList<Float>,
         colors: MutableList<Float>,
@@ -1554,6 +1570,9 @@ class MissionMapFragment : Fragment() {
             val arrowWidth = arrowLength * 0.55
             val midX = (fromX + toX) / 2.0
             val midY = (fromY + toY) / 2.0
+            val fromZ = zValues?.getOrNull(source.indexOf(segment.from)) ?: z
+            val toZ = zValues?.getOrNull(source.indexOf(segment.to)) ?: z
+            val arrowZ = (fromZ + toZ) / 2f
             val tipX = midX + unitX * arrowLength * 0.5
             val tipY = midY + unitY * arrowLength * 0.5
             val baseX = midX - unitX * arrowLength * 0.5
@@ -1565,11 +1584,18 @@ class MissionMapFragment : Fragment() {
             val rightX = baseX - perpX * arrowWidth * 0.5
             val rightY = baseY - perpY * arrowWidth * 0.5
 
-            addPointCloudLocalVertex(tipX, tipY, z, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
-            addPointCloudLocalVertex(leftX, leftY, z, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
-            addPointCloudLocalVertex(tipX, tipY, z, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
-            addPointCloudLocalVertex(rightX, rightY, z, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
+            addPointCloudLocalVertex(tipX, tipY, arrowZ, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
+            addPointCloudLocalVertex(leftX, leftY, arrowZ, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
+            addPointCloudLocalVertex(tipX, tipY, arrowZ, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
+            addPointCloudLocalVertex(rightX, rightY, arrowZ, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
         }
+    }
+
+    private fun pointCloudSurveyZValues(surveyPoints: List<LatLng>): List<Float>? {
+        val terrainWaypoints = activityViewModel.terrainSurveyWaypoints.value.orEmpty()
+        return terrainWaypoints
+            .takeIf { it.size == surveyPoints.size && it.isNotEmpty() }
+            ?.map { it.displayAltitudeMeters.toFloat() }
     }
 
     private fun addPointCloudLocalVertex(

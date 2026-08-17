@@ -219,6 +219,7 @@ class PointCloudViewerFragment : Fragment() {
             updateMissionOverlay()
         }
         activityViewModel.surveyPath.observe(viewLifecycleOwner) { updateMissionOverlay() }
+        activityViewModel.terrainSurveyWaypoints.observe(viewLifecycleOwner) { updateMissionOverlay() }
         activityViewModel.routeWaypoints.observe(viewLifecycleOwner) { updateMissionOverlay() }
     }
 
@@ -281,9 +282,11 @@ class PointCloudViewerFragment : Fragment() {
         }
 
         val surveyPoints = activityViewModel.surveyPath.value.orEmpty()
+        val surveyZValues = pointCloudSurveyZValues(surveyPoints)
         addOpenLineStrip(
             source = surveyPoints,
             z = overlayZ + MISSION_LAYER_Z_STEP,
+            zValues = surveyZValues,
             color = SURVEY_PATH_COLOR,
             vertices = vertices,
             colors = colors
@@ -293,6 +296,7 @@ class PointCloudViewerFragment : Fragment() {
         addSurveyWaypointPoints(
             source = surveyPoints,
             z = overlayZ + MISSION_LAYER_Z_STEP * 1.5f,
+            zValues = surveyZValues,
             vertices = pointVertices,
             colors = pointColors
         ) { point ->
@@ -301,6 +305,7 @@ class PointCloudViewerFragment : Fragment() {
         addSurveyDirectionArrows(
             source = surveyPoints,
             z = overlayZ + MISSION_LAYER_Z_STEP * 1.7f,
+            zValues = surveyZValues,
             arrowSizeMeters = max(pointCloud.bounds.maxSpan * 0.012f, MIN_MISSION_ARROW_SIZE_METERS),
             vertices = vertices,
             colors = colors
@@ -352,21 +357,29 @@ class PointCloudViewerFragment : Fragment() {
         convert: (LatLng) -> Pair<Double, Double>
     ) {
         if (source.size < 3) return
-        addOpenLineStrip(source + source.first(), z, color, vertices, colors, convert)
+        addOpenLineStrip(
+            source = source + source.first(),
+            z = z,
+            color = color,
+            vertices = vertices,
+            colors = colors,
+            convert = convert
+        )
     }
 
     private fun addOpenLineStrip(
         source: List<LatLng>,
         z: Float,
+        zValues: List<Float>? = null,
         color: FloatArray,
         vertices: MutableList<Float>,
         colors: MutableList<Float>,
         convert: (LatLng) -> Pair<Double, Double>
     ) {
         if (source.size < 2) return
-        source.zipWithNext().forEach { (from, to) ->
-            addMissionVertex(from, z, color, vertices, colors, convert)
-            addMissionVertex(to, z, color, vertices, colors, convert)
+        source.zipWithNext().forEachIndexed { index, (from, to) ->
+            addMissionVertex(from, zValues?.getOrNull(index) ?: z, color, vertices, colors, convert)
+            addMissionVertex(to, zValues?.getOrNull(index + 1) ?: z, color, vertices, colors, convert)
         }
     }
 
@@ -390,18 +403,20 @@ class PointCloudViewerFragment : Fragment() {
     private fun addSurveyWaypointPoints(
         source: List<LatLng>,
         z: Float,
+        zValues: List<Float>? = null,
         vertices: MutableList<Float>,
         colors: MutableList<Float>,
         convert: (LatLng) -> Pair<Double, Double>
     ) {
-        source.forEach { point ->
-            addMissionVertex(point, z, SURVEY_POINT_COLOR, vertices, colors, convert)
+        source.forEachIndexed { index, point ->
+            addMissionVertex(point, zValues?.getOrNull(index) ?: z, SURVEY_POINT_COLOR, vertices, colors, convert)
         }
     }
 
     private fun addSurveyDirectionArrows(
         source: List<LatLng>,
         z: Float,
+        zValues: List<Float>? = null,
         arrowSizeMeters: Float,
         vertices: MutableList<Float>,
         colors: MutableList<Float>,
@@ -421,6 +436,9 @@ class PointCloudViewerFragment : Fragment() {
             val arrowWidth = arrowLength * 0.55
             val midX = (fromX + toX) / 2.0
             val midY = (fromY + toY) / 2.0
+            val fromZ = zValues?.getOrNull(source.indexOf(segment.from)) ?: z
+            val toZ = zValues?.getOrNull(source.indexOf(segment.to)) ?: z
+            val arrowZ = (fromZ + toZ) / 2f
             val tipX = midX + unitX * arrowLength * 0.5
             val tipY = midY + unitY * arrowLength * 0.5
             val baseX = midX - unitX * arrowLength * 0.5
@@ -432,11 +450,18 @@ class PointCloudViewerFragment : Fragment() {
             val rightX = baseX - perpX * arrowWidth * 0.5
             val rightY = baseY - perpY * arrowWidth * 0.5
 
-            addLocalMissionVertex(tipX, tipY, z, SURVEY_PATH_COLOR, vertices, colors)
-            addLocalMissionVertex(leftX, leftY, z, SURVEY_PATH_COLOR, vertices, colors)
-            addLocalMissionVertex(tipX, tipY, z, SURVEY_PATH_COLOR, vertices, colors)
-            addLocalMissionVertex(rightX, rightY, z, SURVEY_PATH_COLOR, vertices, colors)
+            addLocalMissionVertex(tipX, tipY, arrowZ, SURVEY_PATH_COLOR, vertices, colors)
+            addLocalMissionVertex(leftX, leftY, arrowZ, SURVEY_PATH_COLOR, vertices, colors)
+            addLocalMissionVertex(tipX, tipY, arrowZ, SURVEY_PATH_COLOR, vertices, colors)
+            addLocalMissionVertex(rightX, rightY, arrowZ, SURVEY_PATH_COLOR, vertices, colors)
         }
+    }
+
+    private fun pointCloudSurveyZValues(surveyPoints: List<LatLng>): List<Float>? {
+        val terrainWaypoints = activityViewModel.terrainSurveyWaypoints.value.orEmpty()
+        return terrainWaypoints
+            .takeIf { it.size == surveyPoints.size && it.isNotEmpty() }
+            ?.map { it.displayAltitudeMeters.toFloat() }
     }
 
     private fun addLocalMissionVertex(
