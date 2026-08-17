@@ -9,6 +9,7 @@ import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.MissionArea
 import com.example.droneservicesapp.domain.model.MissionObstacle
 import com.example.droneservicesapp.domain.model.MissionObstacleShape
@@ -317,7 +318,7 @@ class MainActivityViewModel : ViewModel() {
     }
 
     fun updateSurveyHeightAboveTerrain(value: Int) {
-        val normalized = value.coerceIn(2, 120)
+        val normalized = value.coerceIn(0, 120)
         surveyHeightAboveTerrain.value = normalized.toDouble()
         updateSurveyGridParams {
             copy(heightAboveTerrainMeters = normalized)
@@ -374,6 +375,68 @@ class MainActivityViewModel : ViewModel() {
 
     fun setRouteWaypoints(waypoints: List<RouteWaypoint>) {
         routeWaypoints.value = renumberRouteWaypoints(waypoints)
+    }
+
+    fun updateSurveyWaypoint(index: Int, point: LatLng, terrainWaypoint: TerrainWaypoint?) {
+        val path = surveyPath.value.orEmpty()
+        if (index !in path.indices) return
+        surveyPath.value = path.mapIndexed { pathIndex, existing ->
+            if (pathIndex == index) point else existing
+        }
+
+        val terrainPath = terrainSurveyWaypoints.value.orEmpty()
+        terrainSurveyWaypoints.value = if (terrainPath.size == path.size && terrainWaypoint != null) {
+            terrainPath.mapIndexed { waypointIndex, existing ->
+                if (waypointIndex == index) terrainWaypoint else existing
+            }
+        } else {
+            emptyList()
+        }
+    }
+
+    fun removeSurveyWaypoint(index: Int) {
+        val path = surveyPath.value.orEmpty()
+        if (index !in path.indices) return
+        surveyPath.value = path.filterIndexed { pathIndex, _ -> pathIndex != index }
+
+        val terrainPath = terrainSurveyWaypoints.value.orEmpty()
+        terrainSurveyWaypoints.value = if (terrainPath.size == path.size) {
+            terrainPath.filterIndexed { waypointIndex, _ -> waypointIndex != index }
+        } else {
+            emptyList()
+        }
+    }
+
+    fun updateSurveyWaypointAltitude(index: Int, altitudeMeters: Double) {
+        val path = surveyPath.value.orEmpty()
+        if (index !in path.indices) return
+        val terrainPath = terrainSurveyWaypoints.value.orEmpty()
+        val normalizedAltitude = altitudeMeters.coerceAtLeast(0.0)
+        terrainSurveyWaypoints.value = if (terrainPath.size == path.size) {
+            terrainPath.mapIndexed { waypointIndex, waypoint ->
+                if (waypointIndex == index) {
+                    waypoint.copy(
+                        displayAltitudeMeters = normalizedAltitude,
+                        missionAltitudeMeters = normalizedAltitude
+                    )
+                } else {
+                    waypoint
+                }
+            }
+        } else {
+            path.mapIndexed { waypointIndex, point ->
+                TerrainWaypoint(
+                    latLon = LatLon(point.latitude, point.longitude),
+                    displayAltitudeMeters = normalizedAltitude,
+                    missionAltitudeMeters = normalizedAltitude
+                ).takeIf { waypointIndex == index }
+                    ?: TerrainWaypoint(
+                        latLon = LatLon(point.latitude, point.longitude),
+                        displayAltitudeMeters = surveyHeightAboveTerrain.value ?: 0.0,
+                        missionAltitudeMeters = surveyHeightAboveTerrain.value ?: 0.0
+                    )
+            }
+        }
     }
 
     fun undoLastRouteWaypoint() {

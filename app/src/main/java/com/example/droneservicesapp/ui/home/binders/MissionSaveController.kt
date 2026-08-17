@@ -14,6 +14,7 @@ import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
+import com.google.android.gms.maps.model.LatLng
 
 /**
  * Owns the "Save mission" form state and delegates persistence to MissionFileStore.
@@ -98,6 +99,7 @@ class MissionSaveController(
 
             val workflow = activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA
             val vertices = activityViewModel.missionArea.value?.vertices.orEmpty()
+            val surveyPath = activityViewModel.surveyPath.value.orEmpty()
             val routeWaypoints = activityViewModel.routeWaypoints.value.orEmpty()
 
             if (workflow == PlanningWorkflow.AREA && activityViewModel.missionArea.value == null) {
@@ -160,8 +162,30 @@ class MissionSaveController(
                 fileName = trimmedFileName,
                 overwrite = overrideFile
             )
+            val waypointPath = when (workflow) {
+                PlanningWorkflow.AREA -> surveyPath
+                PlanningWorkflow.POINTS -> routeWaypoints.map { LatLng(it.latitude, it.longitude) }
+            }
+            val waypointAltitudes = when (workflow) {
+                PlanningWorkflow.AREA -> activityViewModel.terrainSurveyWaypoints.value.orEmpty()
+                    .takeIf { it.size == waypointPath.size }
+                    ?.map { it.missionAltitudeMeters.toFloat() }
+                PlanningWorkflow.POINTS -> routeWaypoints.map { it.altitudeMeters.toFloat() }
+            }
+            val waypointsSaved = if (waypointPath.isNotEmpty()) {
+                store.saveWaypointsFile(
+                    waypoints = waypointPath,
+                    altitudesMeters = waypointAltitudes,
+                    fallbackAltitudeMeters = savedAltitude.toFloat(),
+                    planningOperationMode = operationMode,
+                    fileName = trimmedFileName,
+                    overwrite = overrideFile
+                )
+            } else {
+                true
+            }
 
-            if (isSaved) {
+            if (isSaved && waypointsSaved) {
                 Toast.makeText(
                     activity.baseContext,
                     activity.baseContext.getString(R.string.file_successfully_saved),

@@ -702,7 +702,7 @@
                     android:layout_height="28dp"
                     android:layout_weight="1"
                     android:max="120"
-                    android:min="2"
+                    android:min="0"
                     android:progress="5"
                     android:splitTrack="false"
                     android:thumb="@drawable/seekbar_thumb_dji"

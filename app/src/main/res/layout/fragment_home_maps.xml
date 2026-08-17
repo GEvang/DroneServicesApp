@@ -131,6 +131,82 @@
             app:layout_constraintStart_toStartOf="parent" />
 
         <LinearLayout
+            android:id="@+id/survey_waypoint_edit_dock"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="88dp"
+            android:background="@drawable/bg_bottom_dock"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingLeft="@dimen/phone_map_bottom_dock_padding_horizontal"
+            android:paddingTop="@dimen/phone_map_bottom_dock_padding_vertical"
+            android:paddingRight="@dimen/phone_map_bottom_dock_padding_horizontal"
+            android:paddingBottom="@dimen/phone_map_bottom_dock_padding_vertical"
+            android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent">
+
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/survey_waypoint_height_minus_button"
+                android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
+                android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                android:background="@drawable/bg_bottom_dock_button"
+                android:contentDescription="@string/survey_waypoint_height_decrease"
+                android:padding="@dimen/phone_map_bottom_dock_icon_padding"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_remove_24"
+                android:tint="@android:color/white" />
+
+            <TextView
+                android:id="@+id/survey_waypoint_height_label"
+                style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/phone_map_bottom_dock_item_spacing"
+                android:layout_marginEnd="@dimen/phone_map_bottom_dock_item_spacing"
+                android:minWidth="76dp"
+                android:gravity="center"
+                android:textColor="@color/ds_color_text_primary"
+                tools:text="Alt 12 m" />
+
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/survey_waypoint_height_plus_button"
+                android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
+                android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                android:layout_marginEnd="@dimen/phone_map_bottom_dock_item_spacing"
+                android:background="@drawable/bg_bottom_dock_button"
+                android:contentDescription="@string/survey_waypoint_height_increase"
+                android:padding="@dimen/phone_map_bottom_dock_icon_padding"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_add_24"
+                android:tint="@android:color/white" />
+
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/survey_waypoint_delete_button"
+                android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
+                android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                android:background="@drawable/bg_bottom_dock_button"
+                android:contentDescription="@string/survey_waypoint_delete"
+                android:padding="@dimen/phone_map_bottom_dock_icon_padding"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_delete_24"
+                android:tint="@android:color/white" />
+
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/survey_waypoint_cancel_button"
+                android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
+                android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                android:layout_marginStart="@dimen/phone_map_bottom_dock_item_spacing"
+                android:background="@drawable/bg_bottom_dock_button"
+                android:contentDescription="@string/survey_waypoint_cancel"
+                android:padding="@dimen/phone_map_bottom_dock_icon_padding"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_baseline_cancel_24"
+                android:tint="@android:color/white" />
+        </LinearLayout>
+
+        <LinearLayout
             android:id="@+id/home_draw_action_bar"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -287,48 +363,129 @@
             android:layout_marginStart="@dimen/phone_map_overlay_card_margin"
             android:layout_marginBottom="@dimen/preview_mode_rail_bottom_margin"
             android:background="@drawable/bg_preview_mode_rail"
-            android:gravity="center_vertical"
-            android:orientation="horizontal"
+            android:gravity="start"
+            android:orientation="vertical"
+            android:padding="4dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintStart_toStartOf="parent">
 
-            <androidx.appcompat.widget.AppCompatImageButton
-                android:id="@+id/preview_mode_cycle_button"
-                android:layout_width="@dimen/preview_mode_switch_size"
+            <LinearLayout
+                android:layout_width="wrap_content"
                 android:layout_height="@dimen/preview_mode_switch_size"
-                android:background="@android:color/transparent"
-                android:contentDescription="@string/preview_mode_next_ortho"
-                android:elevation="10dp"
-                android:padding="@dimen/preview_mode_switch_padding"
-                android:scaleType="centerInside"
-                android:src="@drawable/ic_ortho_24"
-                android:tint="@android:color/white" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal">
 
-            <androidx.appcompat.widget.AppCompatImageButton
-                android:id="@+id/preview_asset_primary_button"
-                android:layout_width="@dimen/preview_mode_switch_size"
-                android:layout_height="@dimen/preview_mode_switch_size"
-                android:background="@android:color/transparent"
-                android:contentDescription="@string/ortho_load_image"
-                android:elevation="10dp"
-                android:padding="@dimen/preview_mode_switch_padding"
-                android:scaleType="centerInside"
-                android:src="@drawable/baseline_load_file_24"
-                android:tint="@android:color/white"
-                android:visibility="gone" />
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/preview_mode_cycle_button"
+                    android:layout_width="@dimen/preview_mode_switch_size"
+                    android:layout_height="@dimen/preview_mode_switch_size"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/preview_mode_next_ortho"
+                    android:elevation="10dp"
+                    android:padding="@dimen/preview_mode_switch_padding"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_ortho_24"
+                    android:tint="@android:color/white" />
 
-            <androidx.appcompat.widget.AppCompatImageButton
-                android:id="@+id/preview_asset_secondary_button"
-                android:layout_width="@dimen/preview_mode_switch_size"
+                <TextView
+                    android:id="@+id/preview_mode_cycle_label"
+                    style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:text="@string/preview_mode_next_ortho"
+                    android:textColor="@color/ds_color_text_primary" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/preview_asset_primary_row"
+                android:layout_width="wrap_content"
                 android:layout_height="@dimen/preview_mode_switch_size"
-                android:background="@android:color/transparent"
-                android:contentDescription="@string/ortho_load_world"
-                android:elevation="10dp"
-                android:padding="@dimen/preview_mode_switch_padding"
-                android:scaleType="centerInside"
-                android:src="@drawable/ic_menu_map"
-                android:tint="@android:color/white"
-                android:visibility="gone" />
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/preview_asset_primary_button"
+                    android:layout_width="@dimen/preview_mode_switch_size"
+                    android:layout_height="@dimen/preview_mode_switch_size"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/ortho_load_image"
+                    android:elevation="10dp"
+                    android:padding="@dimen/preview_mode_switch_padding"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/baseline_load_file_24"
+                    android:tint="@android:color/white" />
+
+                <TextView
+                    android:id="@+id/preview_asset_primary_label"
+                    style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:text="@string/ortho_load_image"
+                    android:textColor="@color/ds_color_text_primary" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/preview_asset_secondary_row"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/preview_mode_switch_size"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/preview_asset_secondary_button"
+                    android:layout_width="@dimen/preview_mode_switch_size"
+                    android:layout_height="@dimen/preview_mode_switch_size"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/ortho_load_world"
+                    android:elevation="10dp"
+                    android:padding="@dimen/preview_mode_switch_padding"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_menu_map"
+                    android:tint="@android:color/white" />
+
+                <TextView
+                    android:id="@+id/preview_asset_secondary_label"
+                    style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:text="@string/ortho_load_world"
+                    android:textColor="@color/ds_color_text_primary" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/preview_color_mode_row"
+                android:layout_width="wrap_content"
+                android:layout_height="@dimen/preview_mode_switch_size"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/preview_color_mode_button"
+                    android:layout_width="@dimen/preview_mode_switch_size"
+                    android:layout_height="@dimen/preview_mode_switch_size"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/preview_height_color_mode"
+                    android:elevation="10dp"
+                    android:padding="@dimen/preview_mode_switch_padding"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_survey_modified"
+                    android:tint="@android:color/white" />
+
+                <TextView
+                    android:id="@+id/preview_color_mode_label"
+                    style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:text="@string/preview_height_color_mode"
+                    android:textColor="@color/ds_color_text_primary" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/preview_terrain_status"

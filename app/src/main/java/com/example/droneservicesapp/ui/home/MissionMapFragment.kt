@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.graphics.Color
 import android.graphics.Typeface
 import android.provider.OpenableColumns
 import android.util.Log
@@ -197,6 +198,8 @@ class MissionMapFragment : Fragment() {
     private var previewAssetLoadJob: Job? = null
     private var activePreviewMode: PreviewMode = PreviewMode.MAP
     private var homeOrthoOverlay: OrthoImageOverlay? = null
+    private var selectedSurveyWaypointIndex: Int? = null
+    private var previewHeightColorModeEnabled: Boolean = false
 
     private enum class PreviewMode {
         MAP,
@@ -242,6 +245,7 @@ class MissionMapFragment : Fragment() {
         private const val KEY_ORTHO_WORLD_NAME = "ortho_world_name"
         private const val KEY_POINT_CLOUD_URI = "point_cloud_uri"
         private const val KEY_POINT_CLOUD_NAME = "point_cloud_name"
+        private val SUPPORTED_POINT_CLOUD_EXTENSIONS = listOf(".ply", ".pcd", ".csv", ".txt", ".xyz")
         private const val VALUES_PER_MISSION_VERTEX = 3
         private const val VERTICES_PER_MISSION_LINE = 2
         private const val MIN_POINT_CLOUD_MISSION_Z_OFFSET = 0.5f
@@ -306,6 +310,10 @@ class MissionMapFragment : Fragment() {
 
         osmdroidMapController = OsmdroidMapController(requireContext(), mapView)
         osmdroidMapController.initOverlays()
+        osmdroidMapController.setSurveyWaypointEditCallbacks(
+            onSelected = { index -> onSurveyWaypointSelected(index) },
+            onMoved = { index, point -> onSurveyWaypointMoved(index, point) }
+        )
 
         osmdroidPolygonEditor = OsmdroidPolygonEditor(requireActivity(), activityViewModel, mapView)
         osmdroidPolygonEditor.init()
@@ -529,6 +537,25 @@ class MissionMapFragment : Fragment() {
         requireView().findViewById<TextView?>(R.id.right_panel_undo_route_button)?.setOnClickListener {
             activityViewModel.undoLastRouteWaypoint()
         }
+
+        binding.surveyWaypointDeleteButton.setOnClickListener {
+            val selectedIndex = selectedSurveyWaypointIndex ?: return@setOnClickListener
+            activityViewModel.removeSurveyWaypoint(selectedIndex)
+            osmdroidMapController.clearSelectedSurveyWaypoint()
+            updateFlightDistance(activityViewModel.surveyPath.value.orEmpty())
+            renderCurrentSurveyPathOnMap()
+            Toast.makeText(requireContext(), getString(R.string.survey_waypoint_deleted), Toast.LENGTH_SHORT).show()
+        }
+
+        binding.surveyWaypointCancelButton.setOnClickListener {
+            osmdroidMapController.clearSelectedSurveyWaypoint()
+        }
+        binding.surveyWaypointHeightMinusButton.setOnClickListener {
+            adjustSelectedSurveyWaypointHeight(deltaMeters = -1.0)
+        }
+        binding.surveyWaypointHeightPlusButton.setOnClickListener {
+            adjustSelectedSurveyWaypointHeight(deltaMeters = 1.0)
+        }
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
     }
 
@@ -546,6 +573,13 @@ class MissionMapFragment : Fragment() {
                 PreviewMode.ORTHO -> openPreviewFilePicker(REQUEST_HOME_OPEN_WORLD)
                 PreviewMode.POINT_CLOUD -> binding.homePointCloudGlView.resetCamera()
             }
+        }
+        binding.previewColorModeButton.setOnClickListener {
+            previewHeightColorModeEnabled = !previewHeightColorModeEnabled
+            binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
+            renderCurrentSurveyPathOnMap()
+            updatePointCloudMissionOverlay()
+            renderPreviewMode()
         }
     }
 
@@ -655,6 +689,7 @@ class MissionMapFragment : Fragment() {
             osmdroidObstacleEditor.cancelPlacement()
             renderWorkflowSelection(workflow)
             updateRouteEditorEnabled()
+            updateSurveyWaypointEditorEnabled()
             updateGeoAwarenessPlanningStatus()
         }
     }
@@ -823,6 +858,83 @@ class MissionMapFragment : Fragment() {
         if (!::osmdroidRouteWaypointEditor.isInitialized) return
         osmdroidRouteWaypointEditor.setEnabled(
             activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS
+        )
+    }
+
+    private fun updateSurveyWaypointEditorEnabled() {
+        if (!::osmdroidMapController.isInitialized) return
+        val enabled =
+            activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
+                activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
+                activityViewModel.surveyPath.value.orEmpty().isNotEmpty()
+        osmdroidMapController.setSurveyWaypointEditingEnabled(enabled)
+        if (!enabled) {
+            onSurveyWaypointSelected(null)
+        }
+    }
+
+    private fun onSurveyWaypointSelected(index: Int?) {
+        if (_binding == null) return
+        selectedSurveyWaypointIndex = index
+        binding.surveyWaypointEditDock.visibility = if (index == null) View.GONE else View.VISIBLE
+        updateSelectedSurveyWaypointHeightLabel()
+        if (index != null) {
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.survey_waypoint_selected, index + 1),
+                Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
+    private fun onSurveyWaypointMoved(index: Int, point: LatLng) {
+        val terrainWaypoint = resampleTerrainWaypoint(point)
+        activityViewModel.updateSurveyWaypoint(index, point, terrainWaypoint)
+        updateFlightDistance(activityViewModel.surveyPath.value.orEmpty())
+        renderCurrentSurveyPathOnMap()
+    }
+
+    private fun adjustSelectedSurveyWaypointHeight(deltaMeters: Double) {
+        val index = selectedSurveyWaypointIndex ?: return
+        val currentAltitude = selectedSurveyWaypointAltitude(index) ?: return
+        activityViewModel.updateSurveyWaypointAltitude(index, currentAltitude + deltaMeters)
+        updateSelectedSurveyWaypointHeightLabel()
+        updatePointCloudMissionOverlay()
+        renderCurrentSurveyPathOnMap()
+    }
+
+    private fun updateSelectedSurveyWaypointHeightLabel() {
+        val index = selectedSurveyWaypointIndex
+        val altitude = index?.let { selectedSurveyWaypointAltitude(it) } ?: 0.0
+        binding.surveyWaypointHeightLabel.text = getString(R.string.survey_waypoint_height_label, altitude)
+    }
+
+    private fun selectedSurveyWaypointAltitude(index: Int): Double? {
+        val terrainPath = activityViewModel.terrainSurveyWaypoints.value.orEmpty()
+        if (index in terrainPath.indices) {
+            return terrainPath[index].missionAltitudeMeters
+        }
+        val path = activityViewModel.surveyPath.value.orEmpty()
+        if (index !in path.indices) return null
+        return activityViewModel.surveyHeightAboveTerrain.value ?: 0.0
+    }
+
+    private fun resampleTerrainWaypoint(point: LatLng): TerrainWaypoint? {
+        if (activityViewModel.terrainSurveyWaypoints.value.orEmpty().isEmpty()) return null
+        val terrainModel = previewAssetsViewModel.pointCloudTerrainModel ?: return null
+        val frame = terrainModel.coordinateFrame ?: return null
+        val params = activityViewModel.surveyGridParams.value ?: return null
+        val (xMeters, yMeters) = frame.latLonToLocal(point.latitude, point.longitude)
+        val terrainZ = terrainModel.terrainHeightAt(
+            xMeters = xMeters,
+            yMeters = yMeters,
+            canopyRadiusMeters = params.canopySmoothingMeters.toDouble()
+        )
+        val missionAltitude = terrainZ + params.heightAboveTerrainMeters.toDouble()
+        return TerrainWaypoint(
+            latLon = LatLon(point.latitude, point.longitude),
+            displayAltitudeMeters = missionAltitude,
+            missionAltitudeMeters = missionAltitude
         )
     }
 
@@ -1025,8 +1137,12 @@ class MissionMapFragment : Fragment() {
                 activityViewModel.planningOperationMode.value == PlanningOperationMode.SURVEY
             ) {
                 savePreference(getString(R.string.survey_height_above_terrain_pref), height?.toInt().toString())
+                if (activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA) {
+                    redrawAreaMissionOnMap()
+                }
             }
             updateGeoAwarenessPlanningStatus()
+            updateSelectedSurveyWaypointHeightLabel()
         }
 
         activityViewModel.surveyOverlapPercent.observe(viewLifecycleOwner) { overlap ->
@@ -1077,6 +1193,7 @@ class MissionMapFragment : Fragment() {
             val hasPolygon = (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
             val hasRoute = activityViewModel.routeWaypoints.value.orEmpty().size >= 2
             mapViewModel.setMissionAreaAvailable(hasPolygon || hasRoute || !surveyPath.isNullOrEmpty())
+            updateSurveyWaypointEditorEnabled()
             updateGeoAwarenessPlanningStatus()
             updateMissionSummaryCard()
             updatePointCloudMissionOverlay()
@@ -1097,10 +1214,12 @@ class MissionMapFragment : Fragment() {
             updateRouteSummary()
             updateGeoAwarenessPlanningStatus()
             updatePointCloudMissionOverlay()
+            updateSurveyWaypointEditorEnabled()
         }
 
         activityViewModel.mapState.observe(viewLifecycleOwner) { mapState ->
             mapViewModel.updateFromMapState(mapState)
+            updateSurveyWaypointEditorEnabled()
             if (mapState == MainActivityViewModel.MapState.SetFlightParams) {
                 hideObstaclePanel()
             }
@@ -1289,7 +1408,11 @@ class MissionMapFragment : Fragment() {
         val path = activityViewModel.surveyPath.value.orEmpty()
         val areaVertices = activityViewModel.missionArea.value?.vertices.orEmpty()
         if (path.size >= 2) {
-            osmdroidMapController.setSurveyPath(path, areaVertices)
+            osmdroidMapController.setSurveyPath(
+                path = path,
+                areaVertices = areaVertices,
+                segmentColors = mapSurveyHeightSegmentColors(path)
+            )
         } else {
             osmdroidMapController.clearSurveyPath()
         }
@@ -1307,6 +1430,7 @@ class MissionMapFragment : Fragment() {
     private fun refreshPreviewAssets() {
         previewAssetsViewModel.pointCloudAsset?.pointCloud?.let { pointCloud ->
             binding.homePointCloudGlView.setPointCloud(pointCloud)
+            binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
         }
         renderPreviewMode()
     }
@@ -1320,8 +1444,10 @@ class MissionMapFragment : Fragment() {
                 removeHomeOrthoOverlay()
                 binding.previewModeCycleButton.setImageResource(R.drawable.ic_ortho_24)
                 binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_ortho)
-                binding.previewAssetPrimaryButton.visibility = View.GONE
-                binding.previewAssetSecondaryButton.visibility = View.GONE
+                binding.previewModeCycleLabel.text = getString(R.string.preview_mode_next_ortho)
+                binding.previewAssetPrimaryRow.visibility = View.GONE
+                binding.previewAssetSecondaryRow.visibility = View.GONE
+                binding.previewColorModeRow.visibility = View.GONE
                 binding.previewTerrainStatus.visibility = View.GONE
                 binding.osmMap.overlayManager.tilesOverlay?.isEnabled = true
                 renderCurrentSurveyPathOnMap()
@@ -1332,12 +1458,17 @@ class MissionMapFragment : Fragment() {
                 renderHomeOrthoOverlay()
                 binding.previewModeCycleButton.setImageResource(R.drawable.ic_point_cloud_24)
                 binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_3d)
-                binding.previewAssetPrimaryButton.visibility = View.VISIBLE
-                binding.previewAssetSecondaryButton.visibility = View.VISIBLE
+                binding.previewModeCycleLabel.text = getString(R.string.preview_mode_next_3d)
+                binding.previewAssetPrimaryRow.visibility = View.VISIBLE
+                binding.previewAssetSecondaryRow.visibility = View.VISIBLE
+                binding.previewColorModeRow.visibility = View.VISIBLE
                 binding.previewAssetPrimaryButton.setImageResource(R.drawable.baseline_load_file_24)
                 binding.previewAssetSecondaryButton.setImageResource(R.drawable.ic_menu_map)
                 binding.previewAssetPrimaryButton.contentDescription = getString(R.string.ortho_load_image)
                 binding.previewAssetSecondaryButton.contentDescription = getString(R.string.ortho_load_world)
+                binding.previewAssetPrimaryLabel.text = getString(R.string.ortho_load_image)
+                binding.previewAssetSecondaryLabel.text = getString(R.string.ortho_load_world)
+                binding.previewColorModeLabel.text = colorModeLabel()
                 binding.previewTerrainStatus.visibility = View.GONE
                 renderCurrentSurveyPathOnMap()
             }
@@ -1346,20 +1477,35 @@ class MissionMapFragment : Fragment() {
                 binding.homePointCloudGlView.visibility = View.VISIBLE
                 binding.previewModeCycleButton.setImageResource(R.drawable.ic_menu_map)
                 binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_map)
-                binding.previewAssetPrimaryButton.visibility = View.VISIBLE
-                binding.previewAssetSecondaryButton.visibility = View.VISIBLE
+                binding.previewModeCycleLabel.text = getString(R.string.preview_mode_next_map)
+                binding.previewAssetPrimaryRow.visibility = View.VISIBLE
+                binding.previewAssetSecondaryRow.visibility = View.VISIBLE
+                binding.previewColorModeRow.visibility = View.VISIBLE
                 binding.previewAssetPrimaryButton.setImageResource(R.drawable.baseline_load_file_24)
                 binding.previewAssetSecondaryButton.setImageResource(R.drawable.ic_baseline_layers_clear_24)
                 binding.previewAssetPrimaryButton.contentDescription = getString(R.string.point_cloud_load)
                 binding.previewAssetSecondaryButton.contentDescription = getString(R.string.point_cloud_reset)
+                binding.previewAssetPrimaryLabel.text = getString(R.string.point_cloud_load)
+                binding.previewAssetSecondaryLabel.text = getString(R.string.point_cloud_reset)
+                binding.previewColorModeLabel.text = colorModeLabel()
                 renderTerrainGridStatus()
                 previewAssetsViewModel.pointCloudAsset?.pointCloud?.let { pointCloud ->
                     binding.homePointCloudGlView.setPointCloud(pointCloud)
+                    binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
                 }
                 updatePointCloudMissionOverlay()
             }
         }
     }
+
+    private fun colorModeLabel(): String =
+        getString(
+            if (previewHeightColorModeEnabled) {
+                R.string.preview_original_color_mode
+            } else {
+                R.string.preview_height_color_mode
+            }
+        )
 
     private fun renderTerrainGridStatus() {
         val summary = previewAssetsViewModel.pointCloudTerrainSummary
@@ -1598,6 +1744,21 @@ class MissionMapFragment : Fragment() {
             ?.map { it.displayAltitudeMeters.toFloat() }
     }
 
+    private fun mapSurveyHeightSegmentColors(surveyPoints: List<LatLng>): List<Int>? {
+        if (!previewHeightColorModeEnabled || surveyPoints.size < 2) return null
+        val heights = activityViewModel.terrainSurveyWaypoints.value.orEmpty()
+            .takeIf { it.size == surveyPoints.size && it.isNotEmpty() }
+            ?.map { it.missionAltitudeMeters }
+            ?: return null
+        val minHeight = heights.minOrNull() ?: return null
+        val maxHeight = heights.maxOrNull() ?: return null
+        val range = (maxHeight - minHeight).coerceAtLeast(0.1)
+        return heights.zipWithNext().map { (from, to) ->
+            val t = ((((from + to) / 2.0) - minHeight) / range).coerceIn(0.0, 1.0).toFloat()
+            Color.HSVToColor(floatArrayOf(220f - 180f * t, 0.9f, 1.0f))
+        }
+    }
+
     private fun addPointCloudLocalVertex(
         x: Double,
         y: Double,
@@ -1712,7 +1873,7 @@ class MissionMapFragment : Fragment() {
 
     private fun loadHomePointCloud(uri: Uri) {
         val fileName = queryPreviewDisplayName(uri) ?: getString(R.string.point_cloud_unknown_file)
-        if (!fileName.lowercase(Locale.US).endsWith(".ply")) {
+        if (!isSupportedPointCloudFile(fileName)) {
             Toast.makeText(requireContext(), R.string.point_cloud_select_ply, Toast.LENGTH_SHORT).show()
             return
         }
@@ -1722,7 +1883,7 @@ class MissionMapFragment : Fragment() {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     requireContext().contentResolver.openInputStream(uri)?.use { stream ->
-                        pointCloudParser.parse(stream)
+                        pointCloudParser.parse(stream, fileName)
                     } ?: error("Could not open file.")
                 }
             }
@@ -1731,6 +1892,7 @@ class MissionMapFragment : Fragment() {
                 saveHomePointCloudReference(uri, fileName)
                 activePreviewMode = PreviewMode.POINT_CLOUD
                 binding.homePointCloudGlView.setPointCloud(pointCloud)
+                binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
                 warmPointCloudTerrainGrid(showToast = true)
                 updatePointCloudMissionOverlay()
                 renderPreviewMode()
@@ -1793,13 +1955,14 @@ class MissionMapFragment : Fragment() {
                     val result = runCatching {
                         withContext(Dispatchers.IO) {
                             requireContext().contentResolver.openInputStream(pointCloudUri)?.use { stream ->
-                                pointCloudParser.parse(stream)
+                                pointCloudParser.parse(stream, pointCloudName)
                             } ?: error("Could not open file.")
                         }
                     }
                     result.onSuccess { pointCloud ->
                         previewAssetsViewModel.setPointCloud(pointCloud, pointCloudName, pointCloudUri)
                         binding.homePointCloudGlView.setPointCloud(pointCloud)
+                        binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
                         warmPointCloudTerrainGrid(showToast = false)
                         updatePointCloudMissionOverlay()
                     }
@@ -1843,6 +2006,11 @@ class MissionMapFragment : Fragment() {
             val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
             if (cursor.moveToFirst() && nameIndex >= 0) cursor.getString(nameIndex) else null
         }
+    }
+
+    private fun isSupportedPointCloudFile(fileName: String): Boolean {
+        val lowerName = fileName.lowercase(Locale.US)
+        return SUPPORTED_POINT_CLOUD_EXTENSIONS.any { extension -> lowerName.endsWith(extension) }
     }
 
     private fun persistPreviewReadPermission(uri: Uri, flags: Int) {

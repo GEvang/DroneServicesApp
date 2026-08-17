@@ -116,4 +116,47 @@ class PlyPointCloudParserTest {
         assertTrue(cloud.bounds.spanY > 200f)
         assertEquals(10f, cloud.bounds.spanZ, 0.001f)
     }
+
+    @Test
+    fun parseDelimitedCsvPointCloud() {
+        val csv = """
+            # x,y,z
+            0,0,10
+            2,4,14
+            4,8,18
+        """.trimIndent().toByteArray()
+
+        val cloud = PlyPointCloudParser().parse(csv, "terrain.csv")
+
+        assertEquals(3, cloud.totalPointCount)
+        assertEquals(3, cloud.displayedPointCount)
+        assertFalse(cloud.hasRgb)
+        assertEquals(0f, cloud.bounds.minX, 0.001f)
+        assertEquals(18f, cloud.bounds.maxZ, 0.001f)
+    }
+
+    @Test
+    fun parseAsciiPcdPointCloud() {
+        val pcd = """
+            # .PCD v0.7
+            VERSION 0.7
+            FIELDS x y z intensity
+            SIZE 4 4 4 4
+            TYPE F F F F
+            COUNT 1 1 1 1
+            WIDTH 2
+            HEIGHT 1
+            POINTS 2
+            DATA ascii
+            10 20 30 1
+            12 24 36 2
+        """.trimIndent().toByteArray()
+
+        val cloud = PlyPointCloudParser().parse(pcd, "terrain.pcd")
+
+        assertEquals(2, cloud.totalPointCount)
+        assertEquals(2, cloud.displayedPointCount)
+        assertEquals(10f, cloud.bounds.minX, 0.001f)
+        assertEquals(36f, cloud.bounds.maxZ, 0.001f)
+    }
 }

@@ -20,6 +20,25 @@ class PlyPointCloudParser(
         return parse(bytes)
     }
 
+    fun parse(inputStream: InputStream, fileName: String): PointCloudData {
+        val bytes = inputStream.use { stream ->
+            ByteArrayOutputStream().use { output ->
+                stream.copyTo(output)
+                output.toByteArray()
+            }
+        }
+        return parse(bytes, fileName)
+    }
+
+    fun parse(bytes: ByteArray, fileName: String): PointCloudData {
+        return when (fileName.substringAfterLast('.', "").lowercase()) {
+            "ply" -> parse(bytes)
+            "xyz", "csv", "txt" -> parseDelimitedText(bytes)
+            "pcd" -> parseAsciiPcd(bytes)
+            else -> error("Unsupported point cloud format: $fileName")
+        }
+    }
+
     fun parse(bytes: ByteArray): PointCloudData {
         val headerEnd = findHeaderEnd(bytes)
         val headerText = bytes.copyOfRange(0, headerEnd.headerLength)
@@ -235,6 +254,87 @@ class PlyPointCloudParser(
             colors[offset + 1] = 1f - kotlin.math.abs(t - 0.5f)
             colors[offset + 2] = 1f - t
         }
+    }
+
+    private fun parseDelimitedText(bytes: ByteArray): PointCloudData {
+        val rows = bytes.toString(StandardCharsets.UTF_8)
+            .lineSequence()
+            .mapNotNull { line -> parseDelimitedPoint(line) }
+            .toList()
+        require(rows.isNotEmpty()) { "No x/y/z points found." }
+        return buildPointCloudFromRows(rows)
+    }
+
+    private fun parseAsciiPcd(bytes: ByteArray): PointCloudData {
+        val text = bytes.toString(StandardCharsets.UTF_8)
+        val lines = text.lineSequence().toList()
+        val fields = lines.firstOrNull { it.trim().startsWith("FIELDS", ignoreCase = true) }
+            ?.trim()
+            ?.split(Regex("\\s+"))
+            ?.drop(1)
+            ?: error("PCD missing FIELDS header.")
+        val dataIndex = lines.indexOfFirst { it.trim().startsWith("DATA", ignoreCase = true) }
+        require(dataIndex >= 0) { "PCD missing DATA header." }
+        val dataMode = lines[dataIndex].trim().split(Regex("\\s+")).getOrNull(1)?.lowercase()
+        require(dataMode == "ascii") { "Only ASCII PCD files are supported." }
+
+        val xIndex = fields.indexOf("x")
+        val yIndex = fields.indexOf("y")
+        val zIndex = fields.indexOf("z")
+        require(xIndex >= 0 && yIndex >= 0 && zIndex >= 0) { "PCD missing x/y/z fields." }
+
+        val rows = lines.asSequence()
+            .drop(dataIndex + 1)
+            .mapNotNull { line ->
+                val parts = line.trim().split(Regex("\\s+"))
+                if (parts.size <= maxOf(xIndex, yIndex, zIndex)) {
+                    null
+                } else {
+                    val x = parts[xIndex].toFloatOrNull()
+                    val y = parts[yIndex].toFloatOrNull()
+                    val z = parts[zIndex].toFloatOrNull()
+                    if (x == null || y == null || z == null) null else floatArrayOf(x, y, z)
+                }
+            }
+            .toList()
+        require(rows.isNotEmpty()) { "No PCD x/y/z points found." }
+        return buildPointCloudFromRows(rows)
+    }
+
+    private fun parseDelimitedPoint(line: String): FloatArray? {
+        val trimmed = line.trim()
+        if (trimmed.isBlank() || trimmed.startsWith("#")) return null
+        val parts = trimmed.split(Regex("[,;\\s]+")).filter { it.isNotBlank() }
+        if (parts.size < 3) return null
+        val x = parts[0].toFloatOrNull() ?: return null
+        val y = parts[1].toFloatOrNull() ?: return null
+        val z = parts[2].toFloatOrNull() ?: return null
+        return floatArrayOf(x, y, z)
+    }
+
+    private fun buildPointCloudFromRows(rows: List<FloatArray>): PointCloudData {
+        val stride = displayStride(rows.size)
+        val displayedCount = displayedCount(rows.size, stride)
+        val positions = FloatArray(displayedCount * VALUES_PER_POINT)
+        val colors = FloatArray(displayedCount * VALUES_PER_POINT)
+        val state = ParseState()
+        var displayIndex = 0
+
+        rows.forEachIndexed { pointIndex, row ->
+            val x = row[0]
+            val y = row[1]
+            val z = row[2]
+            state.includeInBounds(x, y, z)
+            if (pointIndex % stride == 0) {
+                val offset = displayIndex * VALUES_PER_POINT
+                positions[offset] = x
+                positions[offset + 1] = y
+                positions[offset + 2] = z
+                displayIndex++
+            }
+        }
+
+        return buildPointCloud(positions, colors, displayIndex, rows.size, state)
     }
 
     private fun findHeaderEnd(bytes: ByteArray): HeaderEnd {

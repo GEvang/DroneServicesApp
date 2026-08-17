@@ -132,7 +132,7 @@ class PointCloudViewerFragment : Fragment() {
 
     private fun loadPointCloud(uri: Uri) {
         val fileName = queryDisplayName(uri) ?: getString(R.string.point_cloud_unknown_file)
-        if (!fileName.lowercase(Locale.US).endsWith(".ply")) {
+        if (!isSupportedPointCloudFile(fileName)) {
             Toast.makeText(requireContext(), R.string.point_cloud_select_ply, Toast.LENGTH_SHORT).show()
             return
         }
@@ -144,7 +144,7 @@ class PointCloudViewerFragment : Fragment() {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     requireContext().contentResolver.openInputStream(uri)?.use { stream ->
-                        parser.parse(stream)
+                        parser.parse(stream, fileName)
                     } ?: error("Could not open file.")
                 }
             }
@@ -191,7 +191,7 @@ class PointCloudViewerFragment : Fragment() {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     requireContext().contentResolver.openInputStream(uri)?.use { stream ->
-                        parser.parse(stream)
+                        parser.parse(stream, fileName)
                     } ?: error("Could not open file.")
                 }
             }
@@ -542,6 +542,11 @@ class PointCloudViewerFragment : Fragment() {
         }
     }
 
+    private fun isSupportedPointCloudFile(fileName: String): Boolean {
+        val lowerName = fileName.lowercase(Locale.US)
+        return SUPPORTED_POINT_CLOUD_EXTENSIONS.any { extension -> lowerName.endsWith(extension) }
+    }
+
     private fun persistReadPermission(uri: Uri, flags: Int) {
         val readFlags = flags and Intent.FLAG_GRANT_READ_URI_PERMISSION
         if (readFlags == 0) return
@@ -564,6 +569,7 @@ class PointCloudViewerFragment : Fragment() {
         private const val KEY_POINT_CLOUD_URI = "point_cloud_uri"
         private const val KEY_POINT_CLOUD_NAME = "point_cloud_name"
         private const val REQUEST_OPEN_PLY = 2201
+        private val SUPPORTED_POINT_CLOUD_EXTENSIONS = listOf(".ply", ".pcd", ".csv", ".txt", ".xyz")
         private const val VALUES_PER_VERTEX = 3
         private const val VERTICES_PER_LINE = 2
         private const val MIN_MISSION_OVERLAY_Z_OFFSET = 0.5f

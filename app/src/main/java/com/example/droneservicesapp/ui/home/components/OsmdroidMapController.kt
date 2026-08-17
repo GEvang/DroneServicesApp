@@ -17,8 +17,10 @@ import com.example.droneservicesapp.R
 import com.example.droneservicesapp.ui.preview.buildSurveyDirectionSegments
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.SphericalUtil
+import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
+import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
@@ -55,11 +57,18 @@ class OsmdroidMapController(
     private var isDroneOffsetDragActive = false
     private var isDraggingDroneOffset = false
     private var surveyPolyline: Polyline? = null
+    private val surveySegmentPolylines = mutableListOf<Polyline>()
     private val surveyDirectionMarkers = mutableListOf<Marker>()
     private val surveyWaypointMarkers = mutableListOf<Marker>()
     private val surveyInfoMarkers = mutableListOf<Marker>()
     private var directionArrowIcon: BitmapDrawable? = null
     private var surveyWaypointIcon: BitmapDrawable? = null
+    private var selectedSurveyWaypointIcon: BitmapDrawable? = null
+    private var selectedSurveyWaypointIndex: Int? = null
+    private var waypointEditingEnabled = false
+    private var waypointEventsOverlay: MapEventsOverlay? = null
+    private var onSurveyWaypointSelected: ((index: Int?) -> Unit)? = null
+    private var onSurveyWaypointMoved: ((index: Int, point: LatLng) -> Unit)? = null
     private var homeMarker: Marker? = null
     private var flightTracePolyline: Polyline? = null
     private val flightTracePoints = mutableListOf<GeoPoint>()
@@ -80,6 +89,18 @@ class OsmdroidMapController(
             icon = createDroneMarkerIcon(isOffsetActive = false)
         }
         mapView.overlays.add(droneMarker)
+
+        waypointEventsOverlay = MapEventsOverlay(object : MapEventsReceiver {
+            override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
+                val selectedIndex = selectedSurveyWaypointIndex ?: return false
+                if (!waypointEditingEnabled) return false
+                onSurveyWaypointMoved?.invoke(selectedIndex, LatLng(p.latitude, p.longitude))
+                return true
+            }
+
+            override fun longPressHelper(p: GeoPoint): Boolean = false
+        })
+        mapView.overlays.add(waypointEventsOverlay)
 
         requestMapRedraw()
     }
@@ -305,7 +326,14 @@ class OsmdroidMapController(
         requestMapRedraw()
     }
 
-    fun setSurveyPath(path: List<LatLng>, areaVertices: List<LatLng> = emptyList()) {
+    fun setSurveyPath(
+        path: List<LatLng>,
+        areaVertices: List<LatLng> = emptyList(),
+        segmentColors: List<Int>? = null
+    ) {
+        if (selectedSurveyWaypointIndex != null && selectedSurveyWaypointIndex !in path.indices) {
+            clearSelectedSurveyWaypoint()
+        }
         if (surveyPolyline == null) {
             surveyPolyline = Polyline(mapView).apply {
                 outlinePaint.color = ContextCompat.getColor(context, R.color.ds_color_shell_active)
@@ -315,7 +343,13 @@ class OsmdroidMapController(
         }
 
         val geoPoints = path.map { GeoPoint(it.latitude, it.longitude) }
-        surveyPolyline?.setPoints(geoPoints)
+        if (segmentColors != null && segmentColors.size >= path.size - 1) {
+            surveyPolyline?.setPoints(emptyList())
+            renderSurveySegmentPolylines(path, segmentColors)
+        } else {
+            clearSurveySegmentPolylines()
+            surveyPolyline?.setPoints(geoPoints)
+        }
         renderSurveyWaypointMarkers(path)
         renderSurveyDirectionMarkers(path)
         renderSurveyInfoMarkers(areaVertices)
@@ -323,10 +357,36 @@ class OsmdroidMapController(
     }
 
     fun clearSurveyPath() {
+        clearSelectedSurveyWaypoint()
         surveyPolyline?.setPoints(emptyList())
+        clearSurveySegmentPolylines()
         clearSurveyDirectionMarkers()
         clearSurveyWaypointMarkers()
         clearSurveyInfoMarkers()
+        requestMapRedraw()
+    }
+
+    fun setSurveyWaypointEditingEnabled(enabled: Boolean) {
+        if (waypointEditingEnabled == enabled) return
+        waypointEditingEnabled = enabled
+        if (!enabled) {
+            clearSelectedSurveyWaypoint()
+        }
+    }
+
+    fun setSurveyWaypointEditCallbacks(
+        onSelected: (index: Int?) -> Unit,
+        onMoved: (index: Int, point: LatLng) -> Unit
+    ) {
+        onSurveyWaypointSelected = onSelected
+        onSurveyWaypointMoved = onMoved
+    }
+
+    fun clearSelectedSurveyWaypoint() {
+        if (selectedSurveyWaypointIndex == null) return
+        selectedSurveyWaypointIndex = null
+        onSurveyWaypointSelected?.invoke(null)
+        renderSelectedSurveyWaypointIcon()
         requestMapRedraw()
     }
 
@@ -377,15 +437,38 @@ class OsmdroidMapController(
 
     private fun renderSurveyWaypointMarkers(path: List<LatLng>) {
         clearSurveyWaypointMarkers()
-        path.forEach { point ->
-            if (!isValidMapPoint(point.latitude, point.longitude)) return@forEach
+        path.forEachIndexed { index, point ->
+            if (!isValidMapPoint(point.latitude, point.longitude)) return@forEachIndexed
             val marker = Marker(mapView).apply {
                 position = GeoPoint(point.latitude, point.longitude)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                icon = surveyWaypointIcon ?: createSurveyWaypointIcon().also { surveyWaypointIcon = it }
+                icon = surveyWaypointIconFor(index)
+                setOnMarkerClickListener { _, _ ->
+                    if (!waypointEditingEnabled) return@setOnMarkerClickListener false
+                    selectedSurveyWaypointIndex = if (selectedSurveyWaypointIndex == index) null else index
+                    onSurveyWaypointSelected?.invoke(selectedSurveyWaypointIndex)
+                    renderSelectedSurveyWaypointIcon()
+                    requestMapRedraw()
+                    true
+                }
             }
             surveyWaypointMarkers += marker
             mapView.overlays.add(marker)
+        }
+    }
+
+    private fun renderSelectedSurveyWaypointIcon() {
+        surveyWaypointMarkers.forEachIndexed { index, marker ->
+            marker.icon = surveyWaypointIconFor(index)
+        }
+    }
+
+    private fun surveyWaypointIconFor(index: Int): BitmapDrawable {
+        return if (index == selectedSurveyWaypointIndex) {
+            selectedSurveyWaypointIcon ?: createSurveyWaypointIcon(selected = true)
+                .also { selectedSurveyWaypointIcon = it }
+        } else {
+            surveyWaypointIcon ?: createSurveyWaypointIcon(selected = false).also { surveyWaypointIcon = it }
         }
     }
 
@@ -397,6 +480,24 @@ class OsmdroidMapController(
     private fun clearSurveyWaypointMarkers() {
         mapView.overlays.removeAll(surveyWaypointMarkers)
         surveyWaypointMarkers.clear()
+    }
+
+    private fun renderSurveySegmentPolylines(path: List<LatLng>, colors: List<Int>) {
+        clearSurveySegmentPolylines()
+        path.zipWithNext().forEachIndexed { index, (from, to) ->
+            val polyline = Polyline(mapView).apply {
+                setPoints(listOf(GeoPoint(from.latitude, from.longitude), GeoPoint(to.latitude, to.longitude)))
+                outlinePaint.color = colors.getOrElse(index) { ContextCompat.getColor(context, R.color.ds_color_shell_active) }
+                outlinePaint.strokeWidth = 6f
+            }
+            surveySegmentPolylines += polyline
+            mapView.overlays.add(polyline)
+        }
+    }
+
+    private fun clearSurveySegmentPolylines() {
+        mapView.overlays.removeAll(surveySegmentPolylines)
+        surveySegmentPolylines.clear()
     }
 
     private fun renderSurveyInfoMarkers(areaVertices: List<LatLng>) {
@@ -487,9 +588,10 @@ class OsmdroidMapController(
         return BitmapDrawable(context.resources, bitmap)
     }
 
-    private fun createSurveyWaypointIcon(): BitmapDrawable {
+    private fun createSurveyWaypointIcon(selected: Boolean): BitmapDrawable {
         val density = context.resources.displayMetrics.density
-        val size = (10f * density).toInt().coerceAtLeast(8)
+        val sizeDp = if (selected) 22f else 10f
+        val size = (sizeDp * density).toInt().coerceAtLeast(if (selected) 18 else 8)
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val center = size / 2f
@@ -498,12 +600,19 @@ class OsmdroidMapController(
             style = Paint.Style.FILL
         }
         val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.argb(210, 10, 15, 20)
-            strokeWidth = 1.2f * density
+            color = if (selected) Color.WHITE else Color.argb(210, 10, 15, 20)
+            strokeWidth = if (selected) 2.2f * density else 1.2f * density
             style = Paint.Style.STROKE
         }
-        canvas.drawCircle(center, center, center - 1.5f * density, fillPaint)
-        canvas.drawCircle(center, center, center - 1.5f * density, strokePaint)
+        val radius = center - if (selected) 3f * density else 1.5f * density
+        if (selected) {
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = Color.argb(120, 0, 0, 0)
+                style = Paint.Style.FILL
+            }.also { canvas.drawCircle(center, center, center - density, it) }
+        }
+        canvas.drawCircle(center, center, radius, fillPaint)
+        canvas.drawCircle(center, center, radius, strokePaint)
         return BitmapDrawable(context.resources, bitmap)
     }
 

@@ -13,7 +13,9 @@ import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.data.storage.MissionXmlParser
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
+import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
+import com.google.android.gms.maps.model.LatLng
 import java.io.File
 
 /**
@@ -104,9 +106,13 @@ class MissionLoadController(
             }
 
             val selectedFile = files[selectedPosition]
-            MissionXmlParser(activity, activityViewModel).parseXml(
-                store.openMissionInputStream(selectedFile)
-            )
+            if (selectedFile.name.endsWith(activity.getString(R.string.waypoints))) {
+                loadWaypointsFile(selectedFile)
+            } else {
+                MissionXmlParser(activity, activityViewModel).parseXml(
+                    store.openMissionInputStream(selectedFile)
+                )
+            }
         }
 
         listView.setOnItemClickListener { _, _, position, _ ->
@@ -123,9 +129,12 @@ class MissionLoadController(
             activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
         )
 
+        val waypointSuffix = activity.getString(R.string.waypoints)
         val names = files.map { file ->
             val lastDotIndex = file.name.lastIndexOf('.')
-            if (lastDotIndex > 0) {
+            if (file.name.endsWith(waypointSuffix)) {
+                file.name
+            } else if (lastDotIndex > 0) {
                 file.name.substring(0, lastDotIndex)
             } else {
                 file.name
@@ -135,4 +144,20 @@ class MissionLoadController(
         return Pair(files, names)
     }
 
+    private fun loadWaypointsFile(file: File) {
+        val items = store.parseWaypointsFile(store.openMissionInputStream(file))
+        if (items.isEmpty()) {
+            Toast.makeText(activity, activity.getString(R.string.no_survey_path_available), Toast.LENGTH_LONG).show()
+            return
+        }
+        val path = items.map { LatLng(it.latitude, it.longitude) }
+        val averageAltitude = items.map { it.altitudeMeters }.average().takeIf { !it.isNaN() } ?: 5.0
+        activityViewModel.setPlanningWorkflow(PlanningWorkflow.AREA)
+        activityViewModel.setPlanningOperationMode(PlanningOperationMode.SURVEY)
+        activityViewModel.clearPolygonVertices()
+        activityViewModel.surveyPath.postValue(path)
+        activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
+        activityViewModel.updateSurveyHeightAboveTerrain(averageAltitude.toInt().coerceIn(0, 120))
+        activityViewModel.mapState.postValue(MainActivityViewModel.MapState.SetFlightParams)
+    }
 }

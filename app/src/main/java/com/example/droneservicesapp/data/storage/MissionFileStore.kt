@@ -45,17 +45,21 @@ class MissionFileStore(
      */
     fun listMissionFiles(mode: PlanningOperationMode? = null): List<File> {
         val suffix = context.getString(R.string.DroneServicesFilePageSuffix)
+        val waypointSuffix = context.getString(R.string.waypoints)
         val scopedFiles = buildList {
             if (mode == null) {
                 addAll(baseDir.listFiles()
-                    ?.filter { it.isFile && it.name.endsWith(suffix) }
+                    ?.filter { it.isFile && (it.name.endsWith(suffix) || it.name.endsWith(waypointSuffix)) }
                     .orEmpty())
             } else {
                 addAll(modeDir(mode).listFiles()
-                    ?.filter { it.isFile && it.name.endsWith(suffix) }
+                    ?.filter { it.isFile && (it.name.endsWith(suffix) || it.name.endsWith(waypointSuffix)) }
                     .orEmpty())
                 addAll(baseDir.listFiles()
                     ?.filter { it.isFile && it.name.endsWith(suffix) && readOperationMode(it) == mode }
+                    .orEmpty())
+                addAll(baseDir.listFiles()
+                    ?.filter { it.isFile && it.name.endsWith(waypointSuffix) }
                     .orEmpty())
             }
         }
@@ -258,6 +262,75 @@ class MissionFileStore(
             false
         }
     }
+
+    fun saveWaypointsFile(
+        waypoints: List<LatLng>,
+        altitudesMeters: List<Float>?,
+        fallbackAltitudeMeters: Float,
+        planningOperationMode: PlanningOperationMode,
+        fileName: String,
+        overwrite: Boolean
+    ): Boolean {
+        if (!isValidFileName(fileName)) {
+            Log.e("MissionFileStore", "Invalid filename: $fileName (contains path separators)")
+            return false
+        }
+        if (waypoints.isEmpty()) {
+            return false
+        }
+
+        val dir = modeDir(planningOperationMode)
+        val suffix = context.getString(R.string.waypoints)
+        val normalizedName = fileName.trim().removeSuffix(suffix)
+        val file = File(dir, normalizedName.plus(suffix))
+        if (file.exists()) {
+            if (!overwrite) {
+                Log.w("MissionFileStore", "Waypoint file already exists: ${file.absolutePath}")
+                return false
+            }
+            file.delete()
+        }
+
+        return try {
+            val lines = buildList {
+                add("QGC WPL 110")
+                waypoints.forEachIndexed { index, point ->
+                    val altitude = altitudesMeters?.getOrNull(index) ?: fallbackAltitudeMeters
+                    add(
+                        listOf(
+                            index,
+                            0,
+                            3,
+                            16,
+                            0,
+                            0,
+                            0,
+                            0,
+                            String.format(Locale.US, "%.7f", point.latitude),
+                            String.format(Locale.US, "%.7f", point.longitude),
+                            String.format(Locale.US, "%.3f", altitude),
+                            1
+                        ).joinToString("\t")
+                    )
+                }
+            }
+            file.writeText(lines.joinToString(separator = System.lineSeparator()) + System.lineSeparator())
+            Log.i("MissionFileStore", "Waypoint file saved successfully: ${file.absolutePath}")
+            true
+        } catch (e: Exception) {
+            Log.e("MissionFileStore", "Failed to save waypoint file: ${e.message}", e)
+            false
+        }
+    }
+
+    fun parseWaypointsFile(inputStream: InputStream): List<WaypointFileItem> {
+        return inputStream.bufferedReader().useLines { lines ->
+            lines
+                .drop(1)
+                .mapNotNull { line -> parseWaypointLine(line) }
+                .toList()
+        }
+    }
     
     /**
      * Open an input stream for reading a mission file.
@@ -292,4 +365,23 @@ class MissionFileStore(
     private fun isValidFileName(fileName: String): Boolean {
         return !fileName.contains("/") && !fileName.contains("\\")
     }
+
+    private fun parseWaypointLine(line: String): WaypointFileItem? {
+        val trimmed = line.trim()
+        if (trimmed.isBlank() || trimmed.startsWith("#")) return null
+        val parts = trimmed.split(Regex("\\s+"))
+        if (parts.size < 12) return null
+        val command = parts[3].toIntOrNull() ?: return null
+        if (command != 16) return null
+        val latitude = parts[8].toDoubleOrNull() ?: return null
+        val longitude = parts[9].toDoubleOrNull() ?: return null
+        val altitude = parts[10].toDoubleOrNull() ?: return null
+        return WaypointFileItem(latitude, longitude, altitude)
+    }
+
+    data class WaypointFileItem(
+        val latitude: Double,
+        val longitude: Double,
+        val altitudeMeters: Double
+    )
 }

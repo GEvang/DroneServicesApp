@@ -63,6 +63,12 @@ class PointCloudGlView @JvmOverloads constructor(
         }
     }
 
+    fun setHeightColorModeEnabled(enabled: Boolean) {
+        queueEvent {
+            pointRenderer.setHeightColorModeEnabled(enabled)
+        }
+    }
+
     fun resetCamera() {
         queueEvent {
             pointRenderer.resetCamera()
@@ -154,6 +160,8 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     private var pointSizeHandle = 0
     private var positionBuffer: FloatBuffer? = null
     private var colorBuffer: FloatBuffer? = null
+    private var sourceColorBuffer: FloatBuffer? = null
+    private var heightColorBuffer: FloatBuffer? = null
     private var overlayPositionBuffer: FloatBuffer? = null
     private var overlayColorBuffer: FloatBuffer? = null
     private var overlayPointPositionBuffer: FloatBuffer? = null
@@ -162,6 +170,7 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     private var overlayLineVertexCount = 0
     private var overlayPointVertexCount = 0
     private var cloudSpan = 100f
+    private var heightColorModeEnabled = false
     private var viewportWidth = 1
     private var viewportHeight = 1
     private var yaw = 0f
@@ -220,10 +229,17 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
 
     fun setPointCloud(pointCloud: PointCloudData) {
         positionBuffer = pointCloud.positions.toFloatBuffer()
-        colorBuffer = pointCloud.colors.toFloatBuffer()
+        sourceColorBuffer = pointCloud.colors.toFloatBuffer()
+        heightColorBuffer = createHeightColors(pointCloud.positions, pointCloud.displayedPointCount).toFloatBuffer()
+        colorBuffer = if (heightColorModeEnabled) heightColorBuffer else sourceColorBuffer
         pointCount = pointCloud.displayedPointCount
         cloudSpan = pointCloud.bounds.maxSpan.coerceAtLeast(10f)
         resetCamera()
+    }
+
+    fun setHeightColorModeEnabled(enabled: Boolean) {
+        heightColorModeEnabled = enabled
+        colorBuffer = if (enabled) heightColorBuffer ?: sourceColorBuffer else sourceColorBuffer
     }
 
     fun setMissionOverlay(overlay: PointCloudMissionOverlay?) {
@@ -347,6 +363,27 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
             .put(this)
             .apply { position(0) }
 
+    private fun createHeightColors(positions: FloatArray, count: Int): FloatArray {
+        if (count <= 0) return FloatArray(0)
+        var minZ = Float.POSITIVE_INFINITY
+        var maxZ = Float.NEGATIVE_INFINITY
+        repeat(count) { index ->
+            val z = positions[index * VALUES_PER_POINT + 2]
+            if (z < minZ) minZ = z
+            if (z > maxZ) maxZ = z
+        }
+        val range = (maxZ - minZ).coerceAtLeast(0.1f)
+        return FloatArray(count * VALUES_PER_POINT).also { colors ->
+            repeat(count) { index ->
+                val offset = index * VALUES_PER_POINT
+                val t = ((positions[offset + 2] - minZ) / range).coerceIn(0f, 1f)
+                colors[offset] = t
+                colors[offset + 1] = 1f - kotlin.math.abs(t - 0.5f)
+                colors[offset + 2] = 1f - t
+            }
+        }
+    }
+
     private fun createProgram(vertexShaderSource: String, fragmentShaderSource: String): Int {
         val vertexShader = compileShader(GLES20.GL_VERTEX_SHADER, vertexShaderSource)
         val fragmentShader = compileShader(GLES20.GL_FRAGMENT_SHADER, fragmentShaderSource)
@@ -367,8 +404,9 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
 
     companion object {
         private const val BYTES_PER_FLOAT = 4
+        private const val VALUES_PER_POINT = 3
         private const val MISSION_OVERLAY_LINE_WIDTH = 6f
-        private const val MISSION_OVERLAY_POINT_SIZE = 8f
+        private const val MISSION_OVERLAY_POINT_SIZE = 14f
         private const val VERTEX_SHADER = """
             uniform mat4 u_MvpMatrix;
             uniform float u_PointSize;
