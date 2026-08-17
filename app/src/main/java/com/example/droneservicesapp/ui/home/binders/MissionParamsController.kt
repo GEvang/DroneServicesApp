@@ -15,6 +15,7 @@ class MissionParamsController(
     droneViewModel: DroneViewModel,
     droneLocationProvider: (() -> Location?)? = null,
     beforeUploadGuard: (((onAllowed: () -> Unit) -> Unit))? = null,
+    private val loadPreferencesOnShow: Boolean = true,
 ) {
     private var isBound = false
 
@@ -45,7 +46,9 @@ class MissionParamsController(
     fun show() {
         if (isBound) return
 
-        preferencesBridge.loadIntoViewModel()
+        if (loadPreferencesOnShow) {
+            preferencesBridge.loadIntoViewModel()
+        }
         renderer.bind()
         inputBinder.bind()
         actionHandler.bind()

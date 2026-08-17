@@ -92,6 +92,6 @@ class MissionParamsViews(
     val flightTimeLabel: TextView = rootView.findViewById(R.id.flight_time_label)
     val speedTimeRow: View = rootView.findViewById(R.id.speed_time_row)
 
-    val uploadMissionButton: Button = rootView.findViewById(R.id.uploadMission)
-    val saveMissionButton: Button = rootView.findViewById(R.id.save_mission)
+    val uploadMissionButton: Button? = rootView.findViewById(R.id.uploadMission)
+    val saveMissionButton: Button? = rootView.findViewById(R.id.save_mission)
 }

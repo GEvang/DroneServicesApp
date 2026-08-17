@@ -22,8 +22,8 @@ class MissionParamsActionHandler(
     private val beforeUploadGuard: (((onAllowed: () -> Unit) -> Unit))? = null,
 ) {
     fun bind() {
-        views.uploadMissionButton.setOnClickListener { uploadMission() }
-        views.saveMissionButton.setOnClickListener {
+        views.uploadMissionButton?.setOnClickListener { uploadMission() }
+        views.saveMissionButton?.setOnClickListener {
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.SaveMissionToFile)
         }
     }

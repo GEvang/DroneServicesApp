@@ -1001,6 +1001,10 @@ class MissionMapFragment : Fragment() {
             }
         }
 
+        activityViewModel.surveyGridParams.observe(viewLifecycleOwner) {
+            redrawAreaMissionIfEditable()
+        }
+
         activityViewModel.surveyPath.observe(viewLifecycleOwner) { surveyPath ->
             val hasPolygon = (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
             val hasRoute = activityViewModel.routeWaypoints.value.orEmpty().size >= 2
@@ -1193,9 +1197,27 @@ class MissionMapFragment : Fragment() {
         }
     }
 
-    private fun drawSprayMissionOnMap(distance: Double, angle: Int) {
-        osmdroidMapController.clearSurveyPath()
+    private fun redrawAreaMissionIfEditable() {
+        if (
+            activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
+            activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
+            (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
+        ) {
+            redrawAreaMissionOnMap()
+        }
+    }
 
+    private fun renderCurrentSurveyPathOnMap() {
+        val path = activityViewModel.surveyPath.value.orEmpty()
+        val areaVertices = activityViewModel.missionArea.value?.vertices.orEmpty()
+        if (path.size >= 2) {
+            osmdroidMapController.setSurveyPath(path, areaVertices)
+        } else {
+            osmdroidMapController.clearSurveyPath()
+        }
+    }
+
+    private fun drawSprayMissionOnMap(distance: Double, angle: Int) {
         val area = activityViewModel.missionArea.value ?: return
 
         // Convert current polygon vertices to domain-level LatLon
@@ -1211,6 +1233,8 @@ class MissionMapFragment : Fragment() {
         )
 
         if (pathLatLon.isEmpty()) {
+            osmdroidMapController.clearSurveyPath()
+            activityViewModel.surveyPath.postValue(emptyList())
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
             return
         }
@@ -1225,7 +1249,6 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun drawSurveyGridMissionOnMap() {
-        osmdroidMapController.clearSurveyPath()
         terrainSurveyJob?.cancel()
 
         val area = activityViewModel.missionArea.value ?: return
@@ -1260,6 +1283,7 @@ class MissionMapFragment : Fragment() {
     private fun renderSurveyPath(pathLatLon: List<LatLon>, areaVertices: List<LatLng>) {
         if (pathLatLon.isEmpty()) {
             activityViewModel.surveyPath.postValue(emptyList())
+            osmdroidMapController.clearSurveyPath()
             return
         }
 
@@ -1357,6 +1381,8 @@ class MissionMapFragment : Fragment() {
         mapView.onResume()
         osmdroidMapController.onResume()
         binding.root.post {
+            renderCurrentSurveyPathOnMap()
+            redrawAreaMissionIfEditable()
             if (!focusPreviewAssetOnMapIfRequested()) {
                 centerInitialViewportIfNeeded()
             }

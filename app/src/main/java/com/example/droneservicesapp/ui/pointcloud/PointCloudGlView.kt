@@ -18,6 +18,15 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.sin
 
+data class PointCloudMissionOverlay(
+    val vertices: FloatArray,
+    val colors: FloatArray,
+    val lineVertexCount: Int,
+    val pointVertices: FloatArray = FloatArray(0),
+    val pointColors: FloatArray = FloatArray(0),
+    val pointVertexCount: Int = 0
+)
+
 class PointCloudGlView @JvmOverloads constructor(
     context: Context,
     attrs: AttributeSet? = null
@@ -39,6 +48,12 @@ class PointCloudGlView @JvmOverloads constructor(
     fun setPointCloud(pointCloud: PointCloudData) {
         queueEvent {
             pointRenderer.setPointCloud(pointCloud)
+        }
+    }
+
+    fun setMissionOverlay(overlay: PointCloudMissionOverlay?) {
+        queueEvent {
+            pointRenderer.setMissionOverlay(overlay)
         }
     }
 
@@ -139,7 +154,13 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     private var pointSizeHandle = 0
     private var positionBuffer: FloatBuffer? = null
     private var colorBuffer: FloatBuffer? = null
+    private var overlayPositionBuffer: FloatBuffer? = null
+    private var overlayColorBuffer: FloatBuffer? = null
+    private var overlayPointPositionBuffer: FloatBuffer? = null
+    private var overlayPointColorBuffer: FloatBuffer? = null
     private var pointCount = 0
+    private var overlayLineVertexCount = 0
+    private var overlayPointVertexCount = 0
     private var cloudSpan = 100f
     private var viewportWidth = 1
     private var viewportHeight = 1
@@ -193,6 +214,8 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
 
         GLES20.glDisableVertexAttribArray(positionHandle)
         GLES20.glDisableVertexAttribArray(colorHandle)
+
+        drawMissionOverlay()
     }
 
     fun setPointCloud(pointCloud: PointCloudData) {
@@ -201,6 +224,68 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
         pointCount = pointCloud.displayedPointCount
         cloudSpan = pointCloud.bounds.maxSpan.coerceAtLeast(10f)
         resetCamera()
+    }
+
+    fun setMissionOverlay(overlay: PointCloudMissionOverlay?) {
+        if (overlay == null || (overlay.lineVertexCount == 0 && overlay.pointVertexCount == 0)) {
+            overlayPositionBuffer = null
+            overlayColorBuffer = null
+            overlayPointPositionBuffer = null
+            overlayPointColorBuffer = null
+            overlayLineVertexCount = 0
+            overlayPointVertexCount = 0
+            return
+        }
+        overlayPositionBuffer = overlay.vertices.takeIf { overlay.lineVertexCount > 0 }?.toFloatBuffer()
+        overlayColorBuffer = overlay.colors.takeIf { overlay.lineVertexCount > 0 }?.toFloatBuffer()
+        overlayPointPositionBuffer = overlay.pointVertices.takeIf { overlay.pointVertexCount > 0 }?.toFloatBuffer()
+        overlayPointColorBuffer = overlay.pointColors.takeIf { overlay.pointVertexCount > 0 }?.toFloatBuffer()
+        overlayLineVertexCount = overlay.lineVertexCount
+        overlayPointVertexCount = overlay.pointVertexCount
+    }
+
+    private fun drawMissionOverlay() {
+        GLES20.glDisable(GLES20.GL_DEPTH_TEST)
+        if (overlayLineVertexCount > 0) {
+            val overlayPositions = overlayPositionBuffer
+            val overlayColors = overlayColorBuffer
+            if (overlayPositions != null && overlayColors != null) {
+                GLES20.glLineWidth(MISSION_OVERLAY_LINE_WIDTH)
+                GLES20.glUniform1f(pointSizeHandle, pointSize)
+
+                overlayPositions.position(0)
+                GLES20.glEnableVertexAttribArray(positionHandle)
+                GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, overlayPositions)
+
+                overlayColors.position(0)
+                GLES20.glEnableVertexAttribArray(colorHandle)
+                GLES20.glVertexAttribPointer(colorHandle, 3, GLES20.GL_FLOAT, false, 0, overlayColors)
+
+                GLES20.glDrawArrays(GLES20.GL_LINES, 0, overlayLineVertexCount)
+            }
+        }
+
+        if (overlayPointVertexCount > 0) {
+            val pointPositions = overlayPointPositionBuffer
+            val pointColors = overlayPointColorBuffer
+            if (pointPositions != null && pointColors != null) {
+                GLES20.glUniform1f(pointSizeHandle, MISSION_OVERLAY_POINT_SIZE)
+
+                pointPositions.position(0)
+                GLES20.glEnableVertexAttribArray(positionHandle)
+                GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, pointPositions)
+
+                pointColors.position(0)
+                GLES20.glEnableVertexAttribArray(colorHandle)
+                GLES20.glVertexAttribPointer(colorHandle, 3, GLES20.GL_FLOAT, false, 0, pointColors)
+
+                GLES20.glDrawArrays(GLES20.GL_POINTS, 0, overlayPointVertexCount)
+            }
+        }
+
+        GLES20.glDisableVertexAttribArray(positionHandle)
+        GLES20.glDisableVertexAttribArray(colorHandle)
+        GLES20.glEnable(GLES20.GL_DEPTH_TEST)
     }
 
     fun resetCamera() {
@@ -282,6 +367,8 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
 
     companion object {
         private const val BYTES_PER_FLOAT = 4
+        private const val MISSION_OVERLAY_LINE_WIDTH = 6f
+        private const val MISSION_OVERLAY_POINT_SIZE = 8f
         private const val VERTEX_SHADER = """
             uniform mat4 u_MvpMatrix;
             uniform float u_PointSize;
