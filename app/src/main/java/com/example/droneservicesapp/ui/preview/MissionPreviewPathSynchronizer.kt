@@ -8,6 +8,7 @@ import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.survey.SurveyGridPlanner
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
+import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.SphericalUtil
@@ -85,13 +86,16 @@ class MissionPreviewPathSynchronizer(
         if (terrainModel != null) {
             terrainSurveyJob = lifecycleOwner.lifecycleScope.launch {
                 delay(TERRAIN_SURVEY_REDRAW_DEBOUNCE_MS)
-                val pathLatLon = withContext(Dispatchers.Default) {
+                val terrainWaypoints = withContext(Dispatchers.Default) {
                     terrainModel.buildTerrainSurveyPath(
                         polygon = polygonLatLon,
                         params = params
-                    ).map { it.latLon }
+                    )
                 }
-                publishPath(pathLatLon)
+                publishPath(
+                    pathLatLon = terrainWaypoints.map { it.latLon },
+                    terrainWaypoints = terrainWaypoints
+                )
             }
             return
         }
@@ -105,9 +109,13 @@ class MissionPreviewPathSynchronizer(
         )
     }
 
-    private fun publishPath(pathLatLon: List<LatLon>) {
+    private fun publishPath(
+        pathLatLon: List<LatLon>,
+        terrainWaypoints: List<TerrainWaypoint> = emptyList()
+    ) {
         if (pathLatLon.isEmpty()) {
             activityViewModel.surveyPath.value = emptyList()
+            activityViewModel.terrainSurveyWaypoints.value = emptyList()
             activityViewModel.flightDistance.value = 0
             return
         }
@@ -116,6 +124,7 @@ class MissionPreviewPathSynchronizer(
             SphericalUtil.computeDistanceBetween(from, to)
         }
         activityViewModel.surveyPath.value = path
+        activityViewModel.terrainSurveyWaypoints.value = terrainWaypoints
         activityViewModel.flightDistance.value = distance.toInt()
     }
 

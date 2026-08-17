@@ -161,6 +161,7 @@ class MissionXmlParser(
         activityViewModel.setPolygonVertices(latLngList)
         activityViewModel.setRouteWaypoints(routeWaypoints)
         activityViewModel.surveyPath.postValue(emptyList())
+        activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.SetFlightParams)
     }
 

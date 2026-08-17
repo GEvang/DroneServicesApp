@@ -63,6 +63,7 @@ import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
 import com.example.droneservicesapp.domain.survey.SurveyGridPlanner
+import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.mavserver.GpsFixQuality
 import com.example.droneservicesapp.mavserver.TelemetryMapping
@@ -938,6 +939,7 @@ class MissionMapFragment : Fragment() {
                 }
 
                 activityViewModel.surveyPath.postValue(surveyPath)
+                activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
             }
         }
 
@@ -1126,6 +1128,7 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.clearPolygonVertices()
                     activityViewModel.clearMissionObstacles()
                     activityViewModel.surveyPath.postValue(emptyList())
+                    activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
                     osmdroidPolygonEditor.clear()
                     osmdroidMapController.clearSurveyPath()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
@@ -1135,6 +1138,7 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.clearPolygonVertices()
                     activityViewModel.clearMissionObstacles()
                     activityViewModel.surveyPath.postValue(emptyList())
+                    activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
                     osmdroidPolygonEditor.clear()
                     osmdroidMapController.clearSurveyPath()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
@@ -1143,6 +1147,7 @@ class MissionMapFragment : Fragment() {
                     cancelObstaclePlacement()
                     activityViewModel.clearMissionObstacles()
                     activityViewModel.surveyPath.postValue(emptyList())
+                    activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
                     osmdroidMapController.clearSurveyPath()
                     osmdroidPolygonEditor.clear()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
@@ -1152,6 +1157,7 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.clearPolygonVertices()
                     activityViewModel.clearMissionObstacles()
                     activityViewModel.surveyPath.postValue(emptyList())
+                    activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
                     osmdroidPolygonEditor.clear()
                     osmdroidMapController.clearSurveyPath()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
@@ -1862,6 +1868,7 @@ class MissionMapFragment : Fragment() {
         if (pathLatLon.isEmpty()) {
             osmdroidMapController.clearSurveyPath()
             activityViewModel.surveyPath.postValue(emptyList())
+            activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
             return
         }
@@ -1872,6 +1879,7 @@ class MissionMapFragment : Fragment() {
         updateFlightDistance(gmsPath)
 
         activityViewModel.surveyPath.postValue(gmsPath)
+        activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
         osmdroidMapController.setSurveyPath(gmsPath, area.vertices)
     }
 
@@ -1893,13 +1901,17 @@ class MissionMapFragment : Fragment() {
         if (terrainModel != null) {
             terrainSurveyJob = viewLifecycleOwner.lifecycleScope.launch {
                 delay(TERRAIN_SURVEY_REDRAW_DEBOUNCE_MS)
-                val pathLatLon = withContext(Dispatchers.Default) {
+                val terrainWaypoints = withContext(Dispatchers.Default) {
                     terrainModel.buildTerrainSurveyPath(
                         polygon = polygonLatLon,
                         params = params
-                    ).map { it.latLon }
+                    )
                 }
-                renderSurveyPath(pathLatLon, area.vertices)
+                renderSurveyPath(
+                    pathLatLon = terrainWaypoints.map { it.latLon },
+                    areaVertices = area.vertices,
+                    terrainWaypoints = terrainWaypoints
+                )
             }
             return
         }
@@ -1912,9 +1924,14 @@ class MissionMapFragment : Fragment() {
         renderSurveyPath(pathLatLon, area.vertices)
     }
 
-    private fun renderSurveyPath(pathLatLon: List<LatLon>, areaVertices: List<LatLng>) {
+    private fun renderSurveyPath(
+        pathLatLon: List<LatLon>,
+        areaVertices: List<LatLng>,
+        terrainWaypoints: List<TerrainWaypoint> = emptyList()
+    ) {
         if (pathLatLon.isEmpty()) {
             activityViewModel.surveyPath.postValue(emptyList())
+            activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
             osmdroidMapController.clearSurveyPath()
             return
         }
@@ -1923,6 +1940,10 @@ class MissionMapFragment : Fragment() {
         updateFlightDistance(gmsPath)
 
         activityViewModel.surveyPath.postValue(gmsPath)
+        activityViewModel.terrainSurveyWaypoints.postValue(terrainWaypoints)
+        if (terrainWaypoints.isNotEmpty()) {
+            Log.d(TERRAIN_GRID_TAG, "Terrain-aware survey path waypoints=${terrainWaypoints.size}")
+        }
         osmdroidMapController.setSurveyPath(gmsPath, areaVertices)
     }
 

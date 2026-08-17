@@ -73,6 +73,8 @@ class MissionParamsActionHandler(
         val validatedSprayer = sprayer ?: return
         val validatedSpeed = speed ?: return
         val validatedAngle = angle ?: return
+        var usedTerrainAltitudes = false
+        var uploadAltitudeReferenceMode = altitudeReferenceMode
 
         val missionItems = if (workflow == PlanningWorkflow.POINTS) {
             MissionBuilder.buildPointRouteMission(
@@ -97,6 +99,16 @@ class MissionParamsActionHandler(
                     altitudeReferenceMode = altitudeReferenceMode
                 )
             } else {
+                val terrainAltitudes = activityViewModel.terrainSurveyWaypoints.value.orEmpty()
+                    .takeIf { it.size == validatedPath.size }
+                    ?.map { it.missionAltitudeMeters.toFloat() }
+                val surveyAltitudeReferenceMode = if (terrainAltitudes != null) {
+                    AltitudeReferenceMode.RELATIVE
+                } else {
+                    altitudeReferenceMode
+                }
+                usedTerrainAltitudes = terrainAltitudes != null
+                uploadAltitudeReferenceMode = surveyAltitudeReferenceMode
                 MissionBuilder.buildSurveyAreaMission(
                     waypoints = ArrayList(validatedPath),
                     currentPos = validatedDroneLoc,
@@ -105,7 +117,8 @@ class MissionParamsActionHandler(
                     angleProgress = (activityViewModel.surveyGridAngle.value ?: validatedAngle).toFloat(),
                     targetSystemId = droneViewModel.getTargetSystemId(),
                     targetComponentId = droneViewModel.getTargetComponentId(),
-                    altitudeReferenceMode = altitudeReferenceMode
+                    altitudeReferenceMode = surveyAltitudeReferenceMode,
+                    waypointAltitudes = terrainAltitudes
                 )
             }
         }
@@ -113,7 +126,8 @@ class MissionParamsActionHandler(
         val proceedWithUpload = {
             Log.i(
                 "MissionUpload",
-                "Proceeding with upload workflow=$workflow altitudeReference=$altitudeReferenceMode " +
+                "Proceeding with upload workflow=$workflow altitudeReference=$uploadAltitudeReferenceMode " +
+                    "terrainAware=$usedTerrainAltitudes " +
                     "altitude=${validatedAlt.toInt()}m missionItems=${missionItems.size}"
             )
             droneViewModel.uploadMissionNew(missionItems, activityViewModel)

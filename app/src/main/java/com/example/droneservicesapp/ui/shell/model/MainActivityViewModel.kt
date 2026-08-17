@@ -18,6 +18,7 @@ import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.model.RouteWaypoint
 import com.example.droneservicesapp.domain.model.SurveyGridParams
 import com.example.droneservicesapp.domain.survey.SprayPresets
+import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
 import com.google.android.gms.maps.model.LatLng
 
 class MainActivityViewModel : ViewModel() {
@@ -134,6 +135,10 @@ class MainActivityViewModel : ViewModel() {
 
     // ✅ Survey path from mission planning (separate from pure area model)
     val surveyPath: MutableLiveData<List<LatLng>> by lazy {
+        MutableLiveData(emptyList())
+    }
+
+    val terrainSurveyWaypoints: MutableLiveData<List<TerrainWaypoint>> by lazy {
         MutableLiveData(emptyList())
     }
 

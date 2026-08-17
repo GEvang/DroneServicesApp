@@ -191,7 +191,8 @@ object MissionBuilder {
         angleProgress: Float,
         targetSystemId: Int,
         targetComponentId: Int,
-        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE
+        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
+        waypointAltitudes: List<Float>? = null
     ): ArrayList<MissionItemInt> {
         val missionItems = ArrayList<MissionItemInt>()
         val waypointFrame = missionWaypointFrameFor(altitudeReferenceMode)
@@ -250,7 +251,8 @@ object MissionBuilder {
             )
         }
 
-        waypoints.forEach { wp ->
+        waypoints.forEachIndexed { index, wp ->
+            val waypointAltitude = waypointAltitudes?.getOrNull(index) ?: alt
             missionItems.add(
                 buildItem(
                     frame = waypointFrame,
@@ -259,7 +261,7 @@ object MissionBuilder {
                     p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = missionYawDegrees,
                     x = wp.latitude.toE7(),
                     y = wp.longitude.toE7(),
-                    z = alt
+                    z = waypointAltitude
                 )
             )
         }
