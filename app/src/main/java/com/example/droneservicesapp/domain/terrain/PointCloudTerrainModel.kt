@@ -143,15 +143,17 @@ class PointCloudTerrainModel(
         fallback: Double = fallbackTerrainZ
     ): Double {
         if (terrainGrid.isEmpty()) return fallback
-        val radiusCells = ceil((searchRadiusMeters + canopyRadiusMeters) / cellSizeMeters)
-            .toInt()
-            .coerceAtLeast(1)
+        val searchCells = ceil(searchRadiusMeters / cellSizeMeters).toInt().coerceAtLeast(1)
+        val canopyCells = ceil(canopyRadiusMeters / cellSizeMeters).toInt().coerceAtLeast(0)
+        val radiusCells = max(searchCells, canopyCells)
+        val radiusCellsSquared = radiusCells * radiusCells
         val centerX = floor(xMeters / cellSizeMeters).toInt()
         val centerY = floor(yMeters / cellSizeMeters).toInt()
         var best: Float? = null
 
         for (dx in -radiusCells..radiusCells) {
             for (dy in -radiusCells..radiusCells) {
+                if (dx * dx + dy * dy > radiusCellsSquared) continue
                 val z = terrainGrid[CellKey(centerX + dx, centerY + dy)] ?: continue
                 if (best == null || z > best) best = z
             }
