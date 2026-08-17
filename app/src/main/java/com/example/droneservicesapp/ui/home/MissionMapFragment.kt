@@ -1,7 +1,12 @@
 package com.example.droneservicesapp.ui.home
 
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.graphics.Typeface
+import android.provider.OpenableColumns
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -33,6 +38,9 @@ import com.example.droneservicesapp.data.geoawareness.incident.GeoIncidentLogger
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
 import com.example.droneservicesapp.data.geoawareness.logging.OperatorFlightEventLogger
+import com.example.droneservicesapp.data.ortho.SimpleTiffDecoder
+import com.example.droneservicesapp.data.ortho.WorldFileParser
+import com.example.droneservicesapp.data.pointcloud.PlyPointCloudParser
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessChecker
@@ -76,8 +84,11 @@ import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoThreatUiModel
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
+import com.example.droneservicesapp.ui.ortho.OrthoImageOverlay
+import com.example.droneservicesapp.ui.pointcloud.PointCloudMissionOverlay
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
 import com.example.droneservicesapp.ui.preview.PreviewMapFocus
+import com.example.droneservicesapp.ui.preview.buildSurveyDirectionSegments
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.example.droneservicesapp.ui.common.RtkTonePlayer
 import com.google.android.gms.maps.model.LatLng
@@ -131,6 +142,9 @@ class MissionMapFragment : Fragment() {
     private lateinit var osmdroidPolygonEditor: OsmdroidPolygonEditor
     private lateinit var osmdroidRouteWaypointEditor: OsmdroidRouteWaypointEditor
     private lateinit var missionFileStore: MissionFileStore
+    private val tiffDecoder = SimpleTiffDecoder()
+    private val worldFileParser = WorldFileParser()
+    private val pointCloudParser = PlyPointCloudParser()
     private var geoAwarenessZones: List<GeoZone> = emptyList()
     private var geoZoneDatasetInfo: GeoZoneDatasetInfo? = null
     private var geoAwarenessHealth: GeoAwarenessHealth? = null
@@ -179,6 +193,15 @@ class MissionMapFragment : Fragment() {
     private var obstaclePlacementMode: Boolean = false
     private var selectedObstacleMode: OsmdroidObstacleEditor.Mode = OsmdroidObstacleEditor.Mode.CIRCLE
     private var terrainSurveyJob: Job? = null
+    private var previewAssetLoadJob: Job? = null
+    private var activePreviewMode: PreviewMode = PreviewMode.MAP
+    private var homeOrthoOverlay: OrthoImageOverlay? = null
+
+    private enum class PreviewMode {
+        MAP,
+        ORTHO,
+        POINT_CLOUD
+    }
 
     companion object {
         private const val DEFAULT_MAP_ZOOM = 18.0
@@ -191,6 +214,7 @@ class MissionMapFragment : Fragment() {
         private const val GEO_UPLOAD_GUARD_TAG = "GeoUploadGuard"
         private const val LIVE_GEO_AWARENESS_TAG = "LiveGeoAwareness"
         private const val MAP_FLIGHT_TRACE_TAG = "MapFlightTrace"
+        private const val TERRAIN_GRID_TAG = "TerrainGrid"
         private const val MIN_VALID_ABS_COORDINATE = 1e-4
         private const val MIN_TRACE_POINT_DISTANCE_METERS = 2.0
         private const val DEFAULT_NEAR_ZONE_THRESHOLD_METERS = 100.0
@@ -206,6 +230,27 @@ class MissionMapFragment : Fragment() {
         private const val MAX_MERCATOR_LATITUDE = 85.05112878
         private const val MIN_PREVIEW_MAP_ZOOM = 2.0
         private const val MAX_PREVIEW_MAP_ZOOM = 21.0
+        private const val MAX_ORTHO_PREVIEW_DIMENSION_PX = 2048
+        private const val REQUEST_HOME_OPEN_TIFF = 3301
+        private const val REQUEST_HOME_OPEN_WORLD = 3302
+        private const val REQUEST_HOME_OPEN_PLY = 3303
+        private const val PREVIEW_PREFS = "preview_assets"
+        private const val KEY_ORTHO_IMAGE_URI = "ortho_image_uri"
+        private const val KEY_ORTHO_IMAGE_NAME = "ortho_image_name"
+        private const val KEY_ORTHO_WORLD_URI = "ortho_world_uri"
+        private const val KEY_ORTHO_WORLD_NAME = "ortho_world_name"
+        private const val KEY_POINT_CLOUD_URI = "point_cloud_uri"
+        private const val KEY_POINT_CLOUD_NAME = "point_cloud_name"
+        private const val VALUES_PER_MISSION_VERTEX = 3
+        private const val VERTICES_PER_MISSION_LINE = 2
+        private const val MIN_POINT_CLOUD_MISSION_Z_OFFSET = 0.5f
+        private const val POINT_CLOUD_MISSION_LAYER_Z_STEP = 0.2f
+        private const val MIN_POINT_CLOUD_ARROW_SIZE_METERS = 1.0f
+        private const val MAX_POINT_CLOUD_DIRECTION_ARROWS = 80
+        private val POINT_CLOUD_POLYGON_COLOR = floatArrayOf(0.31f, 0.78f, 1.0f)
+        private val POINT_CLOUD_SURVEY_PATH_COLOR = floatArrayOf(0.16f, 0.90f, 0.85f)
+        private val POINT_CLOUD_SURVEY_POINT_COLOR = floatArrayOf(0.89f, 0.65f, 0.25f)
+        private val POINT_CLOUD_ROUTE_COLOR = floatArrayOf(0.3f, 1.0f, 0.35f)
     }
 
     override fun onCreateView(
@@ -235,6 +280,7 @@ class MissionMapFragment : Fragment() {
         initializeMapView(view)
         initControllers()
         bindUiButtons()
+        bindPreviewAssetButtons()
         applyMapInsets()
         observeDroneViewModel()
         observeMapState()
@@ -243,6 +289,8 @@ class MissionMapFragment : Fragment() {
         observeGeoAwarenessSharedState()
 
         mapViewModel.updateFromMapState(activityViewModel.mapState.value ?: MainActivityViewModel.MapState.Idle)
+        restorePersistedPreviewAssets()
+        renderPreviewMode()
     }
 
     private fun initializeMapView(view: View) {
@@ -354,7 +402,7 @@ class MissionMapFragment : Fragment() {
                 startDroneOffsetAdjustment()
             },
             onCyclePreviewMode = {
-                findNavController().navigate(R.id.nav_ortho_preview)
+                cyclePreviewMode()
             },
             onOpenSettings = {
                 requireActivity()
@@ -481,6 +529,23 @@ class MissionMapFragment : Fragment() {
             activityViewModel.undoLastRouteWaypoint()
         }
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
+    }
+
+    private fun bindPreviewAssetButtons() {
+        binding.previewAssetPrimaryButton.setOnClickListener {
+            when (activePreviewMode) {
+                PreviewMode.MAP -> Unit
+                PreviewMode.ORTHO -> openPreviewFilePicker(REQUEST_HOME_OPEN_TIFF)
+                PreviewMode.POINT_CLOUD -> openPreviewFilePicker(REQUEST_HOME_OPEN_PLY)
+            }
+        }
+        binding.previewAssetSecondaryButton.setOnClickListener {
+            when (activePreviewMode) {
+                PreviewMode.MAP -> Unit
+                PreviewMode.ORTHO -> openPreviewFilePicker(REQUEST_HOME_OPEN_WORLD)
+                PreviewMode.POINT_CLOUD -> binding.homePointCloudGlView.resetCamera()
+            }
+        }
     }
 
     private fun toggleObstaclePanel() {
@@ -837,6 +902,7 @@ class MissionMapFragment : Fragment() {
             osmdroidPolygonEditor.setVertices(vertices)
             updateGeoAwarenessPlanningStatus()
             updateMissionSummaryCard()
+            updatePointCloudMissionOverlay()
         }
 
         activityViewModel.missionObstacles.observe(viewLifecycleOwner) { obstacles ->
@@ -1011,6 +1077,7 @@ class MissionMapFragment : Fragment() {
             mapViewModel.setMissionAreaAvailable(hasPolygon || hasRoute || !surveyPath.isNullOrEmpty())
             updateGeoAwarenessPlanningStatus()
             updateMissionSummaryCard()
+            updatePointCloudMissionOverlay()
         }
 
         activityViewModel.routeWaypoints.observe(viewLifecycleOwner) { waypoints ->
@@ -1023,6 +1090,7 @@ class MissionMapFragment : Fragment() {
             }
             updateRouteSummary()
             updateGeoAwarenessPlanningStatus()
+            updatePointCloudMissionOverlay()
         }
 
         activityViewModel.mapState.observe(viewLifecycleOwner) { mapState ->
@@ -1217,6 +1285,565 @@ class MissionMapFragment : Fragment() {
         }
     }
 
+    private fun cyclePreviewMode() {
+        activePreviewMode = when (activePreviewMode) {
+            PreviewMode.MAP -> PreviewMode.ORTHO
+            PreviewMode.ORTHO -> PreviewMode.POINT_CLOUD
+            PreviewMode.POINT_CLOUD -> PreviewMode.MAP
+        }
+        renderPreviewMode()
+    }
+
+    private fun refreshPreviewAssets() {
+        previewAssetsViewModel.pointCloudAsset?.pointCloud?.let { pointCloud ->
+            binding.homePointCloudGlView.setPointCloud(pointCloud)
+        }
+        renderPreviewMode()
+    }
+
+    private fun renderPreviewMode() {
+        if (_binding == null) return
+        when (activePreviewMode) {
+            PreviewMode.MAP -> {
+                binding.osmMap.visibility = View.VISIBLE
+                binding.homePointCloudGlView.visibility = View.GONE
+                removeHomeOrthoOverlay()
+                binding.previewModeCycleButton.setImageResource(R.drawable.ic_ortho_24)
+                binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_ortho)
+                binding.previewAssetPrimaryButton.visibility = View.GONE
+                binding.previewAssetSecondaryButton.visibility = View.GONE
+                binding.previewTerrainStatus.visibility = View.GONE
+                binding.osmMap.overlayManager.tilesOverlay?.isEnabled = true
+                renderCurrentSurveyPathOnMap()
+            }
+            PreviewMode.ORTHO -> {
+                binding.osmMap.visibility = View.VISIBLE
+                binding.homePointCloudGlView.visibility = View.GONE
+                renderHomeOrthoOverlay()
+                binding.previewModeCycleButton.setImageResource(R.drawable.ic_point_cloud_24)
+                binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_3d)
+                binding.previewAssetPrimaryButton.visibility = View.VISIBLE
+                binding.previewAssetSecondaryButton.visibility = View.VISIBLE
+                binding.previewAssetPrimaryButton.setImageResource(R.drawable.baseline_load_file_24)
+                binding.previewAssetSecondaryButton.setImageResource(R.drawable.ic_menu_map)
+                binding.previewAssetPrimaryButton.contentDescription = getString(R.string.ortho_load_image)
+                binding.previewAssetSecondaryButton.contentDescription = getString(R.string.ortho_load_world)
+                binding.previewTerrainStatus.visibility = View.GONE
+                renderCurrentSurveyPathOnMap()
+            }
+            PreviewMode.POINT_CLOUD -> {
+                binding.osmMap.visibility = View.GONE
+                binding.homePointCloudGlView.visibility = View.VISIBLE
+                binding.previewModeCycleButton.setImageResource(R.drawable.ic_menu_map)
+                binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_map)
+                binding.previewAssetPrimaryButton.visibility = View.VISIBLE
+                binding.previewAssetSecondaryButton.visibility = View.VISIBLE
+                binding.previewAssetPrimaryButton.setImageResource(R.drawable.baseline_load_file_24)
+                binding.previewAssetSecondaryButton.setImageResource(R.drawable.ic_baseline_layers_clear_24)
+                binding.previewAssetPrimaryButton.contentDescription = getString(R.string.point_cloud_load)
+                binding.previewAssetSecondaryButton.contentDescription = getString(R.string.point_cloud_reset)
+                renderTerrainGridStatus()
+                previewAssetsViewModel.pointCloudAsset?.pointCloud?.let { pointCloud ->
+                    binding.homePointCloudGlView.setPointCloud(pointCloud)
+                }
+                updatePointCloudMissionOverlay()
+            }
+        }
+    }
+
+    private fun renderTerrainGridStatus() {
+        val summary = previewAssetsViewModel.pointCloudTerrainSummary
+        binding.previewTerrainStatus.visibility = View.VISIBLE
+        binding.previewTerrainStatus.text = when {
+            previewAssetsViewModel.pointCloudAsset == null -> "Terrain --"
+            summary == null -> "Terrain building"
+            !summary.isGeoreferenced -> "Terrain no GPS"
+            else -> "Terrain ${formatCompactCount(summary.cellCount)}"
+        }
+    }
+
+    private fun formatCompactCount(value: Int): String {
+        return when {
+            value >= 1_000_000 -> String.format(Locale.US, "%.1fM", value / 1_000_000.0)
+            value >= 1_000 -> String.format(Locale.US, "%.1fk", value / 1_000.0)
+            else -> value.toString()
+        }
+    }
+
+    private fun renderHomeOrthoOverlay() {
+        val asset = previewAssetsViewModel.orthoAsset
+        val bounds = asset?.bounds
+        if (asset == null || bounds == null) {
+            removeHomeOrthoOverlay()
+            binding.osmMap.overlayManager.tilesOverlay?.isEnabled = true
+            Toast.makeText(requireContext(), getString(R.string.ortho_empty_state), Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        val existing = homeOrthoOverlay
+        if (existing != null) {
+            mapView.overlays.remove(existing)
+        }
+        homeOrthoOverlay = OrthoImageOverlay(asset.bitmap, bounds).also { overlay ->
+            mapView.overlays.add(0, overlay)
+        }
+        binding.osmMap.overlayManager.tilesOverlay?.isEnabled = true
+        focusOrthoOnMap()
+        mapView.invalidate()
+    }
+
+    private fun removeHomeOrthoOverlay() {
+        homeOrthoOverlay?.let { mapView.overlays.remove(it) }
+        homeOrthoOverlay = null
+        if (::mapView.isInitialized) {
+            mapView.invalidate()
+        }
+    }
+
+    private fun updatePointCloudMissionOverlay() {
+        if (_binding == null) return
+        val pointCloud = previewAssetsViewModel.pointCloudAsset?.pointCloud
+        val frame = pointCloud?.coordinateFrame
+        if (pointCloud == null || frame == null) {
+            binding.homePointCloudGlView.setMissionOverlay(null)
+            return
+        }
+
+        val centeredMaxZ = pointCloud.bounds.maxZ - pointCloud.bounds.centerZ
+        val overlayZ = centeredMaxZ + max(pointCloud.bounds.maxSpan * 0.02f, MIN_POINT_CLOUD_MISSION_Z_OFFSET)
+        val lineVertices = ArrayList<Float>()
+        val lineColors = ArrayList<Float>()
+        val pointVertices = ArrayList<Float>()
+        val pointColors = ArrayList<Float>()
+
+        addPointCloudClosedLineStrip(
+            source = activityViewModel.missionArea.value?.vertices.orEmpty(),
+            z = overlayZ,
+            color = POINT_CLOUD_POLYGON_COLOR,
+            vertices = lineVertices,
+            colors = lineColors
+        ) { point ->
+            frame.latLonToLocal(point.latitude, point.longitude)
+        }
+
+        val surveyPoints = activityViewModel.surveyPath.value.orEmpty()
+        addPointCloudOpenLineStrip(
+            source = surveyPoints,
+            z = overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP,
+            color = POINT_CLOUD_SURVEY_PATH_COLOR,
+            vertices = lineVertices,
+            colors = lineColors
+        ) { point ->
+            frame.latLonToLocal(point.latitude, point.longitude)
+        }
+        surveyPoints.forEach { point ->
+            addPointCloudMissionVertex(
+                point = point,
+                z = overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 1.5f,
+                color = POINT_CLOUD_SURVEY_POINT_COLOR,
+                vertices = pointVertices,
+                colors = pointColors
+            ) {
+                frame.latLonToLocal(it.latitude, it.longitude)
+            }
+        }
+        addPointCloudDirectionArrows(
+            source = surveyPoints,
+            z = overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 1.7f,
+            arrowSizeMeters = max(pointCloud.bounds.maxSpan * 0.012f, MIN_POINT_CLOUD_ARROW_SIZE_METERS),
+            vertices = lineVertices,
+            colors = lineColors
+        ) { point ->
+            frame.latLonToLocal(point.latitude, point.longitude)
+        }
+
+        val routePoints = activityViewModel.routeWaypoints.value.orEmpty().map { waypoint ->
+            LatLng(waypoint.latitude, waypoint.longitude)
+        }
+        addPointCloudOpenLineStrip(
+            source = routePoints,
+            z = overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 2f,
+            color = POINT_CLOUD_ROUTE_COLOR,
+            vertices = lineVertices,
+            colors = lineColors
+        ) { point ->
+            frame.latLonToLocal(point.latitude, point.longitude)
+        }
+
+        if (lineVertices.isEmpty() && pointVertices.isEmpty()) {
+            binding.homePointCloudGlView.setMissionOverlay(null)
+            return
+        }
+
+        binding.homePointCloudGlView.setMissionOverlay(
+            PointCloudMissionOverlay(
+                vertices = lineVertices.toFloatArray(),
+                colors = lineColors.toFloatArray(),
+                lineVertexCount = lineVertices.size / VALUES_PER_MISSION_VERTEX,
+                pointVertices = pointVertices.toFloatArray(),
+                pointColors = pointColors.toFloatArray(),
+                pointVertexCount = pointVertices.size / VALUES_PER_MISSION_VERTEX
+            )
+        )
+    }
+
+    private fun addPointCloudClosedLineStrip(
+        source: List<LatLng>,
+        z: Float,
+        color: FloatArray,
+        vertices: MutableList<Float>,
+        colors: MutableList<Float>,
+        convert: (LatLng) -> Pair<Double, Double>
+    ) {
+        if (source.size < 3) return
+        addPointCloudOpenLineStrip(source + source.first(), z, color, vertices, colors, convert)
+    }
+
+    private fun addPointCloudOpenLineStrip(
+        source: List<LatLng>,
+        z: Float,
+        color: FloatArray,
+        vertices: MutableList<Float>,
+        colors: MutableList<Float>,
+        convert: (LatLng) -> Pair<Double, Double>
+    ) {
+        if (source.size < 2) return
+        source.zipWithNext().forEach { (from, to) ->
+            addPointCloudMissionVertex(from, z, color, vertices, colors, convert)
+            addPointCloudMissionVertex(to, z, color, vertices, colors, convert)
+        }
+    }
+
+    private fun addPointCloudMissionVertex(
+        point: LatLng,
+        z: Float,
+        color: FloatArray,
+        vertices: MutableList<Float>,
+        colors: MutableList<Float>,
+        convert: (LatLng) -> Pair<Double, Double>
+    ) {
+        val (x, y) = convert(point)
+        addPointCloudLocalVertex(x, y, z, color, vertices, colors)
+    }
+
+    private fun addPointCloudDirectionArrows(
+        source: List<LatLng>,
+        z: Float,
+        arrowSizeMeters: Float,
+        vertices: MutableList<Float>,
+        colors: MutableList<Float>,
+        convert: (LatLng) -> Pair<Double, Double>
+    ) {
+        buildSurveyDirectionSegments(source, MAX_POINT_CLOUD_DIRECTION_ARROWS).forEach { segment ->
+            val (fromX, fromY) = convert(segment.from)
+            val (toX, toY) = convert(segment.to)
+            val dx = toX - fromX
+            val dy = toY - fromY
+            val length = sqrt(dx * dx + dy * dy)
+            if (length <= 0.001) return@forEach
+
+            val unitX = dx / length
+            val unitY = dy / length
+            val arrowLength = min(arrowSizeMeters.toDouble(), length * 0.35)
+            val arrowWidth = arrowLength * 0.55
+            val midX = (fromX + toX) / 2.0
+            val midY = (fromY + toY) / 2.0
+            val tipX = midX + unitX * arrowLength * 0.5
+            val tipY = midY + unitY * arrowLength * 0.5
+            val baseX = midX - unitX * arrowLength * 0.5
+            val baseY = midY - unitY * arrowLength * 0.5
+            val perpX = -unitY
+            val perpY = unitX
+            val leftX = baseX + perpX * arrowWidth * 0.5
+            val leftY = baseY + perpY * arrowWidth * 0.5
+            val rightX = baseX - perpX * arrowWidth * 0.5
+            val rightY = baseY - perpY * arrowWidth * 0.5
+
+            addPointCloudLocalVertex(tipX, tipY, z, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
+            addPointCloudLocalVertex(leftX, leftY, z, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
+            addPointCloudLocalVertex(tipX, tipY, z, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
+            addPointCloudLocalVertex(rightX, rightY, z, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
+        }
+    }
+
+    private fun addPointCloudLocalVertex(
+        x: Double,
+        y: Double,
+        z: Float,
+        color: FloatArray,
+        vertices: MutableList<Float>,
+        colors: MutableList<Float>
+    ) {
+        vertices += x.toFloat()
+        vertices += y.toFloat()
+        vertices += z
+        colors += color[0]
+        colors += color[1]
+        colors += color[2]
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
+        super.onActivityResult(requestCode, resultCode, data)
+        if (resultCode != Activity.RESULT_OK) return
+        val uri = data?.data ?: return
+        persistPreviewReadPermission(uri, data.flags)
+        when (requestCode) {
+            REQUEST_HOME_OPEN_TIFF -> loadHomeOrthoImage(uri)
+            REQUEST_HOME_OPEN_WORLD -> loadHomeOrthoWorldFile(uri)
+            REQUEST_HOME_OPEN_PLY -> loadHomePointCloud(uri)
+        }
+    }
+
+    private fun openPreviewFilePicker(requestCode: Int) {
+        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
+        }
+        startActivityForResult(intent, requestCode)
+    }
+
+    private fun loadHomeOrthoImage(uri: Uri) {
+        val fileName = queryPreviewDisplayName(uri) ?: getString(R.string.ortho_unknown_image)
+        if (!fileName.lowercase(Locale.US).endsWith(".tif") && !fileName.lowercase(Locale.US).endsWith(".tiff")) {
+            Toast.makeText(requireContext(), R.string.ortho_select_tif, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        previewAssetLoadJob?.cancel()
+        previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    requireContext().contentResolver.openInputStream(uri)?.use { stream ->
+                        tiffDecoder.decodePreview(stream, MAX_ORTHO_PREVIEW_DIMENSION_PX)
+                    } ?: error("Could not open image file.")
+                }
+            }
+            result.onSuccess { decoded ->
+                previewAssetsViewModel.setOrthoImage(
+                    bitmap = decoded.bitmap,
+                    bitmapFileName = fileName,
+                    bitmapUri = uri,
+                    sourceWidth = decoded.sourceWidth,
+                    sourceHeight = decoded.sourceHeight
+                )
+                saveHomeOrthoImageReference(uri, fileName)
+                removeHomeOrthoOverlay()
+                Toast.makeText(requireContext(), R.string.ortho_load_world_next, Toast.LENGTH_SHORT).show()
+                renderPreviewMode()
+            }.onFailure { error ->
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.ortho_load_failed, error.message ?: error.javaClass.simpleName),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun loadHomeOrthoWorldFile(uri: Uri) {
+        val fileName = queryPreviewDisplayName(uri) ?: getString(R.string.ortho_unknown_world)
+        if (!fileName.lowercase(Locale.US).endsWith(".tfw") && !fileName.lowercase(Locale.US).endsWith(".wld")) {
+            Toast.makeText(requireContext(), R.string.ortho_select_world, Toast.LENGTH_SHORT).show()
+            return
+        }
+        val asset = previewAssetsViewModel.orthoAsset
+        if (asset == null) {
+            Toast.makeText(requireContext(), R.string.ortho_load_image_first, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        previewAssetLoadJob?.cancel()
+        previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    requireContext().contentResolver.openInputStream(uri)?.use { stream ->
+                        worldFileParser.parse(stream, asset.sourceWidth, asset.sourceHeight)
+                    } ?: error("Could not open world file.")
+                }
+            }
+            result.onSuccess { bounds ->
+                previewAssetsViewModel.setOrthoBounds(bounds, fileName, uri)
+                saveHomeOrthoWorldReference(uri, fileName)
+                activePreviewMode = PreviewMode.ORTHO
+                renderPreviewMode()
+            }.onFailure { error ->
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.ortho_load_failed, error.message ?: error.javaClass.simpleName),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun loadHomePointCloud(uri: Uri) {
+        val fileName = queryPreviewDisplayName(uri) ?: getString(R.string.point_cloud_unknown_file)
+        if (!fileName.lowercase(Locale.US).endsWith(".ply")) {
+            Toast.makeText(requireContext(), R.string.point_cloud_select_ply, Toast.LENGTH_SHORT).show()
+            return
+        }
+
+        previewAssetLoadJob?.cancel()
+        previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    requireContext().contentResolver.openInputStream(uri)?.use { stream ->
+                        pointCloudParser.parse(stream)
+                    } ?: error("Could not open file.")
+                }
+            }
+            result.onSuccess { pointCloud ->
+                previewAssetsViewModel.setPointCloud(pointCloud, fileName, uri)
+                saveHomePointCloudReference(uri, fileName)
+                activePreviewMode = PreviewMode.POINT_CLOUD
+                binding.homePointCloudGlView.setPointCloud(pointCloud)
+                warmPointCloudTerrainGrid(showToast = true)
+                updatePointCloudMissionOverlay()
+                renderPreviewMode()
+            }.onFailure { error ->
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.point_cloud_load_failed, error.message ?: error.javaClass.simpleName),
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun restorePersistedPreviewAssets() {
+        val preferences = previewPreferences()
+        if (previewAssetsViewModel.orthoAsset == null) {
+            val imageUri = preferences.getString(KEY_ORTHO_IMAGE_URI, null)?.let(Uri::parse)
+            val imageName = preferences.getString(KEY_ORTHO_IMAGE_NAME, null) ?: getString(R.string.ortho_unknown_image)
+            val worldUri = preferences.getString(KEY_ORTHO_WORLD_URI, null)?.let(Uri::parse)
+            val worldName = preferences.getString(KEY_ORTHO_WORLD_NAME, null)
+            if (imageUri != null) {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val result = runCatching {
+                        withContext(Dispatchers.IO) {
+                            val decoded = requireContext().contentResolver.openInputStream(imageUri)?.use { stream ->
+                                tiffDecoder.decodePreview(stream, MAX_ORTHO_PREVIEW_DIMENSION_PX)
+                            } ?: error("Could not open image file.")
+                            val bounds = if (worldUri != null) {
+                                requireContext().contentResolver.openInputStream(worldUri)?.use { stream ->
+                                    worldFileParser.parse(stream, decoded.sourceWidth, decoded.sourceHeight)
+                                }
+                            } else {
+                                null
+                            }
+                            decoded to bounds
+                        }
+                    }
+                    result.onSuccess { (decoded, bounds) ->
+                        previewAssetsViewModel.setOrthoImage(
+                            bitmap = decoded.bitmap,
+                            bitmapFileName = imageName,
+                            bitmapUri = imageUri,
+                            sourceWidth = decoded.sourceWidth,
+                            sourceHeight = decoded.sourceHeight
+                        )
+                        if (bounds != null && worldUri != null && worldName != null) {
+                            previewAssetsViewModel.setOrthoBounds(bounds, worldName, worldUri)
+                            if (activePreviewMode == PreviewMode.ORTHO) renderPreviewMode()
+                        }
+                    }
+                }
+            }
+        }
+
+        if (previewAssetsViewModel.pointCloudAsset == null) {
+            val pointCloudUri = preferences.getString(KEY_POINT_CLOUD_URI, null)?.let(Uri::parse)
+            val pointCloudName = preferences.getString(KEY_POINT_CLOUD_NAME, null) ?: getString(R.string.point_cloud_unknown_file)
+            if (pointCloudUri != null) {
+                viewLifecycleOwner.lifecycleScope.launch {
+                    val result = runCatching {
+                        withContext(Dispatchers.IO) {
+                            requireContext().contentResolver.openInputStream(pointCloudUri)?.use { stream ->
+                                pointCloudParser.parse(stream)
+                            } ?: error("Could not open file.")
+                        }
+                    }
+                    result.onSuccess { pointCloud ->
+                        previewAssetsViewModel.setPointCloud(pointCloud, pointCloudName, pointCloudUri)
+                        binding.homePointCloudGlView.setPointCloud(pointCloud)
+                        warmPointCloudTerrainGrid(showToast = false)
+                        updatePointCloudMissionOverlay()
+                    }
+                }
+            }
+        }
+    }
+
+    private fun warmPointCloudTerrainGrid(showToast: Boolean) {
+        val terrainModel = previewAssetsViewModel.pointCloudTerrainModel ?: return
+        viewLifecycleOwner.lifecycleScope.launch {
+            val summary = withContext(Dispatchers.Default) {
+                terrainModel.terrainGridSummary()
+            }
+            previewAssetsViewModel.setPointCloudTerrainSummary(summary)
+            Log.d(
+                TERRAIN_GRID_TAG,
+                "cells=${summary.cellCount} points=${summary.pointCount} " +
+                    "cellSize=${String.format(Locale.US, "%.2f", summary.cellSizeMeters)}m " +
+                    "height=${String.format(Locale.US, "%.2f", summary.minHeightMeters)}.." +
+                    String.format(Locale.US, "%.2f", summary.maxHeightMeters) +
+                    " georef=${summary.isGeoreferenced}"
+            )
+            if (showToast) {
+                val georefText = if (summary.isGeoreferenced) "georeferenced" else "not georeferenced"
+                Toast.makeText(
+                    requireContext(),
+                    "Terrain grid ready: ${summary.cellCount} cells, $georefText",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+            if (activePreviewMode == PreviewMode.POINT_CLOUD) {
+                renderTerrainGridStatus()
+            }
+            redrawAreaMissionIfEditable()
+        }
+    }
+
+    private fun queryPreviewDisplayName(uri: Uri): String? {
+        return requireContext().contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+            if (cursor.moveToFirst() && nameIndex >= 0) cursor.getString(nameIndex) else null
+        }
+    }
+
+    private fun persistPreviewReadPermission(uri: Uri, flags: Int) {
+        val readFlags = flags and Intent.FLAG_GRANT_READ_URI_PERMISSION
+        if (readFlags == 0) return
+        runCatching {
+            requireContext().contentResolver.takePersistableUriPermission(uri, readFlags)
+        }
+    }
+
+    private fun saveHomeOrthoImageReference(uri: Uri, fileName: String) {
+        previewPreferences().edit()
+            .putString(KEY_ORTHO_IMAGE_URI, uri.toString())
+            .putString(KEY_ORTHO_IMAGE_NAME, fileName)
+            .apply()
+    }
+
+    private fun saveHomeOrthoWorldReference(uri: Uri, fileName: String) {
+        previewPreferences().edit()
+            .putString(KEY_ORTHO_WORLD_URI, uri.toString())
+            .putString(KEY_ORTHO_WORLD_NAME, fileName)
+            .apply()
+    }
+
+    private fun saveHomePointCloudReference(uri: Uri, fileName: String) {
+        previewPreferences().edit()
+            .putString(KEY_POINT_CLOUD_URI, uri.toString())
+            .putString(KEY_POINT_CLOUD_NAME, fileName)
+            .apply()
+    }
+
+    private fun previewPreferences() = requireContext().getSharedPreferences(PREVIEW_PREFS, Context.MODE_PRIVATE)
+
     private fun drawSprayMissionOnMap(distance: Double, angle: Int) {
         val area = activityViewModel.missionArea.value ?: return
 
@@ -1255,8 +1882,13 @@ class MissionMapFragment : Fragment() {
         val polygonLatLon = area.vertices.map { LatLon(it.latitude, it.longitude) }
         val params = activityViewModel.surveyGridParams.value ?: return
         val obstacles = activityViewModel.missionObstacles.value.orEmpty()
+        val terrainSummary = previewAssetsViewModel.pointCloudTerrainSummary
         val terrainModel = previewAssetsViewModel.pointCloudTerrainModel
-            ?.takeIf { it.isGeoreferenced && obstacles.isEmpty() }
+            ?.takeIf {
+                terrainSummary?.isGeoreferenced == true &&
+                    terrainSummary.cellCount > 0 &&
+                    obstacles.isEmpty()
+            }
 
         if (terrainModel != null) {
             terrainSurveyJob = viewLifecycleOwner.lifecycleScope.launch {
@@ -1362,6 +1994,8 @@ class MissionMapFragment : Fragment() {
     override fun onDestroyView() {
         terrainSurveyJob?.cancel()
         terrainSurveyJob = null
+        previewAssetLoadJob?.cancel()
+        previewAssetLoadJob = null
         cancelDroneOffsetAdjustment()
         showShellToolbar()
         geoZoneOverlayController?.clear()
@@ -1380,7 +2014,9 @@ class MissionMapFragment : Fragment() {
         hideShellToolbar()
         mapView.onResume()
         osmdroidMapController.onResume()
+        binding.homePointCloudGlView.onResume()
         binding.root.post {
+            refreshPreviewAssets()
             renderCurrentSurveyPathOnMap()
             redrawAreaMissionIfEditable()
             if (!focusPreviewAssetOnMapIfRequested()) {
@@ -1392,6 +2028,7 @@ class MissionMapFragment : Fragment() {
     override fun onPause() {
         cancelDroneOffsetAdjustment()
         showShellToolbar()
+        binding.homePointCloudGlView.onPause()
         osmdroidMapController.onPause()
         mapView.onPause()
         super.onPause()

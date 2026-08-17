@@ -18,6 +18,16 @@ data class TerrainWaypoint(
     val missionAltitudeMeters: Double
 )
 
+data class TerrainGridSummary(
+    val cellSizeMeters: Double,
+    val cellCount: Int,
+    val pointCount: Int,
+    val minHeightMeters: Double,
+    val maxHeightMeters: Double,
+    val fallbackHeightMeters: Double,
+    val isGeoreferenced: Boolean
+)
+
 class PointCloudTerrainModel(
     private val pointCloud: PointCloudData,
     private val cellSizeMeters: Double = DEFAULT_CELL_SIZE_METERS
@@ -28,6 +38,21 @@ class PointCloudTerrainModel(
 
     private val terrainGrid: Map<CellKey, Float> by lazy { buildTerrainGrid() }
     private val fallbackTerrainZ: Double by lazy { medianZ(pointCloud.positions) }
+
+    fun terrainGridSummary(): TerrainGridSummary {
+        val grid = terrainGrid
+        val minHeight = grid.values.minOrNull()?.toDouble() ?: fallbackTerrainZ
+        val maxHeight = grid.values.maxOrNull()?.toDouble() ?: fallbackTerrainZ
+        return TerrainGridSummary(
+            cellSizeMeters = cellSizeMeters,
+            cellCount = grid.size,
+            pointCount = pointCloud.displayedPointCount,
+            minHeightMeters = minHeight,
+            maxHeightMeters = maxHeight,
+            fallbackHeightMeters = fallbackTerrainZ,
+            isGeoreferenced = isGeoreferenced
+        )
+    }
 
     suspend fun buildTerrainSurveyPath(
         polygon: List<LatLon>,

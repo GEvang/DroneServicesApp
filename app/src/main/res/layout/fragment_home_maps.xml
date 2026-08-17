@@ -13,6 +13,12 @@
         android:layout_width="match_parent"
         android:layout_height="match_parent" />
 
+    <com.example.droneservicesapp.ui.pointcloud.PointCloudGlView
+        android:id="@+id/home_point_cloud_gl_view"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone" />
+
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
         android:layout_height="match_parent"
@@ -297,6 +303,44 @@
                 android:scaleType="centerInside"
                 android:src="@drawable/ic_ortho_24"
                 android:tint="@android:color/white" />
+
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/preview_asset_primary_button"
+                android:layout_width="@dimen/preview_mode_switch_size"
+                android:layout_height="@dimen/preview_mode_switch_size"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/ortho_load_image"
+                android:elevation="10dp"
+                android:padding="@dimen/preview_mode_switch_padding"
+                android:scaleType="centerInside"
+                android:src="@drawable/baseline_load_file_24"
+                android:tint="@android:color/white"
+                android:visibility="gone" />
+
+            <androidx.appcompat.widget.AppCompatImageButton
+                android:id="@+id/preview_asset_secondary_button"
+                android:layout_width="@dimen/preview_mode_switch_size"
+                android:layout_height="@dimen/preview_mode_switch_size"
+                android:background="@android:color/transparent"
+                android:contentDescription="@string/ortho_load_world"
+                android:elevation="10dp"
+                android:padding="@dimen/preview_mode_switch_padding"
+                android:scaleType="centerInside"
+                android:src="@drawable/ic_menu_map"
+                android:tint="@android:color/white"
+                android:visibility="gone" />
+
+            <TextView
+                android:id="@+id/preview_terrain_status"
+                style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginEnd="@dimen/ds_space_sm"
+                android:paddingStart="@dimen/ds_space_sm"
+                android:paddingEnd="@dimen/ds_space_sm"
+                android:textColor="@color/ds_color_text_secondary"
+                android:visibility="gone"
+                tools:text="Terrain 120k" />
         </LinearLayout>
 
         <include

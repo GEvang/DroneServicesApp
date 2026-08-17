@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.data.ortho.OrthoBounds
 import com.example.droneservicesapp.data.pointcloud.PointCloudData
+import com.example.droneservicesapp.domain.terrain.TerrainGridSummary
 import com.example.droneservicesapp.domain.terrain.PointCloudTerrainModel
 
 data class OrthoPreviewAsset(
@@ -37,6 +38,9 @@ class PreviewAssetsViewModel : ViewModel() {
         private set
 
     var pointCloudTerrainModel: PointCloudTerrainModel? = null
+        private set
+
+    var pointCloudTerrainSummary: TerrainGridSummary? = null
         private set
 
     private var pendingMapFocus: PreviewMapFocus? = null
@@ -77,6 +81,11 @@ class PreviewAssetsViewModel : ViewModel() {
             uri = uri,
         )
         pointCloudTerrainModel = PointCloudTerrainModel(pointCloud)
+        pointCloudTerrainSummary = null
+    }
+
+    fun setPointCloudTerrainSummary(summary: TerrainGridSummary) {
+        pointCloudTerrainSummary = summary
     }
 
     fun requestMapFocus(focus: PreviewMapFocus) {
