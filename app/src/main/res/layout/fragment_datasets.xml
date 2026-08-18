@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ds_color_background"
+    android:fillViewport="true"
+    android:scrollbars="none"
+    tools:context=".ui.datasets.DatasetsFragment">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:paddingStart="@dimen/ds_space_lg"
+        android:paddingTop="@dimen/ds_space_lg"
+        android:paddingEnd="@dimen/ds_space_lg"
+        android:paddingBottom="@dimen/ds_space_xl">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:background="@drawable/bg_ds_overlay_card"
+            android:orientation="vertical"
+            android:padding="@dimen/ds_space_lg">
+
+            <TextView
+                style="@style/TextAppearance.DroneServices.SectionTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/datasets_title" />
+
+            <TextView
+                style="@style/TextAppearance.DroneServices.MapPanelSubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_xs"
+                android:text="@string/datasets_subtitle" />
+
+            <TextView
+                android:id="@+id/dataset_active_name"
+                style="@style/TextAppearance.DroneServices.StatusValue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                tools:text="Active: Dataset 1" />
+
+            <Spinner
+                android:id="@+id/dataset_selector"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/phone_map_panel_button_height_tall"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:background="@drawable/bg_ds_panel_pill_inactive"
+                android:paddingStart="@dimen/ds_space_md"
+                android:paddingEnd="@dimen/ds_space_md" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_md"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dataset_create_button"
+                    style="@style/Widget.DroneServices.Button.MapEmphasis"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/phone_map_panel_button_height_tall"
+                    android:layout_weight="1"
+                    android:text="@string/dataset_create" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dataset_load_button"
+                    style="@style/Widget.DroneServices.Button.MapDark"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/phone_map_panel_button_height_tall"
+                    android:layout_marginStart="@dimen/ds_space_sm"
+                    android:layout_weight="1"
+                    android:text="@string/dataset_load" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dataset_unload_button"
+                    style="@style/Widget.DroneServices.Button.MapDark"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/phone_map_panel_button_height_tall"
+                    android:layout_marginStart="@dimen/ds_space_sm"
+                    android:layout_weight="1"
+                    android:text="@string/dataset_unload" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_lg"
+            android:background="@drawable/bg_ds_overlay_card"
+            android:orientation="vertical"
+            android:padding="@dimen/ds_space_lg">
+
+            <TextView
+                style="@style/TextAppearance.DroneServices.MapPanelTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/dataset_assets" />
+
+            <TextView
+                android:id="@+id/dataset_ortho_image_status"
+                style="@style/TextAppearance.DroneServices.StatusValue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_md"
+                tools:text="Ortho image: none" />
+
+            <TextView
+                android:id="@+id/dataset_ortho_world_status"
+                style="@style/TextAppearance.DroneServices.StatusValue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_xs"
+                tools:text="World file: none" />
+
+            <TextView
+                android:id="@+id/dataset_point_cloud_status"
+                style="@style/TextAppearance.DroneServices.StatusValue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_xs"
+                tools:text="Point cloud: none" />
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_md"
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dataset_load_tif_button"
+                    style="@style/Widget.DroneServices.Button.MapDark"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/phone_map_panel_button_height_tall"
+                    android:layout_weight="1"
+                    android:text="@string/ortho_load_image"
+                    app:icon="@drawable/baseline_load_file_24" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dataset_load_tfw_button"
+                    style="@style/Widget.DroneServices.Button.MapDark"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/phone_map_panel_button_height_tall"
+                    android:layout_marginStart="@dimen/ds_space_sm"
+                    android:layout_weight="1"
+                    android:text="@string/ortho_load_world"
+                    app:icon="@drawable/ic_menu_map" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dataset_load_ply_button"
+                    style="@style/Widget.DroneServices.Button.MapDark"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/phone_map_panel_button_height_tall"
+                    android:layout_marginStart="@dimen/ds_space_sm"
+                    android:layout_weight="1"
+                    android:text="@string/point_cloud_load"
+                    app:icon="@drawable/ic_point_cloud_24" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_lg"
+            android:background="@drawable/bg_ds_overlay_card"
+            android:orientation="vertical"
+            android:padding="@dimen/ds_space_lg">
+
+            <TextView
+                style="@style/TextAppearance.DroneServices.MapPanelTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/dataset_display_options" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/dataset_ortho_background_switch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_md"
+                android:text="@string/ortho_background"
+                android:textColor="@color/ds_color_text_primary" />
+
+            <TextView
+                android:id="@+id/dataset_ortho_opacity_label"
+                style="@style/TextAppearance.DroneServices.StatusValue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                tools:text="Ortho opacity: 85%" />
+
+            <com.google.android.material.slider.Slider
+                android:id="@+id/dataset_ortho_opacity_slider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:stepSize="0.05"
+                android:valueFrom="0"
+                android:valueTo="1" />
+
+            <TextView
+                android:id="@+id/dataset_point_size_label"
+                style="@style/TextAppearance.DroneServices.StatusValue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                tools:text="3D point size: 2.5" />
+
+            <com.google.android.material.slider.Slider
+                android:id="@+id/dataset_point_size_slider"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:stepSize="0.5"
+                android:valueFrom="1"
+                android:valueTo="10" />
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/dataset_height_colors_switch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:text="@string/preview_height_color_mode"
+                android:textColor="@color/ds_color_text_primary" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

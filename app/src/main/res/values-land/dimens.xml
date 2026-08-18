@@ -72,6 +72,7 @@
     <dimen name="preview_mode_switch_size">44dp</dimen>
     <dimen name="preview_mode_switch_padding">1dp</dimen>
     <dimen name="preview_mode_rail_bottom_margin">76dp</dimen>
+    <dimen name="preview_mode_panel_expanded_height">190dp</dimen>
     <dimen name="phone_map_bottom_dock_button_height">32dp</dimen>
     <dimen name="phone_map_bottom_dock_primary_min_width">84dp</dimen>
     <dimen name="phone_map_bottom_dock_padding_horizontal">8dp</dimen>

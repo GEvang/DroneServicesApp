@@ -2,6 +2,8 @@ package com.example.droneservicesapp.ui.preview
 
 import android.graphics.Bitmap
 import android.net.Uri
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.data.ortho.OrthoBounds
 import com.example.droneservicesapp.data.pointcloud.PointCloudData
@@ -31,6 +33,9 @@ enum class PreviewMapFocus {
 }
 
 class PreviewAssetsViewModel : ViewModel() {
+    private val _previewSettings = MutableLiveData(PreviewSettings())
+    val previewSettings: LiveData<PreviewSettings> = _previewSettings
+
     var orthoAsset: OrthoPreviewAsset? = null
         private set
 
@@ -88,6 +93,21 @@ class PreviewAssetsViewModel : ViewModel() {
         pointCloudTerrainSummary = summary
     }
 
+    fun clearPointCloud() {
+        pointCloudAsset = null
+        pointCloudTerrainModel = null
+        pointCloudTerrainSummary = null
+    }
+
+    fun clearAssets() {
+        clearOrtho()
+        clearPointCloud()
+    }
+
+    fun updateSettings(update: PreviewSettings.() -> PreviewSettings) {
+        _previewSettings.value = (_previewSettings.value ?: PreviewSettings()).update()
+    }
+
     fun requestMapFocus(focus: PreviewMapFocus) {
         pendingMapFocus = focus
     }
@@ -100,3 +120,10 @@ class PreviewAssetsViewModel : ViewModel() {
         return focus
     }
 }
+
+data class PreviewSettings(
+    val orthoOpacity: Float = 0.85f,
+    val orthoBackgroundEnabled: Boolean = true,
+    val pointCloudPointSize: Float = 2.5f,
+    val heightColorModeEnabled: Boolean = false,
+)

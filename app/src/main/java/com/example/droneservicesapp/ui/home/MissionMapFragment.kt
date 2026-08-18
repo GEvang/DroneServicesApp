@@ -18,6 +18,7 @@ import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
+import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
 import androidx.core.view.ViewCompat
@@ -292,6 +293,7 @@ class MissionMapFragment : Fragment() {
         observeHomeTelemetry()
         observeMissionMapViewModel()
         observeGeoAwarenessSharedState()
+        observePreviewSettings()
 
         mapViewModel.updateFromMapState(activityViewModel.mapState.value ?: MainActivityViewModel.MapState.Idle)
         restorePersistedPreviewAssets()
@@ -560,6 +562,18 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun bindPreviewAssetButtons() {
+        binding.previewModeMapButton.setOnClickListener {
+            activePreviewMode = PreviewMode.MAP
+            renderPreviewMode()
+        }
+        binding.previewModeOrthoButton.setOnClickListener {
+            activePreviewMode = PreviewMode.ORTHO
+            renderPreviewMode()
+        }
+        binding.previewMode3dButton.setOnClickListener {
+            activePreviewMode = PreviewMode.POINT_CLOUD
+            renderPreviewMode()
+        }
         binding.previewAssetPrimaryButton.setOnClickListener {
             when (activePreviewMode) {
                 PreviewMode.MAP -> Unit
@@ -574,9 +588,39 @@ class MissionMapFragment : Fragment() {
                 PreviewMode.POINT_CLOUD -> binding.homePointCloudGlView.resetCamera()
             }
         }
+        binding.previewAssetTertiaryButton.setOnClickListener {}
         binding.previewColorModeButton.setOnClickListener {
-            previewHeightColorModeEnabled = !previewHeightColorModeEnabled
-            binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
+            previewAssetsViewModel.updateSettings {
+                copy(heightColorModeEnabled = !heightColorModeEnabled)
+            }
+        }
+        binding.previewBackgroundSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (activePreviewMode == PreviewMode.ORTHO) {
+                binding.osmMap.overlayManager.tilesOverlay?.isEnabled = isChecked
+                binding.osmMap.invalidate()
+            }
+        }
+        binding.previewOpacitySlider.addOnChangeListener { _, value, _ ->
+            homeOrthoOverlay?.opacity = value
+            binding.homePointCloudGlView.setPointCloudOpacity(value)
+            binding.osmMap.invalidate()
+        }
+    }
+
+    private fun observePreviewSettings() {
+        previewAssetsViewModel.previewSettings.observe(viewLifecycleOwner) { settings ->
+            previewHeightColorModeEnabled = settings.heightColorModeEnabled
+            binding.previewBackgroundSwitch.isChecked = settings.orthoBackgroundEnabled
+            if (binding.previewOpacitySlider.value != settings.orthoOpacity) {
+                binding.previewOpacitySlider.value = settings.orthoOpacity
+            }
+            binding.homePointCloudGlView.setPointCloudOpacity(settings.orthoOpacity)
+            binding.homePointCloudGlView.setPointSize(settings.pointCloudPointSize)
+            binding.homePointCloudGlView.setHeightColorModeEnabled(settings.heightColorModeEnabled)
+            homeOrthoOverlay?.opacity = settings.orthoOpacity
+            if (activePreviewMode == PreviewMode.ORTHO) {
+                binding.osmMap.overlayManager.tilesOverlay?.isEnabled = settings.orthoBackgroundEnabled
+            }
             renderCurrentSurveyPathOnMap()
             updatePointCloudMissionOverlay()
             renderPreviewMode()
@@ -1338,7 +1382,47 @@ class MissionMapFragment : Fragment() {
         homeMapPanelsBinder.renderShell(state.shellState)
         homeMapPanelsBinder.renderOverlays(state.panelState)
         homeMapModeEffectsBinder.render(state.screenMode)
+        updatePreviewDockPlacement()
 
+    }
+
+    private fun updatePreviewDockPlacement() {
+        if (_binding == null) return
+        val parent = binding.previewModeBottomDock.parent as? androidx.constraintlayout.widget.ConstraintLayout ?: return
+        parent.post {
+            if (_binding == null) return@post
+            val sideMargin = resources.getDimensionPixelSize(R.dimen.phone_map_overlay_card_margin)
+            val verticalGap = resources.getDimensionPixelSize(R.dimen.ds_space_sm)
+            binding.previewModeBottomDock.layoutParams =
+                (binding.previewModeBottomDock.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams)
+                    .apply {
+                        width = binding.planningPanelContainer.width.takeIf { it > 0 }
+                            ?: resources.getDimensionPixelSize(R.dimen.phone_map_panel_right_width)
+                        height = ViewGroup.LayoutParams.WRAP_CONTENT
+                    }
+            ConstraintSet().apply {
+                clone(parent)
+                clear(binding.previewModeBottomDock.id, ConstraintSet.TOP)
+                clear(binding.previewModeBottomDock.id, ConstraintSet.BOTTOM)
+                clear(binding.previewModeBottomDock.id, ConstraintSet.START)
+                clear(binding.previewModeBottomDock.id, ConstraintSet.END)
+                connect(
+                    binding.previewModeBottomDock.id,
+                    ConstraintSet.END,
+                    ConstraintSet.PARENT_ID,
+                    ConstraintSet.END,
+                    sideMargin
+                )
+                connect(
+                    binding.previewModeBottomDock.id,
+                    ConstraintSet.BOTTOM,
+                    binding.homeBottomUtilityDock.id,
+                    ConstraintSet.TOP,
+                    verticalGap
+                )
+                applyTo(parent)
+            }
+        }
     }
 
     private fun savePreference(key: String, value: String) {
@@ -1437,6 +1521,14 @@ class MissionMapFragment : Fragment() {
 
     private fun renderPreviewMode() {
         if (_binding == null) return
+        renderPreviewModeButtons()
+        binding.previewAssetPrimaryRow.visibility = View.GONE
+        binding.previewAssetSecondaryRow.visibility = View.GONE
+        binding.previewAssetTertiaryRow.visibility = View.GONE
+        binding.previewColorModeRow.visibility = View.GONE
+        binding.previewBackgroundRow.visibility = View.GONE
+        binding.previewOpacityRow.visibility = View.GONE
+        binding.previewTerrainStatus.visibility = View.GONE
         when (activePreviewMode) {
             PreviewMode.MAP -> {
                 binding.osmMap.visibility = View.VISIBLE
@@ -1445,10 +1537,6 @@ class MissionMapFragment : Fragment() {
                 binding.previewModeCycleButton.setImageResource(R.drawable.ic_ortho_24)
                 binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_ortho)
                 binding.previewModeCycleLabel.text = getString(R.string.preview_mode_next_ortho)
-                binding.previewAssetPrimaryRow.visibility = View.GONE
-                binding.previewAssetSecondaryRow.visibility = View.GONE
-                binding.previewColorModeRow.visibility = View.GONE
-                binding.previewTerrainStatus.visibility = View.GONE
                 binding.osmMap.overlayManager.tilesOverlay?.isEnabled = true
                 renderCurrentSurveyPathOnMap()
             }
@@ -1459,9 +1547,6 @@ class MissionMapFragment : Fragment() {
                 binding.previewModeCycleButton.setImageResource(R.drawable.ic_point_cloud_24)
                 binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_3d)
                 binding.previewModeCycleLabel.text = getString(R.string.preview_mode_next_3d)
-                binding.previewAssetPrimaryRow.visibility = View.VISIBLE
-                binding.previewAssetSecondaryRow.visibility = View.VISIBLE
-                binding.previewColorModeRow.visibility = View.VISIBLE
                 binding.previewAssetPrimaryButton.setImageResource(R.drawable.baseline_load_file_24)
                 binding.previewAssetSecondaryButton.setImageResource(R.drawable.ic_menu_map)
                 binding.previewAssetPrimaryButton.contentDescription = getString(R.string.ortho_load_image)
@@ -1469,7 +1554,6 @@ class MissionMapFragment : Fragment() {
                 binding.previewAssetPrimaryLabel.text = getString(R.string.ortho_load_image)
                 binding.previewAssetSecondaryLabel.text = getString(R.string.ortho_load_world)
                 binding.previewColorModeLabel.text = colorModeLabel()
-                binding.previewTerrainStatus.visibility = View.GONE
                 renderCurrentSurveyPathOnMap()
             }
             PreviewMode.POINT_CLOUD -> {
@@ -1478,9 +1562,6 @@ class MissionMapFragment : Fragment() {
                 binding.previewModeCycleButton.setImageResource(R.drawable.ic_menu_map)
                 binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_map)
                 binding.previewModeCycleLabel.text = getString(R.string.preview_mode_next_map)
-                binding.previewAssetPrimaryRow.visibility = View.VISIBLE
-                binding.previewAssetSecondaryRow.visibility = View.VISIBLE
-                binding.previewColorModeRow.visibility = View.VISIBLE
                 binding.previewAssetPrimaryButton.setImageResource(R.drawable.baseline_load_file_24)
                 binding.previewAssetSecondaryButton.setImageResource(R.drawable.ic_baseline_layers_clear_24)
                 binding.previewAssetPrimaryButton.contentDescription = getString(R.string.point_cloud_load)
@@ -1488,13 +1569,36 @@ class MissionMapFragment : Fragment() {
                 binding.previewAssetPrimaryLabel.text = getString(R.string.point_cloud_load)
                 binding.previewAssetSecondaryLabel.text = getString(R.string.point_cloud_reset)
                 binding.previewColorModeLabel.text = colorModeLabel()
-                renderTerrainGridStatus()
                 previewAssetsViewModel.pointCloudAsset?.pointCloud?.let { pointCloud ->
                     binding.homePointCloudGlView.setPointCloud(pointCloud)
-                    binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
+                    binding.homePointCloudGlView.setHeightColorModeEnabled(
+                        previewAssetsViewModel.previewSettings.value?.heightColorModeEnabled ?: false
+                    )
+                    binding.homePointCloudGlView.setPointCloudOpacity(
+                        previewAssetsViewModel.previewSettings.value?.orthoOpacity ?: 0.85f
+                    )
                 }
                 updatePointCloudMissionOverlay()
             }
+        }
+        updatePreviewDockPlacement()
+    }
+
+    private fun renderPreviewModeButtons() {
+        val activeColor = ContextCompat.getColor(requireContext(), R.color.ds_color_shell_active)
+        val inactiveColor = ContextCompat.getColor(requireContext(), R.color.ds_color_text_primary)
+        val modes = listOf(
+            binding.previewModeMapButton to PreviewMode.MAP,
+            binding.previewModeOrthoButton to PreviewMode.ORTHO,
+            binding.previewMode3dButton to PreviewMode.POINT_CLOUD
+        )
+        modes.forEach { (button, mode) ->
+            val active = activePreviewMode == mode
+            button.alpha = if (active) 1f else 0.72f
+            button.setTextColor(if (active) activeColor else inactiveColor)
+            button.iconTint = android.content.res.ColorStateList.valueOf(
+                if (active) activeColor else inactiveColor
+            )
         }
     }
 
@@ -1540,10 +1644,12 @@ class MissionMapFragment : Fragment() {
         if (existing != null) {
             mapView.overlays.remove(existing)
         }
+        val settings = previewAssetsViewModel.previewSettings.value
         homeOrthoOverlay = OrthoImageOverlay(asset.bitmap, bounds).also { overlay ->
+            overlay.opacity = settings?.orthoOpacity ?: 0.85f
             mapView.overlays.add(0, overlay)
         }
-        binding.osmMap.overlayManager.tilesOverlay?.isEnabled = true
+        binding.osmMap.overlayManager.tilesOverlay?.isEnabled = settings?.orthoBackgroundEnabled ?: true
         focusOrthoOnMap()
         mapView.invalidate()
     }

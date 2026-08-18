@@ -4,6 +4,7 @@
 
     <string name="menu_maps_home">Map</string>
     <string name="menu_settings">Settings</string>
+    <string name="menu_datasets">Datasets</string>
     <string name="menu_rtk">RTK</string>
     <string name="menu_geo_awareness">Geo-awareness</string>
     <string name="menu_point_cloud">3D Preview</string>
@@ -35,10 +36,28 @@
     <string name="ortho_title">Ortho Preview</string>
     <string name="ortho_load_image">Load .TIF</string>
     <string name="ortho_load_world">Load .TFW</string>
+    <string name="ortho_load_files">Load files</string>
     <string name="ortho_clear">Clear ortho</string>
     <string name="ortho_zoom_to">Zoom to ortho</string>
     <string name="ortho_background">Background</string>
     <string name="ortho_opacity">Opacity</string>
+    <string name="datasets_title">Datasets</string>
+    <string name="datasets_subtitle">Create datasets that pair an ortho image/world file with a 3D point cloud.</string>
+    <string name="dataset_create">Create Dataset</string>
+    <string name="dataset_load">Load Dataset</string>
+    <string name="dataset_unload">Unload Dataset</string>
+    <string name="dataset_assets">Dataset Assets</string>
+    <string name="dataset_display_options">Display Options</string>
+    <string name="dataset_active_name">Active: %1$s</string>
+    <string name="dataset_none">None</string>
+    <string name="dataset_ortho_image_status">Ortho image: %1$s</string>
+    <string name="dataset_ortho_world_status">World file: %1$s</string>
+    <string name="dataset_point_cloud_status">Point cloud: %1$s</string>
+    <string name="dataset_ortho_opacity_value">Ortho opacity: %1$d%%</string>
+    <string name="dataset_point_size_value">3D point size: %.1f</string>
+    <string name="dataset_created">Dataset created</string>
+    <string name="dataset_loaded">Dataset loaded</string>
+    <string name="dataset_unloaded">Dataset unloaded</string>
     <string name="ortho_empty_state">Load an ortho .tif image, then its .tfw world file.</string>
     <string name="ortho_stats_empty">Image: --</string>
     <string name="ortho_loading_image">Loading image %1$s...</string>

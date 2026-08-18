@@ -79,6 +79,7 @@ class MainActivity : AppCompatActivity() {
             setOf(
                 R.id.nav_maps_home,
                 R.id.nav_settings,
+                R.id.nav_datasets,
                 R.id.nav_rtk,
                 R.id.nav_geo_awareness,
                 R.id.nav_point_cloud,

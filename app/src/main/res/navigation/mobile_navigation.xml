@@ -16,6 +16,12 @@
         android:label="@string/menu_settings" />
 
     <fragment
+        android:id="@+id/nav_datasets"
+        android:name="com.example.droneservicesapp.ui.datasets.DatasetsFragment"
+        android:label="@string/menu_datasets"
+        tools:layout="@layout/fragment_datasets" />
+
+    <fragment
         android:id="@+id/nav_rtk"
         android:name="com.example.droneservicesapp.ui.rtk.RtkFragment"
         android:label="@string/rtk_title"

@@ -69,6 +69,12 @@ class PointCloudGlView @JvmOverloads constructor(
         }
     }
 
+    fun setPointCloudOpacity(opacity: Float) {
+        queueEvent {
+            pointRenderer.pointCloudOpacity = opacity.coerceIn(0f, 1f)
+        }
+    }
+
     fun resetCamera() {
         queueEvent {
             pointRenderer.resetCamera()
@@ -158,6 +164,7 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     private var colorHandle = 0
     private var matrixHandle = 0
     private var pointSizeHandle = 0
+    private var alphaHandle = 0
     private var positionBuffer: FloatBuffer? = null
     private var colorBuffer: FloatBuffer? = null
     private var sourceColorBuffer: FloatBuffer? = null
@@ -171,6 +178,7 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     private var overlayPointVertexCount = 0
     private var cloudSpan = 100f
     private var heightColorModeEnabled = false
+    var pointCloudOpacity: Float = 1f
     private var viewportWidth = 1
     private var viewportHeight = 1
     private var yaw = 0f
@@ -192,6 +200,9 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
         colorHandle = GLES20.glGetAttribLocation(program, "a_Color")
         matrixHandle = GLES20.glGetUniformLocation(program, "u_MvpMatrix")
         pointSizeHandle = GLES20.glGetUniformLocation(program, "u_PointSize")
+        alphaHandle = GLES20.glGetUniformLocation(program, "u_Alpha")
+        GLES20.glEnable(GLES20.GL_BLEND)
+        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -210,6 +221,7 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
         GLES20.glUseProgram(program)
         GLES20.glUniformMatrix4fv(matrixHandle, 1, false, viewProjectionMatrix, 0)
         GLES20.glUniform1f(pointSizeHandle, pointSize)
+        GLES20.glUniform1f(alphaHandle, pointCloudOpacity)
 
         positionBuffer?.position(0)
         GLES20.glEnableVertexAttribArray(positionHandle)
@@ -268,6 +280,7 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
             if (overlayPositions != null && overlayColors != null) {
                 GLES20.glLineWidth(MISSION_OVERLAY_LINE_WIDTH)
                 GLES20.glUniform1f(pointSizeHandle, pointSize)
+                GLES20.glUniform1f(alphaHandle, 1f)
 
                 overlayPositions.position(0)
                 GLES20.glEnableVertexAttribArray(positionHandle)
@@ -286,6 +299,7 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
             val pointColors = overlayPointColorBuffer
             if (pointPositions != null && pointColors != null) {
                 GLES20.glUniform1f(pointSizeHandle, MISSION_OVERLAY_POINT_SIZE)
+                GLES20.glUniform1f(alphaHandle, 1f)
 
                 pointPositions.position(0)
                 GLES20.glEnableVertexAttribArray(positionHandle)
@@ -422,8 +436,9 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
         private const val FRAGMENT_SHADER = """
             precision mediump float;
             varying vec3 v_Color;
+            uniform float u_Alpha;
             void main() {
-                gl_FragColor = vec4(v_Color, 1.0);
+                gl_FragColor = vec4(v_Color, u_Alpha);
             }
         """
     }

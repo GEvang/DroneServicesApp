@@ -487,24 +487,89 @@
             </LinearLayout>
         </FrameLayout>
 
-        <LinearLayout
+        <androidx.core.widget.NestedScrollView
             android:id="@+id/preview_mode_bottom_dock"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="@dimen/phone_map_overlay_card_margin"
-            android:layout_marginBottom="@dimen/preview_mode_rail_bottom_margin"
-            android:background="@drawable/bg_preview_mode_rail"
-            android:gravity="start"
-            android:orientation="vertical"
-            android:padding="4dp"
-            app:layout_constraintBottom_toBottomOf="parent"
-            app:layout_constraintStart_toStartOf="parent">
+            android:layout_width="@dimen/phone_map_panel_right_width"
+            android:layout_height="0dp"
+            android:layout_marginEnd="@dimen/phone_map_overlay_card_margin"
+            android:layout_marginTop="@dimen/ds_space_sm"
+            android:layout_marginBottom="@dimen/ds_space_sm"
+            android:background="@drawable/bg_ds_map_panel_right"
+            android:fillViewport="false"
+            android:overScrollMode="ifContentScrolls"
+            android:padding="@dimen/ds_space_sm"
+            android:scrollbars="none"
+            app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/planning_panel_container"
+            app:layout_constraintVertical_bias="0">
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:gravity="start"
+                android:orientation="vertical">
+
+            <LinearLayout
+                android:id="@+id/preview_mode_button_row"
+                android:layout_width="match_parent"
                 android:layout_height="@dimen/preview_mode_switch_size"
                 android:gravity="center_vertical"
                 android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/preview_mode_map_button"
+                    style="@style/Widget.DroneServices.Button.MapDark"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:text="@string/preview_mode_map"
+                    android:textAllCaps="false"
+                    android:textSize="@dimen/phone_map_panel_value_text_size"
+                    app:icon="@drawable/ic_menu_map"
+                    app:iconGravity="textStart"
+                    app:iconPadding="@dimen/ds_space_xs"
+                    app:iconTint="@color/ds_color_text_primary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/preview_mode_ortho_button"
+                    style="@style/Widget.DroneServices.Button.MapDark"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="@dimen/ds_space_xs"
+                    android:layout_weight="1"
+                    android:text="@string/preview_mode_ortho"
+                    android:textAllCaps="false"
+                    android:textSize="@dimen/phone_map_panel_value_text_size"
+                    app:icon="@drawable/ic_ortho_24"
+                    app:iconGravity="textStart"
+                    app:iconPadding="@dimen/ds_space_xs"
+                    app:iconTint="@color/ds_color_text_primary" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/preview_mode_3d_button"
+                    style="@style/Widget.DroneServices.Button.MapDark"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_marginStart="@dimen/ds_space_xs"
+                    android:layout_weight="1"
+                    android:text="@string/preview_mode_3d"
+                    android:textAllCaps="false"
+                    android:textSize="@dimen/phone_map_panel_value_text_size"
+                    app:icon="@drawable/ic_point_cloud_24"
+                    app:iconGravity="textStart"
+                    app:iconPadding="@dimen/ds_space_xs"
+                    app:iconTint="@color/ds_color_text_primary" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/preview_mode_switch_size"
+                android:background="@drawable/bg_ds_panel_pill_active"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingEnd="@dimen/ds_space_sm"
+                android:visibility="gone">
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/preview_mode_cycle_button"
@@ -521,19 +586,22 @@
                 <TextView
                     android:id="@+id/preview_mode_cycle_label"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_weight="1"
                     android:text="@string/preview_mode_next_ortho"
                     android:textColor="@color/ds_color_text_primary" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/preview_asset_primary_row"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="@dimen/preview_mode_switch_size"
+                android:layout_marginTop="@dimen/ds_space_xs"
+                android:background="@drawable/bg_ds_panel_pill_inactive"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
+                android:paddingEnd="@dimen/ds_space_sm"
                 android:visibility="gone">
 
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -551,19 +619,22 @@
                 <TextView
                     android:id="@+id/preview_asset_primary_label"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_weight="1"
                     android:text="@string/ortho_load_image"
                     android:textColor="@color/ds_color_text_primary" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/preview_asset_secondary_row"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="@dimen/preview_mode_switch_size"
+                android:layout_marginTop="@dimen/ds_space_xs"
+                android:background="@drawable/bg_ds_panel_pill_inactive"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
+                android:paddingEnd="@dimen/ds_space_sm"
                 android:visibility="gone">
 
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -581,19 +652,22 @@
                 <TextView
                     android:id="@+id/preview_asset_secondary_label"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_weight="1"
                     android:text="@string/ortho_load_world"
                     android:textColor="@color/ds_color_text_primary" />
             </LinearLayout>
 
             <LinearLayout
                 android:id="@+id/preview_color_mode_row"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="@dimen/preview_mode_switch_size"
+                android:layout_marginTop="@dimen/ds_space_xs"
+                android:background="@drawable/bg_ds_panel_pill_inactive"
                 android:gravity="center_vertical"
                 android:orientation="horizontal"
+                android:paddingEnd="@dimen/ds_space_sm"
                 android:visibility="gone">
 
                 <androidx.appcompat.widget.AppCompatImageButton
@@ -611,25 +685,113 @@
                 <TextView
                     android:id="@+id/preview_color_mode_label"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                    android:layout_width="wrap_content"
+                    android:layout_width="0dp"
                     android:layout_height="wrap_content"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_weight="1"
                     android:text="@string/preview_height_color_mode"
                     android:textColor="@color/ds_color_text_primary" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/preview_asset_tertiary_row"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/preview_mode_switch_size"
+                android:layout_marginTop="@dimen/ds_space_xs"
+                android:background="@drawable/bg_ds_panel_pill_inactive"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingEnd="@dimen/ds_space_sm"
+                android:visibility="gone">
+
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/preview_asset_tertiary_button"
+                    android:layout_width="@dimen/preview_mode_switch_size"
+                    android:layout_height="@dimen/preview_mode_switch_size"
+                    android:background="@android:color/transparent"
+                    android:contentDescription="@string/ortho_load_world"
+                    android:elevation="10dp"
+                    android:padding="@dimen/preview_mode_switch_padding"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_menu_map"
+                    android:tint="@android:color/white" />
+
+                <TextView
+                    android:id="@+id/preview_asset_tertiary_label"
+                    style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="@string/ortho_load_world"
+                    android:textColor="@color/ds_color_text_primary" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/preview_background_row"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/preview_mode_switch_size"
+                android:layout_marginTop="@dimen/ds_space_xs"
+                android:background="@drawable/bg_ds_panel_pill_inactive"
+                android:gravity="center_vertical"
+                android:orientation="horizontal"
+                android:paddingStart="@dimen/ds_space_sm"
+                android:paddingEnd="@dimen/ds_space_sm"
+                android:visibility="gone">
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/preview_background_switch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:checked="true"
+                    android:text="@string/ortho_background"
+                    android:textColor="@color/ds_color_text_primary" />
+            </LinearLayout>
+
+            <LinearLayout
+                android:id="@+id/preview_opacity_row"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_xs"
+                android:background="@drawable/bg_ds_panel_pill_inactive"
+                android:orientation="vertical"
+                android:paddingTop="@dimen/ds_space_xs"
+                android:paddingStart="@dimen/ds_space_sm"
+                android:paddingEnd="@dimen/ds_space_sm"
+                android:paddingBottom="@dimen/ds_space_xs"
+                android:visibility="gone">
+
+                <TextView
+                    style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/ortho_opacity"
+                    android:textColor="@color/ds_color_text_primary" />
+
+                <com.google.android.material.slider.Slider
+                    android:id="@+id/preview_opacity_slider"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:stepSize="0.05"
+                    android:value="0.85"
+                    android:valueFrom="0"
+                    android:valueTo="1" />
             </LinearLayout>
 
             <TextView
                 android:id="@+id/preview_terrain_status"
                 style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                android:layout_width="wrap_content"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginEnd="@dimen/ds_space_sm"
+                android:layout_marginTop="@dimen/ds_space_xs"
+                android:background="@drawable/bg_ds_panel_pill_inactive"
                 android:paddingStart="@dimen/ds_space_sm"
+                android:paddingTop="@dimen/ds_space_sm"
                 android:paddingEnd="@dimen/ds_space_sm"
+                android:paddingBottom="@dimen/ds_space_sm"
                 android:textColor="@color/ds_color_text_secondary"
                 android:visibility="gone"
                 tools:text="Terrain 120k" />
-        </LinearLayout>
+            </LinearLayout>
+        </androidx.core.widget.NestedScrollView>
 
         <include
             layout="@layout/home_obstacle_panel"

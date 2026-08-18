@@ -31,4 +31,5 @@
     <dimen name="phone_map_panel_slider_row_height">42dp</dimen>
     <dimen name="phone_map_panel_slider_frame_small">32dp</dimen>
     <dimen name="phone_map_panel_slider_frame_large">36dp</dimen>
+    <dimen name="preview_mode_panel_expanded_height">236dp</dimen>
 </resources>
