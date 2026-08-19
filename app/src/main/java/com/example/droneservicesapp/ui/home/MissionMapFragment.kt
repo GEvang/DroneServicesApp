@@ -1391,13 +1391,11 @@ class MissionMapFragment : Fragment() {
         val parent = binding.previewModeBottomDock.parent as? androidx.constraintlayout.widget.ConstraintLayout ?: return
         parent.post {
             if (_binding == null) return@post
-            val sideMargin = resources.getDimensionPixelSize(R.dimen.phone_map_overlay_card_margin)
-            val verticalGap = resources.getDimensionPixelSize(R.dimen.ds_space_sm)
+            val verticalGap = resources.getDimensionPixelSize(R.dimen.ds_space_xs)
             binding.previewModeBottomDock.layoutParams =
                 (binding.previewModeBottomDock.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams)
                     .apply {
-                        width = binding.planningPanelContainer.width.takeIf { it > 0 }
-                            ?: resources.getDimensionPixelSize(R.dimen.phone_map_panel_right_width)
+                        width = resources.getDimensionPixelSize(R.dimen.preview_mode_rail_width)
                         height = ViewGroup.LayoutParams.WRAP_CONTENT
                     }
             ConstraintSet().apply {
@@ -1408,10 +1406,17 @@ class MissionMapFragment : Fragment() {
                 clear(binding.previewModeBottomDock.id, ConstraintSet.END)
                 connect(
                     binding.previewModeBottomDock.id,
+                    ConstraintSet.START,
+                    ConstraintSet.PARENT_ID,
+                    ConstraintSet.START,
+                    0
+                )
+                connect(
+                    binding.previewModeBottomDock.id,
                     ConstraintSet.END,
                     ConstraintSet.PARENT_ID,
                     ConstraintSet.END,
-                    sideMargin
+                    0
                 )
                 connect(
                     binding.previewModeBottomDock.id,
