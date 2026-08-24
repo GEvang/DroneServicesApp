@@ -2,6 +2,7 @@ package com.example.droneservicesapp.ui.shell
 
 import android.os.Build
 import android.os.Bundle
+import android.graphics.drawable.ColorDrawable
 import android.view.Menu
 import android.view.Gravity
 import android.view.View
@@ -9,6 +10,7 @@ import android.widget.ImageButton
 import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
+import androidx.core.content.ContextCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.findNavController
@@ -54,6 +56,10 @@ class MainActivity : AppCompatActivity() {
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+        val shellBackground = ContextCompat.getColor(this, R.color.ds_color_background)
+        window.setBackgroundDrawable(ColorDrawable(shellBackground))
+        window.decorView.setBackgroundColor(shellBackground)
+        binding.root.setBackgroundColor(shellBackground)
         configureSystemUi()
 
         droneViewModel = ViewModelProvider(this)[DroneViewModel::class.java]

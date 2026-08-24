@@ -296,8 +296,13 @@ class MissionMapFragment : Fragment() {
         observePreviewSettings()
 
         mapViewModel.updateFromMapState(activityViewModel.mapState.value ?: MainActivityViewModel.MapState.Idle)
-        restorePersistedPreviewAssets()
+        activePreviewMode = PreviewMode.MAP
         renderPreviewMode()
+        binding.root.post {
+            if (_binding != null) {
+                restorePersistedPreviewAssets()
+            }
+        }
     }
 
     private fun initializeMapView(view: View) {
@@ -1536,9 +1541,11 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun refreshPreviewAssets() {
-        previewAssetsViewModel.pointCloudAsset?.pointCloud?.let { pointCloud ->
-            binding.homePointCloudGlView.setPointCloud(pointCloud)
-            binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
+        if (activePreviewMode == PreviewMode.POINT_CLOUD) {
+            previewAssetsViewModel.pointCloudAsset?.pointCloud?.let { pointCloud ->
+                binding.homePointCloudGlView.setPointCloud(pointCloud)
+                binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
+            }
         }
         renderPreviewMode()
     }
@@ -1555,6 +1562,7 @@ class MissionMapFragment : Fragment() {
         binding.previewTerrainStatus.visibility = View.GONE
         when (activePreviewMode) {
             PreviewMode.MAP -> {
+                binding.homePointCloudGlView.onPause()
                 binding.osmMap.visibility = View.VISIBLE
                 binding.homePointCloudGlView.visibility = View.GONE
                 removeHomeOrthoOverlay()
@@ -1565,6 +1573,7 @@ class MissionMapFragment : Fragment() {
                 renderCurrentSurveyPathOnMap()
             }
             PreviewMode.ORTHO -> {
+                binding.homePointCloudGlView.onPause()
                 binding.osmMap.visibility = View.VISIBLE
                 binding.homePointCloudGlView.visibility = View.GONE
                 renderHomeOrthoOverlay()
@@ -1581,6 +1590,7 @@ class MissionMapFragment : Fragment() {
                 renderCurrentSurveyPathOnMap()
             }
             PreviewMode.POINT_CLOUD -> {
+                binding.homePointCloudGlView.onResume()
                 binding.osmMap.visibility = View.GONE
                 binding.homePointCloudGlView.visibility = View.VISIBLE
                 binding.previewModeCycleButton.setImageResource(R.drawable.ic_menu_map)
@@ -2091,8 +2101,10 @@ class MissionMapFragment : Fragment() {
                     }
                     result.onSuccess { pointCloud ->
                         previewAssetsViewModel.setPointCloud(pointCloud, pointCloudName, pointCloudUri)
-                        binding.homePointCloudGlView.setPointCloud(pointCloud)
-                        binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
+                        if (activePreviewMode == PreviewMode.POINT_CLOUD) {
+                            binding.homePointCloudGlView.setPointCloud(pointCloud)
+                            binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
+                        }
                         warmPointCloudTerrainGrid(showToast = false)
                         updatePointCloudMissionOverlay()
                     }
@@ -2359,7 +2371,9 @@ class MissionMapFragment : Fragment() {
         hideShellToolbar()
         mapView.onResume()
         osmdroidMapController.onResume()
-        binding.homePointCloudGlView.onResume()
+        if (activePreviewMode == PreviewMode.POINT_CLOUD) {
+            binding.homePointCloudGlView.onResume()
+        }
         binding.root.post {
             refreshPreviewAssets()
             renderCurrentSurveyPathOnMap()
