@@ -118,11 +118,11 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_angle_minus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/decrease"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_remove_24"
                     android:tint="@color/text_secondary" />
 
@@ -130,8 +130,8 @@
                     android:id="@+id/line_angle_seekbar"
                     android:layout_width="0dp"
                     android:layout_height="28dp"
-                    android:layout_marginStart="@dimen/ds_space_sm"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_marginStart="@dimen/ds_space_xs"
+                    android:layout_marginEnd="@dimen/ds_space_xs"
                     android:layout_weight="1"
                     android:max="180"
                     android:progress="0"
@@ -153,12 +153,12 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_angle_plus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginStart="@dimen/ds_space_sm"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/increase"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_add_24"
                     android:tint="@color/text_secondary" />
             </LinearLayout>
@@ -189,11 +189,11 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_distance_minus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/decrease"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_remove_24"
                     android:tint="@color/text_secondary" />
 
@@ -201,8 +201,8 @@
                     android:id="@+id/line_distance_seekbar"
                     android:layout_width="0dp"
                     android:layout_height="28dp"
-                    android:layout_marginStart="@dimen/ds_space_sm"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_marginStart="@dimen/ds_space_xs"
+                    android:layout_marginEnd="@dimen/ds_space_xs"
                     android:layout_weight="1"
                     android:max="20"
                     android:min="0"
@@ -225,12 +225,12 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_distance_plus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginStart="@dimen/ds_space_sm"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/increase"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_add_24"
                     android:tint="@color/text_secondary" />
             </LinearLayout>
@@ -261,11 +261,11 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_alt_minus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/decrease"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_remove_24"
                     android:tint="@color/text_secondary" />
 
@@ -273,8 +273,8 @@
                     android:id="@+id/altitude_seekbar"
                     android:layout_width="0dp"
                     android:layout_height="28dp"
-                    android:layout_marginStart="@dimen/ds_space_sm"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_marginStart="@dimen/ds_space_xs"
+                    android:layout_marginEnd="@dimen/ds_space_xs"
                     android:layout_weight="1"
                     android:max="20"
                     android:min="0"
@@ -297,12 +297,12 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_alt_plus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginStart="@dimen/ds_space_sm"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/increase"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_add_24"
                     android:tint="@color/text_secondary" />
             </LinearLayout>
@@ -333,11 +333,11 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_sprayer_minus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/decrease"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_remove_24"
                     android:tint="@color/text_secondary" />
 
@@ -345,8 +345,8 @@
                     android:id="@+id/sprayer_seekbar"
                     android:layout_width="0dp"
                     android:layout_height="28dp"
-                    android:layout_marginStart="@dimen/ds_space_sm"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_marginStart="@dimen/ds_space_xs"
+                    android:layout_marginEnd="@dimen/ds_space_xs"
                     android:layout_weight="1"
                     android:max="100"
                     android:progress="0"
@@ -368,12 +368,12 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_sprayer_plus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginStart="@dimen/ds_space_sm"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/increase"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_add_24"
                     android:tint="@color/text_secondary" />
             </LinearLayout>
@@ -428,11 +428,11 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_survey_strip_spacing_minus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/decrease"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_remove_24"
                     android:tint="@color/text_secondary" />
 
@@ -440,8 +440,8 @@
                     android:id="@+id/survey_strip_spacing_seekbar"
                     android:layout_width="0dp"
                     android:layout_height="28dp"
-                    android:layout_marginStart="@dimen/ds_space_sm"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_marginStart="@dimen/ds_space_xs"
+                    android:layout_marginEnd="@dimen/ds_space_xs"
                     android:layout_weight="1"
                     android:max="50"
                     android:min="2"
@@ -471,12 +471,12 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_survey_strip_spacing_plus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginStart="@dimen/ds_space_sm"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/increase"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_add_24"
                     android:tint="@color/text_secondary" />
             </LinearLayout>
@@ -507,11 +507,11 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_survey_height_minus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/decrease"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_remove_24"
                     android:tint="@color/text_secondary" />
 
@@ -519,8 +519,8 @@
                     android:id="@+id/survey_height_seekbar"
                     android:layout_width="0dp"
                     android:layout_height="28dp"
-                    android:layout_marginStart="@dimen/ds_space_sm"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_marginStart="@dimen/ds_space_xs"
+                    android:layout_marginEnd="@dimen/ds_space_xs"
                     android:layout_weight="1"
                     android:max="120"
                     android:min="0"
@@ -550,12 +550,12 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_survey_height_plus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginStart="@dimen/ds_space_sm"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/increase"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_add_24"
                     android:tint="@color/text_secondary" />
             </LinearLayout>
@@ -586,11 +586,11 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_survey_overlap_minus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/decrease"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_remove_24"
                     android:tint="@color/text_secondary" />
 
@@ -598,8 +598,8 @@
                     android:id="@+id/survey_overlap_seekbar"
                     android:layout_width="0dp"
                     android:layout_height="28dp"
-                    android:layout_marginStart="@dimen/ds_space_sm"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_marginStart="@dimen/ds_space_xs"
+                    android:layout_marginEnd="@dimen/ds_space_xs"
                     android:layout_weight="1"
                     android:max="95"
                     android:progress="20"
@@ -628,12 +628,12 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_survey_overlap_plus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginStart="@dimen/ds_space_sm"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/increase"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_add_24"
                     android:tint="@color/text_secondary" />
             </LinearLayout>
@@ -664,11 +664,11 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_survey_grid_angle_minus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/decrease"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_remove_24"
                     android:tint="@color/text_secondary" />
 
@@ -676,8 +676,8 @@
                     android:id="@+id/survey_grid_angle_seekbar"
                     android:layout_width="0dp"
                     android:layout_height="28dp"
-                    android:layout_marginStart="@dimen/ds_space_sm"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_marginStart="@dimen/ds_space_xs"
+                    android:layout_marginEnd="@dimen/ds_space_xs"
                     android:layout_weight="1"
                     android:max="180"
                     android:progress="0"
@@ -706,12 +706,12 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_survey_grid_angle_plus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginStart="@dimen/ds_space_sm"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/increase"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_add_24"
                     android:tint="@color/text_secondary" />
             </LinearLayout>
@@ -742,11 +742,11 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_survey_terrain_segment_minus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/decrease"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_remove_24"
                     android:tint="@color/text_secondary" />
 
@@ -754,8 +754,8 @@
                     android:id="@+id/survey_terrain_segment_seekbar"
                     android:layout_width="0dp"
                     android:layout_height="28dp"
-                    android:layout_marginStart="@dimen/ds_space_sm"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_marginStart="@dimen/ds_space_xs"
+                    android:layout_marginEnd="@dimen/ds_space_xs"
                     android:layout_weight="1"
                     android:max="39"
                     android:progress="4"
@@ -784,12 +784,12 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_survey_terrain_segment_plus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginStart="@dimen/ds_space_sm"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/increase"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_add_24"
                     android:tint="@color/text_secondary" />
             </LinearLayout>
@@ -820,11 +820,11 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_survey_canopy_smoothing_minus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/decrease"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_remove_24"
                     android:tint="@color/text_secondary" />
 
@@ -832,8 +832,8 @@
                     android:id="@+id/survey_canopy_smoothing_seekbar"
                     android:layout_width="0dp"
                     android:layout_height="28dp"
-                    android:layout_marginStart="@dimen/ds_space_sm"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
+                    android:layout_marginStart="@dimen/ds_space_xs"
+                    android:layout_marginEnd="@dimen/ds_space_xs"
                     android:layout_weight="1"
                     android:max="30"
                     android:progress="5"
@@ -862,12 +862,12 @@
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_survey_canopy_smoothing_plus"
-                    android:layout_width="26dp"
-                    android:layout_height="26dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:layout_marginStart="@dimen/ds_space_sm"
                     android:background="@drawable/bg_icon_button_neutral"
                     android:contentDescription="@string/increase"
-                    android:padding="6dp"
+                    android:padding="5dp"
                     android:src="@drawable/ic_add_24"
                     android:tint="@color/text_secondary" />
             </LinearLayout>
@@ -897,11 +897,11 @@
 
         <androidx.appcompat.widget.AppCompatImageButton
             android:id="@+id/minus_button"
-            android:layout_width="26dp"
-            android:layout_height="26dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:background="@drawable/bg_icon_button_neutral"
             android:contentDescription="@string/decrease"
-            android:padding="6dp"
+            android:padding="5dp"
             android:src="@drawable/ic_remove_24"
             android:tint="@color/text_secondary" />
 
@@ -922,12 +922,12 @@
 
         <androidx.appcompat.widget.AppCompatImageButton
             android:id="@+id/plus_button"
-            android:layout_width="26dp"
-            android:layout_height="26dp"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
             android:layout_marginStart="@dimen/ds_space_sm"
             android:background="@drawable/bg_icon_button_neutral"
             android:contentDescription="@string/increase"
-            android:padding="6dp"
+            android:padding="5dp"
             android:src="@drawable/ic_add_24"
             android:tint="@color/text_secondary" />
 

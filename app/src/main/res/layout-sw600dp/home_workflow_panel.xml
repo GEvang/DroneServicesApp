@@ -46,38 +46,35 @@
             android:textSize="@dimen/phone_map_panel_title_text_size" />
     </LinearLayout>
 
-    <LinearLayout
+    <TextView
+        android:id="@+id/right_panel_area_button"
+        style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/phone_map_panel_tab_height"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_lg"
+        android:clickable="true"
+        android:focusable="true"
+        android:paddingStart="@dimen/ds_space_md"
+        android:paddingEnd="@dimen/ds_space_md"
+        android:text="@string/area"
+        android:textColor="@color/ds_color_shell_active"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/right_panel_points_button"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/phone_map_panel_button_height_tall"
         android:layout_marginTop="@dimen/ds_space_md"
-        android:orientation="horizontal">
-
-        <TextView
-            android:id="@+id/right_panel_area_button"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="@drawable/bg_ds_panel_pill_active"
-            android:fontFamily="@font/inter"
-            android:gravity="center"
-            android:text="@string/area"
-            android:textColor="@color/ds_color_shell_selected_content"
-            android:textSize="@dimen/phone_map_panel_label_text_size"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/right_panel_points_button"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="@dimen/ds_space_sm"
-            android:layout_weight="1"
-            android:background="@drawable/bg_ds_panel_pill_inactive"
-            android:fontFamily="@font/inter"
-            android:gravity="center"
-            android:text="@string/points"
-            android:textColor="@color/ds_color_text_primary"
-            android:textSize="@dimen/phone_map_panel_label_text_size" />
-    </LinearLayout>
+        android:background="@drawable/bg_ds_panel_pill_inactive"
+        android:clickable="true"
+        android:focusable="true"
+        android:fontFamily="@font/inter"
+        android:gravity="center"
+        android:paddingStart="@dimen/ds_space_md"
+        android:paddingEnd="@dimen/ds_space_md"
+        android:text="@string/points"
+        android:textColor="@color/ds_color_text_primary"
+        android:textSize="@dimen/phone_map_panel_label_text_size" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/right_panel_draw_area_button"
@@ -99,13 +96,16 @@
         android:layout_width="match_parent"
         android:layout_height="@dimen/phone_map_panel_button_height_tall"
         android:layout_marginTop="@dimen/ds_space_sm"
+        app:backgroundTint="@android:color/transparent"
         android:gravity="center"
         android:text="@string/clear_area"
+        android:textColor="@color/ds_color_shell_danger"
         android:textSize="@dimen/phone_map_panel_label_text_size"
         app:icon="@drawable/ic_delete_24"
         app:iconGravity="textStart"
         app:iconPadding="@dimen/ds_space_sm"
-        app:iconTint="@color/ds_color_text_primary" />
+        app:iconTint="@color/ds_color_shell_danger"
+        app:strokeColor="@color/ds_color_shell_danger" />
 
     <TextView
         android:id="@+id/right_panel_undo_route_button"
@@ -166,39 +166,31 @@
             android:tint="@color/ds_color_text_secondary" />
     </LinearLayout>
 
-    <LinearLayout
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/save_mission"
+        style="@style/Widget.DroneServices.Button.MapDark"
         android:layout_width="match_parent"
-        android:layout_height="@dimen/phone_map_panel_button_height"
+        android:layout_height="@dimen/phone_map_panel_button_height_tall"
         android:layout_marginTop="@dimen/ds_space_sm"
-        android:orientation="horizontal">
+        android:text="@string/save"
+        android:textSize="@dimen/phone_map_panel_label_text_size"
+        app:icon="@drawable/ic_save_24"
+        app:iconGravity="textStart"
+        app:iconPadding="@dimen/ds_space_sm"
+        app:iconTint="@color/ds_color_text_primary" />
 
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/save_mission"
-            style="@style/Widget.DroneServices.Button.MapDark"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:text="@string/save"
-            android:textSize="@dimen/phone_map_panel_label_text_size"
-            app:icon="@drawable/ic_save_24"
-            app:iconGravity="textStart"
-            app:iconPadding="@dimen/ds_space_xs"
-            app:iconTint="@color/ds_color_text_primary" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/right_panel_load_button"
-            style="@style/Widget.DroneServices.Button.MapDark"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="@dimen/ds_space_sm"
-            android:layout_weight="1"
-            android:text="@string/load"
-            android:textSize="@dimen/phone_map_panel_label_text_size"
-            app:icon="@drawable/ic_folder_24"
-            app:iconGravity="textStart"
-            app:iconPadding="@dimen/ds_space_xs"
-            app:iconTint="@color/ds_color_text_primary" />
-    </LinearLayout>
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/right_panel_load_button"
+        style="@style/Widget.DroneServices.Button.MapDark"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/phone_map_panel_button_height_tall"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:text="@string/load"
+        android:textSize="@dimen/phone_map_panel_label_text_size"
+        app:icon="@drawable/ic_folder_24"
+        app:iconGravity="textStart"
+        app:iconPadding="@dimen/ds_space_sm"
+        app:iconTint="@color/ds_color_text_primary" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/uploadMission"

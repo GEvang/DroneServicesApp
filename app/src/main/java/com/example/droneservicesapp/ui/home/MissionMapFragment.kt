@@ -784,7 +784,7 @@ class MissionMapFragment : Fragment() {
             R.color.ds_color_shell_selected_content
         }
 
-        fun style(button: TextView, selected: Boolean) {
+        fun styleWorkflowButton(button: TextView, selected: Boolean) {
             button.setBackgroundResource(
                 if (selected) R.drawable.bg_ds_panel_pill_active
                 else R.drawable.bg_ds_panel_pill_inactive
@@ -801,8 +801,27 @@ class MissionMapFragment : Fragment() {
         }
 
         val isPoints = workflow == PlanningWorkflow.POINTS
-        style(areaButton, !isPoints)
-        style(pointsButton, isPoints)
+        areaButton.setBackgroundColor(Color.TRANSPARENT)
+        areaButton.setTextColor(
+            ContextCompat.getColor(
+                requireContext(),
+                if (isPoints) R.color.ds_color_text_primary else R.color.ds_color_shell_active
+            )
+        )
+        areaButton.setTypeface(Typeface.DEFAULT, if (isPoints) Typeface.NORMAL else Typeface.BOLD)
+        areaButton.includeFontPadding = false
+        areaButton.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
+        pointsButton.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_draw_area_24, 0, 0, 0)
+        pointsButton.compoundDrawablePadding = resources.getDimensionPixelSize(R.dimen.ds_space_sm)
+        styleWorkflowButton(pointsButton, isPoints)
+        pointsButton.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
+        val pointsIconColor = ContextCompat.getColor(
+            requireContext(),
+            if (isPoints) selectedTextColor else R.color.ds_color_text_primary
+        )
+        pointsButton.compoundDrawables.forEach { drawable ->
+            drawable?.mutate()?.setTint(pointsIconColor)
+        }
         drawButton.text = getString(if (isPoints) R.string.add_route_points else R.string.draw_area)
         clearButton.text = getString(if (isPoints) R.string.clear_route else R.string.clear_area)
         obstacleButton?.visibility = if (isPoints) View.GONE else View.VISIBLE
