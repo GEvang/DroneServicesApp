@@ -84,15 +84,15 @@
             android:layout_marginTop="@dimen/phone_map_overlay_card_margin"
             android:layout_marginStart="@dimen/phone_map_overlay_card_margin"
             android:clipToPadding="false"
-            android:fillViewport="true"
+            android:fillViewport="false"
             android:overScrollMode="ifContentScrolls"
-            android:scrollbars="vertical"
+            android:scrollbars="none"
             android:visibility="gone"
-            app:layout_constraintBottom_toTopOf="@id/home_draw_action_bar"
+            app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
             app:layout_constraintHeight_max="@dimen/phone_map_panel_max_height"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/home_top_status_strip"
-            app:layout_constraintVertical_bias="1.0">
+            app:layout_constraintVertical_bias="0.0">
 
             <include
                 android:id="@+id/home_left_panel"

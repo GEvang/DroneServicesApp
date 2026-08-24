@@ -50,9 +50,9 @@
     <dimen name="phone_map_hud_text_size_small">8sp</dimen>
     <dimen name="phone_map_hud_status_text_size">11sp</dimen>
 
-    <dimen name="phone_map_panel_left_width">292dp</dimen>
+    <dimen name="phone_map_panel_left_width">316dp</dimen>
     <dimen name="phone_map_panel_right_width">248dp</dimen>
-    <dimen name="phone_map_panel_max_height">300dp</dimen>
+    <dimen name="phone_map_panel_max_height">440dp</dimen>
     <dimen name="phone_map_panel_label_text_size">11sp</dimen>
     <dimen name="phone_map_panel_value_text_size">11sp</dimen>
     <dimen name="phone_map_panel_title_text_size">13sp</dimen>
