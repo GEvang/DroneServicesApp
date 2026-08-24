@@ -2252,11 +2252,22 @@ class MissionMapFragment : Fragment() {
                         params = params
                     )
                 }
-                renderSurveyPath(
-                    pathLatLon = terrainWaypoints.map { it.latLon },
-                    areaVertices = area.vertices,
-                    terrainWaypoints = terrainWaypoints
-                )
+                if (terrainWaypoints.isNotEmpty()) {
+                    renderSurveyPath(
+                        pathLatLon = terrainWaypoints.map { it.latLon },
+                        areaVertices = area.vertices,
+                        terrainWaypoints = terrainWaypoints
+                    )
+                } else {
+                    val fallbackPath = withContext(Dispatchers.Default) {
+                        SurveyGridPlanner().buildSurveyPath(
+                            polygon = polygonLatLon,
+                            params = params,
+                            obstacles = obstacles
+                        )
+                    }
+                    renderSurveyPath(fallbackPath, area.vertices)
+                }
             }
             return
         }
