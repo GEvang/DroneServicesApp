@@ -6,7 +6,7 @@ import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 
 class MissionMapViewModel : ViewModel() {
     private var currentScreenMode: HomeMapScreenMode = HomeMapScreenMode.Idle
-    private var isPlanningPanelVisible: Boolean = true
+    private var isPlanningPanelVisible: Boolean = false
     private var hasMissionArea: Boolean = false
     private var arePanelsDismissed: Boolean = false
 
@@ -44,6 +44,11 @@ class MissionMapViewModel : ViewModel() {
     }
 
     fun togglePlanningPanelVisible() {
+        val hasVisibleSidePanel = isPlanningPanelVisible || (hasMissionArea && !arePanelsDismissed)
+        if (hasVisibleSidePanel) {
+            dismissSidePanels()
+            return
+        }
         isPlanningPanelVisible = true
         arePanelsDismissed = false
         publishState()
