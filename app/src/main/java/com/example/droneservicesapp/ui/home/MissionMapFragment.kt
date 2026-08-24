@@ -803,16 +803,17 @@ class MissionMapFragment : Fragment() {
         }
 
         val isPoints = workflow == PlanningWorkflow.POINTS
+        val isPlanningActive = isWorkflowSelectionActive()
         areaButton.setText(R.string.draw_area)
         areaButton.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_draw_area_24, 0, 0, 0)
         areaButton.compoundDrawablePadding = resources.getDimensionPixelSize(R.dimen.ds_space_sm)
-        styleWorkflowButton(areaButton, !isPoints)
+        styleWorkflowButton(areaButton, isPlanningActive && !isPoints)
         areaButton.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
         pointsButton.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_points_24, 0, 0, 0)
         pointsButton.compoundDrawablePadding = resources.getDimensionPixelSize(R.dimen.ds_space_sm)
-        styleWorkflowButton(pointsButton, isPoints)
+        styleWorkflowButton(pointsButton, isPlanningActive && isPoints)
         pointsButton.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
-        listOf(areaButton to !isPoints, pointsButton to isPoints).forEach { (button, selected) ->
+        listOf(areaButton to (isPlanningActive && !isPoints), pointsButton to (isPlanningActive && isPoints)).forEach { (button, selected) ->
             val iconColor = ContextCompat.getColor(
                 requireContext(),
                 if (selected) selectedTextColor else R.color.ds_color_text_primary
@@ -833,6 +834,14 @@ class MissionMapFragment : Fragment() {
         routeSummary?.visibility = if (isPoints) View.VISIBLE else View.GONE
         renderObstacleControls()
         updateRouteSummary()
+    }
+
+    private fun isWorkflowSelectionActive(): Boolean {
+        return when (activityViewModel.mapState.value) {
+            MainActivityViewModel.MapState.Draw,
+            MainActivityViewModel.MapState.SetFlightParams -> true
+            else -> false
+        }
     }
 
     private fun renderObstacleControls() {
@@ -1282,6 +1291,7 @@ class MissionMapFragment : Fragment() {
 
         activityViewModel.mapState.observe(viewLifecycleOwner) { mapState ->
             mapViewModel.updateFromMapState(mapState)
+            renderWorkflowSelection(activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA)
             updateSurveyWaypointEditorEnabled()
             if (mapState == MainActivityViewModel.MapState.SetFlightParams) {
                 hideObstaclePanel()
@@ -1410,7 +1420,7 @@ class MissionMapFragment : Fragment() {
         val parent = binding.previewModeBottomDock.parent as? androidx.constraintlayout.widget.ConstraintLayout ?: return
         parent.post {
             if (_binding == null) return@post
-            val verticalGap = resources.getDimensionPixelSize(R.dimen.ds_space_lg)
+            val verticalGap = resources.getDimensionPixelSize(R.dimen.preview_mode_rail_to_dock_gap)
             binding.previewModeBottomDock.layoutParams =
                 (binding.previewModeBottomDock.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams)
                     .apply {
