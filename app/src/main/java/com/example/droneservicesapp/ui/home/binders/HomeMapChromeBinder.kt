@@ -16,8 +16,6 @@ class HomeMapChromeBinder(
 ) {
     private val drawBarReplacesDock =
         binding.root.resources.getBoolean(R.bool.config_map_draw_bar_replaces_dock)
-    private val usesTabletPlanningDock =
-        binding.root.resources.getBoolean(R.bool.config_tablet_planning_dock)
     private var isDrawActionBarVisible: Boolean = false
 
     fun bindActions(
@@ -75,7 +73,7 @@ class HomeMapChromeBinder(
         binding.homeBottomUtilityDock.isVisible =
             state.isBottomUtilityBarVisible && !(drawBarReplacesDock && isDrawActionBarVisible)
         binding.homeBottomPlanningLabel.isVisible = false
-        binding.utilityPlanningButton.isSelected = usesTabletPlanningDock || state.isRightPanelVisible
+        binding.utilityPlanningButton.isSelected = state.isPlanningActive || state.isRightPanelVisible
         binding.utilityPlanningButton.alpha = 1.0f
     }
 }
