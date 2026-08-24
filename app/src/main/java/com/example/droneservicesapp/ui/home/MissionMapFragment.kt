@@ -1420,7 +1420,7 @@ class MissionMapFragment : Fragment() {
         val parent = binding.previewModeBottomDock.parent as? androidx.constraintlayout.widget.ConstraintLayout ?: return
         parent.post {
             if (_binding == null) return@post
-            val verticalGap = resources.getDimensionPixelSize(R.dimen.ds_space_lg)
+            val verticalGap = resources.getDimensionPixelSize(R.dimen.preview_mode_rail_to_dock_gap)
             binding.previewModeBottomDock.layoutParams =
                 (binding.previewModeBottomDock.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams)
                     .apply {
@@ -1447,31 +1447,13 @@ class MissionMapFragment : Fragment() {
                     ConstraintSet.END,
                     0
                 )
-                if (binding.homeBottomUtilityDock.visibility == View.VISIBLE) {
-                    connect(
-                        binding.previewModeBottomDock.id,
-                        ConstraintSet.BOTTOM,
-                        binding.homeBottomUtilityDock.id,
-                        ConstraintSet.TOP,
-                        verticalGap
-                    )
-                } else {
-                    val dockLayoutParams = binding.homeBottomUtilityDock.layoutParams
-                    val dockMargins = dockLayoutParams as? MarginLayoutParams
-                    val dockHeight = when {
-                        binding.homeBottomUtilityDock.measuredHeight > 0 -> binding.homeBottomUtilityDock.measuredHeight
-                        dockLayoutParams.height > 0 -> dockLayoutParams.height
-                        else -> resources.getDimensionPixelSize(R.dimen.phone_map_bottom_dock_button_height) +
-                            resources.getDimensionPixelSize(R.dimen.phone_map_bottom_dock_padding_vertical) * 2
-                    }
-                    connect(
-                        binding.previewModeBottomDock.id,
-                        ConstraintSet.BOTTOM,
-                        ConstraintSet.PARENT_ID,
-                        ConstraintSet.BOTTOM,
-                        dockHeight + (dockMargins?.bottomMargin ?: 0) + verticalGap
-                    )
-                }
+                connect(
+                    binding.previewModeBottomDock.id,
+                    ConstraintSet.BOTTOM,
+                    binding.homeBottomUtilityDock.id,
+                    ConstraintSet.TOP,
+                    verticalGap
+                )
                 applyTo(parent)
             }
         }

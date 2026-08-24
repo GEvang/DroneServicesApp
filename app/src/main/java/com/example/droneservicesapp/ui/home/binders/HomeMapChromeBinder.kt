@@ -1,7 +1,11 @@
 package com.example.droneservicesapp.ui.home.binders
 
 import android.view.View
+import android.view.ViewGroup
+import android.widget.ImageView
+import android.widget.TextView
 import androidx.appcompat.content.res.AppCompatResources
+import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.R
@@ -16,8 +20,6 @@ class HomeMapChromeBinder(
 ) {
     private val drawBarReplacesDock =
         binding.root.resources.getBoolean(R.bool.config_map_draw_bar_replaces_dock)
-    private val usesTabletPlanningDock =
-        binding.root.resources.getBoolean(R.bool.config_tablet_planning_dock)
     private var isDrawActionBarVisible: Boolean = false
 
     fun bindActions(
@@ -75,7 +77,27 @@ class HomeMapChromeBinder(
         binding.homeBottomUtilityDock.isVisible =
             state.isBottomUtilityBarVisible && !(drawBarReplacesDock && isDrawActionBarVisible)
         binding.homeBottomPlanningLabel.isVisible = false
-        binding.utilityPlanningButton.isSelected = usesTabletPlanningDock || state.isRightPanelVisible
+        renderPlanningDockSelection(state.isPlanningActive || state.isRightPanelVisible)
+    }
+
+    private fun renderPlanningDockSelection(selected: Boolean) {
+        binding.utilityPlanningButton.isSelected = selected
         binding.utilityPlanningButton.alpha = 1.0f
+        val color = ContextCompat.getColor(
+            binding.root.context,
+            if (selected) R.color.ds_color_shell_active else R.color.ds_color_shell_unselected
+        )
+        val button = binding.utilityPlanningButton
+        when (button) {
+            is ImageView -> button.setColorFilter(color)
+            is ViewGroup -> {
+                for (index in 0 until button.childCount) {
+                    when (val child = button.getChildAt(index)) {
+                        is ImageView -> child.setColorFilter(color)
+                        is TextView -> child.setTextColor(color)
+                    }
+                }
+            }
+        }
     }
 }
