@@ -1410,7 +1410,7 @@ class MissionMapFragment : Fragment() {
         val parent = binding.previewModeBottomDock.parent as? androidx.constraintlayout.widget.ConstraintLayout ?: return
         parent.post {
             if (_binding == null) return@post
-            val verticalGap = resources.getDimensionPixelSize(R.dimen.ds_space_xs)
+            val verticalGap = resources.getDimensionPixelSize(R.dimen.ds_space_lg)
             binding.previewModeBottomDock.layoutParams =
                 (binding.previewModeBottomDock.layoutParams as androidx.constraintlayout.widget.ConstraintLayout.LayoutParams)
                     .apply {
@@ -1614,7 +1614,7 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun renderPreviewModeButtons() {
-        val activeColor = ContextCompat.getColor(requireContext(), R.color.ds_color_shell_active)
+        val activeColor = ContextCompat.getColor(requireContext(), R.color.bg)
         val inactiveColor = ContextCompat.getColor(requireContext(), R.color.ds_color_text_primary)
         val modes = listOf(
             binding.previewModeMapButton to PreviewMode.MAP,
@@ -1623,7 +1623,21 @@ class MissionMapFragment : Fragment() {
         )
         modes.forEach { (button, mode) ->
             val active = activePreviewMode == mode
-            button.alpha = if (active) 1f else 0.72f
+            button.alpha = if (active) 1f else 0.82f
+            button.strokeWidth = 0
+            button.cornerRadius = resources.getDimensionPixelSize(R.dimen.ds_space_md)
+            button.backgroundTintList = android.content.res.ColorStateList.valueOf(
+                ContextCompat.getColor(
+                    requireContext(),
+                    if (active) R.color.ds_color_shell_active else android.R.color.transparent
+                )
+            )
+            button.strokeColor = android.content.res.ColorStateList.valueOf(
+                ContextCompat.getColor(
+                    requireContext(),
+                    if (active) R.color.ds_color_shell_active else R.color.ds_color_shell_stroke
+                )
+            )
             button.setTextColor(if (active) activeColor else inactiveColor)
             button.iconTint = android.content.res.ColorStateList.valueOf(
                 if (active) activeColor else inactiveColor

@@ -63,18 +63,19 @@
     <dimen name="phone_map_panel_slider_frame_small">32dp</dimen>
     <dimen name="phone_map_panel_slider_frame_large">36dp</dimen>
 
-    <dimen name="phone_map_bottom_dock_width">720dp</dimen>
-    <dimen name="phone_map_bottom_dock_outer_height">68dp</dimen>
+    <dimen name="phone_map_bottom_dock_width">900dp</dimen>
+    <dimen name="phone_map_bottom_dock_outer_height">54dp</dimen>
     <dimen name="phone_map_bottom_dock_center_size">68dp</dimen>
-    <dimen name="phone_map_bottom_dock_center_spacer_width">92dp</dimen>
+    <dimen name="phone_map_bottom_dock_center_spacer_width">136dp</dimen>
     <dimen name="phone_map_bottom_dock_icon_size">20dp</dimen>
     <dimen name="phone_map_bottom_dock_icon_padding">6dp</dimen>
     <dimen name="preview_mode_switch_size">44dp</dimen>
     <dimen name="preview_mode_switch_padding">1dp</dimen>
-    <dimen name="preview_mode_rail_width">336dp</dimen>
+    <dimen name="preview_mode_rail_width">390dp</dimen>
     <dimen name="preview_mode_rail_bottom_margin">76dp</dimen>
     <dimen name="preview_mode_panel_expanded_height">190dp</dimen>
     <dimen name="phone_map_bottom_dock_button_height">32dp</dimen>
+    <dimen name="phone_map_bottom_dock_active_width">150dp</dimen>
     <dimen name="phone_map_bottom_dock_primary_min_width">84dp</dimen>
     <dimen name="phone_map_bottom_dock_padding_horizontal">8dp</dimen>
     <dimen name="phone_map_bottom_dock_padding_vertical">4dp</dimen>

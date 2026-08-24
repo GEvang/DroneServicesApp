@@ -23,6 +23,15 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:visibility="gone" />
+
+        <View
+            android:id="@+id/home_preview_scrim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#26000000"
+            android:clickable="false"
+            android:focusable="false"
+            android:importantForAccessibility="no" />
     </FrameLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -200,10 +209,10 @@
 
         <FrameLayout
             android:id="@+id/home_bottom_utility_dock"
-            android:layout_width="@dimen/tablet_bottom_dock_width"
+            android:layout_width="0dp"
             android:layout_height="@dimen/tablet_bottom_dock_outer_height"
-            android:layout_marginStart="@dimen/tablet_screen_margin"
-            android:layout_marginEnd="@dimen/tablet_screen_margin"
+            android:layout_marginStart="@dimen/ds_space_xl"
+            android:layout_marginEnd="@dimen/ds_space_xl"
             android:layout_marginBottom="@dimen/tablet_bottom_dock_margin_bottom"
             android:clipChildren="false"
             android:clipToPadding="false"
@@ -258,11 +267,17 @@
                         android:textSize="@dimen/tablet_bottom_dock_label_text_size" />
                 </LinearLayout>
 
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="52dp"
+                    android:layout_marginStart="@dimen/ds_space_md"
+                    android:layout_marginEnd="@dimen/ds_space_md"
+                    android:background="@color/ds_color_shell_stroke" />
+
                 <LinearLayout
                     android:id="@+id/utility_center_drone_button"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_marginStart="@dimen/ds_space_sm"
                     android:layout_weight="1"
                     android:background="@drawable/bg_tablet_dock_item"
                     android:clickable="true"
@@ -290,11 +305,17 @@
                         android:textSize="@dimen/tablet_bottom_dock_label_text_size" />
                 </LinearLayout>
 
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="52dp"
+                    android:layout_marginStart="@dimen/ds_space_md"
+                    android:layout_marginEnd="@dimen/ds_space_md"
+                    android:background="@color/ds_color_shell_stroke" />
+
                 <LinearLayout
                     android:id="@+id/utility_obstacles_button"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_marginStart="@dimen/ds_space_sm"
                     android:layout_weight="1"
                     android:background="@drawable/bg_tablet_dock_item"
                     android:clickable="true"
@@ -322,15 +343,57 @@
                         android:textSize="@dimen/tablet_bottom_dock_label_text_size" />
                 </LinearLayout>
 
-                <Space
-                    android:layout_width="@dimen/tablet_bottom_center_spacer_width"
-                    android:layout_height="1dp" />
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="52dp"
+                    android:layout_marginStart="@dimen/ds_space_md"
+                    android:layout_marginEnd="@dimen/ds_space_md"
+                    android:background="@color/ds_color_shell_stroke" />
+
+                <LinearLayout
+                    android:id="@+id/utility_planning_button"
+                    android:layout_width="0dp"
+                    android:layout_height="match_parent"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_tablet_dock_item"
+                    android:clickable="true"
+                    android:contentDescription="@string/planning"
+                    android:focusable="true"
+                    android:gravity="center"
+                    android:orientation="vertical"
+                    android:paddingTop="5dp"
+                    android:paddingBottom="5dp">
+
+                    <ImageView
+                        android:layout_width="@dimen/tablet_bottom_dock_icon_size"
+                        android:layout_height="@dimen/tablet_bottom_dock_icon_size"
+                        android:contentDescription="@null"
+                        android:scaleType="fitCenter"
+                        android:src="@drawable/mission_planning"
+                        android:tint="@color/ds_color_shell_unselected" />
+
+                    <TextView
+                        style="@style/TextAppearance.DroneServices.BottomNavInactive"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:layout_marginTop="3dp"
+                        android:text="@string/planning"
+                        android:textColor="@color/ds_color_shell_unselected"
+                        android:textSize="@dimen/tablet_bottom_dock_label_text_size"
+                        android:textStyle="bold" />
+                </LinearLayout>
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="52dp"
+                    android:layout_marginStart="@dimen/ds_space_md"
+                    android:layout_marginEnd="@dimen/ds_space_md"
+                    android:background="@color/ds_color_shell_stroke" />
 
                 <LinearLayout
                     android:id="@+id/utility_offset_button"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
                     android:layout_weight="1"
                     android:background="@drawable/bg_tablet_dock_item"
                     android:clickable="true"
@@ -358,11 +421,17 @@
                         android:textSize="@dimen/tablet_bottom_dock_label_text_size" />
                 </LinearLayout>
 
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="52dp"
+                    android:layout_marginStart="@dimen/ds_space_md"
+                    android:layout_marginEnd="@dimen/ds_space_md"
+                    android:background="@color/ds_color_shell_stroke" />
+
                 <LinearLayout
                     android:id="@+id/utility_download_button"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
-                    android:layout_marginEnd="@dimen/ds_space_sm"
                     android:layout_weight="1"
                     android:background="@drawable/bg_tablet_dock_item"
                     android:clickable="true"
@@ -389,6 +458,13 @@
                         android:textColor="@color/ds_color_shell_unselected"
                         android:textSize="@dimen/tablet_bottom_dock_label_text_size" />
                 </LinearLayout>
+
+                <View
+                    android:layout_width="1dp"
+                    android:layout_height="52dp"
+                    android:layout_marginStart="@dimen/ds_space_md"
+                    android:layout_marginEnd="@dimen/ds_space_md"
+                    android:background="@color/ds_color_shell_stroke" />
 
                 <LinearLayout
                     android:id="@+id/utility_settings_button"
@@ -422,39 +498,6 @@
                 </LinearLayout>
             </LinearLayout>
 
-            <LinearLayout
-                android:id="@+id/utility_planning_button"
-                android:layout_width="@dimen/tablet_bottom_center_tab_size"
-                android:layout_height="@dimen/tablet_bottom_center_tab_size"
-                android:layout_gravity="center"
-                android:background="@drawable/bg_bottom_dock_center_circle"
-                android:clickable="true"
-                android:contentDescription="@string/planning"
-                android:elevation="12dp"
-                android:focusable="true"
-                android:gravity="center"
-                android:orientation="vertical"
-                android:paddingTop="17dp"
-                android:paddingBottom="12dp">
-
-                <ImageView
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:contentDescription="@null"
-                    android:scaleType="fitCenter"
-                    android:src="@drawable/mission_planning"
-                    android:tint="@color/ds_color_shell_active" />
-
-                <TextView
-                    style="@style/TextAppearance.DroneServices.BottomNavActive"
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="4dp"
-                    android:text="@string/planning"
-                    android:textColor="@color/ds_color_shell_active"
-                    android:textSize="@dimen/tablet_bottom_center_label_text_size"
-                    android:textStyle="bold" />
-            </LinearLayout>
         </FrameLayout>
 
         <include
@@ -498,21 +541,18 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/preview_mode_map_button"
-                    style="@style/Widget.DroneServices.Button.MapDark"
+                    style="@style/Widget.DroneServices.Button.PreviewModeSegment"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:text="@string/preview_mode_map"
                     android:textAllCaps="false"
                     android:textSize="@dimen/phone_map_panel_value_text_size"
-                    app:icon="@drawable/ic_menu_map"
-                    app:iconGravity="textStart"
-                    app:iconPadding="@dimen/ds_space_xs"
-                    app:iconTint="@color/ds_color_text_primary" />
+                    app:icon="@drawable/ic_menu_map" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/preview_mode_ortho_button"
-                    style="@style/Widget.DroneServices.Button.MapDark"
+                    style="@style/Widget.DroneServices.Button.PreviewModeSegment"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_marginStart="@dimen/ds_space_xs"
@@ -520,14 +560,11 @@
                     android:text="@string/preview_mode_ortho"
                     android:textAllCaps="false"
                     android:textSize="@dimen/phone_map_panel_value_text_size"
-                    app:icon="@drawable/ic_ortho_24"
-                    app:iconGravity="textStart"
-                    app:iconPadding="@dimen/ds_space_xs"
-                    app:iconTint="@color/ds_color_text_primary" />
+                    app:icon="@drawable/ic_ortho_24" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/preview_mode_3d_button"
-                    style="@style/Widget.DroneServices.Button.MapDark"
+                    style="@style/Widget.DroneServices.Button.PreviewModeSegment"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_marginStart="@dimen/ds_space_xs"
@@ -535,10 +572,7 @@
                     android:text="@string/preview_mode_3d"
                     android:textAllCaps="false"
                     android:textSize="@dimen/phone_map_panel_value_text_size"
-                    app:icon="@drawable/ic_point_cloud_24"
-                    app:iconGravity="textStart"
-                    app:iconPadding="@dimen/ds_space_xs"
-                    app:iconTint="@color/ds_color_text_primary" />
+                    app:icon="@drawable/ic_point_cloud_24" />
             </LinearLayout>
 
             <LinearLayout

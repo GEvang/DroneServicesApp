@@ -23,6 +23,15 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent"
             android:visibility="gone" />
+
+        <View
+            android:id="@+id/home_preview_scrim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#26000000"
+            android:clickable="false"
+            android:focusable="false"
+            android:importantForAccessibility="no" />
     </FrameLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
@@ -469,32 +478,32 @@
 
             <LinearLayout
                 android:id="@+id/utility_planning_button"
-                android:layout_width="@dimen/phone_map_bottom_dock_center_size"
-                android:layout_height="@dimen/phone_map_bottom_dock_center_size"
+                android:layout_width="@dimen/phone_map_bottom_dock_active_width"
+                android:layout_height="54dp"
                 android:layout_gravity="center"
-                android:background="@drawable/bg_bottom_dock_center_circle"
+                android:background="@drawable/bg_phone_dock_item"
                 android:clickable="true"
                 android:contentDescription="@string/planning"
-                android:elevation="12dp"
+                android:elevation="10dp"
                 android:focusable="true"
                 android:gravity="center"
                 android:orientation="vertical">
 
                 <ImageView
-                    android:layout_width="32dp"
-                    android:layout_height="32dp"
+                    android:layout_width="24dp"
+                    android:layout_height="24dp"
                     android:contentDescription="@null"
                     android:scaleType="fitCenter"
                     android:src="@drawable/mission_planning"
-                    android:tint="@color/ds_color_shell_active" />
+                    android:tint="@color/ds_color_shell_unselected" />
 
                 <TextView
-                    style="@style/TextAppearance.DroneServices.BottomNavActive"
+                    style="@style/TextAppearance.DroneServices.BottomNavInactive"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="3dp"
+                    android:layout_marginTop="2dp"
                     android:text="@string/planning"
-                    android:textColor="@color/ds_color_shell_active"
+                    android:textColor="@color/ds_color_shell_unselected"
                     android:textSize="@dimen/phone_map_bottom_dock_text_size"
                     android:textStyle="bold" />
             </LinearLayout>
@@ -530,21 +539,18 @@
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/preview_mode_map_button"
-                    style="@style/Widget.DroneServices.Button.MapDark"
+                    style="@style/Widget.DroneServices.Button.PreviewModeSegment"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_weight="1"
                     android:text="@string/preview_mode_map"
                     android:textAllCaps="false"
                     android:textSize="@dimen/phone_map_panel_value_text_size"
-                    app:icon="@drawable/ic_menu_map"
-                    app:iconGravity="textStart"
-                    app:iconPadding="@dimen/ds_space_xs"
-                    app:iconTint="@color/ds_color_text_primary" />
+                    app:icon="@drawable/ic_menu_map" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/preview_mode_ortho_button"
-                    style="@style/Widget.DroneServices.Button.MapDark"
+                    style="@style/Widget.DroneServices.Button.PreviewModeSegment"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_marginStart="@dimen/ds_space_xs"
@@ -552,14 +558,11 @@
                     android:text="@string/preview_mode_ortho"
                     android:textAllCaps="false"
                     android:textSize="@dimen/phone_map_panel_value_text_size"
-                    app:icon="@drawable/ic_ortho_24"
-                    app:iconGravity="textStart"
-                    app:iconPadding="@dimen/ds_space_xs"
-                    app:iconTint="@color/ds_color_text_primary" />
+                    app:icon="@drawable/ic_ortho_24" />
 
                 <com.google.android.material.button.MaterialButton
                     android:id="@+id/preview_mode_3d_button"
-                    style="@style/Widget.DroneServices.Button.MapDark"
+                    style="@style/Widget.DroneServices.Button.PreviewModeSegment"
                     android:layout_width="0dp"
                     android:layout_height="match_parent"
                     android:layout_marginStart="@dimen/ds_space_xs"
@@ -567,10 +570,7 @@
                     android:text="@string/preview_mode_3d"
                     android:textAllCaps="false"
                     android:textSize="@dimen/phone_map_panel_value_text_size"
-                    app:icon="@drawable/ic_point_cloud_24"
-                    app:iconGravity="textStart"
-                    app:iconPadding="@dimen/ds_space_xs"
-                    app:iconTint="@color/ds_color_text_primary" />
+                    app:icon="@drawable/ic_point_cloud_24" />
             </LinearLayout>
 
             <LinearLayout
