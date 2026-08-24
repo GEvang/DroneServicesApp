@@ -267,7 +267,7 @@
         <item name="strokeColor">@color/ds_color_shell_stroke</item>
         <item name="strokeWidth">1dp</item>
         <item name="android:textColor">@color/ds_color_text_primary</item>
-        <item name="cornerRadius">@dimen/ds_radius_round</item>
+        <item name="cornerRadius">8dp</item>
         <item name="elevation">0dp</item>
     </style>
 
@@ -277,7 +277,7 @@
         <item name="fontFamily">@font/inter</item>
         <item name="backgroundTint">@color/ds_color_shell_selected_surface</item>
         <item name="android:textColor">@color/ds_color_shell_selected_content</item>
-        <item name="cornerRadius">@dimen/ds_radius_round</item>
+        <item name="cornerRadius">8dp</item>
         <item name="elevation">0dp</item>
     </style>
 
@@ -289,7 +289,7 @@
         <item name="strokeColor">@color/ds_color_shell_active</item>
         <item name="strokeWidth">1dp</item>
         <item name="android:textColor">@color/ds_color_shell_active</item>
-        <item name="cornerRadius">@dimen/ds_radius_round</item>
+        <item name="cornerRadius">8dp</item>
         <item name="elevation">0dp</item>
     </style>
 

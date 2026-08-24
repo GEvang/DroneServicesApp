@@ -8,20 +8,29 @@
     android:background="@color/bg"
     tools:context=".ui.home.MissionMapFragment">
 
-    <org.osmdroid.views.MapView
-        android:id="@+id/osmMap"
+    <FrameLayout
+        android:id="@+id/home_preview_layer"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="match_parent">
 
-    <com.example.droneservicesapp.ui.pointcloud.PointCloudGlView
-        android:id="@+id/home_point_cloud_gl_view"
-        android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:visibility="gone" />
+        <org.osmdroid.views.MapView
+            android:id="@+id/osmMap"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent" />
+
+        <com.example.droneservicesapp.ui.pointcloud.PointCloudGlView
+            android:id="@+id/home_point_cloud_gl_view"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:visibility="gone" />
+    </FrameLayout>
 
     <androidx.constraintlayout.widget.ConstraintLayout
+        android:id="@+id/home_chrome_layer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:focusableInTouchMode="true">
 
         <include

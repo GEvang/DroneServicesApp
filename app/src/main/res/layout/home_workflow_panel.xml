@@ -77,37 +77,33 @@
             android:textSize="@dimen/phone_map_panel_label_text_size" />
     </LinearLayout>
 
-    <LinearLayout
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/right_panel_draw_area_button"
+        style="@style/Widget.DroneServices.Button.MapDark"
         android:layout_width="match_parent"
-        android:layout_height="82dp"
+        android:layout_height="@dimen/phone_map_panel_button_height_tall"
         android:layout_marginTop="@dimen/ds_space_md"
-        android:orientation="horizontal">
+        android:gravity="center"
+        android:text="@string/draw_area"
+        android:textSize="@dimen/phone_map_panel_label_text_size"
+        app:icon="@drawable/ic_draw_area_24"
+        app:iconGravity="textStart"
+        app:iconPadding="@dimen/ds_space_sm"
+        app:iconTint="@color/ds_color_text_primary" />
 
-        <TextView
-            android:id="@+id/right_panel_draw_area_button"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:background="@drawable/bg_ds_panel_pill_inactive"
-            android:fontFamily="@font/inter"
-            android:gravity="center"
-            android:text="@string/draw_area"
-            android:textColor="@color/ds_color_text_primary"
-            android:textSize="@dimen/phone_map_panel_label_text_size" />
-
-        <TextView
-            android:id="@+id/right_panel_clear_area_button"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_marginStart="@dimen/ds_space_sm"
-            android:layout_weight="1"
-            android:background="@drawable/bg_ds_panel_pill_inactive"
-            android:fontFamily="@font/inter"
-            android:gravity="center"
-            android:text="@string/clear_area"
-            android:textColor="@color/ds_color_text_primary"
-            android:textSize="@dimen/phone_map_panel_label_text_size" />
-    </LinearLayout>
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/right_panel_clear_area_button"
+        style="@style/Widget.DroneServices.Button.MapDark"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/phone_map_panel_button_height_tall"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:gravity="center"
+        android:text="@string/clear_area"
+        android:textSize="@dimen/phone_map_panel_label_text_size"
+        app:icon="@drawable/ic_delete_24"
+        app:iconGravity="textStart"
+        app:iconPadding="@dimen/ds_space_sm"
+        app:iconTint="@color/ds_color_text_primary" />
 
     <TextView
         android:id="@+id/right_panel_undo_route_button"

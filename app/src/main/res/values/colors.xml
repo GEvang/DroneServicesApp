@@ -49,16 +49,16 @@
     <color name="ds_color_button_on_surface">@color/text_primary</color>
     <color name="ds_color_control_pill">@color/slider_pill_bg</color>
     <color name="ds_color_control_neutral">@color/slider_end_btn_bg</color>
-    <color name="ds_color_shell_scrim">#B30B0B0D</color>
+    <color name="ds_color_shell_scrim">#990B0B0D</color>
     <color name="ds_color_surface_elevated">#1B1B22</color>
-    <color name="ds_color_shell_overlay">#D80A1218</color>
-    <color name="ds_color_shell_overlay_strong">#F0060D12</color>
-    <color name="ds_color_shell_stroke">#66FFFFFF</color>
+    <color name="ds_color_shell_overlay">#D00A1117</color>
+    <color name="ds_color_shell_overlay_strong">#E6091117</color>
+    <color name="ds_color_shell_stroke">#3DFFFFFF</color>
     <color name="ds_color_shell_active">#29E6DA</color>
     <color name="ds_color_shell_active_dim">#22BDB5</color>
     <color name="ds_color_shell_warning">#E4A640</color>
     <color name="ds_color_shell_danger">#FF5B5B</color>
-    <color name="ds_color_shell_selected_surface">#3329E6DA</color>
+    <color name="ds_color_shell_selected_surface">#2929E6DA</color>
     <color name="ds_color_shell_selected_content">#29E6DA</color>
     <color name="ds_color_shell_unselected">#C9D0D6</color>
 
