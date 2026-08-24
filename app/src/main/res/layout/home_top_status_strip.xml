@@ -14,36 +14,38 @@
         android:baselineAligned="false"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:paddingStart="8dp"
-        android:paddingTop="8dp"
-        android:paddingEnd="8dp"
+        android:paddingStart="14dp"
+        android:paddingTop="10dp"
+        android:paddingEnd="14dp"
         android:paddingBottom="8dp">
 
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="54dp"
-            android:layout_weight="1.2"
+            android:layout_height="58dp"
+            android:layout_weight="1.1"
             android:background="@drawable/bg_map_status_card"
             android:gravity="center"
             android:orientation="horizontal"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp">
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
 
             <ImageView
                 android:id="@+id/top_connection_icon"
-                android:layout_width="19dp"
-                android:layout_height="19dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:contentDescription="@null"
-                android:src="@drawable/ic_hud_connected"
+                android:src="@drawable/ic_status_signal_24"
                 android:tint="@color/ds_color_shell_danger" />
 
             <TextView
                 android:id="@+id/top_connection_text"
-                style="@style/TextAppearance.DroneServices.MapStatusValue"
-                android:layout_width="wrap_content"
+                style="@style/TextAppearance.DroneServices.MapStatusValueLarge"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
                 android:ellipsize="end"
+                android:gravity="center_vertical"
                 android:maxLines="1"
                 android:text="@string/shell_status_disconnected"
                 android:textColor="@color/ds_color_shell_danger" />
@@ -51,9 +53,9 @@
 
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="54dp"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1.65"
+            android:layout_height="58dp"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1.25"
             android:background="@drawable/bg_map_status_card"
             android:gravity="center"
             android:orientation="horizontal"
@@ -62,10 +64,10 @@
 
             <ImageView
                 android:id="@+id/top_gps_icon"
-                android:layout_width="20dp"
-                android:layout_height="20dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:contentDescription="@null"
-                android:src="@drawable/ic_hud_gps"
+                android:src="@drawable/ic_status_gps_pin_24"
                 android:tint="@color/ds_color_shell_danger" />
 
             <TextView
@@ -73,7 +75,7 @@
                 style="@style/TextAppearance.DroneServices.MapStatusValue"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="10dp"
                 android:layout_weight="1"
                 android:ellipsize="end"
                 android:maxLines="1"
@@ -83,9 +85,9 @@
 
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="54dp"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1.85"
+            android:layout_height="58dp"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1.45"
             android:background="@drawable/bg_map_status_card"
             android:gravity="center"
             android:orientation="horizontal"
@@ -93,121 +95,227 @@
             android:paddingEnd="12dp">
 
             <ImageView
-                android:layout_width="20dp"
-                android:layout_height="20dp"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
                 android:contentDescription="@null"
-                android:src="@drawable/ic_hud_gps"
-                android:tint="@color/ds_color_shell_unselected" />
+                android:src="@drawable/ic_status_rtk_24"
+                android:tint="@color/ds_color_text_primary" />
 
             <TextView
                 android:id="@+id/top_rtk_text"
                 style="@style/TextAppearance.DroneServices.MapStatusSubvalue"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="10dp"
                 android:layout_weight="1"
                 android:ellipsize="end"
+                android:lineSpacingExtra="1dp"
                 android:maxLines="2"
                 android:text="RTK Mountpoint: Not connected"
                 android:textColor="@color/ds_color_text_primary" />
         </LinearLayout>
 
-        <TextView
-            android:id="@+id/top_armed_text"
-            style="@style/TextAppearance.DroneServices.MapStatusValueLarge"
-            android:layout_width="0dp"
-            android:layout_height="54dp"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1.25"
-            android:background="@drawable/bg_map_status_card"
-            android:ellipsize="end"
-            android:gravity="center"
-            android:maxLines="1"
-            android:text="@string/disarmed"
-            android:textColor="@color/ds_color_shell_warning" />
-
-        <TextView
-            android:id="@+id/top_speed_text"
-            style="@style/TextAppearance.DroneServices.MapStatusMetric"
-            android:layout_width="0dp"
-            android:layout_height="54dp"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1.05"
-            android:background="@drawable/bg_map_status_card"
-            android:gravity="center"
-            android:maxLines="1"
-            android:text="@string/shell_status_speed_placeholder" />
-
-        <TextView
-            android:id="@+id/top_altitude_text"
-            style="@style/TextAppearance.DroneServices.MapStatusMetric"
-            android:layout_width="0dp"
-            android:layout_height="54dp"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1.05"
-            android:background="@drawable/bg_map_status_card"
-            android:gravity="center"
-            android:maxLines="1"
-            android:text="@string/shell_status_alt_placeholder" />
-
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="54dp"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1.15"
+            android:layout_height="58dp"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1.12"
             android:background="@drawable/bg_map_status_card"
             android:gravity="center"
             android:orientation="horizontal"
-            android:paddingStart="10dp"
-            android:paddingEnd="10dp">
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <ImageView
+                android:id="@+id/top_armed_icon"
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_status_shield_24"
+                android:tint="@color/ds_color_shell_danger" />
+
+            <TextView
+                android:id="@+id/top_armed_text"
+                style="@style/TextAppearance.DroneServices.MapStatusValueLarge"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:gravity="center_vertical"
+                android:maxLines="1"
+                android:text="@string/disarmed"
+                android:textColor="@color/ds_color_shell_warning" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="58dp"
+            android:layout_marginStart="12dp"
+            android:layout_weight="0.92"
+            android:background="@drawable/bg_map_status_card"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_status_speed_24"
+                android:tint="@color/ds_color_text_primary" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/TextAppearance.DroneServices.MapStatusSubvalue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="SPD:" />
+
+                <TextView
+                    android:id="@+id/top_speed_text"
+                    style="@style/TextAppearance.DroneServices.MapStatusMetric"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:text="0.0" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="58dp"
+            android:layout_marginStart="12dp"
+            android:layout_weight="0.9"
+            android:background="@drawable/bg_map_status_card"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
+
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_status_altitude_24"
+                android:tint="@color/ds_color_text_primary" />
+
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/TextAppearance.DroneServices.MapStatusSubvalue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center"
+                    android:text="@string/shell_status_alt_prefix" />
+
+                <TextView
+                    android:id="@+id/top_altitude_text"
+                    style="@style/TextAppearance.DroneServices.MapStatusMetric"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:text="--" />
+            </LinearLayout>
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="58dp"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1.0"
+            android:background="@drawable/bg_map_status_card"
+            android:gravity="center"
+            android:orientation="horizontal"
+            android:paddingStart="12dp"
+            android:paddingEnd="12dp">
 
             <ImageView
                 android:id="@+id/top_battery_icon"
-                android:layout_width="19dp"
-                android:layout_height="19dp"
+                android:layout_width="22dp"
+                android:layout_height="22dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_baseline_battery_alert_24"
                 android:tint="@color/ds_color_shell_unselected" />
 
             <TextView
                 android:id="@+id/top_battery_text"
-                style="@style/TextAppearance.DroneServices.MapStatusMetric"
-                android:layout_width="wrap_content"
+                style="@style/TextAppearance.DroneServices.MapStatusValue"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="8dp"
+                android:layout_weight="1"
                 android:ellipsize="end"
+                android:gravity="center"
                 android:maxLines="1"
                 android:text="--.-V --%" />
         </LinearLayout>
 
         <LinearLayout
             android:layout_width="0dp"
-            android:layout_height="54dp"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1.35"
+            android:layout_height="58dp"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1.15"
             android:background="@drawable/bg_map_status_card"
-            android:gravity="center_vertical"
-            android:orientation="vertical"
+            android:gravity="center"
+            android:orientation="horizontal"
             android:paddingStart="12dp"
             android:paddingEnd="12dp">
 
-            <TextView
-                style="@style/TextAppearance.DroneServices.MapStatusSubvalue"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="LIVE GEO"
-                android:textAllCaps="true" />
+            <ImageView
+                android:layout_width="24dp"
+                android:layout_height="24dp"
+                android:contentDescription="@null"
+                android:src="@drawable/ic_status_warning_24"
+                android:tint="@color/ds_color_shell_warning" />
 
-            <TextView
-                android:id="@+id/top_live_geo_status_text"
-                style="@style/TextAppearance.DroneServices.MapStatusValue"
-                android:layout_width="match_parent"
+            <LinearLayout
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="UNKNOWN"
-                android:textColor="@color/gps_unknown_gray" />
+                android:layout_marginStart="10dp"
+                android:layout_weight="1"
+                android:gravity="center_vertical"
+                android:orientation="vertical">
+
+                <TextView
+                    style="@style/TextAppearance.DroneServices.MapStatusSubvalue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="LIVE GEO"
+                    android:textAllCaps="true" />
+
+                <TextView
+                    android:id="@+id/top_live_geo_status_text"
+                    style="@style/TextAppearance.DroneServices.MapStatusValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="2dp"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="UNKNOWN"
+                    android:textColor="@color/gps_unknown_gray" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
 </HorizontalScrollView>

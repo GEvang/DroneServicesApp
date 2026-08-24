@@ -50,17 +50,23 @@ class HomeMapTelemetryBinder(
         }
         rootView.findViewById<ImageView?>(R.id.top_gps_icon)?.setColorFilter(gpsColor)
         rootView.findViewById<TextView?>(R.id.top_rtk_text)?.text = state.rtkMountpointText
+        val armedColor = ContextCompat.getColor(
+            context,
+            if (state.isArmed) R.color.ds_color_shell_active else R.color.ds_color_shell_warning
+        )
+        rootView.findViewById<ImageView?>(R.id.top_armed_icon)?.setColorFilter(armedColor)
         rootView.findViewById<TextView?>(R.id.top_armed_text)?.apply {
             text = state.armedText.uppercase()
-            setTextColor(
-                ContextCompat.getColor(
-                    context,
-                    if (state.isArmed) R.color.ds_color_shell_active else R.color.ds_color_shell_warning
-                )
-            )
+            setTextColor(armedColor)
         }
-        rootView.findViewById<TextView?>(R.id.top_speed_text)?.text = state.speedText.removeSuffix(" m/s")
-        rootView.findViewById<TextView?>(R.id.top_altitude_text)?.text = "ALT: ${state.altitudeText}"
+        rootView.findViewById<TextView?>(R.id.top_speed_text)?.text = formatStatusValue(
+            value = state.speedText.removeSuffix(" m/s"),
+            prefix = "SPD:"
+        )
+        rootView.findViewById<TextView?>(R.id.top_altitude_text)?.text = formatStatusValue(
+            value = state.altitudeText,
+            prefix = "ALT:"
+        )
         rootView.findViewById<ImageView?>(R.id.top_battery_icon)?.apply {
             setImageResource(state.batteryIconRes)
             setColorFilter(ContextCompat.getColor(context, state.batteryColorRes))
@@ -81,6 +87,10 @@ class HomeMapTelemetryBinder(
             GpsFixQuality.UNKNOWN -> R.color.gps_unknown_gray
             else -> R.color.ds_color_shell_warning
         }
+    }
+
+    private fun formatStatusValue(value: String, prefix: String): String {
+        return value.removePrefix(prefix).trim().ifBlank { "--" }
     }
 
     private fun renderDistance(
