@@ -401,7 +401,7 @@
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:layout_marginTop="@dimen/ds_space_xs"
-            android:background="@color/ds_color_shell_active" />
+            android:background="@color/ds_color_shell_stroke" />
 
         <LinearLayout
             android:layout_width="match_parent"

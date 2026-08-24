@@ -46,23 +46,25 @@
 
     <TextView
         android:id="@+id/right_panel_area_button"
-        style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="@dimen/ds_space_lg"
+        android:layout_height="@dimen/phone_map_panel_button_height_tall"
+        android:layout_marginTop="@dimen/ds_space_md"
+        android:background="@drawable/bg_ds_panel_pill_inactive"
         android:clickable="true"
         android:focusable="true"
+        android:fontFamily="@font/inter"
+        android:gravity="center"
         android:paddingStart="@dimen/ds_space_md"
         android:paddingEnd="@dimen/ds_space_md"
-        android:text="@string/area"
-        android:textColor="@color/ds_color_shell_active"
-        android:textStyle="bold" />
+        android:text="@string/draw_area"
+        android:textColor="@color/ds_color_text_primary"
+        android:textSize="@dimen/phone_map_panel_label_text_size" />
 
     <TextView
         android:id="@+id/right_panel_points_button"
         android:layout_width="match_parent"
         android:layout_height="@dimen/phone_map_panel_button_height_tall"
-        android:layout_marginTop="@dimen/ds_space_md"
+        android:layout_marginTop="@dimen/ds_space_sm"
         android:background="@drawable/bg_ds_panel_pill_inactive"
         android:clickable="true"
         android:focusable="true"
@@ -83,6 +85,7 @@
         android:gravity="center"
         android:text="@string/draw_area"
         android:textSize="@dimen/phone_map_panel_label_text_size"
+        android:visibility="gone"
         app:icon="@drawable/ic_draw_area_24"
         app:iconGravity="textStart"
         app:iconPadding="@dimen/ds_space_sm"

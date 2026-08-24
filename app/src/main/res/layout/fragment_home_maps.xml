@@ -38,6 +38,7 @@
             layout="@layout/home_top_status_strip"
             android:layout_width="0dp"
             android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_xs"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toTopOf="parent" />
@@ -127,7 +128,7 @@
             style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="88dp"
+            android:layout_marginBottom="@dimen/ds_space_sm"
             android:background="@drawable/bg_ds_overlay_card"
             android:fontFamily="@font/inter"
             android:lineSpacingExtra="3dp"
@@ -135,7 +136,7 @@
             android:padding="12dp"
             android:textColor="@color/ds_color_text_primary"
             android:visibility="gone"
-            app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
+            app:layout_constraintBottom_toTopOf="@id/preview_mode_bottom_dock"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
@@ -369,7 +370,7 @@
             android:id="@+id/preview_mode_bottom_dock"
             android:layout_width="@dimen/preview_mode_rail_width"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="@dimen/ds_space_xs"
+            android:layout_marginBottom="@dimen/ds_space_lg"
             android:background="@drawable/bg_preview_mode_rail"
             android:elevation="10dp"
             android:fillViewport="false"

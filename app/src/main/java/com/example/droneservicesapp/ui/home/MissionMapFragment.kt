@@ -722,10 +722,7 @@ class MissionMapFragment : Fragment() {
             button.gravity = android.view.Gravity.CENTER
         }
 
-        areaButton.setOnClickListener {
-            activityViewModel.setPlanningWorkflow(PlanningWorkflow.AREA)
-            activityViewModel.mapState.value = MainActivityViewModel.MapState.SetFlightParams
-        }
+        areaButton.setOnClickListener { startAreaDrawing() }
 
         pointsButton.setOnClickListener {
             activityViewModel.setPlanningWorkflow(PlanningWorkflow.POINTS)
@@ -806,27 +803,25 @@ class MissionMapFragment : Fragment() {
         }
 
         val isPoints = workflow == PlanningWorkflow.POINTS
-        areaButton.setBackgroundColor(Color.TRANSPARENT)
-        areaButton.setTextColor(
-            ContextCompat.getColor(
-                requireContext(),
-                if (isPoints) R.color.ds_color_text_primary else R.color.ds_color_shell_active
-            )
-        )
-        areaButton.setTypeface(Typeface.DEFAULT, if (isPoints) Typeface.NORMAL else Typeface.BOLD)
-        areaButton.includeFontPadding = false
+        areaButton.setText(R.string.draw_area)
+        areaButton.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_draw_area_24, 0, 0, 0)
+        areaButton.compoundDrawablePadding = resources.getDimensionPixelSize(R.dimen.ds_space_sm)
+        styleWorkflowButton(areaButton, !isPoints)
         areaButton.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
-        pointsButton.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_draw_area_24, 0, 0, 0)
+        pointsButton.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_points_24, 0, 0, 0)
         pointsButton.compoundDrawablePadding = resources.getDimensionPixelSize(R.dimen.ds_space_sm)
         styleWorkflowButton(pointsButton, isPoints)
         pointsButton.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
-        val pointsIconColor = ContextCompat.getColor(
-            requireContext(),
-            if (isPoints) selectedTextColor else R.color.ds_color_text_primary
-        )
-        pointsButton.compoundDrawables.forEach { drawable ->
-            drawable?.mutate()?.setTint(pointsIconColor)
+        listOf(areaButton to !isPoints, pointsButton to isPoints).forEach { (button, selected) ->
+            val iconColor = ContextCompat.getColor(
+                requireContext(),
+                if (selected) selectedTextColor else R.color.ds_color_text_primary
+            )
+            button.compoundDrawables.forEach { drawable ->
+                drawable?.mutate()?.setTint(iconColor)
+            }
         }
+        drawButton.visibility = View.GONE
         drawButton.text = getString(if (isPoints) R.string.add_route_points else R.string.draw_area)
         clearButton.text = getString(if (isPoints) R.string.clear_route else R.string.clear_area)
         obstacleButton?.visibility = if (isPoints) View.GONE else View.VISIBLE
