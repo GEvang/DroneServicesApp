@@ -36,6 +36,9 @@ class PreviewAssetsViewModel : ViewModel() {
     private val _previewSettings = MutableLiveData(PreviewSettings())
     val previewSettings: LiveData<PreviewSettings> = _previewSettings
 
+    private val _assetVersion = MutableLiveData(0)
+    val assetVersion: LiveData<Int> = _assetVersion
+
     var orthoAsset: OrthoPreviewAsset? = null
         private set
 
@@ -55,7 +58,8 @@ class PreviewAssetsViewModel : ViewModel() {
         bitmapFileName: String,
         bitmapUri: Uri,
         sourceWidth: Int = bitmap.width,
-        sourceHeight: Int = bitmap.height
+        sourceHeight: Int = bitmap.height,
+        notifyChange: Boolean = true
     ) {
         orthoAsset = OrthoPreviewAsset(
             bitmap = bitmap,
@@ -64,6 +68,7 @@ class PreviewAssetsViewModel : ViewModel() {
             sourceWidth = sourceWidth,
             sourceHeight = sourceHeight,
         )
+        if (notifyChange) notifyAssetsChanged()
     }
 
     fun setOrthoBounds(bounds: OrthoBounds, worldFileName: String, worldFileUri: Uri) {
@@ -73,10 +78,12 @@ class PreviewAssetsViewModel : ViewModel() {
             worldFileName = worldFileName,
             worldFileUri = worldFileUri,
         )
+        notifyAssetsChanged()
     }
 
     fun clearOrtho() {
         orthoAsset = null
+        notifyAssetsChanged()
     }
 
     fun setPointCloud(pointCloud: PointCloudData, fileName: String, uri: Uri) {
@@ -87,21 +94,27 @@ class PreviewAssetsViewModel : ViewModel() {
         )
         pointCloudTerrainModel = PointCloudTerrainModel(pointCloud)
         pointCloudTerrainSummary = null
+        notifyAssetsChanged()
     }
 
     fun setPointCloudTerrainSummary(summary: TerrainGridSummary) {
         pointCloudTerrainSummary = summary
+        notifyAssetsChanged()
     }
 
     fun clearPointCloud() {
         pointCloudAsset = null
         pointCloudTerrainModel = null
         pointCloudTerrainSummary = null
+        notifyAssetsChanged()
     }
 
     fun clearAssets() {
-        clearOrtho()
-        clearPointCloud()
+        orthoAsset = null
+        pointCloudAsset = null
+        pointCloudTerrainModel = null
+        pointCloudTerrainSummary = null
+        notifyAssetsChanged()
     }
 
     fun updateSettings(update: PreviewSettings.() -> PreviewSettings) {
@@ -118,6 +131,10 @@ class PreviewAssetsViewModel : ViewModel() {
         val focus = pendingMapFocus
         pendingMapFocus = null
         return focus
+    }
+
+    private fun notifyAssetsChanged() {
+        _assetVersion.value = (_assetVersion.value ?: 0) + 1
     }
 }
 

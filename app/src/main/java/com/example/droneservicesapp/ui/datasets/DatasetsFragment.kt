@@ -23,6 +23,7 @@ import com.example.droneservicesapp.data.preview.PreviewDatasetRecord
 import com.example.droneservicesapp.data.preview.PreviewDatasetStore
 import com.example.droneservicesapp.databinding.FragmentDatasetsBinding
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
+import com.example.droneservicesapp.ui.preview.PreviewMapFocus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -189,7 +190,8 @@ class DatasetsFragment : Fragment() {
                     bitmapFileName = fileName,
                     bitmapUri = uri,
                     sourceWidth = decoded.sourceWidth,
-                    sourceHeight = decoded.sourceHeight
+                    sourceHeight = decoded.sourceHeight,
+                    notifyChange = false
                 )
                 applySettings(updated)
                 saveLegacyPreviewReferences(updated)
@@ -227,6 +229,7 @@ class DatasetsFragment : Fragment() {
                     orthoWorldName = fileName
                 )
                 datasetStore.upsert(updated)
+                previewAssetsViewModel.requestMapFocus(PreviewMapFocus.ORTHO)
                 previewAssetsViewModel.setOrthoBounds(bounds, fileName, uri)
                 applySettings(updated)
                 saveLegacyPreviewReferences(updated)
@@ -257,6 +260,7 @@ class DatasetsFragment : Fragment() {
                     pointCloudName = fileName
                 )
                 datasetStore.upsert(updated)
+                previewAssetsViewModel.requestMapFocus(PreviewMapFocus.POINT_CLOUD)
                 previewAssetsViewModel.setPointCloud(pointCloud, fileName, uri)
                 applySettings(updated)
                 saveLegacyPreviewReferences(updated)
@@ -300,9 +304,11 @@ class DatasetsFragment : Fragment() {
                         bitmapFileName = record.orthoImageName ?: getString(R.string.ortho_unknown_image),
                         bitmapUri = record.orthoImageUri,
                         sourceWidth = decoded.sourceWidth,
-                        sourceHeight = decoded.sourceHeight
+                        sourceHeight = decoded.sourceHeight,
+                        notifyChange = bounds == null
                     )
                     if (bounds != null && record.orthoWorldUri != null) {
+                        previewAssetsViewModel.requestMapFocus(PreviewMapFocus.ORTHO)
                         previewAssetsViewModel.setOrthoBounds(
                             bounds,
                             record.orthoWorldName ?: getString(R.string.ortho_unknown_world),
@@ -311,6 +317,7 @@ class DatasetsFragment : Fragment() {
                     }
                 }
                 if (pointCloud != null && record.pointCloudUri != null) {
+                    previewAssetsViewModel.requestMapFocus(PreviewMapFocus.POINT_CLOUD)
                     previewAssetsViewModel.setPointCloud(
                         pointCloud,
                         record.pointCloudName ?: getString(R.string.point_cloud_unknown_file),

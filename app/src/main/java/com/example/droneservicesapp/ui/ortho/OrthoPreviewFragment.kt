@@ -221,7 +221,8 @@ class OrthoPreviewFragment : Fragment() {
                     bitmapFileName = fileName,
                     bitmapUri = uri,
                     sourceWidth = decoded.sourceWidth,
-                    sourceHeight = decoded.sourceHeight
+                    sourceHeight = decoded.sourceHeight,
+                    notifyChange = false
                 )
                 saveOrthoImageReference(uri, fileName)
                 currentBinding.orthoMap.invalidate()
@@ -667,7 +668,8 @@ class OrthoPreviewFragment : Fragment() {
                     bitmapFileName = imageName,
                     bitmapUri = imageUri,
                     sourceWidth = decoded.sourceWidth,
-                    sourceHeight = decoded.sourceHeight
+                    sourceHeight = decoded.sourceHeight,
+                    notifyChange = decodedBounds == null
                 )
                 if (decodedBounds != null && worldUri != null && savedWorldName != null) {
                     previewAssetsViewModel.setOrthoBounds(decodedBounds, savedWorldName, worldUri)

@@ -630,6 +630,10 @@ class MissionMapFragment : Fragment() {
             updatePointCloudMissionOverlay()
             renderPreviewMode()
         }
+        previewAssetsViewModel.assetVersion.observe(viewLifecycleOwner) {
+            refreshPreviewAssets()
+            renderCurrentSurveyPathOnMap()
+        }
     }
 
     private fun toggleObstaclePanel() {
@@ -1978,7 +1982,8 @@ class MissionMapFragment : Fragment() {
                     bitmapFileName = fileName,
                     bitmapUri = uri,
                     sourceWidth = decoded.sourceWidth,
-                    sourceHeight = decoded.sourceHeight
+                    sourceHeight = decoded.sourceHeight,
+                    notifyChange = false
                 )
                 saveHomeOrthoImageReference(uri, fileName)
                 removeHomeOrthoOverlay()
@@ -2095,7 +2100,8 @@ class MissionMapFragment : Fragment() {
                             bitmapFileName = imageName,
                             bitmapUri = imageUri,
                             sourceWidth = decoded.sourceWidth,
-                            sourceHeight = decoded.sourceHeight
+                            sourceHeight = decoded.sourceHeight,
+                            notifyChange = bounds == null
                         )
                         if (bounds != null && worldUri != null && worldName != null) {
                             previewAssetsViewModel.setOrthoBounds(bounds, worldName, worldUri)
