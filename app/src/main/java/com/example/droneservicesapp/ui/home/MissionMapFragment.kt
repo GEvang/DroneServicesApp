@@ -2251,11 +2251,9 @@ class MissionMapFragment : Fragment() {
         val polygonLatLon = area.vertices.map { LatLon(it.latitude, it.longitude) }
         val params = activityViewModel.surveyGridParams.value ?: return
         val obstacles = activityViewModel.missionObstacles.value.orEmpty()
-        val terrainSummary = previewAssetsViewModel.pointCloudTerrainSummary
         val terrainModel = previewAssetsViewModel.pointCloudTerrainModel
             ?.takeIf {
-                terrainSummary?.isGeoreferenced == true &&
-                    terrainSummary.cellCount > 0 &&
+                it.isGeoreferenced &&
                     obstacles.isEmpty()
             }
 
