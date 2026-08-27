@@ -15,6 +15,6 @@ class Event<out T>(private val content: T) {
     fun peekContent(): T = content
 }
 
-inline fun <T> MutableLiveData<Event<T>>.emit(value: T) {
+fun <T> MutableLiveData<Event<T>>.emit(value: T) {
     postValue(Event(value))
 }

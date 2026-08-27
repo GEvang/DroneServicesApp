@@ -208,7 +208,7 @@ class MainActivityViewModel : ViewModel() {
         val obstacle = MissionObstacle(
             id = "obstacle-${System.nanoTime()}",
             shape = MissionObstacleShape.CIRCLE,
-            center = com.example.droneservicesapp.domain.model.LatLon(latitude, longitude),
+            center = LatLon(latitude, longitude),
             radiusMeters = radiusMeters.coerceIn(2.0, 100.0)
         )
         missionObstacles.value = missionObstacles.value.orEmpty() + obstacle
@@ -219,7 +219,7 @@ class MainActivityViewModel : ViewModel() {
         val obstacle = MissionObstacle(
             id = "obstacle-${System.nanoTime()}",
             shape = MissionObstacleShape.POLYGON,
-            vertices = vertices.map { com.example.droneservicesapp.domain.model.LatLon(it.latitude, it.longitude) }
+            vertices = vertices.map { LatLon(it.latitude, it.longitude) }
         )
         missionObstacles.value = missionObstacles.value.orEmpty() + obstacle
     }

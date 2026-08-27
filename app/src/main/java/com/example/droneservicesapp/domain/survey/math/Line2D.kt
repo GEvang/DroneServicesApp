@@ -113,8 +113,8 @@ class Line2D(p1: LatLng, p2: LatLng) {
     }
 
     fun lineLineIntersection(line2: Line2D): LatLng? {
-        var x = 0.0
-        var y = 0.0
+        val x: Double
+        val y: Double
 
         if (line2.m == 0.0 && this.m == 0.0) {
             return null

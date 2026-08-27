@@ -175,7 +175,7 @@
                 android:padding="@dimen/phone_map_bottom_dock_icon_padding"
                 android:scaleType="centerInside"
                 android:src="@drawable/ic_remove_24"
-                android:tint="@android:color/white" />
+                app:tint="@android:color/white" />
 
             <TextView
                 android:id="@+id/survey_waypoint_height_label"
@@ -199,7 +199,7 @@
                 android:padding="@dimen/phone_map_bottom_dock_icon_padding"
                 android:scaleType="centerInside"
                 android:src="@drawable/ic_add_24"
-                android:tint="@android:color/white" />
+                app:tint="@android:color/white" />
 
             <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/survey_waypoint_delete_button"
@@ -210,7 +210,7 @@
                 android:padding="@dimen/phone_map_bottom_dock_icon_padding"
                 android:scaleType="centerInside"
                 android:src="@drawable/ic_delete_24"
-                android:tint="@android:color/white" />
+                app:tint="@android:color/white" />
 
             <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/survey_waypoint_cancel_button"
@@ -222,7 +222,7 @@
                 android:padding="@dimen/phone_map_bottom_dock_icon_padding"
                 android:scaleType="centerInside"
                 android:src="@drawable/ic_baseline_cancel_24"
-                android:tint="@android:color/white" />
+                app:tint="@android:color/white" />
         </LinearLayout>
 
         <LinearLayout
@@ -310,7 +310,7 @@
                         android:contentDescription="@null"
                         android:scaleType="fitCenter"
                         android:src="@drawable/ic_baseline_my_location_48"
-                        android:tint="@color/ds_color_shell_unselected" />
+                        app:tint="@color/ds_color_shell_unselected" />
 
                     <TextView
                         style="@style/TextAppearance.DroneServices.BottomNavInactive"
@@ -340,7 +340,7 @@
                         android:contentDescription="@null"
                         android:scaleType="fitCenter"
                         android:src="@drawable/drone_marker_36"
-                        android:tint="@color/ds_color_shell_unselected" />
+                        app:tint="@color/ds_color_shell_unselected" />
 
                     <TextView
                         style="@style/TextAppearance.DroneServices.BottomNavInactive"
@@ -370,7 +370,7 @@
                         android:contentDescription="@null"
                         android:scaleType="fitCenter"
                         android:src="@drawable/obstacle"
-                        android:tint="@color/ds_color_shell_unselected" />
+                        app:tint="@color/ds_color_shell_unselected" />
 
                     <TextView
                         style="@style/TextAppearance.DroneServices.BottomNavInactive"
@@ -404,7 +404,7 @@
                         android:contentDescription="@null"
                         android:scaleType="fitCenter"
                         android:src="@drawable/ic_menu_map"
-                        android:tint="@color/ds_color_shell_unselected" />
+                        app:tint="@color/ds_color_shell_unselected" />
 
                     <TextView
                         style="@style/TextAppearance.DroneServices.BottomNavInactive"
@@ -434,7 +434,7 @@
                         android:contentDescription="@null"
                         android:scaleType="fitCenter"
                         android:src="@android:drawable/stat_sys_download"
-                        android:tint="@color/ds_color_shell_unselected" />
+                        app:tint="@color/ds_color_shell_unselected" />
 
                     <TextView
                         style="@style/TextAppearance.DroneServices.BottomNavInactive"
@@ -463,7 +463,7 @@
                         android:contentDescription="@null"
                         android:scaleType="fitCenter"
                         android:src="@drawable/ic_menu_settings"
-                        android:tint="@color/ds_color_shell_unselected" />
+                        app:tint="@color/ds_color_shell_unselected" />
 
                     <TextView
                         style="@style/TextAppearance.DroneServices.BottomNavInactive"
@@ -495,7 +495,7 @@
                     android:contentDescription="@null"
                     android:scaleType="fitCenter"
                     android:src="@drawable/mission_planning"
-                    android:tint="@color/ds_color_shell_unselected" />
+                    app:tint="@color/ds_color_shell_unselected" />
 
                 <TextView
                     style="@style/TextAppearance.DroneServices.BottomNavInactive"
@@ -592,7 +592,7 @@
                     android:padding="@dimen/preview_mode_switch_padding"
                     android:scaleType="centerInside"
                     android:src="@drawable/ic_ortho_24"
-                    android:tint="@android:color/white" />
+                    app:tint="@android:color/white" />
 
                 <TextView
                     android:id="@+id/preview_mode_cycle_label"
@@ -625,7 +625,7 @@
                     android:padding="@dimen/preview_mode_switch_padding"
                     android:scaleType="centerInside"
                     android:src="@drawable/baseline_load_file_24"
-                    android:tint="@android:color/white" />
+                    app:tint="@android:color/white" />
 
                 <TextView
                     android:id="@+id/preview_asset_primary_label"
@@ -658,7 +658,7 @@
                     android:padding="@dimen/preview_mode_switch_padding"
                     android:scaleType="centerInside"
                     android:src="@drawable/ic_menu_map"
-                    android:tint="@android:color/white" />
+                    app:tint="@android:color/white" />
 
                 <TextView
                     android:id="@+id/preview_asset_secondary_label"
@@ -691,7 +691,7 @@
                     android:padding="@dimen/preview_mode_switch_padding"
                     android:scaleType="centerInside"
                     android:src="@drawable/ic_survey_modified"
-                    android:tint="@android:color/white" />
+                    app:tint="@android:color/white" />
 
                 <TextView
                     android:id="@+id/preview_color_mode_label"
@@ -724,7 +724,7 @@
                     android:padding="@dimen/preview_mode_switch_padding"
                     android:scaleType="centerInside"
                     android:src="@drawable/ic_menu_map"
-                    android:tint="@android:color/white" />
+                    app:tint="@android:color/white" />
 
                 <TextView
                     android:id="@+id/preview_asset_tertiary_label"
@@ -817,7 +817,9 @@
             android:id="@+id/home_telemetry_legacy_container"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:visibility="gone">
+            android:visibility="gone"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent">
 
             <LinearLayout
                 android:id="@+id/home_top_avoidance_strip"

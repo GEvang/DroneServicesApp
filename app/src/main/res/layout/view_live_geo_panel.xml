@@ -127,7 +127,7 @@
             android:contentDescription="@null"
             android:scaleType="fitCenter"
             android:src="@drawable/drone_marker_36"
-            android:tint="#FFFFFF" />
+            app:tint="#FFFFFF" />
 
         <TextView
             android:id="@+id/live_geo_forward_marker"

@@ -18,7 +18,7 @@
             android:layout_height="22dp"
             android:contentDescription="@null"
             android:src="@drawable/ic_workflow_24"
-            android:tint="@color/ds_color_shell_active" />
+            app:tint="@color/ds_color_shell_active" />
 
         <TextView
             style="@style/TextAppearance.DroneServices.PhoneMapPanelTitle"
@@ -148,7 +148,7 @@
             android:layout_height="18dp"
             android:contentDescription="@null"
             android:src="@drawable/ic_action_bolt_24"
-            android:tint="@color/ds_color_shell_active" />
+            app:tint="@color/ds_color_shell_active" />
 
         <TextView
             style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
@@ -164,7 +164,7 @@
             android:layout_height="16dp"
             android:contentDescription="@null"
             android:src="@drawable/ic_info_outline_16"
-            android:tint="@color/ds_color_text_secondary" />
+            app:tint="@color/ds_color_text_secondary" />
     </LinearLayout>
 
     <com.google.android.material.button.MaterialButton

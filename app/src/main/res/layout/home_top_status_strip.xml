@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <HorizontalScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/home_top_status_strip"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
@@ -35,7 +36,7 @@
                 android:layout_height="24dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_status_signal_24"
-                android:tint="@color/ds_color_shell_danger" />
+                app:tint="@color/ds_color_shell_danger" />
 
             <TextView
                 android:id="@+id/top_connection_text"
@@ -68,7 +69,7 @@
                 android:layout_height="24dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_status_gps_pin_24"
-                android:tint="@color/ds_color_shell_danger" />
+                app:tint="@color/ds_color_shell_danger" />
 
             <TextView
                 android:id="@+id/top_gps_text"
@@ -99,7 +100,7 @@
                 android:layout_height="24dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_status_rtk_24"
-                android:tint="@color/ds_color_text_primary" />
+                app:tint="@color/ds_color_text_primary" />
 
             <TextView
                 android:id="@+id/top_rtk_text"
@@ -132,7 +133,7 @@
                 android:layout_height="24dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_status_shield_24"
-                android:tint="@color/ds_color_shell_danger" />
+                app:tint="@color/ds_color_shell_danger" />
 
             <TextView
                 android:id="@+id/top_armed_text"
@@ -164,7 +165,7 @@
                 android:layout_height="24dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_status_speed_24"
-                android:tint="@color/ds_color_text_primary" />
+                app:tint="@color/ds_color_text_primary" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -209,7 +210,7 @@
                 android:layout_height="24dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_status_altitude_24"
-                android:tint="@color/ds_color_text_primary" />
+                app:tint="@color/ds_color_text_primary" />
 
             <LinearLayout
                 android:layout_width="0dp"
@@ -255,7 +256,7 @@
                 android:layout_height="22dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_baseline_battery_alert_24"
-                android:tint="@color/ds_color_shell_unselected" />
+                app:tint="@color/ds_color_shell_unselected" />
 
             <TextView
                 android:id="@+id/top_battery_text"
@@ -286,7 +287,7 @@
                 android:layout_height="24dp"
                 android:contentDescription="@null"
                 android:src="@drawable/ic_status_warning_24"
-                android:tint="@color/ds_color_shell_warning" />
+                app:tint="@color/ds_color_shell_warning" />
 
             <LinearLayout
                 android:layout_width="0dp"

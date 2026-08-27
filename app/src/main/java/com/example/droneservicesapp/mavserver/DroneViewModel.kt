@@ -15,6 +15,7 @@ import com.example.droneservicesapp.data.mavlink.MavlinkConnectionManager
 import com.example.droneservicesapp.data.mavlink.MissionService
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.rtk.RtkMountpoint
+import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.CommandLong
@@ -106,7 +107,7 @@ class DroneViewModel : ViewModel() {
                 )
             },
             onArmedStateChanged = { armed, location, altitude, flightMode ->
-                val position = location?.let { com.example.droneservicesapp.domain.model.LatLon(it.latitude, it.longitude) }
+                val position = location?.let { LatLon(it.latitude, it.longitude) }
                 if (armed) {
                     operatorEventLogger.logDroneArmed(position, altitude, flightMode)
                 } else {
@@ -131,11 +132,11 @@ class DroneViewModel : ViewModel() {
                 operatorEventLogger.logBatteryLow(percent)
             },
             onTakeoffDetected = { location, altitude ->
-                val position = location?.let { com.example.droneservicesapp.domain.model.LatLon(it.latitude, it.longitude) }
+                val position = location?.let { LatLon(it.latitude, it.longitude) }
                 operatorEventLogger.logTakeoffDetected(position, altitude)
             },
             onLandingDetected = { location, altitude ->
-                val position = location?.let { com.example.droneservicesapp.domain.model.LatLon(it.latitude, it.longitude) }
+                val position = location?.let { LatLon(it.latitude, it.longitude) }
                 operatorEventLogger.logLandingDetected(position, altitude)
             }
         )

@@ -7,10 +7,14 @@ import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEvent
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
 import com.example.droneservicesapp.data.geoawareness.verification.GeoAwarenessVerificationStatusStore
+import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthEvaluator
+import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.testing.GeoAwarenessTestRunResult
 import com.example.droneservicesapp.domain.geoawareness.verification.GeoAwarenessVerificationChecklist
+import com.example.droneservicesapp.domain.geoawareness.verification.GeoAwarenessVerificationStatus
+import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -68,9 +72,9 @@ class GeoAwarenessEvidencePackageExporter(
         nowMillis: Long,
         datasetRecords: List<GeoZoneDatasetRecord>,
         warningCount: Int,
-        health: com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth,
+        health: GeoAwarenessHealth,
         diagnostics: GeoAwarenessTestRunResult?,
-        checklistStatuses: Map<String, com.example.droneservicesapp.domain.geoawareness.verification.GeoAwarenessVerificationStatus>
+        checklistStatuses: Map<String, GeoAwarenessVerificationStatus>
     ): String {
         val packageInfo = runCatching { context.packageManager.getPackageInfo(context.packageName, 0) }.getOrNull()
         val passCount = checklistStatuses.values.count { it.name == "PASS" }
@@ -172,7 +176,7 @@ class GeoAwarenessEvidencePackageExporter(
         }
     }
 
-    private fun buildDatasetStatusJson(records: List<GeoZoneDatasetRecord>, datasetInfo: com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo?): String {
+    private fun buildDatasetStatusJson(records: List<GeoZoneDatasetRecord>, datasetInfo: GeoZoneDatasetInfo?): String {
         return JSONObject().apply {
             put("source", datasetInfo?.source)
             put("title", datasetInfo?.title)
@@ -202,8 +206,8 @@ class GeoAwarenessEvidencePackageExporter(
         }.toString(2)
     }
 
-    private fun buildValidationSummaryJson(validationResult: com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult?): String {
-        val result = validationResult ?: com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult.ok()
+    private fun buildValidationSummaryJson(validationResult: GeoZoneValidationResult?): String {
+        val result = validationResult ?: GeoZoneValidationResult.ok()
         return JSONObject().apply {
             put("isValid", result.isValid)
             put("errorCount", result.errorCount)
@@ -223,7 +227,7 @@ class GeoAwarenessEvidencePackageExporter(
         }.toString(2)
     }
 
-    private fun buildHealthSummaryJson(health: com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth): String {
+    private fun buildHealthSummaryJson(health: GeoAwarenessHealth): String {
         return JSONObject().apply {
             put("state", health.state.name)
             put("message", health.message)
@@ -234,7 +238,7 @@ class GeoAwarenessEvidencePackageExporter(
         }.toString(2)
     }
 
-    private fun buildVerificationJson(statuses: Map<String, com.example.droneservicesapp.domain.geoawareness.verification.GeoAwarenessVerificationStatus>): String {
+    private fun buildVerificationJson(statuses: Map<String, GeoAwarenessVerificationStatus>): String {
         if (verificationStatusStore == null) {
             return JSONObject().apply {
                 put("message", "Verification checklist store unavailable.")

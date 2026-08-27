@@ -65,6 +65,10 @@
 
     <dimen name="phone_map_bottom_dock_icon_size">36dp</dimen>
     <dimen name="phone_map_bottom_dock_icon_padding">8dp</dimen>
+    <dimen name="phone_map_bottom_dock_width">900dp</dimen>
+    <dimen name="phone_map_bottom_dock_outer_height">54dp</dimen>
+    <dimen name="phone_map_bottom_dock_center_size">68dp</dimen>
+    <dimen name="phone_map_bottom_dock_center_spacer_width">136dp</dimen>
     <dimen name="preview_mode_switch_size">44dp</dimen>
     <dimen name="preview_mode_switch_padding">1dp</dimen>
     <dimen name="preview_mode_rail_width">380dp</dimen>
@@ -86,6 +90,27 @@
     <dimen name="phone_map_overlay_card_width">320dp</dimen>
     <dimen name="phone_map_overlay_card_margin">12dp</dimen>
     <dimen name="phone_map_live_geo_text_size">13sp</dimen>
+
+    <!-- Tablet defaults are overridden in sw600dp resource buckets. -->
+    <dimen name="tablet_screen_margin">24dp</dimen>
+    <dimen name="tablet_side_panel_width">320dp</dimen>
+    <dimen name="tablet_left_panel_width">360dp</dimen>
+    <dimen name="tablet_right_panel_width">320dp</dimen>
+    <dimen name="tablet_side_panel_min_height">560dp</dimen>
+    <dimen name="tablet_right_panel_compact_top_margin">88dp</dimen>
+    <dimen name="tablet_right_panel_compact_bottom_margin">144dp</dimen>
+    <dimen name="tablet_bottom_dock_width">1280dp</dimen>
+    <dimen name="tablet_bottom_dock_outer_height">86dp</dimen>
+    <dimen name="tablet_bottom_dock_height">86dp</dimen>
+    <dimen name="tablet_bottom_dock_margin_bottom">14dp</dimen>
+    <dimen name="tablet_bottom_dock_padding_horizontal">28dp</dimen>
+    <dimen name="tablet_bottom_dock_padding_vertical">8dp</dimen>
+    <dimen name="tablet_bottom_dock_icon_size">30dp</dimen>
+    <dimen name="tablet_bottom_center_tab_size">78dp</dimen>
+    <dimen name="tablet_bottom_center_tab_width">196dp</dimen>
+    <dimen name="tablet_bottom_center_spacer_width">236dp</dimen>
+    <dimen name="tablet_bottom_dock_label_text_size">13sp</dimen>
+    <dimen name="tablet_bottom_center_label_text_size">15sp</dimen>
 
     <!-- Overriding sizes of the FAB -->
 

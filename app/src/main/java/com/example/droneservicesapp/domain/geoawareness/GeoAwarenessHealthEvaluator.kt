@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.domain.geoawareness
 
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
+import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationSeverity
 
 object GeoAwarenessHealthEvaluator {
 
@@ -76,7 +77,7 @@ object GeoAwarenessHealthEvaluator {
         }
 
         if (validationResult?.issues?.any { issue ->
-                issue.severity == com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationSeverity.WARNING &&
+                issue.severity == GeoZoneValidationSeverity.WARNING &&
                     issue.code != "DATASET_IS_DUMMY"
             } == true
         ) {
