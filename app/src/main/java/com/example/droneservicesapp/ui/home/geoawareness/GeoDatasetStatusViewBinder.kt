@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.widget.TextView
+import androidx.core.graphics.toColorInt
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 
 class GeoDatasetStatusViewBinder(
@@ -17,12 +18,12 @@ class GeoDatasetStatusViewBinder(
             info == null || info.zoneCount == 0 -> bindUnavailable("Geo Data: Unavailable")
             info.isDummy -> applyStyle(
                 text = "Geo Data: Test",
-                backgroundColor = Color.parseColor("#EF6C00"),
+                backgroundColor = "#EF6C00".toColorInt(),
                 textColor = Color.WHITE
             )
             else -> applyStyle(
                 text = "Geo Data: Valid",
-                backgroundColor = Color.parseColor("#2E7D32"),
+                backgroundColor = "#2E7D32".toColorInt(),
                 textColor = Color.WHITE
             )
         }
@@ -31,7 +32,7 @@ class GeoDatasetStatusViewBinder(
     fun bindUnavailable(message: String) {
         applyStyle(
             text = message,
-            backgroundColor = Color.parseColor("#757575"),
+            backgroundColor = "#757575".toColorInt(),
             textColor = Color.WHITE
         )
     }
@@ -57,7 +58,7 @@ class GeoDatasetStatusViewBinder(
             shape = GradientDrawable.RECTANGLE
             cornerRadius = dpToPx(18).toFloat()
             setColor(backgroundColor)
-            setStroke(dpToPx(1), Color.parseColor("#33FFFFFF"))
+            setStroke(dpToPx(1), "#33FFFFFF".toColorInt())
         }
     }
 

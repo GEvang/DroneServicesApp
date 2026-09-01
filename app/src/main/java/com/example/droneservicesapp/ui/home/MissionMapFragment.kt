@@ -2577,7 +2577,7 @@ class MissionMapFragment : Fragment() {
             ?.takeIf { it.hasAccuracy() }
             ?.accuracy
         latestRealDroneVerticalAccuracyMeters = usableLocation
-            ?.takeIf { android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O && it.hasVerticalAccuracy() }
+            ?.takeIf { it.hasVerticalAccuracy() }
             ?.verticalAccuracyMeters
     }
 

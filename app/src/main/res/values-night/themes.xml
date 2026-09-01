@@ -1,4 +1,4 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
+<resources>
 
     <style name="Theme.DroneServicesApp" parent="Theme.MaterialComponents.Light.NoActionBar">
         <item name="android:fontFamily">sans-serif</item>
@@ -13,7 +13,7 @@
         <item name="colorSurface">@color/app_light_surface</item>
         <item name="android:textColorPrimary">@color/app_light_text_primary</item>
         <item name="android:textColorSecondary">@color/app_light_text_secondary</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@color/app_light_background</item>
         <item name="android:navigationBarColor">@color/app_light_background</item>
         <item name="colorOnPrimary">@color/app_light_background</item>

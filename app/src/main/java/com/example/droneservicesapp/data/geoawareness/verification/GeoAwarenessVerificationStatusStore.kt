@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.data.geoawareness.verification
 
 import android.content.Context
+import androidx.core.content.edit
 import com.example.droneservicesapp.domain.geoawareness.verification.GeoAwarenessVerificationChecklist
 import com.example.droneservicesapp.domain.geoawareness.verification.GeoAwarenessVerificationStatus
 
@@ -16,7 +17,9 @@ class GeoAwarenessVerificationStatusStore(context: Context) {
     }
 
     fun setStatus(caseId: String, status: GeoAwarenessVerificationStatus) {
-        preferences.edit().putString(statusKey(caseId), status.name).apply()
+        preferences.edit {
+            putString(statusKey(caseId), status.name)
+        }
     }
 
     fun getAllStatuses(): Map<String, GeoAwarenessVerificationStatus> {
@@ -26,11 +29,11 @@ class GeoAwarenessVerificationStatusStore(context: Context) {
     }
 
     fun resetAll() {
-        preferences.edit().apply {
+        preferences.edit {
             GeoAwarenessVerificationChecklist.cases.forEach { verificationCase ->
                 remove(statusKey(verificationCase.id))
             }
-        }.apply()
+        }
     }
 
     private fun statusKey(caseId: String): String = "geo_verification_status_$caseId"

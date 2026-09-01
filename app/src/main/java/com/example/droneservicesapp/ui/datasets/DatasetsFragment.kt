@@ -12,6 +12,7 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.core.content.edit
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
@@ -410,18 +411,20 @@ class DatasetsFragment : Fragment() {
     }
 
     private fun saveLegacyPreviewReferences(record: PreviewDatasetRecord) {
-        requireContext().getSharedPreferences(PREVIEW_PREFS, Context.MODE_PRIVATE).edit()
-            .putString(KEY_ORTHO_IMAGE_URI, record.orthoImageUri?.toString())
-            .putString(KEY_ORTHO_IMAGE_NAME, record.orthoImageName)
-            .putString(KEY_ORTHO_WORLD_URI, record.orthoWorldUri?.toString())
-            .putString(KEY_ORTHO_WORLD_NAME, record.orthoWorldName)
-            .putString(KEY_POINT_CLOUD_URI, record.pointCloudUri?.toString())
-            .putString(KEY_POINT_CLOUD_NAME, record.pointCloudName)
-            .apply()
+        requireContext().getSharedPreferences(PREVIEW_PREFS, Context.MODE_PRIVATE).edit {
+            putString(KEY_ORTHO_IMAGE_URI, record.orthoImageUri?.toString())
+            putString(KEY_ORTHO_IMAGE_NAME, record.orthoImageName)
+            putString(KEY_ORTHO_WORLD_URI, record.orthoWorldUri?.toString())
+            putString(KEY_ORTHO_WORLD_NAME, record.orthoWorldName)
+            putString(KEY_POINT_CLOUD_URI, record.pointCloudUri?.toString())
+            putString(KEY_POINT_CLOUD_NAME, record.pointCloudName)
+        }
     }
 
     private fun clearLegacyPreviewReferences() {
-        requireContext().getSharedPreferences(PREVIEW_PREFS, Context.MODE_PRIVATE).edit().clear().apply()
+        requireContext().getSharedPreferences(PREVIEW_PREFS, Context.MODE_PRIVATE).edit {
+            clear()
+        }
     }
 
     private fun showLoadError(error: Throwable) {

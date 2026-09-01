@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.drawable.GradientDrawable
 import android.view.View
 import android.widget.TextView
+import androidx.core.graphics.toColorInt
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
@@ -17,7 +18,7 @@ class LiveGeoAwarenessStatusViewBinder(
     fun bindClear() {
         applyStyle(
             text = "LIVE GEO: CLEAR",
-            backgroundColor = Color.parseColor("#2E7D32"),
+            backgroundColor = "#2E7D32".toColorInt(),
             textColor = Color.WHITE
         )
     }
@@ -31,22 +32,22 @@ class LiveGeoAwarenessStatusViewBinder(
         when (highest) {
             GeoZoneRestriction.PROHIBITED -> applyStyle(
                 text = "LIVE GEO: PROHIBITED",
-                backgroundColor = Color.parseColor("#C62828"),
+                backgroundColor = "#C62828".toColorInt(),
                 textColor = Color.WHITE
             )
             GeoZoneRestriction.REQ_AUTHORISATION -> applyStyle(
                 text = "LIVE GEO: AUTH ZONE",
-                backgroundColor = Color.parseColor("#EF6C00"),
+                backgroundColor = "#EF6C00".toColorInt(),
                 textColor = Color.WHITE
             )
             GeoZoneRestriction.CONDITIONAL -> applyStyle(
                 text = "LIVE GEO: CONDITIONAL",
-                backgroundColor = Color.parseColor("#F9A825"),
-                textColor = Color.parseColor("#212121")
+                backgroundColor = "#F9A825".toColorInt(),
+                textColor = "#212121".toColorInt()
             )
             GeoZoneRestriction.INFORMATION -> applyStyle(
                 text = "LIVE GEO: INFO",
-                backgroundColor = Color.parseColor("#1565C0"),
+                backgroundColor = "#1565C0".toColorInt(),
                 textColor = Color.WHITE
             )
             GeoZoneRestriction.UNKNOWN -> bindUnknown("Unknown")
@@ -58,22 +59,22 @@ class LiveGeoAwarenessStatusViewBinder(
         when (zone.restriction) {
             GeoZoneRestriction.PROHIBITED -> applyStyle(
                 text = "LIVE GEO: NEAR PROHIBITED — ${roundedMeters} m",
-                backgroundColor = Color.parseColor("#E65100"),
+                backgroundColor = "#E65100".toColorInt(),
                 textColor = Color.WHITE
             )
             GeoZoneRestriction.REQ_AUTHORISATION -> applyStyle(
                 text = "LIVE GEO: NEAR AUTH ZONE — ${roundedMeters} m",
-                backgroundColor = Color.parseColor("#EF6C00"),
+                backgroundColor = "#EF6C00".toColorInt(),
                 textColor = Color.WHITE
             )
             GeoZoneRestriction.CONDITIONAL -> applyStyle(
                 text = "LIVE GEO: NEAR CONDITIONAL — ${roundedMeters} m",
-                backgroundColor = Color.parseColor("#F9A825"),
-                textColor = Color.parseColor("#212121")
+                backgroundColor = "#F9A825".toColorInt(),
+                textColor = "#212121".toColorInt()
             )
             GeoZoneRestriction.UNKNOWN -> applyStyle(
                 text = "LIVE GEO: NEAR UNKNOWN — ${roundedMeters} m",
-                backgroundColor = Color.parseColor("#8D6E63"),
+                backgroundColor = "#8D6E63".toColorInt(),
                 textColor = Color.WHITE
             )
             GeoZoneRestriction.INFORMATION -> bindClear()
@@ -86,22 +87,22 @@ class LiveGeoAwarenessStatusViewBinder(
         when (zone.restriction) {
             GeoZoneRestriction.PROHIBITED -> applyStyle(
                 text = "LIVE GEO: VERTICAL PROHIBITED$suffix",
-                backgroundColor = Color.parseColor("#E65100"),
+                backgroundColor = "#E65100".toColorInt(),
                 textColor = Color.WHITE
             )
             GeoZoneRestriction.REQ_AUTHORISATION -> applyStyle(
                 text = "LIVE GEO: VERTICAL AUTH$suffix",
-                backgroundColor = Color.parseColor("#EF6C00"),
+                backgroundColor = "#EF6C00".toColorInt(),
                 textColor = Color.WHITE
             )
             GeoZoneRestriction.CONDITIONAL -> applyStyle(
                 text = "LIVE GEO: VERTICAL CONDITIONAL$suffix",
-                backgroundColor = Color.parseColor("#F9A825"),
-                textColor = Color.parseColor("#212121")
+                backgroundColor = "#F9A825".toColorInt(),
+                textColor = "#212121".toColorInt()
             )
             GeoZoneRestriction.UNKNOWN -> applyStyle(
                 text = "LIVE GEO: VERTICAL UNKNOWN$suffix",
-                backgroundColor = Color.parseColor("#8D6E63"),
+                backgroundColor = "#8D6E63".toColorInt(),
                 textColor = Color.WHITE
             )
             GeoZoneRestriction.INFORMATION -> bindClear()
@@ -111,7 +112,7 @@ class LiveGeoAwarenessStatusViewBinder(
     fun bindDegraded(message: String) {
         applyStyle(
             text = "LIVE GEO: DEGRADED",
-            backgroundColor = Color.parseColor("#6D4C41"),
+            backgroundColor = "#6D4C41".toColorInt(),
             textColor = Color.WHITE
         )
         statusView.contentDescription = message
@@ -120,7 +121,7 @@ class LiveGeoAwarenessStatusViewBinder(
     fun bindUnknown(message: String) {
         applyStyle(
             text = "LIVE GEO: NO POS",
-            backgroundColor = Color.parseColor("#757575"),
+            backgroundColor = "#757575".toColorInt(),
             textColor = Color.WHITE
         )
         statusView.contentDescription = message
@@ -156,10 +157,10 @@ class LiveGeoAwarenessStatusViewBinder(
         statusView.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = dpToPx(18).toFloat()
-            setColor(if (useTabletNeutralGlass) Color.parseColor("#D0101820") else backgroundColor)
+            setColor(if (useTabletNeutralGlass) "#D0101820".toColorInt() else backgroundColor)
             setStroke(
                 dpToPx(1),
-                if (useTabletNeutralGlass) Color.parseColor("#3DFFFFFF") else Color.parseColor("#33FFFFFF")
+                if (useTabletNeutralGlass) "#3DFFFFFF".toColorInt() else "#33FFFFFF".toColorInt()
             )
         }
     }
@@ -167,7 +168,7 @@ class LiveGeoAwarenessStatusViewBinder(
     private fun createStatusDot(): GradientDrawable {
         return GradientDrawable().apply {
             shape = GradientDrawable.OVAL
-            setColor(Color.parseColor("#31F7A2"))
+            setColor("#31F7A2".toColorInt())
             setSize(dpToPx(10), dpToPx(10))
             setBounds(0, 0, dpToPx(10), dpToPx(10))
         }

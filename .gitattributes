@@ -1,112 +1,21 @@
-# =========================
-# Android / Gradle
-# =========================
-.gradle/
-build/
-**/build/
-captures/
-.externalNativeBuild/
-.cxx/
+* text=auto
 
-# =========================
-# Android Studio / IntelliJ
-# =========================
-.idea/
-*.iml
-*.iws
-*.ipr
-out/
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.svg text
 
-# =========================
-# Local SDK / Machine state
-# =========================
-local.properties
-sdk.dir
-ndk.dir
+*.zip binary
+*.rar binary
+*.7z binary
+*.tar binary
+*.gz binary
 
-# =========================
-# OS junk
-# =========================
-.DS_Store
-Thumbs.db
-desktop.ini
+*.mp4 binary
+*.mov binary
+*.avi binary
+*.mkv binary
 
-# =========================
-# Logs / temp
-# =========================
-*.log
-logs/
-tmp/
-temp/
-
-# =========================
-# Emulator / Device
-# =========================
-*.hprof
-*.pid
-*.trace
-
-# =========================
-# MAVLink / SITL / Drone dev
-# =========================
-*.tlog
-*.ulg
-*.bin
-*.px4log
-*.mavlink
-*.param
-*.waypoints
-
-# ArduPilot / SITL build artifacts
-ardupilot/
-**/ardupilot/
-**/sitl/
-**/build_sitl/
-
-# =========================
-# Media / large binaries
-# =========================
-*.zip
-*.rar
-*.7z
-*.tar
-*.gz
-
-*.mp4
-*.mov
-*.avi
-*.mkv
-
-*.png
-*.jpg
-*.jpeg
-*.webp
-*.svg
-
-# (keep app icons by exception if needed)
-!app/src/main/res/**/ic_*.png
-!app/src/main/res/**/ic_*.webp
-!app/src/main/res/**/ic_*.xml
-
-# =========================
-# Reports / exports
-# =========================
-*.csv
-*.pdf
-*.xlsx
-
-# =========================
-# Secrets / credentials
-# =========================
-*.keystore
-*.jks
-*.pem
-*.key
-*.env
-
-# =========================
-# Misc
-# =========================
-output-*
-*.bak
-*.old
+*.pdf binary
+*.xlsx binary

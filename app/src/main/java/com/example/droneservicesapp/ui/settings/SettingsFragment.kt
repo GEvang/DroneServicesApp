@@ -13,6 +13,7 @@ import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
+import androidx.core.content.edit
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -286,7 +287,9 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
             .setTitle(title)
             .setSingleChoiceItems(entries, checkedIndex) { dialog, which ->
                 val newValue = values[which]
-                sharedPreferences.edit().putString(key, newValue).apply()
+                sharedPreferences.edit {
+                    putString(key, newValue)
+                }
                 dialog.dismiss()
                 refreshSummaries()
                 if (restartOnChange) {
@@ -314,9 +317,9 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
             .setTitle(getString(R.string.mavlink_target_host_title))
             .setView(input)
             .setPositiveButton(android.R.string.ok) { _, _ ->
-                sharedPreferences.edit()
-                    .putString(key, input.text.toString().trim())
-                    .apply()
+                sharedPreferences.edit {
+                    putString(key, input.text.toString().trim())
+                }
                 refreshSummaries()
             }
             .setNegativeButton(android.R.string.cancel, null)

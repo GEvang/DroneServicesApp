@@ -1,4 +1,4 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
+<resources>
 
     <!-- Base application theme -->
     <style name="Theme.DroneServicesApp" parent="Theme.MaterialComponents.Light.NoActionBar">
@@ -23,7 +23,7 @@
         <item name="android:textColorPrimary">@color/app_light_text_primary</item>
         <item name="android:textColorSecondary">@color/app_light_text_secondary</item>
 
-        <item name="android:windowLightStatusBar" tools:targetApi="m">true</item>
+        <item name="android:windowLightStatusBar">true</item>
 
         <!-- Common Material defaults -->
         <item name="android:statusBarColor">@color/app_light_background</item>

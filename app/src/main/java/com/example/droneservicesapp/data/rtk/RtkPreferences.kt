@@ -3,6 +3,7 @@ package com.example.droneservicesapp.data.rtk
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.core.content.edit
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 
@@ -37,61 +38,69 @@ class RtkPreferences(
     }
 
     fun saveIp(ip: String) {
-        preferences.edit()
-            .putString(KEY_IP, ip.trim())
-            .remove(KEY_HOST_LEGACY)
-            .apply()
+        preferences.edit {
+            putString(KEY_IP, ip.trim())
+            remove(KEY_HOST_LEGACY)
+        }
     }
 
     fun savePort(port: Int) {
-        preferences.edit().putInt(KEY_PORT, port).apply()
+        preferences.edit {
+            putInt(KEY_PORT, port)
+        }
     }
 
     fun saveMountpoint(mountpoint: String) {
-        preferences.edit()
-            .putString(KEY_MOUNTPOINT, mountpoint.trim())
-            .remove(KEY_MOUNTPOINT_LATITUDE)
-            .remove(KEY_MOUNTPOINT_LONGITUDE)
-            .apply()
+        preferences.edit {
+            putString(KEY_MOUNTPOINT, mountpoint.trim())
+            remove(KEY_MOUNTPOINT_LATITUDE)
+            remove(KEY_MOUNTPOINT_LONGITUDE)
+        }
     }
 
     fun saveMountpoint(mountpoint: RtkMountpoint) {
-        preferences.edit()
-            .putString(KEY_MOUNTPOINT, mountpoint.name.trim())
-            .apply {
-                if (mountpoint.hasCoordinates) {
-                    putFloat(KEY_MOUNTPOINT_LATITUDE, mountpoint.latitude!!.toFloat())
-                    putFloat(KEY_MOUNTPOINT_LONGITUDE, mountpoint.longitude!!.toFloat())
-                } else {
-                    remove(KEY_MOUNTPOINT_LATITUDE)
-                    remove(KEY_MOUNTPOINT_LONGITUDE)
-                }
+        preferences.edit {
+            putString(KEY_MOUNTPOINT, mountpoint.name.trim())
+            if (mountpoint.hasCoordinates) {
+                putFloat(KEY_MOUNTPOINT_LATITUDE, mountpoint.latitude!!.toFloat())
+                putFloat(KEY_MOUNTPOINT_LONGITUDE, mountpoint.longitude!!.toFloat())
+            } else {
+                remove(KEY_MOUNTPOINT_LATITUDE)
+                remove(KEY_MOUNTPOINT_LONGITUDE)
             }
-            .apply()
+        }
     }
 
     fun saveUsername(username: String) {
-        preferences.edit().putString(KEY_USERNAME, username.trim()).apply()
+        preferences.edit {
+            putString(KEY_USERNAME, username.trim())
+        }
     }
 
     fun savePassword(password: String) {
-        preferences.edit().putString(KEY_PASSWORD, password).apply()
+        preferences.edit {
+            putString(KEY_PASSWORD, password)
+        }
     }
 
     fun saveLastFetchSucceeded(succeeded: Boolean) {
-        preferences.edit().putBoolean(KEY_LAST_FETCH_SUCCEEDED, succeeded).apply()
+        preferences.edit {
+            putBoolean(KEY_LAST_FETCH_SUCCEEDED, succeeded)
+        }
     }
 
     fun saveLastStatusMessage(message: String) {
-        preferences.edit().putString(KEY_LAST_STATUS_MESSAGE, message).apply()
+        preferences.edit {
+            putString(KEY_LAST_STATUS_MESSAGE, message)
+        }
     }
 
     fun saveGpsStatus(fixType: Int, satellitesVisible: Int, hdop: Double?) {
-        preferences.edit()
-            .putInt(KEY_GPS_FIX_TYPE, fixType)
-            .putInt(KEY_GPS_SATELLITES_VISIBLE, satellitesVisible)
-            .putFloat(KEY_GPS_HDOP, hdop?.toFloat() ?: -1f)
-            .apply()
+        preferences.edit {
+            putInt(KEY_GPS_FIX_TYPE, fixType)
+            putInt(KEY_GPS_SATELLITES_VISIBLE, satellitesVisible)
+            putFloat(KEY_GPS_HDOP, hdop?.toFloat() ?: -1f)
+        }
     }
 
     fun getGpsStatus(): GpsStatus {
@@ -104,16 +113,14 @@ class RtkPreferences(
     }
 
     private fun migrateLegacyValuesIfNeeded(prefs: SharedPreferences) {
-        val editor = prefs.edit()
-
-        if (!prefs.contains(KEY_IP) && prefs.contains(KEY_HOST_LEGACY)) {
-            editor.putString(KEY_IP, prefs.getString(KEY_HOST_LEGACY, "").orEmpty())
+        prefs.edit {
+            if (!prefs.contains(KEY_IP) && prefs.contains(KEY_HOST_LEGACY)) {
+                putString(KEY_IP, prefs.getString(KEY_HOST_LEGACY, "").orEmpty())
+            }
+            remove(KEY_HOST_LEGACY)
+            remove(KEY_ENABLED_LEGACY)
+            remove(KEY_TLS_LEGACY)
         }
-        editor
-            .remove(KEY_HOST_LEGACY)
-            .remove(KEY_ENABLED_LEGACY)
-            .remove(KEY_TLS_LEGACY)
-            .apply()
     }
 
     private fun createEncryptedPreferencesWithRecovery(): SharedPreferences {

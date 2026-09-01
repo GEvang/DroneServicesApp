@@ -11,6 +11,7 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
+import androidx.core.graphics.toColorInt
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessGeometryUtils
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
@@ -174,12 +175,12 @@ class GeoZoneOverlayController(
         }
         val messageView = TextView(context).apply {
             text = "Multiple overlapping geo-zones apply at this location."
-            setTextColor(Color.parseColor("#21304A"))
+            setTextColor("#21304A".toColorInt())
             textSize = 14f
         }
         val coordinateView = TextView(context).apply {
             text = "Latitude: ${tappedPoint.lat}, Longitude: ${tappedPoint.lon}"
-            setTextColor(Color.parseColor("#5C6F8F"))
+            setTextColor("#5C6F8F".toColorInt())
             textSize = 12f
             setPadding(0, (8 * density).toInt(), 0, (12 * density).toInt())
         }
@@ -208,7 +209,7 @@ class GeoZoneOverlayController(
                         topMargin = (10 * density).toInt()
                         bottomMargin = (10 * density).toInt()
                     }
-                    setBackgroundColor(Color.parseColor("#D8E2F0"))
+                    setBackgroundColor("#D8E2F0".toColorInt())
                 })
             }
             listContainer.addView(createZoneMatchRow(match) {
@@ -222,7 +223,7 @@ class GeoZoneOverlayController(
             .setView(root)
             .setNegativeButton(android.R.string.cancel, null)
             .show()
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(Color.parseColor("#212121"))
+        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor("#212121".toColorInt())
     }
 
     private fun createZoneMatchRow(
@@ -243,32 +244,32 @@ class GeoZoneOverlayController(
             background = GradientDrawable().apply {
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = 16f * density
-                setColor(Color.parseColor("#EEF3FB"))
-                setStroke((1 * density).toInt(), Color.parseColor("#CCD8EA"))
+                setColor("#EEF3FB".toColorInt())
+                setStroke((1 * density).toInt(), "#CCD8EA".toColorInt())
             }
             setOnClickListener { onClick() }
             addView(TextView(context).apply {
                 text = match.zone.name
-                setTextColor(Color.parseColor("#17263E"))
+                setTextColor("#17263E".toColorInt())
                 textSize = 15f
                 setTypeface(typeface, Typeface.BOLD)
             })
         addView(TextView(context).apply {
                 text = "Restriction: ${match.zone.restriction} | ${formatApplicabilityStatus(match.zone)}"
-                setTextColor(Color.parseColor("#2C4063"))
+                setTextColor("#2C4063".toColorInt())
                 textSize = 13f
                 setPadding(0, (6 * density).toInt(), 0, 0)
             })
             addView(TextView(context).apply {
                 text = "Altitude: ${formatDialogAltitude(match.geometry)}"
-                setTextColor(Color.parseColor("#2C4063"))
+                setTextColor("#2C4063".toColorInt())
                 textSize = 13f
                 setPadding(0, (4 * density).toInt(), 0, 0)
             })
             match.zone.message?.takeIf { it.isNotBlank() }?.let { message ->
                 addView(TextView(context).apply {
                     text = "Message: ${truncatePreview(message, 140)}"
-                    setTextColor(Color.parseColor("#5C6F8F"))
+                    setTextColor("#5C6F8F".toColorInt())
                     textSize = 12f
                     maxLines = 2
                     setPadding(0, (6 * density).toInt(), 0, 0)
@@ -292,7 +293,7 @@ class GeoZoneOverlayController(
             .setMessage(message)
             .setPositiveButton(android.R.string.ok, null)
             .show()
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(Color.parseColor("#212121"))
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor("#212121".toColorInt())
     }
 
     private fun restrictionPriority(restriction: GeoZoneRestriction): Int {

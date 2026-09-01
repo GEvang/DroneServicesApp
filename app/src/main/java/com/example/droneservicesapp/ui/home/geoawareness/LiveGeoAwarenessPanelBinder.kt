@@ -6,6 +6,7 @@ import android.view.View
 import android.widget.FrameLayout
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.core.graphics.toColorInt
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
@@ -125,11 +126,11 @@ class LiveGeoAwarenessPanelBinder(
         rootView.visibility = View.VISIBLE
         setThreatContentVisible(threats.isNotEmpty())
         statusBadge.text = statusLabel
-        statusBadge.setTextColor(Color.parseColor(statusColor))
+        statusBadge.setTextColor(statusColor.toColorInt())
         tintShape(statusBadge.background, statusColor, 0.22f)
         tintStroke(compassHighlight.background, borderColor)
         tintShape(centerCore.background, darken(statusColor))
-        centerIcon.setColorFilter(Color.parseColor("#FFFFFF"))
+        centerIcon.setColorFilter("#FFFFFF".toColorInt())
 
         val visibleThreats = threats.take(MAX_ROWS)
         rowBindings.forEachIndexed { index, row ->
@@ -293,7 +294,7 @@ class LiveGeoAwarenessPanelBinder(
     }
 
     private fun tintShape(background: android.graphics.drawable.Drawable?, color: String, alpha: Float = 1f) {
-        val parsed = Color.parseColor(color)
+        val parsed = color.toColorInt()
         val tinted = Color.argb(
             (255 * alpha).toInt().coerceIn(0, 255),
             Color.red(parsed),
@@ -304,7 +305,7 @@ class LiveGeoAwarenessPanelBinder(
     }
 
     private fun tintStroke(background: android.graphics.drawable.Drawable?, color: String) {
-        val parsedColor = Color.parseColor(color)
+        val parsedColor = color.toColorInt()
         val strokeWidthPx = if (Color.alpha(parsedColor) == 0) 0 else 6
         (background as? GradientDrawable)?.setStroke(strokeWidthPx, parsedColor)
     }
@@ -327,10 +328,10 @@ class LiveGeoAwarenessPanelBinder(
             altitude.visibility = View.VISIBLE
             verticalArrow.visibility = View.VISIBLE
             divider?.visibility = View.VISIBLE
-            (dot.background as? GradientDrawable)?.setColor(Color.parseColor(threat.colorHex))
+            (dot.background as? GradientDrawable)?.setColor(threat.colorHex.toColorInt())
             container.background = insideHighlight(threat.colorHex.takeIf { threat.isInsideZone })
             label.text = threat.label
-            label.setTextColor(Color.parseColor(threat.colorHex))
+            label.setTextColor(threat.colorHex.toColorInt())
             direction.text = threat.directionText
             distance.text = threat.distanceText
             altitude.text = threat.altitudeText
@@ -349,12 +350,12 @@ class LiveGeoAwarenessPanelBinder(
             container.background = null
             if (keepVisible) {
                 label.text = "CLEAR"
-                label.setTextColor(Color.parseColor("#48D26D"))
+                label.setTextColor("#48D26D".toColorInt())
                 direction.text = "--"
                 distance.text = "H: --"
                 altitude.text = "V: --"
                 verticalArrow.text = ""
-                (dot.background as? GradientDrawable)?.setColor(Color.parseColor("#48D26D"))
+                (dot.background as? GradientDrawable)?.setColor("#48D26D".toColorInt())
             }
         }
 
@@ -364,7 +365,7 @@ class LiveGeoAwarenessPanelBinder(
                 shape = GradientDrawable.RECTANGLE
                 cornerRadius = 18f
                 setColor(Color.TRANSPARENT)
-                setStroke(3, Color.parseColor(colorHex))
+                setStroke(3, colorHex.toColorInt())
             }
         }
     }

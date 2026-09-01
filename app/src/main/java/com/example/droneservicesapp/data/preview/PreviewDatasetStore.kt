@@ -2,6 +2,7 @@ package com.example.droneservicesapp.data.preview
 
 import android.content.Context
 import android.net.Uri
+import androidx.core.content.edit
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -40,15 +41,17 @@ class PreviewDatasetStore(context: Context) {
     fun saveDatasets(datasets: List<PreviewDatasetRecord>) {
         val array = JSONArray()
         datasets.forEach { array.put(it.toJson()) }
-        preferences.edit().putString(KEY_DATASETS, array.toString()).apply()
+        preferences.edit {
+            putString(KEY_DATASETS, array.toString())
+        }
     }
 
     fun activeDatasetId(): String? = preferences.getString(KEY_ACTIVE_DATASET_ID, null)
 
     fun setActiveDatasetId(id: String?) {
-        preferences.edit().apply {
+        preferences.edit {
             if (id == null) remove(KEY_ACTIVE_DATASET_ID) else putString(KEY_ACTIVE_DATASET_ID, id)
-        }.apply()
+        }
     }
 
     fun activeDataset(): PreviewDatasetRecord? {

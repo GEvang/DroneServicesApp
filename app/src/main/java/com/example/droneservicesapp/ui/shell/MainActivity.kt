@@ -1,13 +1,11 @@
 package com.example.droneservicesapp.ui.shell
 
-import android.os.Build
 import android.os.Bundle
 import android.graphics.drawable.ColorDrawable
 import android.view.Menu
 import android.view.Gravity
 import android.view.View
 import android.widget.ImageButton
-import androidx.annotation.RequiresApi
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
@@ -47,7 +45,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var mavlinkSessionCoordinator: MavlinkSessionCoordinator
     private lateinit var locationPermissionRequester: LocationPermissionRequester
 
-    @RequiresApi(Build.VERSION_CODES.R)
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_DroneServicesApp_NoActionBar)
         super.onCreate(savedInstanceState)
