@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/ds_color_background"
+    android:fillViewport="true"
+    tools:context=".ui.parameters.ParametersFragment">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="@dimen/ds_space_lg">
+
+        <TextView
+            style="@style/TextAppearance.DroneServices.SectionTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/parameters_title" />
+
+        <LinearLayout
+            style="@style/Widget.DroneServices.Panel.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_lg"
+            android:orientation="vertical">
+
+            <com.google.android.material.switchmaterial.SwitchMaterial
+                android:id="@+id/waypoint_rangefinder_switch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/parameter_waypoint_rangefinder_label"
+                android:textColor="@color/ds_color_text_primary"
+                android:textSize="15sp"
+                app:buttonTint="@color/ds_color_accent" />
+
+            <TextView
+                style="@style/TextAppearance.DroneServices.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:text="@string/parameter_waypoint_rangefinder_helper" />
+
+            <TextView
+                android:id="@+id/waypoint_rangefinder_status"
+                style="@style/TextAppearance.DroneServices.CaptionStrong"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                tools:text="Reading from vehicle…" />
+        </LinearLayout>
+
+        <LinearLayout
+            style="@style/Widget.DroneServices.Panel.Card"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_lg"
+            android:orientation="vertical">
+
+            <TextView
+                style="@style/TextAppearance.DroneServices.BodyStrong"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/parameter_surface_tracking_label"
+                android:textSize="15sp" />
+
+            <com.google.android.material.button.MaterialButtonToggleGroup
+                android:id="@+id/surface_tracking_group"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_md"
+                app:checkedButton="@id/surface_tracking_off"
+                app:selectionRequired="true"
+                app:singleSelection="true">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/surface_tracking_off"
+                    style="@style/Widget.DroneServices.Button.Material.Secondary"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="@string/parameter_surface_tracking_off" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/surface_tracking_ground"
+                    style="@style/Widget.DroneServices.Button.Material.Secondary"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="@string/parameter_surface_tracking_ground" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/surface_tracking_ceiling"
+                    style="@style/Widget.DroneServices.Button.Material.Secondary"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:text="@string/parameter_surface_tracking_ceiling" />
+            </com.google.android.material.button.MaterialButtonToggleGroup>
+
+            <TextView
+                style="@style/TextAppearance.DroneServices.Caption"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                android:text="@string/parameter_surface_tracking_helper" />
+
+            <TextView
+                android:id="@+id/surface_tracking_status"
+                style="@style/TextAppearance.DroneServices.CaptionStrong"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_sm"
+                tools:text="Reading from vehicle…" />
+        </LinearLayout>
+    </LinearLayout>
+</ScrollView>

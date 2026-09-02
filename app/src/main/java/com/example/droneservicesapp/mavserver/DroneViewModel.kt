@@ -93,6 +93,7 @@ class DroneViewModel : ViewModel() {
             onAutopilotHeartbeatLocked = {
                 requestServoOutputRawStream()
                 rtkController.onAutopilotHeartbeatLocked()
+                parameterController.refreshAll()
             },
             onDroneLocationUpdated = {
                 rtkController.onDroneLocationUpdated()
@@ -141,6 +142,14 @@ class DroneViewModel : ViewModel() {
             }
         )
     }
+    private val parameterController: DroneParameterController by lazy {
+        DroneParameterController(
+            mavlinkClient = mavlinkClient,
+            isConnected = { stateStore.conStateLiveData.value == true },
+            targetSystemId = { runtimeState.autopilotSysId },
+            targetComponentId = { runtimeState.autopilotCompId }
+        )
+    }
 
     val droneLocationLiveData: MutableLiveData<Location> = stateStore.droneLocationLiveData
     val conStateLiveData: MutableLiveData<Boolean> = stateStore.conStateLiveData
@@ -164,6 +173,9 @@ class DroneViewModel : ViewModel() {
     val rtkForwardingState: MutableLiveData<RtkForwardingState> = stateStore.rtkForwardingState
     val selectedRtkMountpoint: MutableLiveData<RtkMountpoint?> = stateStore.selectedRtkMountpoint
     val rtkGpsDebugStatus: MutableLiveData<String> = stateStore.rtkGpsDebugStatus
+    val waypointRangefinderParameter = parameterController.state(DroneParameterController.WP_RFND_USE)
+    val surfaceTrackingParameter = parameterController.state(DroneParameterController.SURFTRAK_MODE)
+    val parameterFeedback = parameterController.feedback
 
     init {
         rtkController.bind(viewModelScope)
@@ -172,6 +184,19 @@ class DroneViewModel : ViewModel() {
     fun getTargetSystemId(): Int = runtimeState.autopilotSysId
 
     fun getTargetComponentId(): Int = runtimeState.autopilotCompId
+
+    fun refreshTerrainFollowingParameters() {
+        parameterController.refreshAll()
+    }
+
+    fun setWaypointRangefinderEnabled(enabled: Boolean) {
+        parameterController.setValue(DroneParameterController.WP_RFND_USE, if (enabled) 1 else 0)
+    }
+
+    fun setSurfaceTrackingMode(mode: Int) {
+        require(mode in 0..2) { "Surface tracking mode must be 0, 1, or 2." }
+        parameterController.setValue(DroneParameterController.SURFTRAK_MODE, mode)
+    }
 
     fun sendDebugSprayerServoPwm(pwm: Int): Boolean {
         if (stateStore.conStateLiveData.value != true || runtimeState.autopilotSysId == -1) {
@@ -395,6 +420,7 @@ class DroneViewModel : ViewModel() {
                             if (runtimeState.autopilotSysId != -1) {
                                 runtimeState.clearAutopilotTarget()
                             }
+                            parameterController.onDisconnected()
                         }
 
                         rtkController.onConnectionStateEvaluated(connected)
@@ -423,12 +449,14 @@ class DroneViewModel : ViewModel() {
     }
 
     private fun handleMavlinkMessage(message: MavlinkMessage<*>) {
+        parameterController.handle(message)
         telemetryProcessor.handle(message)
     }
 
     override fun onCleared() {
         super.onCleared()
         missionController.clear()
+        parameterController.clear()
         repoDisposables.clear()
         Log.i(TAG, "bridge detached: clearing all subscriptions in onCleared")
         rtkController.shutdown()

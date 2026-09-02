@@ -34,6 +34,12 @@
         tools:layout="@layout/fragment_geo_awareness" />
 
     <fragment
+        android:id="@+id/nav_parameters"
+        android:name="com.example.droneservicesapp.ui.parameters.ParametersFragment"
+        android:label="@string/parameters_title"
+        tools:layout="@layout/fragment_parameters" />
+
+    <fragment
         android:id="@+id/nav_point_cloud"
         android:name="com.example.droneservicesapp.ui.pointcloud.PointCloudViewerFragment"
         android:label="@string/point_cloud_title"

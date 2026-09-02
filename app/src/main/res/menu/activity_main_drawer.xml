@@ -31,14 +31,9 @@
             android:title="@string/menu_geo_awareness" />
 
         <item
-            android:id="@+id/nav_point_cloud"
-            android:icon="@drawable/ic_point_cloud_24"
-            android:title="@string/menu_point_cloud" />
-
-        <item
-            android:id="@+id/nav_ortho_preview"
-            android:icon="@drawable/ic_ortho_24"
-            android:title="@string/menu_ortho_preview" />
+            android:id="@+id/nav_parameters"
+            android:icon="@drawable/ic_menu_settings"
+            android:title="@string/menu_parameters" />
 
         <item
             android:id="@+id/nav_debug"
