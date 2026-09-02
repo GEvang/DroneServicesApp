@@ -17,6 +17,10 @@ class MissionParamsViews(
     val surveyModeSection: View = panelRoot.findViewById(R.id.survey_mode_section)
     val altitudeReferenceSection: View = panelRoot.findViewById(R.id.altitude_reference_section)
     val sprayAltitudeModeStatus: TextView = panelRoot.findViewById(R.id.spray_altitude_mode_status)
+    val sprayAngleField: View = panelRoot.findViewById(R.id.spray_angle_field)
+    val sprayStripSpacingField: View = panelRoot.findViewById(R.id.spray_strip_spacing_field)
+    val sprayAltitudeField: View = panelRoot.findViewById(R.id.spray_altitude_field)
+    val sprayLitersField: View = panelRoot.findViewById(R.id.spray_liters_field)
     val surveyGridSectionLabel: View = panelRoot.findViewById(R.id.survey_grid_section_label)
     val surveyGridSectionDivider: View = panelRoot.findViewById(R.id.survey_grid_section_divider)
     val surveyStripSpacingField: View = panelRoot.findViewById(R.id.survey_strip_spacing_field)
@@ -96,6 +100,7 @@ class MissionParamsViews(
     val sprayerPlusButton: View = panelRoot.findViewById(R.id.btn_sprayer_plus)
 
     val flightSpeedValue: TextView = rootView.findViewById(R.id.flight_speed)
+    val flightSpeedSeekbar: SeekBar = rootView.findViewById(R.id.flight_speed_seekbar)
     val flightTimeValue: TextView = rootView.findViewById(R.id.flight_time)
     val flightTimeUnit: TextView = rootView.findViewById(R.id.flight_time_unit)
     val speedMinusButton: ImageButton = rootView.findViewById(R.id.minus_button)

@@ -148,12 +148,12 @@ class MissionXmlParser(
         activityViewModel.surveyGridParams.postValue(
             SurveyGridParams(
                 stripSpacingMeters = surveyStripSpacing.takeIf { it >= 0 }
-                    ?: lineDistance.takeIf { it >= 0 } ?: 8,
+                    ?: lineDistance.takeIf { it >= 0 } ?: 70,
                 heightAboveTerrainMeters = surveyHeightAboveTerrain.takeIf { it >= 0 }
-                    ?: altitude.takeIf { it >= 0 } ?: 5,
-                overlapPercent = surveyOverlapPercent.takeIf { it >= 0 } ?: 20,
+                    ?: altitude.takeIf { it >= 0 } ?: 50,
+                overlapPercent = surveyOverlapPercent.takeIf { it >= 0 } ?: 80,
                 gridAngleDegrees = surveyGridAngle.takeIf { it >= 0 }
-                    ?: angleDegrees.takeIf { it >= 0 } ?: 0,
+                    ?: angleDegrees.takeIf { it >= 0 } ?: 90,
                 terrainSegmentMeters = surveyTerrainSegment.takeIf { it >= 0.0 } ?: 2.5,
                 canopySmoothingMeters = surveyCanopySmoothing.takeIf { it >= 0 } ?: 5
             )

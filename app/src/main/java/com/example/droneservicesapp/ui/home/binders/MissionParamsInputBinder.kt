@@ -18,12 +18,10 @@ class MissionParamsInputBinder(
     private val activityViewModel: MainActivityViewModel,
 ) {
     private val minSpeed = 1.0
-    private val maxSpeed = 5.0
     private val speedStep = 0.5
 
     fun bind() {
         bindSeekbars()
-        bindSpeedButtons()
         bindIconButtons()
     }
 
@@ -94,22 +92,7 @@ class MissionParamsInputBinder(
             minValue = 0.5,
             updateValue = activityViewModel::updateSurveyTerrainSegment
         )
-    }
-
-    private fun bindSpeedButtons() {
-        views.speedMinusButton.setOnClickListener {
-            val cur = activityViewModel.flightSpeed.value ?: minSpeed
-            if (cur > minSpeed) {
-                activityViewModel.updateMissionSpeed(cur - speedStep)
-            }
-        }
-
-        views.speedPlusButton.setOnClickListener {
-            val cur = activityViewModel.flightSpeed.value ?: minSpeed
-            if (cur < maxSpeed) {
-                activityViewModel.updateMissionSpeed(cur + speedStep)
-            }
-        }
+        bindSpeedSeekbar()
     }
 
     private fun bindIconButtons() {
@@ -158,6 +141,11 @@ class MissionParamsInputBinder(
             views.surveyCanopySmoothingMinusButton,
             views.surveyCanopySmoothingPlusButton,
             views.surveyCanopySmoothingSeekbar
+        )
+        bindIncrementButtons(
+            views.speedMinusButton,
+            views.speedPlusButton,
+            views.flightSpeedSeekbar
         )
     }
 
@@ -257,6 +245,42 @@ class MissionParamsInputBinder(
 
             override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
 
+            override fun onStopTrackingTouch(seekBar: SeekBar) = Unit
+        })
+    }
+
+    private fun bindSpeedSeekbar() {
+        var suppressChange = false
+        fun progressFor(value: Double): Int = ((value - minSpeed) / speedStep).toInt()
+
+        val initial = activityViewModel.flightSpeed.value ?: 5.0
+        views.flightSpeedSeekbar.progress = progressFor(initial)
+        views.flightSpeedValue.text = formatDecimal(initial)
+        bindExpandedTouchTarget(views.speedTimeRow, views.flightSpeedSeekbar)
+
+        activityViewModel.flightSpeed.observe(lifecycleOwner) { value ->
+            val current = value ?: return@observe
+            val progress = progressFor(current)
+            if (views.flightSpeedSeekbar.progress == progress &&
+                views.flightSpeedValue.text.toString() == formatDecimal(current)
+            ) {
+                return@observe
+            }
+            suppressChange = true
+            views.flightSpeedSeekbar.progress = progress
+            views.flightSpeedValue.text = formatDecimal(current)
+            suppressChange = false
+        }
+
+        views.flightSpeedSeekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
+                if (suppressChange) return
+                val speed = minSpeed + progress * speedStep
+                views.flightSpeedValue.text = formatDecimal(speed)
+                activityViewModel.updateMissionSpeed(speed)
+            }
+
+            override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
             override fun onStopTrackingTouch(seekBar: SeekBar) = Unit
         })
     }

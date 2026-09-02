@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.ui.shell.model
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
@@ -13,6 +14,22 @@ import org.junit.Test
 class MainActivityViewModelRouteTest {
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
+
+    @Test
+    fun planningDefaultsMatchRequestedSprayAndSurveyValues() {
+        val viewModel = MainActivityViewModel()
+
+        assertEquals(5.0, viewModel.lineDistanceProgress.value!!, 0.001)
+        assertEquals(0.0, viewModel.flightAltProgress.value!!, 0.001)
+        assertEquals(90.0, viewModel.angleProgress.value!!, 0.001)
+        assertEquals(5.0, viewModel.flightSpeed.value!!, 0.001)
+        assertEquals(75.0, viewModel.sprayerProgress.value!!, 0.001)
+        assertEquals(AltitudeReferenceMode.TERRAIN, viewModel.altitudeReferenceMode.value)
+        assertEquals(80.0, viewModel.surveyOverlapPercent.value!!, 0.001)
+        assertEquals(70.0, viewModel.surveyStripSpacing.value!!, 0.001)
+        assertEquals(50.0, viewModel.surveyHeightAboveTerrain.value!!, 0.001)
+        assertEquals(90.0, viewModel.surveyGridAngle.value!!, 0.001)
+    }
 
     @Test
     fun addRouteWaypointUsesCurrentMissionDefaults() {

@@ -13,20 +13,20 @@ class MissionParamsPreferencesBridge(
     private val activityViewModel: MainActivityViewModel,
 ) {
     fun loadIntoViewModel() {
-        loadPreference(R.string.survey_angle_pref, activityViewModel.angleProgress, "0")
+        loadPreference(R.string.survey_angle_pref, activityViewModel.angleProgress, "90")
         loadPreference(
             R.string.survey_line_distance_pref,
             activityViewModel.lineDistanceProgress,
-            "1"
+            "5"
         )
-        loadPreference(R.string.survey_altitude_pref, activityViewModel.flightAltProgress, "2")
+        loadPreference(R.string.survey_altitude_pref, activityViewModel.flightAltProgress, "0")
         loadAltitudeReferencePreference()
         loadPreference(
             R.string.survey_sprayer_intensity_pref,
             activityViewModel.sprayerProgress,
-            "0"
+            "75"
         )
-        loadPreference(R.string.flight_speed_pref, activityViewModel.flightSpeed, "1")
+        loadPreference(R.string.flight_speed_pref, activityViewModel.flightSpeed, "5")
         loadSelectedPresetPreference()
         loadSurveyGridPreferences()
     }
@@ -34,24 +34,24 @@ class MissionParamsPreferencesBridge(
     fun saveFromViewModel() {
         savePreference(
             R.string.survey_angle_pref,
-            activityViewModel.angleProgress.value?.toInt() ?: 0
+            activityViewModel.angleProgress.value?.toInt() ?: 90
         )
         savePreference(
             R.string.survey_line_distance_pref,
-            activityViewModel.lineDistanceProgress.value?.toInt() ?: 1
+            activityViewModel.lineDistanceProgress.value?.toInt() ?: 5
         )
         savePreference(
             R.string.survey_altitude_pref,
-            activityViewModel.flightAltProgress.value?.toInt() ?: 2
+            activityViewModel.flightAltProgress.value?.toInt() ?: 0
         )
         saveAltitudeReferencePreference(
             activityViewModel.altitudeReferenceMode.value ?: AltitudeReferenceMode.RELATIVE
         )
         savePreference(
             R.string.survey_sprayer_intensity_pref,
-            activityViewModel.sprayerProgress.value?.toInt() ?: 0
+            activityViewModel.sprayerProgress.value?.toInt() ?: 75
         )
-        saveDoublePreference(R.string.flight_speed_pref, activityViewModel.flightSpeed.value ?: 1.0)
+        saveDoublePreference(R.string.flight_speed_pref, activityViewModel.flightSpeed.value ?: 5.0)
         saveSelectedPresetPreference()
         saveSurveyGridPreferences()
     }
@@ -71,7 +71,7 @@ class MissionParamsPreferencesBridge(
         val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
         val storedValue = prefs.getString(
             context.getString(R.string.survey_altitude_reference_pref),
-            AltitudeReferenceMode.RELATIVE.name
+            AltitudeReferenceMode.TERRAIN.name
         )
         activityViewModel.setAltitudeReferenceMode(
             AltitudeReferenceMode.fromStorageValue(storedValue)
@@ -119,20 +119,20 @@ class MissionParamsPreferencesBridge(
     private fun loadSurveyGridPreferences() {
         val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
         activityViewModel.updateSurveyStripSpacing(
-            prefs.getString(context.getString(R.string.survey_strip_spacing_pref), "8")
-                ?.toIntOrNull() ?: 8
+            prefs.getString(context.getString(R.string.survey_strip_spacing_pref), "70")
+                ?.toIntOrNull() ?: 70
         )
         activityViewModel.updateSurveyHeightAboveTerrain(
-            prefs.getString(context.getString(R.string.survey_height_above_terrain_pref), "5")
-                ?.toIntOrNull() ?: 5
+            prefs.getString(context.getString(R.string.survey_height_above_terrain_pref), "50")
+                ?.toIntOrNull() ?: 50
         )
         activityViewModel.updateSurveyOverlap(
-            prefs.getString(context.getString(R.string.survey_overlap_pref), "20")
-                ?.toIntOrNull() ?: 20
+            prefs.getString(context.getString(R.string.survey_overlap_pref), "80")
+                ?.toIntOrNull() ?: 80
         )
         activityViewModel.updateSurveyGridAngle(
-            prefs.getString(context.getString(R.string.survey_grid_angle_pref), "0")
-                ?.toIntOrNull() ?: 0
+            prefs.getString(context.getString(R.string.survey_grid_angle_pref), "90")
+                ?.toIntOrNull() ?: 90
         )
         activityViewModel.updateSurveyTerrainSegment(
             prefs.getString(context.getString(R.string.survey_terrain_segment_pref), "2.5")
@@ -149,19 +149,19 @@ class MissionParamsPreferencesBridge(
         prefs.edit()
             .putString(
                 context.getString(R.string.survey_strip_spacing_pref),
-                (activityViewModel.surveyStripSpacing.value?.toInt() ?: 8).toString()
+                (activityViewModel.surveyStripSpacing.value?.toInt() ?: 70).toString()
             )
             .putString(
                 context.getString(R.string.survey_height_above_terrain_pref),
-                (activityViewModel.surveyHeightAboveTerrain.value?.toInt() ?: 5).toString()
+                (activityViewModel.surveyHeightAboveTerrain.value?.toInt() ?: 50).toString()
             )
             .putString(
                 context.getString(R.string.survey_overlap_pref),
-                (activityViewModel.surveyOverlapPercent.value?.toInt() ?: 20).toString()
+                (activityViewModel.surveyOverlapPercent.value?.toInt() ?: 80).toString()
             )
             .putString(
                 context.getString(R.string.survey_grid_angle_pref),
-                (activityViewModel.surveyGridAngle.value?.toInt() ?: 0).toString()
+                (activityViewModel.surveyGridAngle.value?.toInt() ?: 90).toString()
             )
             .putString(
                 context.getString(R.string.survey_terrain_segment_pref),

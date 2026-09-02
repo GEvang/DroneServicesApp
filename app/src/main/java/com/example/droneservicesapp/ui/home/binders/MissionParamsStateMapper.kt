@@ -10,20 +10,20 @@ class MissionParamsStateMapper(
     fun currentUiState(): MissionParamsUiState {
         return MissionParamsUiState(
             operationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY,
-            angle = activityViewModel.angleProgress.value?.toInt() ?: 1,
-            lineDistance = activityViewModel.lineDistanceProgress.value?.toInt() ?: 1,
-            altitude = activityViewModel.flightAltProgress.value?.toInt() ?: 2,
-            sprayerIntensity = activityViewModel.sprayerProgress.value?.toInt() ?: 0,
-            surveyStripSpacing = activityViewModel.surveyStripSpacing.value?.toInt() ?: 8,
-            surveyHeightAboveTerrain = activityViewModel.surveyHeightAboveTerrain.value?.toInt() ?: 5,
-            surveyOverlap = activityViewModel.surveyOverlapPercent.value?.toInt() ?: 20,
-            surveyGridAngle = activityViewModel.surveyGridAngle.value?.toInt() ?: 0,
+            angle = activityViewModel.angleProgress.value?.toInt() ?: 90,
+            lineDistance = activityViewModel.lineDistanceProgress.value?.toInt() ?: 5,
+            altitude = activityViewModel.flightAltProgress.value?.toInt() ?: 0,
+            sprayerIntensity = activityViewModel.sprayerProgress.value?.toInt() ?: 75,
+            surveyStripSpacing = activityViewModel.surveyStripSpacing.value?.toInt() ?: 70,
+            surveyHeightAboveTerrain = activityViewModel.surveyHeightAboveTerrain.value?.toInt() ?: 50,
+            surveyOverlap = activityViewModel.surveyOverlapPercent.value?.toInt() ?: 80,
+            surveyGridAngle = activityViewModel.surveyGridAngle.value?.toInt() ?: 90,
             surveyTerrainSegment = activityViewModel.surveyTerrainSegment.value ?: 2.5,
             surveyCanopySmoothing = activityViewModel.surveyCanopySmoothing.value?.toInt() ?: 5,
-            flightSpeed = activityViewModel.flightSpeed.value ?: 1.0,
+            flightSpeed = activityViewModel.flightSpeed.value ?: 5.0,
             estimatedFlightMinutes = activityViewModel.estimatedFlightMinutes.value ?: 1,
             altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value
-                ?: com.example.droneservicesapp.domain.model.AltitudeReferenceMode.RELATIVE
+                ?: com.example.droneservicesapp.domain.model.AltitudeReferenceMode.TERRAIN
         )
     }
 }

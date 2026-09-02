@@ -12,8 +12,8 @@
     <string name="menu_debug">Debug</string>
     <string name="menu_parameters">Parameters</string>
     <string name="parameters_title">Parameters</string>
-    <string name="spray_mode_terrain_rangefinder">Mode: Terrain (Rangefinder)</string>
-    <string name="spray_mode_relative_point_cloud">Mode: Relative (3D PLY)</string>
+    <string name="spray_mode_terrain_rangefinder">Mode: Field Crops</string>
+    <string name="spray_mode_relative_point_cloud">Mode: Tree Crops</string>
     <string name="flight_speed_label">Speed</string>
     <string name="terrain_source_not_confirmed">Waiting for the vehicle to confirm the required terrain source. Try upload again shortly.</string>
     <string name="parameter_waypoint_rangefinder_label">Use Rangefinder for Terrain Waypoints</string>
@@ -253,7 +253,7 @@
     <string name="exit">Exit</string>
     <string name="flight_altitude">Height above terrain</string>
     <string name="line_distance">Strip Spacing</string>
-    <string name="mission_angle">Mission Angle(°)</string>
+    <string name="mission_angle">Angle</string>
     <string name="drone_services_sprayer" translatable="false">Drone Services Sprayer</string>
 
     <!-- Shared Preferences -->
@@ -357,7 +357,8 @@
     <string name="unknown_percentage" translatable="false">\?%</string>
     <string name="unknown_value" translatable="false">\?</string>
     <string name="sprayer_intensity">Sprayer Intensity</string>
-    <string name="spray_liters">Spray Liters</string>
+    <string name="spray_liters">Liters</string>
+    <string name="liters_unit" translatable="false">L</string>
     <string name="liters_short">L</string>
     <string name="debug_sprayer">Debug Sprayer</string>
     <string name="debug_sprayer_pwm">Servo 5 PWM</string>
@@ -416,7 +417,7 @@
     <string name="survey_strip_spacing">Sidelap</string>
     <string name="survey_height_above_terrain">Altitude</string>
     <string name="survey_overlap">Overlap</string>
-    <string name="survey_grid_angle">Grid angle</string>
+    <string name="survey_grid_angle">Angle</string>
     <string name="survey_terrain_segment">Terrain segment</string>
     <string name="survey_canopy_smoothing">Canopy smoothing</string>
 </resources>

@@ -186,7 +186,7 @@ data class MissionParamsUiState(
     val surveyCanopySmoothing: Int,
     val flightSpeed: Double,
     val estimatedFlightMinutes: Int,
-    val altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
+    val altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.TERRAIN,
 )
 
 data class SaveMissionUiState(

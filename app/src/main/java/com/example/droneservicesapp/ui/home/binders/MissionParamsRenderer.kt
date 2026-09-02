@@ -4,6 +4,7 @@ import android.graphics.Typeface
 import android.view.ContextThemeWrapper
 import android.view.Gravity
 import android.view.View
+import android.view.ViewGroup
 import android.widget.TextView
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
@@ -25,19 +26,19 @@ class MissionParamsRenderer(
 ) {
     private var missionParamsUiState = MissionParamsUiState(
         operationMode = PlanningOperationMode.SURVEY,
-        angle = 1,
-        lineDistance = 1,
-        altitude = 2,
-        sprayerIntensity = 0,
-        surveyStripSpacing = 8,
-        surveyHeightAboveTerrain = 5,
-        surveyOverlap = 20,
-        surveyGridAngle = 0,
+        angle = 90,
+        lineDistance = 5,
+        altitude = 0,
+        sprayerIntensity = 75,
+        surveyStripSpacing = 70,
+        surveyHeightAboveTerrain = 50,
+        surveyOverlap = 80,
+        surveyGridAngle = 90,
         surveyTerrainSegment = 2.5,
         surveyCanopySmoothing = 5,
-        flightSpeed = 1.0,
+        flightSpeed = 5.0,
         estimatedFlightMinutes = 1,
-        altitudeReferenceMode = AltitudeReferenceMode.RELATIVE
+        altitudeReferenceMode = AltitudeReferenceMode.TERRAIN
     )
 
     fun bind() {
@@ -164,11 +165,12 @@ class MissionParamsRenderer(
     private fun renderMode(mode: PlanningOperationMode, hasPointCloudInArea: Boolean) {
         val isSurvey = mode == PlanningOperationMode.SURVEY
         val isThreeDimensionalSpray = !isSurvey && hasPointCloudInArea
+        arrangeParameterFields(isSurvey)
         views.surveyModeSection.isVisible = isSurvey
         views.sprayModeSection.isVisible = !isSurvey
         views.presetSelector.isVisible = false
         views.altitudeReferenceSection.isVisible = isSurvey
-        views.surveyModeSection.isVisible = isSurvey || isThreeDimensionalSpray
+        views.surveyModeSection.isVisible = isSurvey
         views.surveyGridSectionLabel.isVisible = isSurvey
         views.surveyGridSectionDivider.isVisible = isSurvey
         views.surveyStripSpacingField.isVisible = isSurvey
@@ -195,6 +197,48 @@ class MissionParamsRenderer(
             if (activityViewModel.altitudeReferenceMode.value != requiredMode) {
                 activityViewModel.setAltitudeReferenceMode(requiredMode)
             }
+        }
+    }
+
+    private fun arrangeParameterFields(isSurvey: Boolean) {
+        val spraySection = views.sprayModeSection as ViewGroup
+        val surveySection = views.surveyModeSection as ViewGroup
+
+        moveToEnd(
+            surveySection,
+            listOf(
+                views.surveyOverlapField,
+                views.surveyStripSpacingField,
+                views.surveyHeightField,
+                views.surveyGridAngleField
+            )
+        )
+
+        val sprayFields = mutableListOf(
+            views.sprayStripSpacingField,
+            views.sprayAltitudeField,
+            views.sprayAngleField
+        )
+        if (!isSurvey) {
+            sprayFields += views.flightTimeLabel
+            sprayFields += views.speedTimeRow
+        }
+        sprayFields += listOf(
+            views.sprayLitersField,
+            views.surveyTerrainSegmentField,
+            views.surveyCanopySmoothingField
+        )
+        moveToEnd(spraySection, sprayFields)
+
+        if (isSurvey) {
+            moveToEnd(surveySection, listOf(views.flightTimeLabel, views.speedTimeRow))
+        }
+    }
+
+    private fun moveToEnd(parent: ViewGroup, children: List<View>) {
+        children.forEach { child ->
+            (child.parent as? ViewGroup)?.removeView(child)
+            parent.addView(child)
         }
     }
 

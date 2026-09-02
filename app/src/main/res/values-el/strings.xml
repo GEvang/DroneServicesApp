@@ -5,8 +5,8 @@
   <string name="menu_rtk">RTK</string>
   <string name="menu_parameters">Παράμετροι</string>
   <string name="parameters_title">Παράμετροι</string>
-  <string name="spray_mode_terrain_rangefinder">Λειτουργία: Έδαφος (Αποστασιόμετρο)</string>
-  <string name="spray_mode_relative_point_cloud">Λειτουργία: Σχετική (3D PLY)</string>
+  <string name="spray_mode_terrain_rangefinder">Λειτουργία: Χαμηλές καλλιέργειες</string>
+  <string name="spray_mode_relative_point_cloud">Λειτουργία: Δενδρώδεις καλλιέργειες</string>
   <string name="flight_speed_label">Ταχύτητα</string>
   <string name="terrain_source_not_confirmed">Αναμονή επιβεβαίωσης της απαιτούμενης πηγής εδάφους από το όχημα. Δοκιμάστε ξανά σε λίγο.</string>
   <string name="parameter_waypoint_rangefinder_label">Χρήση αποστασιόμετρου για σημεία διαδρομής εδάφους</string>
@@ -76,7 +76,7 @@
   <string name="exit">Έξοδος</string>
   <string name="flight_altitude">Ύψος πάνω από το έδαφος</string>
   <string name="line_distance">Απόσταση λωρίδων</string>
-  <string name="mission_angle">Γωνία αποστολής(°)</string>
+  <string name="mission_angle">Γωνία</string>
   <string name="mavlink_target_host_title">MAVLink Target IP (blank for auto)</string>
   <string name="mavlink_target_port_title">MAVLink Target Port</string>
   <string name="no_conn_msg">Αδυναμία σύνδεσης με drone!</string>
@@ -146,7 +146,7 @@
   <string name="drone_tcpudp_port_pref">Θύρα</string>
   <string name="locales_categ_pref">Επιλογές γλώσσας</string>
   <string name="sprayer_intensity">Ένταση ψεκασμού</string>
-  <string name="spray_liters">Λίτρα ψεκασμού</string>
+  <string name="spray_liters">Λίτρα</string>
   <string name="liters_short">L</string>
   <string name="action_failed">Δεν ήταν δυνατή η εκτέλεση της ενέργειας!</string>
   <string name="flight_time">Ταχύτητα - Χρόνος Πτήσης</string>
@@ -195,7 +195,7 @@
   <string name="survey_strip_spacing">Πλευρική επικάλυψη</string>
   <string name="survey_height_above_terrain">Ύψος</string>
   <string name="survey_overlap">Overlap</string>
-  <string name="survey_grid_angle">Grid angle</string>
+  <string name="survey_grid_angle">Γωνία</string>
   <string name="survey_terrain_segment">Terrain segment</string>
   <string name="survey_canopy_smoothing">Canopy smoothing</string>
   <string name="menu_datasets">Σύνολα δεδομένων</string>

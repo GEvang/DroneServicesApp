@@ -154,7 +154,7 @@ class MissionSaveController(
                 altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value
                     ?: AltitudeReferenceMode.RELATIVE,
                 sprayerPct = activityViewModel.sprayerProgress.value!!.toInt(),
-                flightSpeed = activityViewModel.flightSpeed.value ?: 1.0,
+                flightSpeed = activityViewModel.flightSpeed.value ?: 5.0,
                 planningWorkflow = workflow,
                 planningOperationMode = operationMode,
                 surveyGridParams = activityViewModel.surveyGridParams.value,

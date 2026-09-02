@@ -39,7 +39,7 @@ class MissionParamsActionHandler(
         val speed = activityViewModel.flightSpeed.value
         val angle = activityViewModel.angleProgress.value
         val operationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
-        val altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value ?: AltitudeReferenceMode.RELATIVE
+        val altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value ?: AltitudeReferenceMode.TERRAIN
         val srtmShouldBeEnabled = operationMode == PlanningOperationMode.SURVEY
 
         when {

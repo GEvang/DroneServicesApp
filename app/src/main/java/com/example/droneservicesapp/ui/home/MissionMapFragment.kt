@@ -105,7 +105,6 @@ import org.osmdroid.views.overlay.Marker
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.PI
@@ -226,7 +225,6 @@ class MissionMapFragment : Fragment() {
         private const val MAX_INITIAL_DRONE_CENTER_ATTEMPTS = 20
         private const val PREVIEW_MAP_FIT_PADDING_PX = 96
         private const val MIN_PREVIEW_MAP_SPAN_METERS = 10.0
-        private const val TERRAIN_SURVEY_REDRAW_DEBOUNCE_MS = 250L
         private const val TILE_SIZE_PX = 256.0
         private const val MIN_MAP_VIEWPORT_PX = 320
         private const val MIN_PREVIEW_BOUNDS_SPAN_DEGREES = 0.000001
@@ -911,7 +909,7 @@ class MissionMapFragment : Fragment() {
         val totalDistanceMeters = missionPath.zipWithNext().sumOf { (from, to) ->
             SphericalUtil.computeDistanceBetween(from, to)
         }
-        val speedMetersPerSecond = (activityViewModel.flightSpeed.value ?: 1.0).coerceAtLeast(0.1)
+        val speedMetersPerSecond = (activityViewModel.flightSpeed.value ?: 5.0).coerceAtLeast(0.1)
         val estimatedSeconds = (totalDistanceMeters / speedMetersPerSecond).toInt().coerceAtLeast(0)
         val altitudeMeters = activityViewModel.flightAltProgress.value ?: 0.0
 
@@ -1533,8 +1531,8 @@ class MissionMapFragment : Fragment() {
     private fun redrawAreaMissionOnMap() {
         when (activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY) {
             PlanningOperationMode.SPRAY -> drawSprayMissionOnMap(
-                activityViewModel.lineDistanceProgress.value ?: 0.0,
-                activityViewModel.angleProgress.value?.toInt() ?: 0
+                activityViewModel.lineDistanceProgress.value ?: 5.0,
+                activityViewModel.angleProgress.value?.toInt() ?: 90
             )
             PlanningOperationMode.SURVEY -> drawSurveyGridMissionOnMap()
         }
@@ -2244,13 +2242,10 @@ class MissionMapFragment : Fragment() {
             ?.takeIf { it.isGeoreferenced }
 
         if (terrainModel != null) {
-            activityViewModel.pointCloudCoversMissionArea.value = false
-            activityViewModel.terrainSurveyWaypoints.value = emptyList()
             val heightAboveTerrain = activityViewModel.flightAltProgress.value ?: 0.0
             val terrainSegment = activityViewModel.surveyTerrainSegment.value ?: 2.5
             val canopySmoothing = activityViewModel.surveyCanopySmoothing.value ?: 5.0
             terrainSurveyJob = viewLifecycleOwner.lifecycleScope.launch {
-                delay(TERRAIN_SURVEY_REDRAW_DEBOUNCE_MS)
                 val terrainWaypoints = withContext(Dispatchers.Default) {
                     val basePath = SurveyPlanner().buildSurveyPath(
                         polygon = polygonLatLon,
@@ -2401,7 +2396,7 @@ class MissionMapFragment : Fragment() {
         val areaVertices = activityViewModel.missionArea.value?.vertices.orEmpty()
         val areaMeters = if (areaVertices.size >= 3) SphericalUtil.computeArea(areaVertices) else 0.0
         val altitudeMeters = activityViewModel.flightAltProgress.value ?: 0.0
-        val speedMetersPerSecond = activityViewModel.flightSpeed.value ?: 1.0
+        val speedMetersPerSecond = activityViewModel.flightSpeed.value ?: 5.0
         val mode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
 
         val message = buildString {

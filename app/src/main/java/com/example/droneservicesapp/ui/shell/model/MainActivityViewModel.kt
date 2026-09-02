@@ -50,27 +50,27 @@ class MainActivityViewModel : ViewModel() {
     }
 
     val flightAltProgress: MutableLiveData<Double> by lazy {
-        MutableLiveData(2.0)
-    }
-
-    val lineDistanceProgress: MutableLiveData<Double> by lazy {
-        MutableLiveData(1.0)
-    }
-
-    val angleProgress: MutableLiveData<Double> by lazy {
-        MutableLiveData(1.0)
-    }
-
-    val sprayerProgress: MutableLiveData<Double> by lazy {
         MutableLiveData(0.0)
     }
 
+    val lineDistanceProgress: MutableLiveData<Double> by lazy {
+        MutableLiveData(5.0)
+    }
+
+    val angleProgress: MutableLiveData<Double> by lazy {
+        MutableLiveData(90.0)
+    }
+
+    val sprayerProgress: MutableLiveData<Double> by lazy {
+        MutableLiveData(75.0)
+    }
+
     val flightSpeed: MutableLiveData<Double> by lazy {
-        MutableLiveData(1.0)
+        MutableLiveData(5.0)
     }
 
     val altitudeReferenceMode: MutableLiveData<AltitudeReferenceMode> by lazy {
-        MutableLiveData(AltitudeReferenceMode.RELATIVE)
+        MutableLiveData(AltitudeReferenceMode.TERRAIN)
     }
 
     val selectedSprayPresetId: MutableLiveData<String> by lazy {
@@ -83,7 +83,7 @@ class MainActivityViewModel : ViewModel() {
 
     val estimatedFlightMinutes = MediatorLiveData<Int>().apply {
         fun recompute() {
-            val speed = flightSpeed.value?.toDouble() ?: 1.0
+            val speed = flightSpeed.value?.toDouble() ?: 5.0
             val dist = flightDistance.value?.toDouble() ?: 0.0
 
             val minutes = (dist / (speed * 60.0)).toInt()
@@ -111,19 +111,19 @@ class MainActivityViewModel : ViewModel() {
     }
 
     val surveyStripSpacing: MutableLiveData<Double> by lazy {
-        MutableLiveData(surveyGridParams.value?.stripSpacingMeters?.toDouble() ?: 8.0)
+        MutableLiveData(surveyGridParams.value?.stripSpacingMeters?.toDouble() ?: 70.0)
     }
 
     val surveyHeightAboveTerrain: MutableLiveData<Double> by lazy {
-        MutableLiveData(surveyGridParams.value?.heightAboveTerrainMeters?.toDouble() ?: 5.0)
+        MutableLiveData(surveyGridParams.value?.heightAboveTerrainMeters?.toDouble() ?: 50.0)
     }
 
     val surveyOverlapPercent: MutableLiveData<Double> by lazy {
-        MutableLiveData(surveyGridParams.value?.overlapPercent?.toDouble() ?: 20.0)
+        MutableLiveData(surveyGridParams.value?.overlapPercent?.toDouble() ?: 80.0)
     }
 
     val surveyGridAngle: MutableLiveData<Double> by lazy {
-        MutableLiveData(surveyGridParams.value?.gridAngleDegrees?.toDouble() ?: 0.0)
+        MutableLiveData(surveyGridParams.value?.gridAngleDegrees?.toDouble() ?: 90.0)
     }
 
     val surveyTerrainSegment: MutableLiveData<Double> by lazy {
@@ -284,7 +284,7 @@ class MainActivityViewModel : ViewModel() {
 
     fun updateLineSpacing(value: Int, markCustom: Boolean = true) {
         lineDistanceProgress.value = value.coerceIn(2, 20).toDouble()
-        updateMissionParams { copy(lineDistance = lineDistanceProgress.value ?: 2.0) }
+        updateMissionParams { copy(lineDistance = lineDistanceProgress.value ?: 5.0) }
         markPresetCustomIfNeeded(markCustom)
     }
 
@@ -296,13 +296,13 @@ class MainActivityViewModel : ViewModel() {
 
     fun updateSprayIntensity(value: Int, markCustom: Boolean = true) {
         sprayerProgress.value = value.coerceIn(0, 100).toDouble()
-        updateMissionParams { copy(sprayer = sprayerProgress.value ?: 0.0) }
+        updateMissionParams { copy(sprayer = sprayerProgress.value ?: 75.0) }
         markPresetCustomIfNeeded(markCustom)
     }
 
     fun updateMissionSpeed(value: Double, markCustom: Boolean = true) {
-        flightSpeed.value = value.coerceIn(1.0, 5.0)
-        updateMissionParams { copy(speed = flightSpeed.value ?: 1.0) }
+        flightSpeed.value = value.coerceIn(1.0, 10.0)
+        updateMissionParams { copy(speed = flightSpeed.value ?: 5.0) }
         markPresetCustomIfNeeded(markCustom)
     }
 
@@ -315,7 +315,7 @@ class MainActivityViewModel : ViewModel() {
     }
 
     fun updateSurveyStripSpacing(value: Int) {
-        val normalized = value.coerceIn(2, 50)
+        val normalized = value.coerceIn(0, 95)
         surveyStripSpacing.value = normalized.toDouble()
         updateSurveyGridParams {
             copy(stripSpacingMeters = normalized)
@@ -370,10 +370,10 @@ class MainActivityViewModel : ViewModel() {
             index = index,
             latitude = latitude,
             longitude = longitude,
-            altitudeMeters = flightAltProgress.value ?: 2.0,
-            speedMetersPerSecond = flightSpeed.value ?: 1.0,
+            altitudeMeters = flightAltProgress.value ?: 0.0,
+            speedMetersPerSecond = flightSpeed.value ?: 5.0,
             sprayEnabled = planningOperationMode.value == PlanningOperationMode.SPRAY,
-            sprayerIntensityPercent = (sprayerProgress.value ?: 0.0).toInt().coerceIn(0, 100)
+            sprayerIntensityPercent = (sprayerProgress.value ?: 75.0).toInt().coerceIn(0, 100)
         )
         routeWaypoints.value = existing + waypoint
     }
