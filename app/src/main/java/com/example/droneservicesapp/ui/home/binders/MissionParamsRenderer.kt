@@ -44,7 +44,10 @@ class MissionParamsRenderer(
         missionParamsUiState = stateMapper.currentUiState()
         renderFlightSummary(missionParamsUiState)
         renderPreset(activityViewModel.selectedSprayPresetId.value)
-        renderMode(missionParamsUiState.operationMode)
+        renderMode(
+            missionParamsUiState.operationMode,
+            activityViewModel.pointCloudCoversMissionArea.value == true
+        )
         renderSurveyValues(missionParamsUiState)
         bindPresetSelector()
         bindAltitudeReferenceSelector()
@@ -73,7 +76,11 @@ class MissionParamsRenderer(
         activityViewModel.planningOperationMode.observe(lifecycleOwner) { mode ->
             val operationMode = mode ?: PlanningOperationMode.SURVEY
             missionParamsUiState = missionParamsUiState.copy(operationMode = operationMode)
-            renderMode(operationMode)
+            renderMode(operationMode, activityViewModel.pointCloudCoversMissionArea.value == true)
+        }
+
+        activityViewModel.pointCloudCoversMissionArea.observe(lifecycleOwner) { covered ->
+            renderMode(missionParamsUiState.operationMode, covered == true)
         }
 
         bindSurveyField(activityViewModel.surveyStripSpacing) { value ->
@@ -154,12 +161,41 @@ class MissionParamsRenderer(
         views.presetSelector.text = SprayPresets.byId(presetId).label
     }
 
-    private fun renderMode(mode: PlanningOperationMode) {
+    private fun renderMode(mode: PlanningOperationMode, hasPointCloudInArea: Boolean) {
         val isSurvey = mode == PlanningOperationMode.SURVEY
+        val isThreeDimensionalSpray = !isSurvey && hasPointCloudInArea
         views.surveyModeSection.isVisible = isSurvey
         views.sprayModeSection.isVisible = !isSurvey
-        views.flightTimeLabel.isVisible = !isSurvey
-        views.speedTimeRow.isVisible = !isSurvey
+        views.presetSelector.isVisible = false
+        views.altitudeReferenceSection.isVisible = isSurvey
+        views.surveyModeSection.isVisible = isSurvey || isThreeDimensionalSpray
+        views.surveyGridSectionLabel.isVisible = isSurvey
+        views.surveyGridSectionDivider.isVisible = isSurvey
+        views.surveyStripSpacingField.isVisible = isSurvey
+        views.surveyHeightField.isVisible = isSurvey
+        views.surveyOverlapField.isVisible = isSurvey
+        views.surveyGridAngleField.isVisible = isSurvey
+        views.surveyTerrainSegmentField.isVisible = isThreeDimensionalSpray
+        views.surveyCanopySmoothingField.isVisible = isThreeDimensionalSpray
+        views.flightTimeLabel.isVisible = true
+        views.speedTimeRow.isVisible = true
+        views.flightTimeValue.isVisible = false
+        views.flightTimeUnit.isVisible = false
+        views.sprayAltitudeModeStatus.setText(
+            if (isThreeDimensionalSpray) R.string.spray_mode_relative_point_cloud
+            else R.string.spray_mode_terrain_rangefinder
+        )
+
+        if (!isSurvey) {
+            val requiredMode = if (isThreeDimensionalSpray) {
+                AltitudeReferenceMode.RELATIVE
+            } else {
+                AltitudeReferenceMode.TERRAIN
+            }
+            if (activityViewModel.altitudeReferenceMode.value != requiredMode) {
+                activityViewModel.setAltitudeReferenceMode(requiredMode)
+            }
+        }
     }
 
     private fun renderSurveyValues(state: MissionParamsUiState) {

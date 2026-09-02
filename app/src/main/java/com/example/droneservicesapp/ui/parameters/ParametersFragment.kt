@@ -38,22 +38,15 @@ class ParametersFragment : Fragment() {
         requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
         droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
 
-        binding.waypointRangefinderSwitch.setOnCheckedChangeListener { _, isChecked ->
-            if (!rendering) droneViewModel.setWaypointRangefinderEnabled(isChecked)
+        binding.avoidanceSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (!rendering) droneViewModel.setAvoidanceEnabled(isChecked)
         }
-        binding.surfaceTrackingGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
-            if (!rendering && isChecked) {
-                val mode = when (checkedId) {
-                    R.id.surface_tracking_ground -> 1
-                    R.id.surface_tracking_ceiling -> 2
-                    else -> 0
-                }
-                droneViewModel.setSurfaceTrackingMode(mode)
-            }
+        binding.surfaceTrackingSwitch.setOnCheckedChangeListener { _, isChecked ->
+            if (!rendering) droneViewModel.setSurfaceTrackingEnabled(isChecked)
         }
 
-        droneViewModel.waypointRangefinderParameter.observe(viewLifecycleOwner) {
-            renderWaypointRangefinder(it)
+        droneViewModel.avoidanceParameter.observe(viewLifecycleOwner) {
+            renderAvoidance(it)
         }
         droneViewModel.surfaceTrackingParameter.observe(viewLifecycleOwner) {
             renderSurfaceTracking(it)
@@ -61,7 +54,7 @@ class ParametersFragment : Fragment() {
         droneViewModel.parameterFeedback.observe(viewLifecycleOwner) { event ->
             event.getIfNotHandled()?.let { feedback ->
                 val label = when (feedback.parameterName) {
-                    DroneParameterController.WP_RFND_USE -> getString(R.string.parameter_waypoint_rangefinder_label)
+                    DroneParameterController.AVOID_ENABLE -> getString(R.string.parameter_avoidance_label)
                     else -> getString(R.string.parameter_surface_tracking_label)
                 }
                 val message = if (feedback.succeeded) {
@@ -85,27 +78,20 @@ class ParametersFragment : Fragment() {
         _binding = null
     }
 
-    private fun renderWaypointRangefinder(state: VehicleParameterUiState) {
+    private fun renderAvoidance(state: VehicleParameterUiState) {
         rendering = true
-        binding.waypointRangefinderSwitch.isChecked = state.value == 1
-        binding.waypointRangefinderSwitch.isEnabled =
+        binding.avoidanceSwitch.isChecked = (state.value ?: 0) != 0
+        binding.avoidanceSwitch.isEnabled =
             state.availability == VehicleParameterAvailability.SUPPORTED && !state.isWriting
-        binding.waypointRangefinderStatus.text = statusText(state)
+        binding.avoidanceStatus.text = statusText(state)
         rendering = false
     }
 
     private fun renderSurfaceTracking(state: VehicleParameterUiState) {
         rendering = true
-        val checkedId = when (state.value) {
-            1 -> R.id.surface_tracking_ground
-            2 -> R.id.surface_tracking_ceiling
-            else -> R.id.surface_tracking_off
-        }
-        binding.surfaceTrackingGroup.check(checkedId)
-        val enabled = state.availability == VehicleParameterAvailability.SUPPORTED && !state.isWriting
-        binding.surfaceTrackingOff.isEnabled = enabled
-        binding.surfaceTrackingGround.isEnabled = enabled
-        binding.surfaceTrackingCeiling.isEnabled = enabled
+        binding.surfaceTrackingSwitch.isChecked = (state.value ?: 0) != 0
+        binding.surfaceTrackingSwitch.isEnabled =
+            state.availability == VehicleParameterAvailability.SUPPORTED && !state.isWriting
         binding.surfaceTrackingStatus.text = statusText(state)
         rendering = false
     }

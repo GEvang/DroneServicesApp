@@ -12,10 +12,17 @@
     <string name="menu_debug">Debug</string>
     <string name="menu_parameters">Parameters</string>
     <string name="parameters_title">Parameters</string>
+    <string name="spray_mode_terrain_rangefinder">Mode: Terrain (Rangefinder)</string>
+    <string name="spray_mode_relative_point_cloud">Mode: Relative (3D PLY)</string>
+    <string name="flight_speed_label">Speed</string>
+    <string name="terrain_source_not_confirmed">Waiting for the vehicle to confirm the required terrain source. Try upload again shortly.</string>
     <string name="parameter_waypoint_rangefinder_label">Use Rangefinder for Terrain Waypoints</string>
     <string name="parameter_waypoint_rangefinder_helper">When enabled, terrain-relative waypoint navigation uses the rangefinder instead of the terrain database/SRTM.</string>
+    <string name="parameter_avoidance_label">Avoidance</string>
+    <string name="parameter_avoidance_helper">Turns ArduPilot obstacle-avoidance inputs on or off.</string>
     <string name="parameter_surface_tracking_label">Surface Tracking</string>
     <string name="parameter_surface_tracking_helper">Uses the rangefinder to follow the detected ground or ceiling in supported flight modes.</string>
+    <string name="parameter_surface_tracking_ground_helper">When on, uses the rangefinder to follow the detected ground in supported flight modes.</string>
     <string name="parameter_surface_tracking_off">Off</string>
     <string name="parameter_surface_tracking_ground">Ground</string>
     <string name="parameter_surface_tracking_ceiling">Ceiling</string>
@@ -244,8 +251,8 @@
     <string name="clear">Clear</string>
     <string name="upload_mission">Upload Mission</string>
     <string name="exit">Exit</string>
-    <string name="flight_altitude">Mission Altitude</string>
-    <string name="line_distance">Line Distance(m)</string>
+    <string name="flight_altitude">Height above terrain</string>
+    <string name="line_distance">Strip Spacing</string>
     <string name="mission_angle">Mission Angle(°)</string>
     <string name="drone_services_sprayer" translatable="false">Drone Services Sprayer</string>
 
@@ -406,8 +413,8 @@
     <string name="offline_map_cache_cleared">Offline map cache cleared</string>
     <string name="failed_to_clear_cache">Failed to clear cache (some files may be locked)</string>
     <string name="survey_grid_title">Survey Grid</string>
-    <string name="survey_strip_spacing">Strip spacing</string>
-    <string name="survey_height_above_terrain">Height above terrain</string>
+    <string name="survey_strip_spacing">Sidelap</string>
+    <string name="survey_height_above_terrain">Altitude</string>
     <string name="survey_overlap">Overlap</string>
     <string name="survey_grid_angle">Grid angle</string>
     <string name="survey_terrain_segment">Terrain segment</string>

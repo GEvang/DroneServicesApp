@@ -143,6 +143,11 @@ class MainActivityViewModel : ViewModel() {
         MutableLiveData(emptyList())
     }
 
+    /** True only when a georeferenced point cloud contributes points inside the drawn area. */
+    val pointCloudCoversMissionArea: MutableLiveData<Boolean> by lazy {
+        MutableLiveData(false)
+    }
+
     val missionObstacles: MutableLiveData<List<MissionObstacle>> by lazy {
         MutableLiveData(emptyList())
     }

@@ -633,6 +633,7 @@ class MissionMapFragment : Fragment() {
         previewAssetsViewModel.assetVersion.observe(viewLifecycleOwner) {
             refreshPreviewAssets()
             renderCurrentSurveyPathOnMap()
+            redrawAreaMissionIfEditable()
         }
     }
 
@@ -992,7 +993,11 @@ class MissionMapFragment : Fragment() {
         }
         val path = activityViewModel.surveyPath.value.orEmpty()
         if (index !in path.indices) return null
-        return activityViewModel.surveyHeightAboveTerrain.value ?: 0.0
+        return if (activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY) {
+            activityViewModel.flightAltProgress.value ?: 0.0
+        } else {
+            activityViewModel.surveyHeightAboveTerrain.value ?: 0.0
+        }
     }
 
     private fun resampleTerrainWaypoint(point: LatLng): TerrainWaypoint? {
@@ -1000,13 +1005,24 @@ class MissionMapFragment : Fragment() {
         val terrainModel = previewAssetsViewModel.pointCloudTerrainModel ?: return null
         val frame = terrainModel.coordinateFrame ?: return null
         val params = activityViewModel.surveyGridParams.value ?: return null
+        val isSpraying = activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
+        val heightAboveTerrain = if (isSpraying) {
+            activityViewModel.flightAltProgress.value ?: 0.0
+        } else {
+            params.heightAboveTerrainMeters.toDouble()
+        }
+        val canopySmoothing = if (isSpraying) {
+            activityViewModel.surveyCanopySmoothing.value ?: 5.0
+        } else {
+            params.canopySmoothingMeters.toDouble()
+        }
         val (xMeters, yMeters) = frame.latLonToLocal(point.latitude, point.longitude)
         val terrainZ = terrainModel.terrainHeightAt(
             xMeters = xMeters,
             yMeters = yMeters,
-            canopyRadiusMeters = params.canopySmoothingMeters.toDouble()
+            canopyRadiusMeters = canopySmoothing
         )
-        val missionAltitude = terrainZ + params.heightAboveTerrainMeters.toDouble()
+        val missionAltitude = terrainZ + heightAboveTerrain
         return TerrainWaypoint(
             latLon = LatLon(point.latitude, point.longitude),
             displayAltitudeMeters = missionAltitude,
@@ -1196,6 +1212,9 @@ class MissionMapFragment : Fragment() {
             }
             updateGeoAwarenessPlanningStatus()
             updateMissionSummaryCard()
+            if (activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY) {
+                redrawAreaMissionIfEditable()
+            }
         })
 
         activityViewModel.surveyStripSpacing.observe(viewLifecycleOwner) { spacing ->
@@ -1244,7 +1263,7 @@ class MissionMapFragment : Fragment() {
         activityViewModel.surveyTerrainSegment.observe(viewLifecycleOwner) { segment ->
             if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
                 activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
-                activityViewModel.planningOperationMode.value == PlanningOperationMode.SURVEY
+                activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
             ) {
                 savePreference(getString(R.string.survey_terrain_segment_pref), segment.toString())
                 redrawAreaMissionOnMap()
@@ -1254,7 +1273,7 @@ class MissionMapFragment : Fragment() {
         activityViewModel.surveyCanopySmoothing.observe(viewLifecycleOwner) { canopy ->
             if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
                 activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
-                activityViewModel.planningOperationMode.value == PlanningOperationMode.SURVEY
+                activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
             ) {
                 savePreference(getString(R.string.survey_canopy_smoothing_pref), canopy?.toInt().toString())
                 redrawAreaMissionOnMap()
@@ -1311,7 +1330,8 @@ class MissionMapFragment : Fragment() {
             }
         }
 
-        activityViewModel.planningOperationMode.observe(viewLifecycleOwner) {
+        activityViewModel.planningOperationMode.observe(viewLifecycleOwner) { mode ->
+            droneViewModel.setSrtmEnabled(mode == PlanningOperationMode.SURVEY)
             if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
                 activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
                 (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
@@ -1329,6 +1349,7 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.clearMissionObstacles()
                     activityViewModel.surveyPath.postValue(emptyList())
                     activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
+                    activityViewModel.pointCloudCoversMissionArea.postValue(false)
                     osmdroidPolygonEditor.clear()
                     osmdroidMapController.clearSurveyPath()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
@@ -1339,6 +1360,7 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.clearMissionObstacles()
                     activityViewModel.surveyPath.postValue(emptyList())
                     activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
+                    activityViewModel.pointCloudCoversMissionArea.postValue(false)
                     osmdroidPolygonEditor.clear()
                     osmdroidMapController.clearSurveyPath()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
@@ -1348,6 +1370,7 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.clearMissionObstacles()
                     activityViewModel.surveyPath.postValue(emptyList())
                     activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
+                    activityViewModel.pointCloudCoversMissionArea.postValue(false)
                     osmdroidMapController.clearSurveyPath()
                     osmdroidPolygonEditor.clear()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
@@ -1358,6 +1381,7 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.clearMissionObstacles()
                     activityViewModel.surveyPath.postValue(emptyList())
                     activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
+                    activityViewModel.pointCloudCoversMissionArea.postValue(false)
                     osmdroidPolygonEditor.clear()
                     osmdroidMapController.clearSurveyPath()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
@@ -2212,18 +2236,72 @@ class MissionMapFragment : Fragment() {
     private fun previewPreferences() = requireContext().getSharedPreferences(PREVIEW_PREFS, Context.MODE_PRIVATE)
 
     private fun drawSprayMissionOnMap(distance: Double, angle: Int) {
+        terrainSurveyJob?.cancel()
         val area = activityViewModel.missionArea.value ?: return
-
-        // Convert current polygon vertices to domain-level LatLon
         val polygonLatLon = area.vertices.map { LatLon(it.latitude, it.longitude) }
+        val obstacles = activityViewModel.missionObstacles.value.orEmpty()
+        val terrainModel = previewAssetsViewModel.pointCloudTerrainModel
+            ?.takeIf { it.isGeoreferenced }
 
-        // Build survey path using pure planner
+        if (terrainModel != null) {
+            activityViewModel.pointCloudCoversMissionArea.value = false
+            activityViewModel.terrainSurveyWaypoints.value = emptyList()
+            val heightAboveTerrain = activityViewModel.flightAltProgress.value ?: 0.0
+            val terrainSegment = activityViewModel.surveyTerrainSegment.value ?: 2.5
+            val canopySmoothing = activityViewModel.surveyCanopySmoothing.value ?: 5.0
+            terrainSurveyJob = viewLifecycleOwner.lifecycleScope.launch {
+                delay(TERRAIN_SURVEY_REDRAW_DEBOUNCE_MS)
+                val terrainWaypoints = withContext(Dispatchers.Default) {
+                    val basePath = SurveyPlanner().buildSurveyPath(
+                        polygon = polygonLatLon,
+                        distanceMeters = distance,
+                        angleDeg = angle,
+                        obstacles = obstacles
+                    )
+                    if (terrainModel.hasPointsInside(polygonLatLon)) {
+                        terrainModel.buildTerrainPath(
+                            path = basePath,
+                            heightAboveTerrainMeters = heightAboveTerrain,
+                            segmentMeters = terrainSegment,
+                            canopySmoothingMeters = canopySmoothing
+                        )
+                    } else {
+                        emptyList()
+                    }
+                }
+                if (terrainWaypoints.isNotEmpty()) {
+                    activityViewModel.pointCloudCoversMissionArea.value = true
+                    renderSurveyPath(
+                        pathLatLon = terrainWaypoints.map { it.latLon },
+                        areaVertices = area.vertices,
+                        terrainWaypoints = terrainWaypoints
+                    )
+                } else {
+                    activityViewModel.pointCloudCoversMissionArea.value = false
+                    drawFlatSprayMission(area, polygonLatLon, distance, angle, obstacles)
+                }
+            }
+            return
+        }
+
+        activityViewModel.pointCloudCoversMissionArea.value = false
+        drawFlatSprayMission(area, polygonLatLon, distance, angle, obstacles)
+    }
+
+    private fun drawFlatSprayMission(
+        area: com.example.droneservicesapp.domain.model.MissionArea,
+        polygonLatLon: List<LatLon>,
+        distance: Double,
+        angle: Int,
+        obstacles: List<com.example.droneservicesapp.domain.model.MissionObstacle>
+    ) {
+
         val planner = SurveyPlanner()
         val pathLatLon = planner.buildSurveyPath(
             polygon = polygonLatLon,
             distanceMeters = distance,
             angleDeg = angle,
-            obstacles = activityViewModel.missionObstacles.value.orEmpty()
+            obstacles = obstacles
         )
 
         if (pathLatLon.isEmpty()) {
@@ -2234,14 +2312,7 @@ class MissionMapFragment : Fragment() {
             return
         }
 
-        // Convert to Google LatLng only where required (map drawing + mission building)
-        val gmsPath = pathLatLon.map { LatLng(it.lat, it.lon) }
-
-        updateFlightDistance(gmsPath)
-
-        activityViewModel.surveyPath.postValue(gmsPath)
-        activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
-        osmdroidMapController.setSurveyPath(gmsPath, area.vertices)
+        renderSurveyPath(pathLatLon, area.vertices)
     }
 
     private fun drawSurveyGridMissionOnMap() {
@@ -2251,40 +2322,7 @@ class MissionMapFragment : Fragment() {
         val polygonLatLon = area.vertices.map { LatLon(it.latitude, it.longitude) }
         val params = activityViewModel.surveyGridParams.value ?: return
         val obstacles = activityViewModel.missionObstacles.value.orEmpty()
-        val terrainModel = previewAssetsViewModel.pointCloudTerrainModel
-            ?.takeIf {
-                it.isGeoreferenced &&
-                    obstacles.isEmpty()
-            }
-
-        if (terrainModel != null) {
-            terrainSurveyJob = viewLifecycleOwner.lifecycleScope.launch {
-                delay(TERRAIN_SURVEY_REDRAW_DEBOUNCE_MS)
-                val terrainWaypoints = withContext(Dispatchers.Default) {
-                    terrainModel.buildTerrainSurveyPath(
-                        polygon = polygonLatLon,
-                        params = params
-                    )
-                }
-                if (terrainWaypoints.isNotEmpty()) {
-                    renderSurveyPath(
-                        pathLatLon = terrainWaypoints.map { it.latLon },
-                        areaVertices = area.vertices,
-                        terrainWaypoints = terrainWaypoints
-                    )
-                } else {
-                    val fallbackPath = withContext(Dispatchers.Default) {
-                        SurveyGridPlanner().buildSurveyPath(
-                            polygon = polygonLatLon,
-                            params = params,
-                            obstacles = obstacles
-                        )
-                    }
-                    renderSurveyPath(fallbackPath, area.vertices)
-                }
-            }
-            return
-        }
+        activityViewModel.pointCloudCoversMissionArea.value = false
 
         val pathLatLon = SurveyGridPlanner().buildSurveyPath(
             polygon = polygonLatLon,
@@ -2306,13 +2344,33 @@ class MissionMapFragment : Fragment() {
             return
         }
 
-        val gmsPath = pathLatLon.map { LatLng(it.lat, it.lon) }
+        var orderedPath = pathLatLon
+        var orderedTerrainWaypoints = terrainWaypoints
+        val home = currentOffsetDroneLocation()
+        if (home != null && pathLatLon.size >= 2) {
+            val homePoint = LatLng(home.latitude, home.longitude)
+            val firstDistance = SphericalUtil.computeDistanceBetween(
+                homePoint,
+                LatLng(pathLatLon.first().lat, pathLatLon.first().lon)
+            )
+            val lastDistance = SphericalUtil.computeDistanceBetween(
+                homePoint,
+                LatLng(pathLatLon.last().lat, pathLatLon.last().lon)
+            )
+            val spraying = activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
+            val shouldReverse = if (spraying) lastDistance < firstDistance else lastDistance > firstDistance
+            if (shouldReverse) {
+                orderedPath = pathLatLon.reversed()
+                orderedTerrainWaypoints = terrainWaypoints.reversed()
+            }
+        }
+        val gmsPath = orderedPath.map { LatLng(it.lat, it.lon) }
         updateFlightDistance(gmsPath)
 
-        activityViewModel.surveyPath.postValue(gmsPath)
-        activityViewModel.terrainSurveyWaypoints.postValue(terrainWaypoints)
-        if (terrainWaypoints.isNotEmpty()) {
-            Log.d(TERRAIN_GRID_TAG, "Terrain-aware survey path waypoints=${terrainWaypoints.size}")
+        activityViewModel.surveyPath.value = gmsPath
+        activityViewModel.terrainSurveyWaypoints.value = orderedTerrainWaypoints
+        if (orderedTerrainWaypoints.isNotEmpty()) {
+            Log.d(TERRAIN_GRID_TAG, "Terrain-aware spray path waypoints=${orderedTerrainWaypoints.size}")
         }
         osmdroidMapController.setSurveyPath(gmsPath, areaVertices)
     }
@@ -4108,4 +4166,3 @@ class MissionMapFragment : Fragment() {
         }
     }
 }
-

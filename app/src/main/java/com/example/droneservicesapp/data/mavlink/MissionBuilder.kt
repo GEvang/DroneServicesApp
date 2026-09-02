@@ -9,6 +9,10 @@ import io.dronefleet.mavlink.common.MavCmd
 import io.dronefleet.mavlink.common.MavFrame
 import io.dronefleet.mavlink.common.MavMissionType
 import io.dronefleet.mavlink.common.MissionItemInt
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.sqrt
 
 /**
  * Pure mission construction logic (no MAVLink connection, no sockets, no ViewModels).
@@ -47,7 +51,8 @@ object MissionBuilder {
         angleProgress: Float,
         targetSystemId: Int,
         targetComponentId: Int,
-        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE
+        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
+        waypointAltitudes: List<Float>? = null
     ): ArrayList<MissionItemInt> {
 
         val sprayerIntensityPWM = servo5PwmForSprayerIntensity(sprayerIntensity)
@@ -56,6 +61,13 @@ object MissionBuilder {
         val waypointFrame = missionWaypointFrameFor(altitudeReferenceMode)
         val commandFrame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
         val missionYawDegrees = 90.0f - angleProgress
+        val orderedPath = orderAreaPath(
+            waypoints = waypoints,
+            waypointAltitudes = waypointAltitudes,
+            homeLatitude = currentPos.latitude,
+            homeLongitude = currentPos.longitude,
+            startClosestToHome = true
+        )
         var seq = 0
 
         logInfo(
@@ -104,7 +116,7 @@ object MissionBuilder {
             )
         )
 
-        waypoints.forEachIndexed { i, wp ->
+        orderedPath.waypoints.forEachIndexed { i, wp ->
 
             // Before the first waypoint is added: set speed
             if (i == 0) {
@@ -129,7 +141,7 @@ object MissionBuilder {
                     p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = missionYawDegrees,
                     x = wp.latitude.toE7(),
                     y = wp.longitude.toE7(),
-                    z = alt
+                    z = orderedPath.altitudes?.getOrNull(i) ?: alt
                 )
             )
 
@@ -194,6 +206,13 @@ object MissionBuilder {
         altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
         waypointAltitudes: List<Float>? = null
     ): ArrayList<MissionItemInt> {
+        val orderedPath = orderAreaPath(
+            waypoints = waypoints,
+            waypointAltitudes = waypointAltitudes,
+            homeLatitude = currentPos.latitude,
+            homeLongitude = currentPos.longitude,
+            startClosestToHome = false
+        )
         val missionItems = ArrayList<MissionItemInt>()
         val waypointFrame = missionWaypointFrameFor(altitudeReferenceMode)
         val commandFrame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
@@ -239,7 +258,7 @@ object MissionBuilder {
             )
         )
 
-        if (waypoints.isNotEmpty()) {
+        if (orderedPath.waypoints.isNotEmpty()) {
             missionItems.add(
                 buildItem(
                     frame = commandFrame,
@@ -251,8 +270,8 @@ object MissionBuilder {
             )
         }
 
-        waypoints.forEachIndexed { index, wp ->
-            val waypointAltitude = waypointAltitudes?.getOrNull(index) ?: alt
+        orderedPath.waypoints.forEachIndexed { index, wp ->
+            val waypointAltitude = orderedPath.altitudes?.getOrNull(index) ?: alt
             missionItems.add(
                 buildItem(
                     frame = waypointFrame,
@@ -527,6 +546,46 @@ object MissionBuilder {
     }
 
     private fun Double.toE7(): Int = (this * 1e7).toInt()
+
+    internal data class OrderedAreaPath(
+        val waypoints: List<LatLng>,
+        val altitudes: List<Float>?
+    )
+
+    /** A lawnmower path can be reversed without changing its coverage geometry. */
+    internal fun orderAreaPath(
+        waypoints: List<LatLng>,
+        waypointAltitudes: List<Float>?,
+        homeLatitude: Double,
+        homeLongitude: Double,
+        startClosestToHome: Boolean
+    ): OrderedAreaPath {
+        if (waypoints.size < 2) return OrderedAreaPath(waypoints, waypointAltitudes)
+        val firstDistance = distanceMeters(homeLatitude, homeLongitude, waypoints.first())
+        val lastDistance = distanceMeters(homeLatitude, homeLongitude, waypoints.last())
+        val shouldReverse = if (startClosestToHome) {
+            lastDistance < firstDistance
+        } else {
+            lastDistance > firstDistance
+        }
+        return if (shouldReverse) {
+            OrderedAreaPath(waypoints.reversed(), waypointAltitudes?.reversed())
+        } else {
+            OrderedAreaPath(waypoints, waypointAltitudes)
+        }
+    }
+
+    private fun distanceMeters(homeLatitude: Double, homeLongitude: Double, point: LatLng): Double {
+        val earthRadiusMeters = 6_371_000.0
+        val lat1 = Math.toRadians(homeLatitude)
+        val lat2 = Math.toRadians(point.latitude)
+        val deltaLat = lat2 - lat1
+        val deltaLon = Math.toRadians(point.longitude - homeLongitude)
+        val a = sin(deltaLat / 2) * sin(deltaLat / 2) +
+            cos(lat1) * cos(lat2) * sin(deltaLon / 2) * sin(deltaLon / 2)
+        val normalizedA = a.coerceIn(0.0, 1.0)
+        return earthRadiusMeters * 2 * atan2(sqrt(normalizedA), sqrt(1 - normalizedA))
+    }
 
     fun missionWaypointFrameFor(mode: AltitudeReferenceMode): MavFrame {
         return when (mode) {

@@ -40,10 +40,17 @@ class MissionParamsActionHandler(
         val angle = activityViewModel.angleProgress.value
         val operationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
         val altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value ?: AltitudeReferenceMode.RELATIVE
+        val srtmShouldBeEnabled = operationMode == PlanningOperationMode.SURVEY
 
         when {
             !connected -> {
                 showMessage(context.getString(R.string.no_conn_msg))
+                return
+            }
+
+            !droneViewModel.isSrtmSettingConfirmed(srtmShouldBeEnabled) -> {
+                droneViewModel.setSrtmEnabled(srtmShouldBeEnabled)
+                showMessage(context.getString(R.string.terrain_source_not_confirmed))
                 return
             }
 
@@ -87,6 +94,19 @@ class MissionParamsActionHandler(
         } else {
             val validatedPath = path ?: return
             if (operationMode == PlanningOperationMode.SPRAY) {
+                val pointCloudAltitudes = activityViewModel.terrainSurveyWaypoints.value.orEmpty()
+                    .takeIf {
+                        activityViewModel.pointCloudCoversMissionArea.value == true &&
+                            it.size == validatedPath.size
+                    }
+                    ?.map { it.missionAltitudeMeters.toFloat() }
+                val sprayAltitudeReferenceMode = if (pointCloudAltitudes != null) {
+                    AltitudeReferenceMode.RELATIVE
+                } else {
+                    AltitudeReferenceMode.TERRAIN
+                }
+                usedTerrainAltitudes = pointCloudAltitudes != null
+                uploadAltitudeReferenceMode = sprayAltitudeReferenceMode
                 MissionBuilder.buildSprayAreaMission(
                     waypoints = ArrayList(validatedPath),
                     currentPos = validatedDroneLoc,
@@ -96,19 +116,12 @@ class MissionParamsActionHandler(
                     angleProgress = validatedAngle.toFloat(),
                     targetSystemId = droneViewModel.getTargetSystemId(),
                     targetComponentId = droneViewModel.getTargetComponentId(),
-                    altitudeReferenceMode = altitudeReferenceMode
+                    altitudeReferenceMode = sprayAltitudeReferenceMode,
+                    waypointAltitudes = pointCloudAltitudes
                 )
             } else {
-                val terrainAltitudes = activityViewModel.terrainSurveyWaypoints.value.orEmpty()
-                    .takeIf { it.size == validatedPath.size }
-                    ?.map { it.missionAltitudeMeters.toFloat() }
-                val surveyAltitudeReferenceMode = if (terrainAltitudes != null) {
-                    AltitudeReferenceMode.RELATIVE
-                } else {
-                    altitudeReferenceMode
-                }
-                usedTerrainAltitudes = terrainAltitudes != null
-                uploadAltitudeReferenceMode = surveyAltitudeReferenceMode
+                usedTerrainAltitudes = false
+                uploadAltitudeReferenceMode = altitudeReferenceMode
                 MissionBuilder.buildSurveyAreaMission(
                     waypoints = ArrayList(validatedPath),
                     currentPos = validatedDroneLoc,
@@ -117,8 +130,8 @@ class MissionParamsActionHandler(
                     angleProgress = (activityViewModel.surveyGridAngle.value ?: validatedAngle).toFloat(),
                     targetSystemId = droneViewModel.getTargetSystemId(),
                     targetComponentId = droneViewModel.getTargetComponentId(),
-                    altitudeReferenceMode = surveyAltitudeReferenceMode,
-                    waypointAltitudes = terrainAltitudes
+                    altitudeReferenceMode = altitudeReferenceMode,
+                    waypointAltitudes = null
                 )
             }
         }

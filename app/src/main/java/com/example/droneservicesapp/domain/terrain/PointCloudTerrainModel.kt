@@ -8,6 +8,7 @@ import kotlinx.coroutines.ensureActive
 import kotlin.math.ceil
 import kotlin.math.cos
 import kotlin.math.floor
+import kotlin.math.hypot
 import kotlin.math.max
 import kotlin.math.sin
 import kotlin.coroutines.coroutineContext
@@ -135,6 +136,64 @@ class PointCloudTerrainModel(
         return waypoints
     }
 
+    suspend fun hasPointsInside(polygon: List<LatLon>): Boolean {
+        val frame = coordinateFrame ?: return false
+        if (polygon.size < 3 || pointCloud.displayedPointCount == 0) return false
+        val localPolygon = polygon.map { vertex ->
+            val (x, y) = frame.latLonToLocal(vertex.lat, vertex.lon)
+            LocalPoint(x, y)
+        }
+        return hasPointInside(localPolygon)
+    }
+
+    /** Samples an already obstacle-aware route against the point cloud at a fixed segment length. */
+    suspend fun buildTerrainPath(
+        path: List<LatLon>,
+        heightAboveTerrainMeters: Double,
+        segmentMeters: Double,
+        canopySmoothingMeters: Double,
+        homeTerrainZ: Double = 0.0
+    ): List<TerrainWaypoint> {
+        val frame = coordinateFrame ?: return emptyList()
+        if (path.size < 2) return emptyList()
+        val localPath = path.map { point ->
+            val (x, y) = frame.latLonToLocal(point.lat, point.lon)
+            LocalPoint(x, y)
+        }
+        val spacing = segmentMeters.coerceAtLeast(MIN_SEGMENT_METERS)
+        val sampled = ArrayList<LocalPoint>()
+        localPath.zipWithNext().forEach { (from, to) ->
+            coroutineContext.ensureActive()
+            val segmentCount = ceil(hypot(to.x - from.x, to.y - from.y) / spacing)
+                .toInt()
+                .coerceAtLeast(1)
+            for (segmentIndex in 0 until segmentCount) {
+                val t = segmentIndex.toDouble() / segmentCount
+                sampled += LocalPoint(
+                    x = from.x + (to.x - from.x) * t,
+                    y = from.y + (to.y - from.y) * t
+                )
+            }
+        }
+        sampled += localPath.last()
+
+        return sampled.mapIndexed { index, point ->
+            if (index % CANCELLATION_CHECK_INTERVAL == 0) coroutineContext.ensureActive()
+            val terrainZ = terrainHeightAt(
+                xMeters = point.x,
+                yMeters = point.y,
+                canopyRadiusMeters = canopySmoothingMeters.coerceAtLeast(0.0),
+                fallback = fallbackTerrainZ
+            )
+            val (lat, lon) = frame.localToLatLon(point.x, point.y)
+            TerrainWaypoint(
+                latLon = LatLon(lat, lon),
+                displayAltitudeMeters = terrainZ + heightAboveTerrainMeters,
+                missionAltitudeMeters = terrainZ - homeTerrainZ + heightAboveTerrainMeters
+            )
+        }
+    }
+
     fun terrainHeightAt(
         xMeters: Double,
         yMeters: Double,
@@ -202,6 +261,27 @@ class PointCloudTerrainModel(
             index += VALUES_PER_POINT
         }
         return clipped
+    }
+
+    private suspend fun hasPointInside(localPolygon: List<LocalPoint>): Boolean {
+        val positions = pointCloud.positions
+        val minX = localPolygon.minOf { it.x }
+        val maxX = localPolygon.maxOf { it.x }
+        val minY = localPolygon.minOf { it.y }
+        val maxY = localPolygon.maxOf { it.y }
+        var index = 0
+        while (index + 2 < positions.size) {
+            if (index % (VALUES_PER_POINT * CANCELLATION_CHECK_INTERVAL) == 0) {
+                coroutineContext.ensureActive()
+            }
+            val x = positions[index].toDouble()
+            val y = positions[index + 1].toDouble()
+            if (x in minX..maxX && y in minY..maxY && pointInPolygon(LocalPoint(x, y), localPolygon)) {
+                return true
+            }
+            index += VALUES_PER_POINT
+        }
+        return false
     }
 
     private fun medianZ(positions: FloatArray): Double {

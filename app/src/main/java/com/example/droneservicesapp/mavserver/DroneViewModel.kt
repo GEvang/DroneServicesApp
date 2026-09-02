@@ -175,6 +175,7 @@ class DroneViewModel : ViewModel() {
     val rtkGpsDebugStatus: MutableLiveData<String> = stateStore.rtkGpsDebugStatus
     val waypointRangefinderParameter = parameterController.state(DroneParameterController.WP_RFND_USE)
     val surfaceTrackingParameter = parameterController.state(DroneParameterController.SURFTRAK_MODE)
+    val avoidanceParameter = parameterController.state(DroneParameterController.AVOID_ENABLE)
     val parameterFeedback = parameterController.feedback
 
     init {
@@ -193,9 +194,30 @@ class DroneViewModel : ViewModel() {
         parameterController.setValue(DroneParameterController.WP_RFND_USE, if (enabled) 1 else 0)
     }
 
+    fun setSrtmEnabled(enabled: Boolean) {
+        parameterController.setDesiredValue(DroneParameterController.WP_RFND_USE, if (enabled) 0 else 1)
+    }
+
+    fun isSrtmSettingConfirmed(enabled: Boolean): Boolean {
+        val state = waypointRangefinderParameter.value ?: return false
+        val expectedRangefinderValue = if (enabled) 0 else 1
+        return state.availability == VehicleParameterAvailability.SUPPORTED &&
+            !state.isWriting && state.value == expectedRangefinderValue
+    }
+
+    fun setAvoidanceEnabled(enabled: Boolean) {
+        // AVOID_ENABLE is a bitmask. Restore the vehicle's previous non-zero selection,
+        // or enable all three supported sources when it has not supplied one yet.
+        parameterController.setEnabledBitmask(DroneParameterController.AVOID_ENABLE, enabled, defaultOnValue = 7)
+    }
+
     fun setSurfaceTrackingMode(mode: Int) {
         require(mode in 0..2) { "Surface tracking mode must be 0, 1, or 2." }
         parameterController.setValue(DroneParameterController.SURFTRAK_MODE, mode)
+    }
+
+    fun setSurfaceTrackingEnabled(enabled: Boolean) {
+        parameterController.setValue(DroneParameterController.SURFTRAK_MODE, if (enabled) 1 else 0)
     }
 
     fun sendDebugSprayerServoPwm(pwm: Int): Boolean {

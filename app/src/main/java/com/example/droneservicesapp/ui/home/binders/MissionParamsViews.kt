@@ -15,6 +15,16 @@ class MissionParamsViews(
     val panelRoot: View = rootView.findViewById(R.id.mission_params_side_view)
     val sprayModeSection: View = panelRoot.findViewById(R.id.spray_mode_section)
     val surveyModeSection: View = panelRoot.findViewById(R.id.survey_mode_section)
+    val altitudeReferenceSection: View = panelRoot.findViewById(R.id.altitude_reference_section)
+    val sprayAltitudeModeStatus: TextView = panelRoot.findViewById(R.id.spray_altitude_mode_status)
+    val surveyGridSectionLabel: View = panelRoot.findViewById(R.id.survey_grid_section_label)
+    val surveyGridSectionDivider: View = panelRoot.findViewById(R.id.survey_grid_section_divider)
+    val surveyStripSpacingField: View = panelRoot.findViewById(R.id.survey_strip_spacing_field)
+    val surveyHeightField: View = panelRoot.findViewById(R.id.survey_height_field)
+    val surveyOverlapField: View = panelRoot.findViewById(R.id.survey_overlap_field)
+    val surveyGridAngleField: View = panelRoot.findViewById(R.id.survey_grid_angle_field)
+    val surveyTerrainSegmentField: View = panelRoot.findViewById(R.id.survey_terrain_segment_field)
+    val surveyCanopySmoothingField: View = panelRoot.findViewById(R.id.survey_canopy_smoothing_field)
 
     val altitudeReferenceRelativeButton: TextView =
         panelRoot.findViewById(R.id.altitude_reference_relative_button)
@@ -87,6 +97,7 @@ class MissionParamsViews(
 
     val flightSpeedValue: TextView = rootView.findViewById(R.id.flight_speed)
     val flightTimeValue: TextView = rootView.findViewById(R.id.flight_time)
+    val flightTimeUnit: TextView = rootView.findViewById(R.id.flight_time_unit)
     val speedMinusButton: ImageButton = rootView.findViewById(R.id.minus_button)
     val speedPlusButton: ImageButton = rootView.findViewById(R.id.plus_button)
     val flightTimeLabel: TextView = rootView.findViewById(R.id.flight_time_label)

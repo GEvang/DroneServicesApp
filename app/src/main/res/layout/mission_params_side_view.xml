@@ -29,12 +29,11 @@
     </LinearLayout>
 
     <LinearLayout
-        android:id="@+id/spray_mode_section"
+        android:id="@+id/altitude_reference_section"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/ds_space_md"
-        android:orientation="vertical"
-        android:visibility="gone">
+        android:orientation="vertical">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -77,6 +76,24 @@
             android:text="@string/terrain_altitude_warning"
             android:textColor="@color/ds_color_shell_warning"
             android:visibility="gone" />
+    </LinearLayout>
+
+    <LinearLayout
+        android:id="@+id/spray_mode_section"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_md"
+        android:orientation="vertical"
+        android:visibility="gone">
+
+        <TextView
+            android:id="@+id/spray_altitude_mode_status"
+            style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/spray_mode_terrain_rangefinder"
+            android:textColor="@color/ds_color_shell_active"
+            android:textStyle="bold" />
 
         <TextView
             android:id="@+id/spray_preset_selector"
@@ -398,12 +415,14 @@
             android:textColor="@color/ds_color_shell_active" />
 
         <View
+            android:id="@+id/survey_grid_section_divider"
             android:layout_width="match_parent"
             android:layout_height="1dp"
             android:layout_marginTop="@dimen/ds_space_xs"
             android:background="@color/ds_color_shell_stroke" />
 
         <LinearLayout
+            android:id="@+id/survey_strip_spacing_field"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/ds_space_sm"
@@ -483,6 +502,7 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/survey_height_field"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/ds_space_sm"
@@ -562,6 +582,7 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/survey_overlap_field"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/ds_space_sm"
@@ -640,6 +661,7 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/survey_grid_angle_field"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/ds_space_sm"
@@ -718,6 +740,7 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/survey_terrain_segment_field"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/ds_space_sm"
@@ -796,6 +819,7 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/survey_canopy_smoothing_field"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/ds_space_sm"
@@ -880,7 +904,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/ds_space_md"
-        android:text="@string/flight_time"
+        android:text="@string/flight_speed_label"
         android:visibility="gone" />
 
     <LinearLayout
@@ -937,13 +961,16 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="@dimen/ds_space_sm"
-            android:text="@string/unknown_value" />
+            android:text="@string/unknown_value"
+            android:visibility="gone" />
 
         <TextView
+            android:id="@+id/flight_time_unit"
             style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginStart="3dp"
-            android:text="@string/mins" />
+            android:text="@string/mins"
+            android:visibility="gone" />
     </LinearLayout>
 </androidx.appcompat.widget.LinearLayoutCompat>

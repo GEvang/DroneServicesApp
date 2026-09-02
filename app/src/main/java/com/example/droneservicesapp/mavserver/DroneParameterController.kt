@@ -63,6 +63,7 @@ internal class DroneParameterController(
     companion object {
         const val WP_RFND_USE = "WP_RFND_USE"
         const val SURFTRAK_MODE = "SURFTRAK_MODE"
+        const val AVOID_ENABLE = "AVOID_ENABLE"
 
         private const val TAG = "DroneParameters"
         private const val GCS_SYSTEM_ID = 255
@@ -72,7 +73,7 @@ internal class DroneParameterController(
         private const val WRITE_READBACK_MS = 1_000L
         private const val WRITE_TIMEOUT_MS = 3_500L
         private const val VALUE_TOLERANCE = 0.01f
-        private val SUPPORTED_PARAMETERS = setOf(WP_RFND_USE, SURFTRAK_MODE)
+        private val SUPPORTED_PARAMETERS = setOf(WP_RFND_USE, SURFTRAK_MODE, AVOID_ENABLE)
     }
 
     private val mutableStates = SUPPORTED_PARAMETERS.associateWith {
@@ -82,6 +83,9 @@ internal class DroneParameterController(
     private val readGenerations = mutableMapOf<String, Int>()
     private val writeGenerations = mutableMapOf<String, Int>()
     private val pendingWrites = mutableMapOf<String, Int>()
+    private val pendingWriteFeedback = mutableMapOf<String, Boolean>()
+    private val desiredValues = mutableMapOf<String, Int>()
+    private val lastNonZeroValues = mutableMapOf<String, Int>()
     @Volatile
     private var disconnected = true
 
@@ -97,16 +101,37 @@ internal class DroneParameterController(
     }
 
     fun setValue(parameterName: String, value: Int) {
+        setValue(parameterName, value, showFeedback = true)
+    }
+
+    fun setEnabledBitmask(parameterName: String, enabled: Boolean, defaultOnValue: Int) {
+        val enabledValue = lastNonZeroValues[parameterName]?.takeIf { it != 0 } ?: defaultOnValue
+        setValue(parameterName, if (enabled) enabledValue else 0, showFeedback = true)
+    }
+
+    fun setDesiredValue(parameterName: String, value: Int) {
+        if (parameterName !in SUPPORTED_PARAMETERS) return
+        desiredValues[parameterName] = value
+        val current = mutableStates[parameterName]?.value
+        when {
+            current?.availability == VehicleParameterAvailability.SUPPORTED &&
+                current.value != value && !current.isWriting -> setValue(parameterName, value, showFeedback = false)
+            current?.availability != VehicleParameterAvailability.LOADING -> startRead(parameterName)
+        }
+    }
+
+    private fun setValue(parameterName: String, value: Int, showFeedback: Boolean) {
         val stateLiveData = mutableStates[parameterName] ?: return
         val current = stateLiveData.value ?: VehicleParameterUiState()
         if (!isReady() || current.availability != VehicleParameterAvailability.SUPPORTED || current.isWriting) {
-            publishFailure(parameterName, current)
+            if (showFeedback) publishFailure(parameterName, current)
             return
         }
 
         val generation = (writeGenerations[parameterName] ?: 0) + 1
         writeGenerations[parameterName] = generation
         pendingWrites[parameterName] = value
+        pendingWriteFeedback[parameterName] = showFeedback
         stateLiveData.value = current.copy(isWriting = true, result = null)
 
         val parameterType = parameterTypes[parameterName]
@@ -130,9 +155,12 @@ internal class DroneParameterController(
         }, WRITE_READBACK_MS)
         handler.postDelayed({
             if (writeGenerations[parameterName] == generation && pendingWrites.remove(parameterName) != null) {
+                val shouldNotify = pendingWriteFeedback.remove(parameterName) == true
                 val latest = stateLiveData.value ?: current
                 stateLiveData.value = latest.copy(isWriting = false, result = VehicleParameterResult.ERROR)
-                mutableFeedback.value = OneShotEvent(VehicleParameterFeedback(parameterName, false))
+                if (shouldNotify) {
+                    mutableFeedback.value = OneShotEvent(VehicleParameterFeedback(parameterName, false))
+                }
                 Log.w(TAG, "PARAM_SET confirmation timed out name=$parameterName requested=$value")
             }
         }, WRITE_TIMEOUT_MS)
@@ -149,10 +177,12 @@ internal class DroneParameterController(
 
         val receivedValue = payload.paramValue()
         val roundedValue = receivedValue.toInt()
+        if (roundedValue != 0) lastNonZeroValues[parameterName] = roundedValue
         val requestedValue = pendingWrites[parameterName]
         if (requestedValue != null) {
             writeGenerations[parameterName] = (writeGenerations[parameterName] ?: 0) + 1
             pendingWrites.remove(parameterName)
+            val shouldNotify = pendingWriteFeedback.remove(parameterName) == true
             val confirmed = abs(receivedValue - requestedValue.toFloat()) <= VALUE_TOLERANCE
             stateLiveData.value = VehicleParameterUiState(
                 availability = VehicleParameterAvailability.SUPPORTED,
@@ -160,7 +190,9 @@ internal class DroneParameterController(
                 isWriting = false,
                 result = if (confirmed) VehicleParameterResult.SUCCESS else VehicleParameterResult.ERROR
             )
-            mutableFeedback.value = OneShotEvent(VehicleParameterFeedback(parameterName, confirmed))
+            if (shouldNotify) {
+                mutableFeedback.value = OneShotEvent(VehicleParameterFeedback(parameterName, confirmed))
+            }
             Log.i(TAG, "PARAM_SET confirmation name=$parameterName requested=$requestedValue received=$receivedValue confirmed=$confirmed")
             return
         }
@@ -170,6 +202,9 @@ internal class DroneParameterController(
             value = roundedValue
         )
         Log.i(TAG, "PARAM_VALUE read name=$parameterName value=$receivedValue")
+        desiredValues[parameterName]?.takeIf { it != roundedValue }?.let { desiredValue ->
+            setValue(parameterName, desiredValue, showFeedback = false)
+        }
     }
 
     fun onDisconnected() {
@@ -180,9 +215,11 @@ internal class DroneParameterController(
                 readGenerations[parameterName] = (readGenerations[parameterName] ?: 0) + 1
                 writeGenerations[parameterName] = (writeGenerations[parameterName] ?: 0) + 1
                 pendingWrites.remove(parameterName)
+                pendingWriteFeedback.remove(parameterName)
                 mutableStates[parameterName]?.value = VehicleParameterUiState()
             }
             parameterTypes.clear()
+            lastNonZeroValues.clear()
         }
     }
 

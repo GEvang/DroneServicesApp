@@ -4,6 +4,7 @@ import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.RouteWaypoint
 import io.dronefleet.mavlink.common.MavCmd
 import io.dronefleet.mavlink.common.MavFrame
+import com.google.android.gms.maps.model.LatLng
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -43,6 +44,37 @@ class MissionBuilderTest {
     fun clampsSprayerIntensityBeforeMappingServo5Pwm() {
         assertEquals(1000.0f, MissionBuilder.servo5PwmForSprayerIntensity(-10), 0.001f)
         assertEquals(2200.0f, MissionBuilder.servo5PwmForSprayerIntensity(120), 0.001f)
+    }
+
+    @Test
+    fun sprayPathStartsAtEndpointClosestToHomeAndKeepsAltitudeAlignment() {
+        val path = listOf(LatLng(35.02, 24.0), LatLng(35.01, 24.0))
+
+        val ordered = MissionBuilder.orderAreaPath(
+            waypoints = path,
+            waypointAltitudes = listOf(20f, 10f),
+            homeLatitude = 35.0,
+            homeLongitude = 24.0,
+            startClosestToHome = true
+        )
+
+        assertEquals(35.01, ordered.waypoints.first().latitude, 0.000001)
+        assertEquals(10f, ordered.altitudes!!.first(), 0.001f)
+    }
+
+    @Test
+    fun surveyPathStartsAtEndpointFarthestFromHome() {
+        val path = listOf(LatLng(35.01, 24.0), LatLng(35.02, 24.0))
+
+        val ordered = MissionBuilder.orderAreaPath(
+            waypoints = path,
+            waypointAltitudes = null,
+            homeLatitude = 35.0,
+            homeLongitude = 24.0,
+            startClosestToHome = false
+        )
+
+        assertEquals(35.02, ordered.waypoints.first().latitude, 0.000001)
     }
 
     @Test
