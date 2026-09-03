@@ -200,6 +200,7 @@ class MissionMapFragment : Fragment() {
     private var homeOrthoOverlay: OrthoImageOverlay? = null
     private var selectedSurveyWaypointIndex: Int? = null
     private var previewHeightColorModeEnabled: Boolean = false
+    private var homePlacementMode: Boolean = false
 
     private enum class PreviewMode {
         MAP,
@@ -440,6 +441,11 @@ class MissionMapFragment : Fragment() {
                 }
             }
 
+        requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_add_home_button)
+            ?.setOnClickListener {
+                startPlannedHomePlacement()
+            }
+
         requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_close_button)
             ?.setOnClickListener {
                 mapViewModel.dismissSidePanels()
@@ -542,6 +548,8 @@ class MissionMapFragment : Fragment() {
         requireView().findViewById<TextView?>(R.id.right_panel_undo_route_button)?.setOnClickListener {
             activityViewModel.undoLastRouteWaypoint()
         }
+
+        renderAddHomeButton()
 
         binding.surveyWaypointDeleteButton.setOnClickListener {
             val selectedIndex = selectedSurveyWaypointIndex ?: return@setOnClickListener
@@ -932,7 +940,8 @@ class MissionMapFragment : Fragment() {
     private fun updateRouteEditorEnabled() {
         if (!::osmdroidRouteWaypointEditor.isInitialized) return
         osmdroidRouteWaypointEditor.setEnabled(
-            activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS
+            activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS &&
+                !homePlacementMode
         )
     }
 
@@ -1066,6 +1075,7 @@ class MissionMapFragment : Fragment() {
 
         droneViewModel.conStateLiveData.observe(viewLifecycleOwner) {
             syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
+            renderAddHomeButton()
             updateLiveGeoAwarenessFromActiveSource()
         }
 
@@ -1428,7 +1438,8 @@ class MissionMapFragment : Fragment() {
         osmdroidPolygonEditor.setEnabled(
             state.interactionState.isDrawingEnabled &&
                 activityViewModel.activePlanningWorkflow.value != PlanningWorkflow.POINTS &&
-                !obstaclePlacementMode
+                !obstaclePlacementMode &&
+                !homePlacementMode
         )
         updateRouteEditorEnabled()
         homeMapChromeBinder.renderShell(state.shellState)
@@ -1437,8 +1448,21 @@ class MissionMapFragment : Fragment() {
         homeMapPanelsBinder.renderShell(state.shellState)
         homeMapPanelsBinder.renderOverlays(state.panelState)
         homeMapModeEffectsBinder.render(state.screenMode)
+        renderAddHomeButton()
         updatePreviewDockPlacement()
 
+    }
+
+    private fun renderAddHomeButton() {
+        val addHomeButton = view?.findViewById<View?>(R.id.right_panel_add_home_button) ?: return
+        if (droneViewModel.conStateLiveData.value == true) {
+            cancelPlannedHomePlacement()
+        }
+        addHomeButton.visibility = if (droneViewModel.conStateLiveData.value == true) {
+            View.GONE
+        } else {
+            View.VISIBLE
+        }
     }
 
     private fun updatePreviewDockPlacement() {
@@ -2682,6 +2706,53 @@ class MissionMapFragment : Fragment() {
         if (osmdroidMapController.setHomeMarker(position.lat, position.lon)) {
             homePosition = position
             Log.d(MAP_FLIGHT_TRACE_TAG, "home marker set lat=${position.lat} lon=${position.lon}")
+        }
+    }
+
+    private fun startPlannedHomePlacement() {
+        if (droneViewModel.conStateLiveData.value == true) {
+            Toast.makeText(
+                requireContext(),
+                getString(R.string.planned_home_requires_disconnected),
+                Toast.LENGTH_SHORT
+            ).show()
+            renderAddHomeButton()
+            return
+        }
+
+        homePlacementMode = true
+        cancelDroneOffsetAdjustment()
+        cancelObstaclePlacement()
+        osmdroidPolygonEditor.setEnabled(false)
+        osmdroidRouteWaypointEditor.setEnabled(false)
+        osmdroidMapController.setSurveyWaypointEditingEnabled(false)
+        osmdroidMapController.setHomePlacementEnabled(true) { selectedPoint ->
+            placePlannedHome(LatLon(lat = selectedPoint.latitude, lon = selectedPoint.longitude))
+        }
+        Toast.makeText(requireContext(), getString(R.string.tap_map_to_place_home), Toast.LENGTH_SHORT).show()
+    }
+
+    private fun placePlannedHome(plannedHomePosition: LatLon) {
+        homePlacementMode = false
+        osmdroidMapController.setHomePlacementEnabled(false)
+        if (!isValidDronePosition(plannedHomePosition)) return
+
+        if (osmdroidMapController.setOrMoveHomeMarker(plannedHomePosition.lat, plannedHomePosition.lon)) {
+            homePosition = plannedHomePosition
+            Toast.makeText(requireContext(), getString(R.string.planned_home_set), Toast.LENGTH_SHORT).show()
+            Log.d(
+                MAP_FLIGHT_TRACE_TAG,
+                "planned home marker set lat=${plannedHomePosition.lat} lon=${plannedHomePosition.lon}"
+            )
+        }
+        mapViewModel.homeMapUiState.value?.let(::renderHomeMapUiState)
+    }
+
+    private fun cancelPlannedHomePlacement() {
+        if (!homePlacementMode) return
+        homePlacementMode = false
+        if (::osmdroidMapController.isInitialized) {
+            osmdroidMapController.setHomePlacementEnabled(false)
         }
     }
 

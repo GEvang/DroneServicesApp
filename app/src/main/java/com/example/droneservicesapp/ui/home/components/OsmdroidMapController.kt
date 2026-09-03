@@ -69,6 +69,9 @@ class OsmdroidMapController(
     private var waypointEventsOverlay: MapEventsOverlay? = null
     private var onSurveyWaypointSelected: ((index: Int?) -> Unit)? = null
     private var onSurveyWaypointMoved: ((index: Int, point: LatLng) -> Unit)? = null
+    private var homePlacementEventsOverlay: MapEventsOverlay? = null
+    private var homePlacementEnabled = false
+    private var onHomePlacementSelected: ((point: LatLng) -> Unit)? = null
     private var homeMarker: Marker? = null
     private var flightTracePolyline: Polyline? = null
     private val flightTracePoints = mutableListOf<GeoPoint>()
@@ -101,6 +104,18 @@ class OsmdroidMapController(
             override fun longPressHelper(p: GeoPoint): Boolean = false
         })
         mapView.overlays.add(waypointEventsOverlay)
+
+        homePlacementEventsOverlay = MapEventsOverlay(object : MapEventsReceiver {
+            override fun singleTapConfirmedHelper(p: GeoPoint): Boolean {
+                if (!homePlacementEnabled) return false
+                homePlacementEnabled = false
+                onHomePlacementSelected?.invoke(LatLng(p.latitude, p.longitude))
+                return true
+            }
+
+            override fun longPressHelper(p: GeoPoint): Boolean = false
+        })
+        mapView.overlays.add(homePlacementEventsOverlay)
 
         requestMapRedraw()
     }
@@ -287,6 +302,11 @@ class OsmdroidMapController(
 
     fun hasDronePosition(): Boolean = droneMarker?.isEnabled == true
 
+    fun setHomePlacementEnabled(isEnabled: Boolean, onSelected: ((point: LatLng) -> Unit)? = null) {
+        homePlacementEnabled = isEnabled
+        onHomePlacementSelected = onSelected
+    }
+
     fun setHomeMarker(latitude: Double, longitude: Double): Boolean {
         if (homeMarker != null || !isValidMapPoint(latitude, longitude)) {
             return false
@@ -302,6 +322,21 @@ class OsmdroidMapController(
         addOverlayBelowDrone(homeMarker!!)
         requestMapRedraw()
         return true
+    }
+
+    fun setOrMoveHomeMarker(latitude: Double, longitude: Double): Boolean {
+        if (!isValidMapPoint(latitude, longitude)) {
+            return false
+        }
+
+        val existingMarker = homeMarker
+        if (existingMarker != null) {
+            existingMarker.position = GeoPoint(latitude, longitude)
+            requestMapRedraw()
+            return true
+        }
+
+        return setHomeMarker(latitude, longitude)
     }
 
     fun appendFlightTracePoint(latitude: Double, longitude: Double) {

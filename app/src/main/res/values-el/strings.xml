@@ -66,6 +66,10 @@
   <string name="home_offline_download">Λήψη της τρέχουσας περιοχής χάρτη για χρήση εκτός σύνδεσης</string>
   <string name="my_location_button_desc">Κουμπί προσωπικής τοποθεσίας</string>
   <string name="drone_location_button">Κουμπί τοποθεσίας drone</string>
+  <string name="add_home">Προσθήκη Home</string>
+  <string name="planned_home_set">Η τοποθεσία Home ορίστηκε</string>
+  <string name="planned_home_requires_disconnected">Η Προσθήκη Home είναι διαθέσιμη μόνο όταν το drone δεν είναι συνδεδεμένο</string>
+  <string name="tap_map_to_place_home">Πατήστε στον χάρτη για να ορίσετε την τοποθεσία Home</string>
   <string name="survey">Αποστολή</string>
   <string name="accept">Αποδοχή</string>
   <string name="erase">Καθαρισμός</string>

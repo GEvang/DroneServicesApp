@@ -196,6 +196,20 @@
         app:iconTint="@color/ds_color_text_primary" />
 
     <com.google.android.material.button.MaterialButton
+        android:id="@+id/right_panel_add_home_button"
+        style="@style/Widget.DroneServices.Button.MapDark"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/phone_map_panel_button_height_tall"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:text="@string/add_home"
+        android:textSize="@dimen/phone_map_panel_label_text_size"
+        android:visibility="gone"
+        app:icon="@drawable/ic_home_takeoff_marker"
+        app:iconGravity="textStart"
+        app:iconPadding="@dimen/ds_space_sm"
+        app:iconTint="@color/ds_color_text_primary" />
+
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/uploadMission"
         style="@style/Widget.DroneServices.Button.MapEmphasis"
         android:layout_width="match_parent"

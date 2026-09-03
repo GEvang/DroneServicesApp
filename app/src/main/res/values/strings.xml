@@ -242,6 +242,10 @@
 
     <string name="my_location_button_desc">My Location Button</string>
     <string name="drone_location_button">Drone Location Button</string>
+    <string name="add_home">Add Home</string>
+    <string name="planned_home_set">Home location set</string>
+    <string name="planned_home_requires_disconnected">Add Home is available only when the drone is disconnected</string>
+    <string name="tap_map_to_place_home">Tap the map to place the home location</string>
     <string name="survey">Survey</string>
     <string name="accept">Accept</string>
     <string name="erase">Erase</string>
