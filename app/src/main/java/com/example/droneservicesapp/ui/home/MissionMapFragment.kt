@@ -914,9 +914,7 @@ class MissionMapFragment : Fragment() {
             missionPath.size % 2 == 0 -> missionPath.size / 2
             else -> missionPath.size - 1
         }.coerceAtLeast(0)
-        val totalDistanceMeters = missionPath.zipWithNext().sumOf { (from, to) ->
-            SphericalUtil.computeDistanceBetween(from, to)
-        }
+        val totalDistanceMeters = missionPathTotalDistance(missionPath)
         val speedMetersPerSecond = (activityViewModel.flightSpeed.value ?: 5.0).coerceAtLeast(0.1)
         val estimatedSeconds = (totalDistanceMeters / speedMetersPerSecond).toInt().coerceAtLeast(0)
         val altitudeMeters = activityViewModel.flightAltProgress.value ?: 0.0
@@ -1042,13 +1040,26 @@ class MissionMapFragment : Fragment() {
             activityViewModel.flightDistance.postValue(0)
             return
         }
-        val distance = waypoints.zipWithNext().sumOf { (from, to) ->
-            SphericalUtil.computeDistanceBetween(
-                LatLng(from.latitude, from.longitude),
-                LatLng(to.latitude, to.longitude)
-            )
-        }
+        val distance = missionPathTotalDistance(
+            waypoints.map { LatLng(it.latitude, it.longitude) }
+        )
         activityViewModel.flightDistance.postValue(distance.toInt())
+    }
+
+    private fun updateCurrentFlightDistance() {
+        when (activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA) {
+            PlanningWorkflow.AREA -> updateFlightDistance(activityViewModel.surveyPath.value.orEmpty())
+            PlanningWorkflow.POINTS -> updateRouteDistance(activityViewModel.routeWaypoints.value.orEmpty())
+        }
+    }
+
+    private fun renderPlannedHomePosition(position: LatLon?) {
+        homePosition = position
+        if (position == null) {
+            osmdroidMapController.clearHomeMarker()
+            return
+        }
+        osmdroidMapController.setOrMoveHomeMarker(position.lat, position.lon)
     }
 
     private fun observeDroneViewModel() {
@@ -1116,6 +1127,12 @@ class MissionMapFragment : Fragment() {
             updateGeoAwarenessPlanningStatus()
             updateMissionSummaryCard()
             updatePointCloudMissionOverlay()
+        }
+
+        activityViewModel.plannedHomePosition.observe(viewLifecycleOwner) { position ->
+            renderPlannedHomePosition(position)
+            updateCurrentFlightDistance()
+            updateMissionSummaryCard()
         }
 
         activityViewModel.missionObstacles.observe(viewLifecycleOwner) { obstacles ->
@@ -1353,6 +1370,7 @@ class MissionMapFragment : Fragment() {
             when (action) {
                 is MainActivityViewModel.MapAction.ClearAll -> {
                     cancelObstaclePlacement()
+                    activityViewModel.clearPlannedHomePosition()
                     activityViewModel.clearPolygonVertices()
                     activityViewModel.clearMissionObstacles()
                     activityViewModel.surveyPath.postValue(emptyList())
@@ -1385,6 +1403,7 @@ class MissionMapFragment : Fragment() {
                 }
                 is MainActivityViewModel.MapAction.ResetToIdle -> {
                     cancelObstaclePlacement()
+                    activityViewModel.clearPlannedHomePosition()
                     activityViewModel.clearPolygonVertices()
                     activityViewModel.clearMissionObstacles()
                     activityViewModel.surveyPath.postValue(emptyList())
@@ -2395,10 +2414,23 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun updateFlightDistance(path: List<LatLng>) {
-        val surveyDistance = path.zipWithNext().sumOf { (from, to) ->
+        val surveyDistance = missionPathTotalDistance(path)
+        activityViewModel.flightDistance.postValue(surveyDistance.toInt())
+    }
+
+    private fun missionPathTotalDistance(path: List<LatLng>): Double {
+        val pathDistance = path.zipWithNext().sumOf { (from, to) ->
             SphericalUtil.computeDistanceBetween(from, to)
         }
-        activityViewModel.flightDistance.postValue(surveyDistance.toInt())
+        val homePosition = activityViewModel.plannedHomePosition.value
+            ?.takeIf(::isValidDronePosition)
+            ?: return pathDistance
+        val firstPoint = path.firstOrNull() ?: return pathDistance
+        val outboundDistance = SphericalUtil.computeDistanceBetween(
+            LatLng(homePosition.lat, homePosition.lon),
+            firstPoint
+        )
+        return outboundDistance + pathDistance
     }
 
     private fun showMissionUploadSummaryDialog(onConfirmed: () -> Unit) {
@@ -2414,9 +2446,7 @@ class MissionMapFragment : Fragment() {
             missionPath.size % 2 == 0 -> missionPath.size / 2
             else -> missionPath.size - 1
         }
-        val totalDistanceMeters = missionPath.zipWithNext().sumOf { (from, to) ->
-            SphericalUtil.computeDistanceBetween(from, to)
-        }
+        val totalDistanceMeters = missionPathTotalDistance(missionPath)
         val areaVertices = activityViewModel.missionArea.value?.vertices.orEmpty()
         val areaMeters = if (areaVertices.size >= 3) SphericalUtil.computeArea(areaVertices) else 0.0
         val altitudeMeters = activityViewModel.flightAltProgress.value ?: 0.0
@@ -2705,6 +2735,7 @@ class MissionMapFragment : Fragment() {
         if (!isValidDronePosition(position)) return
         if (osmdroidMapController.setHomeMarker(position.lat, position.lon)) {
             homePosition = position
+            activityViewModel.setPlannedHomePosition(position)
             Log.d(MAP_FLIGHT_TRACE_TAG, "home marker set lat=${position.lat} lon=${position.lon}")
         }
     }
@@ -2737,14 +2768,12 @@ class MissionMapFragment : Fragment() {
         osmdroidMapController.setHomePlacementEnabled(false)
         if (!isValidDronePosition(plannedHomePosition)) return
 
-        if (osmdroidMapController.setOrMoveHomeMarker(plannedHomePosition.lat, plannedHomePosition.lon)) {
-            homePosition = plannedHomePosition
-            Toast.makeText(requireContext(), getString(R.string.planned_home_set), Toast.LENGTH_SHORT).show()
-            Log.d(
-                MAP_FLIGHT_TRACE_TAG,
-                "planned home marker set lat=${plannedHomePosition.lat} lon=${plannedHomePosition.lon}"
-            )
-        }
+        activityViewModel.setPlannedHomePosition(plannedHomePosition)
+        Toast.makeText(requireContext(), getString(R.string.planned_home_set), Toast.LENGTH_SHORT).show()
+        Log.d(
+            MAP_FLIGHT_TRACE_TAG,
+            "planned home marker set lat=${plannedHomePosition.lat} lon=${plannedHomePosition.lon}"
+        )
         mapViewModel.homeMapUiState.value?.let(::renderHomeMapUiState)
     }
 

@@ -339,6 +339,12 @@ class OsmdroidMapController(
         return setHomeMarker(latitude, longitude)
     }
 
+    fun clearHomeMarker() {
+        homeMarker?.let { mapView.overlays.remove(it) }
+        homeMarker = null
+        requestMapRedraw()
+    }
+
     fun appendFlightTracePoint(latitude: Double, longitude: Double) {
         if (!isValidMapPoint(latitude, longitude)) {
             return

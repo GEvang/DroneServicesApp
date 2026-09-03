@@ -168,6 +168,10 @@ class MainActivityViewModel : ViewModel() {
         MutableLiveData(emptyList())
     }
 
+    val plannedHomePosition: MutableLiveData<LatLon?> by lazy {
+        MutableLiveData(null)
+    }
+
     val geoAwarenessLayerVisible: MutableLiveData<Boolean> by lazy {
         MutableLiveData(true)
     }
@@ -452,6 +456,14 @@ class MainActivityViewModel : ViewModel() {
 
     fun clearRouteWaypoints() {
         routeWaypoints.value = emptyList()
+    }
+
+    fun setPlannedHomePosition(position: LatLon?) {
+        plannedHomePosition.value = position
+    }
+
+    fun clearPlannedHomePosition() {
+        plannedHomePosition.value = null
     }
 
     private fun markPresetCustomIfNeeded(markCustom: Boolean) {

@@ -159,6 +159,7 @@ class MissionSaveController(
                 planningOperationMode = operationMode,
                 surveyGridParams = activityViewModel.surveyGridParams.value,
                 routeWaypoints = routeWaypoints,
+                plannedHomePosition = activityViewModel.plannedHomePosition.value,
                 fileName = trimmedFileName,
                 overwrite = overrideFile
             )

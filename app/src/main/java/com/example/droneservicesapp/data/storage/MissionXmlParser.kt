@@ -2,6 +2,7 @@ package com.example.droneservicesapp.data.storage
 
 import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.model.RouteWaypoint
@@ -38,6 +39,7 @@ class MissionXmlParser(
         var surveyGridAngle = -1
         var surveyTerrainSegment = -1.0
         var surveyCanopySmoothing = -1
+        var plannedHomePosition: LatLon? = null
         val latLngList = ArrayList<LatLng>()
         val routeWaypoints = ArrayList<RouteWaypoint>()
 
@@ -63,6 +65,17 @@ class MissionXmlParser(
                         "surveyGridAngle" -> surveyGridAngle = parser.nextText().toInt()
                         "surveyTerrainSegment" -> surveyTerrainSegment = parser.nextText().toDouble()
                         "surveyCanopySmoothing" -> surveyCanopySmoothing = parser.nextText().toInt()
+                        "HomePosition" -> {
+                            var latitude = -1000.0
+                            var longitude = -1000.0
+                            while (parser.next() != XmlPullParser.END_TAG) {
+                                when (parser.name) {
+                                    "Latitude" -> latitude = parser.nextText().toDouble()
+                                    "Longitude" -> longitude = parser.nextText().toDouble()
+                                }
+                            }
+                            plannedHomePosition = LatLon(lat = latitude, lon = longitude)
+                        }
 
                         "LatLngList" -> {
                             while (parser.next() != XmlPullParser.END_TAG) {
@@ -145,6 +158,7 @@ class MissionXmlParser(
         if (surveyCanopySmoothing >= 0) activityViewModel.updateSurveyCanopySmoothing(surveyCanopySmoothing)
         activityViewModel.setPlanningOperationMode(operationMode)
         activityViewModel.setPlanningWorkflow(missionType)
+        activityViewModel.setPlannedHomePosition(plannedHomePosition)
         activityViewModel.surveyGridParams.postValue(
             SurveyGridParams(
                 stripSpacingMeters = surveyStripSpacing.takeIf { it >= 0 }

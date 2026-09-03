@@ -5,6 +5,7 @@ import android.os.Environment
 import android.util.Log
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.model.RouteWaypoint
@@ -91,6 +92,7 @@ class MissionFileStore(
         planningOperationMode: PlanningOperationMode = PlanningOperationMode.SURVEY,
         surveyGridParams: SurveyGridParams? = null,
         routeWaypoints: List<RouteWaypoint> = emptyList(),
+        plannedHomePosition: LatLon? = null,
         fileName: String,
         overwrite: Boolean
     ): Boolean {
@@ -187,6 +189,20 @@ class MissionFileStore(
                 val canopySmoothing = doc.createElement("surveyCanopySmoothing")
                 canopySmoothing.textContent = survey.canopySmoothingMeters.toString()
                 root.appendChild(canopySmoothing)
+            }
+
+            plannedHomePosition?.let { home ->
+                val homePosition = doc.createElement("HomePosition")
+
+                val latitudeElement = doc.createElement("Latitude")
+                latitudeElement.textContent = home.lat.toString()
+                homePosition.appendChild(latitudeElement)
+
+                val longitudeElement = doc.createElement("Longitude")
+                longitudeElement.textContent = home.lon.toString()
+                homePosition.appendChild(longitudeElement)
+
+                root.appendChild(homePosition)
             }
             
             // LatLng list
