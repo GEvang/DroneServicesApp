@@ -3,164 +3,79 @@ package com.example.droneservicesapp.data.storage
 import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.LatLon
+import com.example.droneservicesapp.domain.model.MissionObstacle
+import com.example.droneservicesapp.domain.model.MissionObstacleShape
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.model.RouteWaypoint
 import com.example.droneservicesapp.domain.model.SurveyGridParams
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
-import org.xmlpull.v1.XmlPullParser
-import org.xmlpull.v1.XmlPullParserFactory
+import org.w3c.dom.Element
 import java.io.InputStream
+import javax.xml.parsers.DocumentBuilderFactory
 
 class MissionXmlParser(
-    private var activity: FragmentActivity,
-    private var activityViewModel: MainActivityViewModel
+    private var activity: FragmentActivity? = null,
+    private var activityViewModel: MainActivityViewModel? = null
 ) {
+    private var obstacleFallbackId = 0
 
     fun parseXml(inputStream: InputStream) {
-        val factory = XmlPullParserFactory.newInstance()
-        factory.isNamespaceAware = true
-        val parser = factory.newPullParser()
-        parser.setInput(inputStream, null)
+        requireNotNull(activityViewModel).applySavedMission(parse(inputStream))
+    }
 
-        var eventType = parser.eventType
-        var altitude = -1
-        var altitudeReferenceMode = AltitudeReferenceMode.RELATIVE
-        var angleDegrees = -1
-        var lineDistance = -1
-        var sprayerIntensityPercentage = -1
-        var flightSpeed = 1.0
-        var missionType = PlanningWorkflow.AREA
-        var operationMode = PlanningOperationMode.SURVEY
-        var surveyStripSpacing = -1
-        var surveyHeightAboveTerrain = -1
-        var surveyOverlapPercent = -1
-        var surveyGridAngle = -1
-        var surveyTerrainSegment = -1.0
-        var surveyCanopySmoothing = -1
-        var plannedHomePosition: LatLon? = null
-        val latLngList = ArrayList<LatLng>()
-        val routeWaypoints = ArrayList<RouteWaypoint>()
+    fun parse(inputStream: InputStream): SavedMission {
+        obstacleFallbackId = 0
+        val doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(inputStream)
+        val root = doc.documentElement
+        val schemaVersion = root.getAttribute("schemaVersion").toIntOrNull() ?: 1
+        val missionName = root.getAttribute("Name").orEmpty()
+        val altitude = childText(root, "altitude")?.toIntOrNull() ?: -1
+        val altitudeReferenceMode = childText(root, "altitudeReferenceMode")
+            ?.let(AltitudeReferenceMode::fromStorageValue)
+            ?: AltitudeReferenceMode.RELATIVE
+        val angleDegrees = childText(root, "angleDegrees")?.toIntOrNull() ?: -1
+        val lineDistance = childText(root, "lineDistance")?.toIntOrNull() ?: -1
+        val sprayerIntensityPercentage = childText(root, "sprayerIntensityPercentage")?.toIntOrNull() ?: -1
+        val flightSpeed = childText(root, "flightSpeed")?.toDoubleOrNull() ?: 1.0
+        val missionType = parseWorkflow(childText(root, "missionType"))
+        val operationMode = parseOperationMode(childText(root, "operationMode"))
+        val surveyStripSpacing = childText(root, "surveyStripSpacing")?.toIntOrNull() ?: -1
+        val surveyHeightAboveTerrain = childText(root, "surveyHeightAboveTerrain")?.toIntOrNull() ?: -1
+        val surveyOverlapPercent = childText(root, "surveyOverlapPercent")?.toIntOrNull() ?: -1
+        val surveyGridAngle = childText(root, "surveyGridAngle")?.toIntOrNull() ?: -1
+        val surveyTerrainSegment = childText(root, "surveyTerrainSegment")?.toDoubleOrNull() ?: -1.0
+        val surveyCanopySmoothing = childText(root, "surveyCanopySmoothing")?.toIntOrNull() ?: -1
+        val plannedHomePosition = childElement(root, "HomePosition")?.let(::parseLatLonElement)
+        val latLngList = childElement(root, "LatLngList")
+            ?.childElements("LatLng")
+            ?.map(::parseLatLngElement)
+            ?.filter { isValidLatLon(LatLon(it.latitude, it.longitude)) }
+            .orEmpty()
+        val routeWaypoints = parseRouteWaypoints(root, altitude, flightSpeed, sprayerIntensityPercentage)
+        val surveyPathPoints = childElement(root, "SurveyPathList")
+            ?.childElements("SurveyPathPoint")
+            ?.map(::parseSurveyPathPoint)
+            .orEmpty()
+        val obstacles = childElement(root, "ObstacleList")
+            ?.childElements("Obstacle")
+            ?.map(::parseObstacleElement)
+            ?.filter { it.isValid() }
+            .orEmpty()
 
-        while (eventType != XmlPullParser.END_DOCUMENT) {
-            when (eventType) {
-                XmlPullParser.START_TAG -> {
-                    when (parser.name) {
-                        "missionType" ->
-                            missionType = parseWorkflow(parser.nextText())
-                        "operationMode" ->
-                            operationMode = parseOperationMode(parser.nextText())
-                        "altitude" -> altitude = parser.nextText().toInt()
-                        "altitudeReferenceMode" ->
-                            altitudeReferenceMode = AltitudeReferenceMode.fromStorageValue(parser.nextText())
-                        "angleDegrees" -> angleDegrees = parser.nextText().toInt()
-                        "lineDistance" -> lineDistance = parser.nextText().toInt()
-                        "sprayerIntensityPercentage" ->
-                            sprayerIntensityPercentage = parser.nextText().toInt()
-                        "flightSpeed" -> flightSpeed = parser.nextText().toDouble()
-                        "surveyStripSpacing" -> surveyStripSpacing = parser.nextText().toInt()
-                        "surveyHeightAboveTerrain" -> surveyHeightAboveTerrain = parser.nextText().toInt()
-                        "surveyOverlapPercent" -> surveyOverlapPercent = parser.nextText().toInt()
-                        "surveyGridAngle" -> surveyGridAngle = parser.nextText().toInt()
-                        "surveyTerrainSegment" -> surveyTerrainSegment = parser.nextText().toDouble()
-                        "surveyCanopySmoothing" -> surveyCanopySmoothing = parser.nextText().toInt()
-                        "HomePosition" -> {
-                            var latitude = -1000.0
-                            var longitude = -1000.0
-                            while (parser.next() != XmlPullParser.END_TAG) {
-                                when (parser.name) {
-                                    "Latitude" -> latitude = parser.nextText().toDouble()
-                                    "Longitude" -> longitude = parser.nextText().toDouble()
-                                }
-                            }
-                            plannedHomePosition = LatLon(lat = latitude, lon = longitude)
-                        }
-
-                        "LatLngList" -> {
-                            while (parser.next() != XmlPullParser.END_TAG) {
-                                when (parser.name) {
-                                    "LatLng" -> {
-                                        var latitude = -1000.0
-                                        var longitude = -1000.0
-                                        while (parser.next() != XmlPullParser.END_TAG) {
-                                            when (parser.name) {
-                                                "Latitude" -> latitude = parser.nextText().toDouble()
-                                                "Longitude" -> longitude = parser.nextText().toDouble()
-                                            }
-                                        }
-                                        latLngList.add(LatLng(latitude, longitude))
-                                    }
-                                }
-                            }
-                        }
-                        "RouteWaypointList" -> {
-                            while (parser.next() != XmlPullParser.END_TAG) {
-                                when (parser.name) {
-                                    "RouteWaypoint" -> {
-                                        var id = ""
-                                        var latitude = -1000.0
-                                        var longitude = -1000.0
-                                        var waypointAltitude = altitude.takeIf { it >= 0 }?.toDouble() ?: 2.0
-                                        var waypointSpeed = flightSpeed
-                                        var sprayEnabled = false
-                                        var waypointSprayerIntensity = sprayerIntensityPercentage.takeIf { it >= 0 } ?: 0
-                                        val sequence = parser.getAttributeValue(null, "sequence")?.toIntOrNull()
-
-                                        while (parser.next() != XmlPullParser.END_TAG) {
-                                            when (parser.name) {
-                                                "Id" -> id = parser.nextText()
-                                                "Latitude" -> latitude = parser.nextText().toDouble()
-                                                "Longitude" -> longitude = parser.nextText().toDouble()
-                                                "Altitude" -> waypointAltitude = parser.nextText().toDouble()
-                                                "Speed" -> waypointSpeed = parser.nextText().toDouble()
-                                                "SprayEnabled" -> sprayEnabled = parser.nextText().toBoolean()
-                                                "SprayerIntensity" ->
-                                                    waypointSprayerIntensity = parser.nextText().toInt()
-                                            }
-                                        }
-
-                                        routeWaypoints.add(
-                                            RouteWaypoint(
-                                                id = id.ifBlank { "route-${sequence ?: routeWaypoints.size + 1}" },
-                                                index = sequence ?: routeWaypoints.size + 1,
-                                                latitude = latitude,
-                                                longitude = longitude,
-                                                altitudeMeters = waypointAltitude,
-                                                speedMetersPerSecond = waypointSpeed,
-                                                sprayEnabled = sprayEnabled,
-                                                sprayerIntensityPercent = waypointSprayerIntensity
-                                            )
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            eventType = parser.next()
-        }
-
-        if (angleDegrees >= 0) activityViewModel.angleProgress.postValue(angleDegrees.toDouble())
-        if (altitude >= 0) activityViewModel.flightAltProgress.postValue(altitude.toDouble())
-        activityViewModel.setAltitudeReferenceMode(altitudeReferenceMode)
-        if (lineDistance >= 0) activityViewModel.lineDistanceProgress.postValue(lineDistance.toDouble())
-        if (sprayerIntensityPercentage >= 0) {
-            activityViewModel.sprayerProgress.postValue(sprayerIntensityPercentage.toDouble())
-        }
-        activityViewModel.flightSpeed.postValue(flightSpeed)
-        if (surveyStripSpacing >= 0) activityViewModel.updateSurveyStripSpacing(surveyStripSpacing)
-        if (surveyHeightAboveTerrain >= 0) activityViewModel.updateSurveyHeightAboveTerrain(surveyHeightAboveTerrain)
-        if (surveyOverlapPercent >= 0) activityViewModel.updateSurveyOverlap(surveyOverlapPercent)
-        if (surveyGridAngle >= 0) activityViewModel.updateSurveyGridAngle(surveyGridAngle)
-        if (surveyTerrainSegment >= 0.0) activityViewModel.updateSurveyTerrainSegment(surveyTerrainSegment)
-        if (surveyCanopySmoothing >= 0) activityViewModel.updateSurveyCanopySmoothing(surveyCanopySmoothing)
-        activityViewModel.setPlanningOperationMode(operationMode)
-        activityViewModel.setPlanningWorkflow(missionType)
-        activityViewModel.setPlannedHomePosition(plannedHomePosition)
-        activityViewModel.surveyGridParams.postValue(
-            SurveyGridParams(
+        return SavedMission(
+            schemaVersion = schemaVersion,
+            name = missionName,
+            workflow = missionType,
+            operationMode = operationMode,
+            altitudeMeters = altitude.takeIf { it >= 0 } ?: 0,
+            altitudeReferenceMode = altitudeReferenceMode,
+            angleDegrees = angleDegrees.takeIf { it >= 0 } ?: 90,
+            lineDistanceMeters = lineDistance.takeIf { it >= 0 } ?: 5,
+            sprayerIntensityPercent = sprayerIntensityPercentage.takeIf { it >= 0 } ?: 75,
+            flightSpeedMetersPerSecond = flightSpeed,
+            surveyGridParams = SurveyGridParams(
                 stripSpacingMeters = surveyStripSpacing.takeIf { it >= 0 }
                     ?: lineDistance.takeIf { it >= 0 } ?: 70,
                 heightAboveTerrainMeters = surveyHeightAboveTerrain.takeIf { it >= 0 }
@@ -170,14 +85,122 @@ class MissionXmlParser(
                     ?: angleDegrees.takeIf { it >= 0 } ?: 90,
                 terrainSegmentMeters = surveyTerrainSegment.takeIf { it >= 0.0 } ?: 2.5,
                 canopySmoothingMeters = surveyCanopySmoothing.takeIf { it >= 0 } ?: 5
-            )
+            ),
+            polygon = latLngList,
+            surveyPath = surveyPathPoints.map { it.position },
+            terrainSurveyWaypoints = surveyPathPoints.mapNotNull { it.terrainWaypoint },
+            routeWaypoints = routeWaypoints,
+            plannedHomePosition = plannedHomePosition?.takeIf(::isValidLatLon),
+            obstacles = obstacles
         )
-        activityViewModel.setPolygonVertices(latLngList)
-        activityViewModel.setRouteWaypoints(routeWaypoints)
-        activityViewModel.surveyPath.postValue(emptyList())
-        activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
-        activityViewModel.mapState.postValue(MainActivityViewModel.MapState.SetFlightParams)
     }
+
+    private fun parseRouteWaypoints(
+        root: Element,
+        fallbackAltitude: Int,
+        fallbackSpeed: Double,
+        fallbackSprayerIntensity: Int
+    ): List<RouteWaypoint> {
+        return childElement(root, "RouteWaypointList")
+            ?.childElements("RouteWaypoint")
+            ?.mapIndexed { index, waypointElement ->
+                val sequence = waypointElement.getAttribute("sequence").toIntOrNull() ?: index + 1
+                RouteWaypoint(
+                    id = childText(waypointElement, "Id").orEmpty().ifBlank { "route-$sequence" },
+                    index = sequence,
+                    latitude = childText(waypointElement, "Latitude")?.toDoubleOrNull() ?: -1000.0,
+                    longitude = childText(waypointElement, "Longitude")?.toDoubleOrNull() ?: -1000.0,
+                    altitudeMeters = childText(waypointElement, "Altitude")?.toDoubleOrNull()
+                        ?: fallbackAltitude.takeIf { it >= 0 }?.toDouble()
+                        ?: 2.0,
+                    speedMetersPerSecond = childText(waypointElement, "Speed")?.toDoubleOrNull()
+                        ?: fallbackSpeed,
+                    sprayEnabled = childText(waypointElement, "SprayEnabled")?.toBoolean() ?: false,
+                    sprayerIntensityPercent = childText(waypointElement, "SprayerIntensity")?.toIntOrNull()
+                        ?: fallbackSprayerIntensity.takeIf { it >= 0 }
+                        ?: 0
+                )
+            }
+            ?.filter { isValidLatLon(LatLon(it.latitude, it.longitude)) }
+            .orEmpty()
+    }
+
+    private fun parseObstacleElement(element: Element): MissionObstacle {
+        val shape = runCatching {
+            MissionObstacleShape.valueOf(element.getAttribute("shape").orEmpty())
+        }.getOrDefault(MissionObstacleShape.CIRCLE)
+        val vertices = childElement(element, "VertexList")
+            ?.childElements("Vertex")
+            ?.map(::parseLatLonElement)
+            ?.filter(::isValidLatLon)
+            .orEmpty()
+
+        return MissionObstacle(
+            id = element.getAttribute("id").ifBlank { "obstacle-${obstacleFallbackId++}" },
+            shape = shape,
+            center = childElement(element, "Center")?.let(::parseLatLonElement)?.takeIf(::isValidLatLon),
+            radiusMeters = childText(element, "RadiusMeters")?.toDoubleOrNull() ?: 0.0,
+            vertices = vertices
+        )
+    }
+
+    private fun parseLatLngElement(element: Element): LatLng {
+        return LatLng(
+            childText(element, "Latitude")?.toDoubleOrNull() ?: -1000.0,
+            childText(element, "Longitude")?.toDoubleOrNull() ?: -1000.0
+        )
+    }
+
+    private fun parseLatLonElement(element: Element): LatLon {
+        return LatLon(
+            lat = childText(element, "Latitude")?.toDoubleOrNull() ?: -1000.0,
+            lon = childText(element, "Longitude")?.toDoubleOrNull() ?: -1000.0
+        )
+    }
+
+    private fun parseSurveyPathPoint(element: Element): ParsedSurveyPathPoint {
+        val latitude = childText(element, "Latitude")?.toDoubleOrNull() ?: -1000.0
+        val longitude = childText(element, "Longitude")?.toDoubleOrNull() ?: -1000.0
+        val position = LatLng(latitude, longitude)
+        val latLon = LatLon(latitude, longitude)
+        val displayAltitude = childText(element, "DisplayAltitude")?.toDoubleOrNull()
+        val missionAltitude = childText(element, "MissionAltitude")?.toDoubleOrNull()
+        val terrainWaypoint = if (isValidLatLon(latLon) && displayAltitude != null && missionAltitude != null) {
+            TerrainWaypointSnapshot(
+                position = latLon,
+                displayAltitudeMeters = displayAltitude,
+                missionAltitudeMeters = missionAltitude
+            )
+        } else {
+            null
+        }
+        return ParsedSurveyPathPoint(position = position, terrainWaypoint = terrainWaypoint)
+    }
+
+    private fun childText(parent: Element, tagName: String): String? {
+        return childElement(parent, tagName)?.textContent?.trim()
+    }
+
+    private fun childElement(parent: Element, tagName: String): Element? {
+        return parent.childElements(tagName).firstOrNull()
+    }
+
+    private fun Element.childElements(tagName: String): List<Element> {
+        val elements = mutableListOf<Element>()
+        val children = childNodes
+        for (index in 0 until children.length) {
+            val element = children.item(index) as? Element ?: continue
+            if (element.tagName == tagName) {
+                elements += element
+            }
+        }
+        return elements
+    }
+
+    private data class ParsedSurveyPathPoint(
+        val position: LatLng,
+        val terrainWaypoint: TerrainWaypointSnapshot?,
+    )
 
     private fun parseWorkflow(value: String?): PlanningWorkflow {
         return runCatching { PlanningWorkflow.valueOf(value.orEmpty()) }.getOrDefault(PlanningWorkflow.AREA)
@@ -187,5 +210,12 @@ class MissionXmlParser(
         return runCatching {
             PlanningOperationMode.valueOf(value.orEmpty())
         }.getOrDefault(PlanningOperationMode.SURVEY)
+    }
+
+    private fun isValidLatLon(position: LatLon): Boolean {
+        return position.lat.isFinite() &&
+            position.lon.isFinite() &&
+            position.lat in -90.0..90.0 &&
+            position.lon in -180.0..180.0
     }
 }

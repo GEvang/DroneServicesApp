@@ -158,8 +158,11 @@ class MissionSaveController(
                 planningWorkflow = workflow,
                 planningOperationMode = operationMode,
                 surveyGridParams = activityViewModel.surveyGridParams.value,
+                surveyPath = surveyPath,
+                terrainSurveyWaypoints = activityViewModel.terrainSurveyWaypoints.value.orEmpty(),
                 routeWaypoints = routeWaypoints,
                 plannedHomePosition = activityViewModel.plannedHomePosition.value,
+                obstacles = activityViewModel.missionObstacles.value.orEmpty(),
                 fileName = trimmedFileName,
                 overwrite = overrideFile
             )

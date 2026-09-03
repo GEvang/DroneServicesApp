@@ -125,9 +125,7 @@ class MissionLoadController(
     }
 
     private fun refreshList(): Pair<List<File>, List<String>> {
-        val files = store.listMissionFiles(
-            activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
-        )
+        val files = store.listMissionFiles()
 
         val waypointSuffix = activity.getString(R.string.waypoints)
         val names = files.map { file ->

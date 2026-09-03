@@ -6,18 +6,17 @@ import android.util.Log
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.LatLon
+import com.example.droneservicesapp.domain.model.MissionObstacle
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.model.RouteWaypoint
 import com.example.droneservicesapp.domain.model.SurveyGridParams
+import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
 import com.google.android.gms.maps.model.LatLng
 import java.io.File
 import java.io.InputStream
 import java.util.Locale
 import javax.xml.parsers.DocumentBuilderFactory
-import javax.xml.transform.TransformerFactory
-import javax.xml.transform.dom.DOMSource
-import javax.xml.transform.stream.StreamResult
 
 class MissionFileStore(
     private val context: Context
@@ -52,6 +51,11 @@ class MissionFileStore(
                 addAll(baseDir.listFiles()
                     ?.filter { it.isFile && (it.name.endsWith(suffix) || it.name.endsWith(waypointSuffix)) }
                     .orEmpty())
+                PlanningOperationMode.values().forEach { operationMode ->
+                    addAll(modeDir(operationMode).listFiles()
+                        ?.filter { it.isFile && (it.name.endsWith(suffix) || it.name.endsWith(waypointSuffix)) }
+                        .orEmpty())
+                }
             } else {
                 addAll(modeDir(mode).listFiles()
                     ?.filter { it.isFile && (it.name.endsWith(suffix) || it.name.endsWith(waypointSuffix)) }
@@ -91,20 +95,23 @@ class MissionFileStore(
         planningWorkflow: PlanningWorkflow = PlanningWorkflow.AREA,
         planningOperationMode: PlanningOperationMode = PlanningOperationMode.SURVEY,
         surveyGridParams: SurveyGridParams? = null,
+        surveyPath: List<LatLng> = emptyList(),
+        terrainSurveyWaypoints: List<TerrainWaypoint> = emptyList(),
         routeWaypoints: List<RouteWaypoint> = emptyList(),
         plannedHomePosition: LatLon? = null,
+        obstacles: List<MissionObstacle> = emptyList(),
         fileName: String,
         overwrite: Boolean
     ): Boolean {
-        // Validate filename
-        if (!isValidFileName(fileName)) {
+        val normalizedName = normalizeMissionBaseName(fileName)
+
+        if (normalizedName.isBlank() || !isValidFileName(normalizedName)) {
             Log.e("MissionFileStore", "Invalid filename: $fileName (contains path separators)")
             return false
         }
         
         val dir = modeDir(planningOperationMode)
         val suffix = context.getString(R.string.DroneServicesFilePageSuffix)
-        val normalizedName = fileName.trim()
         val file = File(dir, normalizedName.plus(suffix))
         
         // Check if file exists
@@ -118,159 +125,31 @@ class MissionFileStore(
         }
         
         return try {
-            // Create XML document
-            val factory = DocumentBuilderFactory.newInstance()
-            val builder = factory.newDocumentBuilder()
-            val doc = builder.newDocument()
-            
-            // Root element
-            val root = doc.createElement("field")
-            root.setAttribute("Title", "Drone Services Area/Mission Parameters")
-            root.setAttribute("Name", normalizedName)
-            doc.appendChild(root)
-
-            val missionType = doc.createElement("missionType")
-            missionType.textContent = planningWorkflow.name
-            root.appendChild(missionType)
-
-            val operationMode = doc.createElement("operationMode")
-            operationMode.textContent = planningOperationMode.name
-            root.appendChild(operationMode)
-            
-            // Altitude
-            val altitude = doc.createElement("altitude")
-            altitude.textContent = alt.toString()
-            root.appendChild(altitude)
-
-            val altitudeReference = doc.createElement("altitudeReferenceMode")
-            altitudeReference.textContent = altitudeReferenceMode.name
-            root.appendChild(altitudeReference)
-            
-            // Angle degrees
-            val angleDegrees = doc.createElement("angleDegrees")
-            angleDegrees.textContent = angleDeg.toString()
-            root.appendChild(angleDegrees)
-            
-            // Line distance
-            val lineDistance = doc.createElement("lineDistance")
-            lineDistance.textContent = lineDist.toString()
-            root.appendChild(lineDistance)
-            
-            // Sprayer intensity percentage
-            val sprayerIntensityPercentage = doc.createElement("sprayerIntensityPercentage")
-            sprayerIntensityPercentage.textContent = sprayerPct.toString()
-            root.appendChild(sprayerIntensityPercentage)
-
-            val missionSpeed = doc.createElement("flightSpeed")
-            missionSpeed.textContent = flightSpeed.toString()
-            root.appendChild(missionSpeed)
-
-            surveyGridParams?.let { survey ->
-                val stripSpacing = doc.createElement("surveyStripSpacing")
-                stripSpacing.textContent = survey.stripSpacingMeters.toString()
-                root.appendChild(stripSpacing)
-
-                val heightAboveTerrain = doc.createElement("surveyHeightAboveTerrain")
-                heightAboveTerrain.textContent = survey.heightAboveTerrainMeters.toString()
-                root.appendChild(heightAboveTerrain)
-
-                val overlap = doc.createElement("surveyOverlapPercent")
-                overlap.textContent = survey.overlapPercent.toString()
-                root.appendChild(overlap)
-
-                val gridAngle = doc.createElement("surveyGridAngle")
-                gridAngle.textContent = survey.gridAngleDegrees.toString()
-                root.appendChild(gridAngle)
-
-                val terrainSegment = doc.createElement("surveyTerrainSegment")
-                terrainSegment.textContent = survey.terrainSegmentMeters.toString()
-                root.appendChild(terrainSegment)
-
-                val canopySmoothing = doc.createElement("surveyCanopySmoothing")
-                canopySmoothing.textContent = survey.canopySmoothingMeters.toString()
-                root.appendChild(canopySmoothing)
-            }
-
-            plannedHomePosition?.let { home ->
-                val homePosition = doc.createElement("HomePosition")
-
-                val latitudeElement = doc.createElement("Latitude")
-                latitudeElement.textContent = home.lat.toString()
-                homePosition.appendChild(latitudeElement)
-
-                val longitudeElement = doc.createElement("Longitude")
-                longitudeElement.textContent = home.lon.toString()
-                homePosition.appendChild(longitudeElement)
-
-                root.appendChild(homePosition)
-            }
-            
-            // LatLng list
-            val latLnglst = doc.createElement("LatLngList")
-            latLnglst.setAttribute("size", polygon.size.toString())
-            root.appendChild(latLnglst)
-            
-            for (i in polygon.indices) {
-                val latLngElement = doc.createElement("LatLng")
-                latLngElement.setAttribute("sequence", i.toString())
-                
-                val latitudeElement = doc.createElement("Latitude")
-                latitudeElement.textContent = polygon[i].latitude.toString()
-                latLngElement.appendChild(latitudeElement)
-                
-                val longitudeElement = doc.createElement("Longitude")
-                longitudeElement.textContent = polygon[i].longitude.toString()
-                latLngElement.appendChild(longitudeElement)
-                
-                latLnglst.appendChild(latLngElement)
-            }
-
-            val routeList = doc.createElement("RouteWaypointList")
-            routeList.setAttribute("size", routeWaypoints.size.toString())
-            root.appendChild(routeList)
-
-            routeWaypoints.forEach { waypoint ->
-                val waypointElement = doc.createElement("RouteWaypoint")
-                waypointElement.setAttribute("sequence", waypoint.index.toString())
-
-                val idElement = doc.createElement("Id")
-                idElement.textContent = waypoint.id
-                waypointElement.appendChild(idElement)
-
-                val latitudeElement = doc.createElement("Latitude")
-                latitudeElement.textContent = waypoint.latitude.toString()
-                waypointElement.appendChild(latitudeElement)
-
-                val longitudeElement = doc.createElement("Longitude")
-                longitudeElement.textContent = waypoint.longitude.toString()
-                waypointElement.appendChild(longitudeElement)
-
-                val altitudeElement = doc.createElement("Altitude")
-                altitudeElement.textContent = waypoint.altitudeMeters.toString()
-                waypointElement.appendChild(altitudeElement)
-
-                val speedElement = doc.createElement("Speed")
-                speedElement.textContent = waypoint.speedMetersPerSecond.toString()
-                waypointElement.appendChild(speedElement)
-
-                val sprayEnabledElement = doc.createElement("SprayEnabled")
-                sprayEnabledElement.textContent = waypoint.sprayEnabled.toString()
-                waypointElement.appendChild(sprayEnabledElement)
-
-                val sprayerIntensityElement = doc.createElement("SprayerIntensity")
-                sprayerIntensityElement.textContent = waypoint.sprayerIntensityPercent.toString()
-                waypointElement.appendChild(sprayerIntensityElement)
-
-                routeList.appendChild(waypointElement)
-            }
-            
-            // Write to file
-            val transformerFactory = TransformerFactory.newInstance()
-            val transformer = transformerFactory.newTransformer()
-            val source = DOMSource(doc)
-            val result = StreamResult(file)
-            transformer.transform(source, result)
-            
+            val mission = SavedMission(
+                name = normalizedName,
+                workflow = planningWorkflow,
+                operationMode = planningOperationMode,
+                altitudeMeters = alt,
+                altitudeReferenceMode = altitudeReferenceMode,
+                angleDegrees = angleDeg,
+                lineDistanceMeters = lineDist,
+                sprayerIntensityPercent = sprayerPct,
+                flightSpeedMetersPerSecond = flightSpeed,
+                surveyGridParams = surveyGridParams ?: SurveyGridParams(),
+                polygon = polygon,
+                surveyPath = surveyPath,
+                terrainSurveyWaypoints = terrainSurveyWaypoints.map {
+                    TerrainWaypointSnapshot(
+                        position = it.latLon,
+                        displayAltitudeMeters = it.displayAltitudeMeters,
+                        missionAltitudeMeters = it.missionAltitudeMeters
+                    )
+                },
+                routeWaypoints = routeWaypoints,
+                plannedHomePosition = plannedHomePosition,
+                obstacles = obstacles
+            )
+            file.writeText(MissionXmlSerializer.serialize(mission))
             Log.i("MissionFileStore", "Mission file saved successfully: ${file.absolutePath}")
             true
         } catch (e: Exception) {
@@ -287,7 +166,9 @@ class MissionFileStore(
         fileName: String,
         overwrite: Boolean
     ): Boolean {
-        if (!isValidFileName(fileName)) {
+        val normalizedName = normalizeMissionBaseName(fileName)
+
+        if (normalizedName.isBlank() || !isValidFileName(normalizedName)) {
             Log.e("MissionFileStore", "Invalid filename: $fileName (contains path separators)")
             return false
         }
@@ -297,7 +178,6 @@ class MissionFileStore(
 
         val dir = modeDir(planningOperationMode)
         val suffix = context.getString(R.string.waypoints)
-        val normalizedName = fileName.trim().removeSuffix(suffix)
         val file = File(dir, normalizedName.plus(suffix))
         if (file.exists()) {
             if (!overwrite) {
@@ -380,6 +260,21 @@ class MissionFileStore(
      */
     private fun isValidFileName(fileName: String): Boolean {
         return !fileName.contains("/") && !fileName.contains("\\")
+    }
+
+    private fun normalizeMissionBaseName(fileName: String): String {
+        var normalizedName = fileName.trim()
+        val waypointSuffix = context.getString(R.string.waypoints)
+        val missionSuffix = context.getString(R.string.DroneServicesFilePageSuffix)
+
+        if (normalizedName.endsWith(waypointSuffix)) {
+            normalizedName = normalizedName.removeSuffix(waypointSuffix)
+        }
+        if (normalizedName.endsWith(missionSuffix)) {
+            normalizedName = normalizedName.removeSuffix(missionSuffix)
+        }
+
+        return normalizedName.trim()
     }
 
     private fun parseWaypointLine(line: String): WaypointFileItem? {

@@ -4,6 +4,7 @@ import androidx.lifecycle.MediatorLiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.example.droneservicesapp.core.util.Event
+import com.example.droneservicesapp.data.storage.SavedMission
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
@@ -464,6 +465,37 @@ class MainActivityViewModel : ViewModel() {
 
     fun clearPlannedHomePosition() {
         plannedHomePosition.value = null
+    }
+
+    fun applySavedMission(mission: SavedMission) {
+        setPlanningOperationMode(mission.operationMode)
+        setPlanningWorkflow(mission.workflow)
+        updateMissionAngle(mission.angleDegrees, markCustom = false)
+        updateLineSpacing(mission.lineDistanceMeters, markCustom = false)
+        updateAltitude(mission.altitudeMeters, markCustom = false)
+        updateSprayIntensity(mission.sprayerIntensityPercent, markCustom = false)
+        updateMissionSpeed(mission.flightSpeedMetersPerSecond, markCustom = false)
+        setAltitudeReferenceMode(mission.altitudeReferenceMode)
+        surveyGridParams.value = mission.surveyGridParams
+        surveyStripSpacing.value = mission.surveyGridParams.stripSpacingMeters.toDouble()
+        surveyHeightAboveTerrain.value = mission.surveyGridParams.heightAboveTerrainMeters.toDouble()
+        surveyOverlapPercent.value = mission.surveyGridParams.overlapPercent.toDouble()
+        surveyGridAngle.value = mission.surveyGridParams.gridAngleDegrees.toDouble()
+        surveyTerrainSegment.value = mission.surveyGridParams.terrainSegmentMeters
+        surveyCanopySmoothing.value = mission.surveyGridParams.canopySmoothingMeters.toDouble()
+        setPolygonVertices(mission.polygon)
+        setRouteWaypoints(mission.routeWaypoints)
+        plannedHomePosition.value = mission.plannedHomePosition
+        missionObstacles.value = mission.obstacles
+        surveyPath.value = mission.surveyPath
+        terrainSurveyWaypoints.value = mission.terrainSurveyWaypoints.map {
+            TerrainWaypoint(
+                latLon = it.position,
+                displayAltitudeMeters = it.displayAltitudeMeters,
+                missionAltitudeMeters = it.missionAltitudeMeters
+            )
+        }
+        mapState.value = MapState.SetFlightParams
     }
 
     private fun markPresetCustomIfNeeded(markCustom: Boolean) {
