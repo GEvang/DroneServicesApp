@@ -21,6 +21,7 @@ out/
 # Local SDK / Machine state
 # =========================
 local.properties
+keystore.properties
 sdk.dir
 ndk.dir
 

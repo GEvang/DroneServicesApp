@@ -1,6 +1,16 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'com.google.gms.google-services'
+    id 'com.google.firebase.appdistribution'
+}
+
+def releaseSigningProperties = new Properties()
+def releaseSigningPropertiesFile = rootProject.file('keystore.properties')
+if (releaseSigningPropertiesFile.exists()) {
+    releaseSigningPropertiesFile.withInputStream { stream ->
+        releaseSigningProperties.load(stream)
+    }
 }
 
 def versions = [
@@ -55,8 +65,24 @@ android {
         resourceConfigurations += ['en', 'el']
     }
 
+    signingConfigs {
+        release {
+            // The keystore path and passwords live only in the ignored
+            // keystore.properties file on the publisher's machine.
+            if (releaseSigningPropertiesFile.exists()) {
+                storeFile file(releaseSigningProperties['storeFile'])
+                storePassword releaseSigningProperties['storePassword']
+                keyAlias releaseSigningProperties['keyAlias']
+                keyPassword releaseSigningProperties['keyPassword']
+            }
+        }
+    }
+
     buildTypes {
         release {
+            if (releaseSigningPropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
@@ -75,6 +101,16 @@ android {
         viewBinding true
         buildConfig true
     }
+}
+
+// Keep tester identities and release notes out of source control by supplying them
+// in the local Gradle user properties. See docs/firebase-app-distribution.md.
+firebaseAppDistribution {
+    artifactType = 'APK'
+    groups = providers.gradleProperty('firebaseGroups').getOrElse('')
+    testers = providers.gradleProperty('firebaseTesters').getOrElse('')
+    releaseNotes = providers.gradleProperty('firebaseReleaseNotes')
+        .getOrElse('Latest Drone Services App update.')
 }
 
 dependencies {
