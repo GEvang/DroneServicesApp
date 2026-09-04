@@ -11,6 +11,7 @@ import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.drawable.BitmapDrawable
 import android.util.Log
+import android.view.MotionEvent
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.example.droneservicesapp.R
@@ -23,6 +24,7 @@ import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.Polyline
+import org.osmdroid.views.overlay.infowindow.InfoWindow
 import org.osmdroid.views.overlay.mylocation.GpsMyLocationProvider
 import org.osmdroid.views.overlay.mylocation.MyLocationNewOverlay
 import kotlin.math.atan2
@@ -77,6 +79,16 @@ class OsmdroidMapController(
     private val flightTracePoints = mutableListOf<GeoPoint>()
 
     fun initOverlays() {
+        // Defensive final guard: osmdroid gives every OverlayWithIW a stock speech bubble.
+        // Close any that might be created by a future overlay or an older restored overlay,
+        // without consuming the gesture needed for panning or map-editing overlays.
+        mapView.setOnTouchListener { _, event ->
+            if (event.actionMasked == MotionEvent.ACTION_UP || event.actionMasked == MotionEvent.ACTION_CANCEL) {
+                mapView.post { InfoWindow.closeAllInfoWindowsOn(mapView) }
+            }
+            false
+        }
+
         myLocationOverlay = MyLocationNewOverlay(GpsMyLocationProvider(context), mapView).apply {
             enableMyLocation()
             disableFollowLocation()
@@ -86,6 +98,8 @@ class OsmdroidMapController(
         droneMarker = Marker(mapView).apply {
             position = GeoPoint(0.0, 0.0)
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            // Marker creates osmdroid's default (empty) speech bubble unless explicitly removed.
+            infoWindow = null
             isEnabled = false
             isDraggable = false
             setVisible(false)
@@ -305,6 +319,16 @@ class OsmdroidMapController(
     fun setHomePlacementEnabled(isEnabled: Boolean, onSelected: ((point: LatLng) -> Unit)? = null) {
         homePlacementEnabled = isEnabled
         onHomePlacementSelected = onSelected
+        if (isEnabled) {
+            // osmdroid dispatches taps from the last overlay to the first. Mission-area
+            // polygons are rendered after this controller is initialised, so promote the
+            // home-placement listener while active. This lets operators choose a home
+            // point anywhere on the map, including inside the mission area.
+            homePlacementEventsOverlay?.let { overlay ->
+                mapView.overlays.remove(overlay)
+                mapView.overlays.add(overlay)
+            }
+        }
     }
 
     fun setHomeMarker(latitude: Double, longitude: Double): Boolean {
@@ -314,9 +338,8 @@ class OsmdroidMapController(
 
         homeMarker = Marker(mapView).apply {
             position = GeoPoint(latitude, longitude)
-            title = "Home / Takeoff"
-            snippet = "Drone takeoff position"
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM)
+            infoWindow = null
             icon = ContextCompat.getDrawable(context, R.drawable.ic_home_takeoff_marker)
         }
         addOverlayBelowDrone(homeMarker!!)
@@ -377,6 +400,7 @@ class OsmdroidMapController(
         }
         if (surveyPolyline == null) {
             surveyPolyline = Polyline(mapView).apply {
+                infoWindow = null
                 outlinePaint.color = ContextCompat.getColor(context, R.color.ds_color_shell_active)
                 outlinePaint.strokeWidth = 6f
             }
@@ -438,6 +462,7 @@ class OsmdroidMapController(
     private fun ensureFlightTracePolyline() {
         if (flightTracePolyline != null) return
         flightTracePolyline = Polyline(mapView).apply {
+            infoWindow = null
             outlinePaint.color = Color.RED
             outlinePaint.strokeWidth = 5f
         }
@@ -468,6 +493,7 @@ class OsmdroidMapController(
                     (from.longitude + to.longitude) / 2.0
                 )
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                infoWindow = null
                 icon = directionArrowIcon ?: createDirectionArrowIcon().also { directionArrowIcon = it }
                 rotation = screenVectorRotationDegrees(from, to)
             }
@@ -483,6 +509,7 @@ class OsmdroidMapController(
             val marker = Marker(mapView).apply {
                 position = GeoPoint(point.latitude, point.longitude)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                infoWindow = null
                 icon = surveyWaypointIconFor(index)
                 setOnMarkerClickListener { _, _ ->
                     if (!waypointEditingEnabled) return@setOnMarkerClickListener false
@@ -527,6 +554,7 @@ class OsmdroidMapController(
         clearSurveySegmentPolylines()
         path.zipWithNext().forEachIndexed { index, (from, to) ->
             val polyline = Polyline(mapView).apply {
+                infoWindow = null
                 setPoints(listOf(GeoPoint(from.latitude, from.longitude), GeoPoint(to.latitude, to.longitude)))
                 outlinePaint.color = colors.getOrElse(index) { ContextCompat.getColor(context, R.color.ds_color_shell_active) }
                 outlinePaint.strokeWidth = 6f
@@ -555,6 +583,7 @@ class OsmdroidMapController(
             val marker = Marker(mapView).apply {
                 position = GeoPoint(midpoint.latitude, midpoint.longitude)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                infoWindow = null
                 icon = createTextMarkerIcon(formatDistanceLabel(SphericalUtil.computeDistanceBetween(from, to)))
             }
             surveyInfoMarkers += marker
@@ -569,6 +598,7 @@ class OsmdroidMapController(
             val marker = Marker(mapView).apply {
                 position = GeoPoint(centroid.latitude, centroid.longitude)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                infoWindow = null
                 icon = createTextMarkerIcon(
                     text = "Area ${formatAreaLabel(SphericalUtil.computeArea(areaVertices))}",
                     emphasized = true

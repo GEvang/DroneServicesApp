@@ -95,6 +95,8 @@ class GeoZoneOverlayController(
         val activeNow = GeoZoneApplicabilityEvaluator.isActiveNow(zone)
         val style = styleFor(zone.restriction, activeNow)
         val polygon = Polygon(mapView).apply {
+            // Zone details are handled by the app panel, never by osmdroid's stock bubble.
+            infoWindow = null
             this.points = points
             outlinePaint.color = style.strokeColor
             outlinePaint.strokeWidth = if (activeNow) 3f else 4f

@@ -36,6 +36,7 @@ class OsmdroidObstacleEditor(
 
     fun init() {
         draftPolygon = Polygon(mapView).apply {
+            infoWindow = null
             fillPaint.color = Color.argb(55, 220, 38, 38)
             outlinePaint.color = Color.rgb(248, 113, 113)
             outlinePaint.strokeWidth = 4f
@@ -144,7 +145,7 @@ class OsmdroidObstacleEditor(
         val marker = Marker(mapView).apply {
             position = point
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-            title = "Forbidden point ${draftPoints.size}"
+            infoWindow = null
         }
         draftMarkers += marker
         mapView.overlays.add(marker)
@@ -176,6 +177,7 @@ class OsmdroidObstacleEditor(
 
     private fun createObstacleOverlay(obstacle: MissionObstacle): Polygon {
         return Polygon(mapView).apply {
+            infoWindow = null
             fillPaint.color = Color.argb(85, 220, 38, 38)
             outlinePaint.color = Color.rgb(220, 38, 38)
             outlinePaint.strokeWidth = 5f

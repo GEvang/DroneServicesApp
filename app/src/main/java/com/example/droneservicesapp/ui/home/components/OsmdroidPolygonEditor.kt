@@ -41,6 +41,7 @@ class OsmdroidPolygonEditor(
 
     fun init() {
         polygon = Polygon(mapView).apply {
+            infoWindow = null
             outlinePaint.color = Color.rgb(80, 200, 255)
             outlinePaint.strokeWidth = 10f
             fillPaint.color = Color.argb(60, 80, 200, 255)
@@ -190,7 +191,7 @@ class OsmdroidPolygonEditor(
     private fun updateVertexMarkerIcons() {
         vertexMarkers.forEachIndexed { index, marker ->
             marker.icon = createNumberedIcon(index + 1)
-            marker.title = "Area point ${index + 1}"
+            marker.infoWindow = null
         }
     }
 
@@ -199,8 +200,8 @@ class OsmdroidPolygonEditor(
             position = point
             setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
             isDraggable = true
+            infoWindow = null
             icon = createNumberedIcon(number)
-            title = "Area point $number"
 
             setOnMarkerClickListener { marker, _ ->
                 if (!enabled) return@setOnMarkerClickListener false

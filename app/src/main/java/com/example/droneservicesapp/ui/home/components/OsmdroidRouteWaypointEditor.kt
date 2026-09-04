@@ -30,6 +30,7 @@ class OsmdroidRouteWaypointEditor(
 
     fun init() {
         routePolyline = Polyline(mapView).apply {
+            infoWindow = null
             outlinePaint.color = ContextCompat.getColor(context, R.color.ds_color_shell_active)
             outlinePaint.strokeWidth = 8f
             setPoints(emptyList())
@@ -67,7 +68,7 @@ class OsmdroidRouteWaypointEditor(
                 position = GeoPoint(waypoint.latitude, waypoint.longitude)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 isDraggable = false
-                title = "Waypoint ${waypoint.index}"
+                infoWindow = null
                 icon = createNumberedIcon(waypoint.index)
             }
             waypointMarkers += marker

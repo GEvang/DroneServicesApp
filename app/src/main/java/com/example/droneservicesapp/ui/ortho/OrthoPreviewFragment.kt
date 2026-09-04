@@ -372,6 +372,7 @@ class OrthoPreviewFragment : Fragment() {
             .map { GeoPoint(it.latitude, it.longitude) }
         if (polygonPoints.size >= 3) {
             missionAreaOverlay = Polygon(currentBinding.orthoMap).apply {
+                infoWindow = null
                 points = polygonPoints
                 outlinePaint.color = MISSION_AREA_COLOR
                 outlinePaint.strokeWidth = MISSION_AREA_STROKE_WIDTH
@@ -402,6 +403,7 @@ class OrthoPreviewFragment : Fragment() {
 
     private fun createPathOverlay(points: List<LatLng>, color: Int): Polyline {
         return Polyline(binding.orthoMap).apply {
+            infoWindow = null
             setPoints(points.map { GeoPoint(it.latitude, it.longitude) })
             outlinePaint.color = color
             outlinePaint.strokeWidth = MISSION_PATH_STROKE_WIDTH
@@ -419,6 +421,7 @@ class OrthoPreviewFragment : Fragment() {
                     (from.longitude + to.longitude) / 2.0
                 )
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                infoWindow = null
                 icon = directionArrowIcon ?: createDirectionArrowIcon().also { directionArrowIcon = it }
                 rotation = screenVectorRotationDegrees(from, to)
             }
@@ -433,6 +436,7 @@ class OrthoPreviewFragment : Fragment() {
             val marker = Marker(map).apply {
                 position = GeoPoint(point.latitude, point.longitude)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                infoWindow = null
                 icon = surveyWaypointIcon ?: createSurveyWaypointIcon().also { surveyWaypointIcon = it }
             }
             missionWaypointMarkers += marker
@@ -451,6 +455,7 @@ class OrthoPreviewFragment : Fragment() {
                     (from.longitude + to.longitude) / 2.0
                 )
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                infoWindow = null
                 icon = createTextMarkerIcon(formatDistanceLabel(SphericalUtil.computeDistanceBetween(from, to)))
             }
             missionInfoMarkers += marker
@@ -464,6 +469,7 @@ class OrthoPreviewFragment : Fragment() {
                     areaVertices.map { it.longitude }.average()
                 )
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                infoWindow = null
                 icon = createTextMarkerIcon(
                     text = "Area ${formatAreaLabel(SphericalUtil.computeArea(areaVertices))}",
                     emphasized = true
