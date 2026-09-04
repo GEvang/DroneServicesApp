@@ -5,6 +5,7 @@ import android.os.Looper
 import android.util.Log
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
+import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import com.example.droneservicesapp.data.mavlink.MavlinkClient
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.MavParamType
@@ -24,6 +25,14 @@ enum class VehicleParameterAvailability {
 enum class VehicleParameterResult {
     SUCCESS,
     ERROR
+}
+
+/** Readiness of the actual ArduPilot terrain database needed by terrain-altitude missions. */
+enum class TerrainMissionReadiness {
+    READY,
+    CHECKING,
+    UNSUPPORTED,
+    REJECTED
 }
 
 data class VehicleParameterUiState(
@@ -61,6 +70,7 @@ internal class DroneParameterController(
     private val handler: Handler = Handler(Looper.getMainLooper())
 ) {
     companion object {
+        const val TERRAIN_ENABLE = "TERRAIN_ENABLE"
         const val WP_RFND_USE = "WP_RFND_USE"
         const val SURFTRAK_MODE = "SURFTRAK_MODE"
         const val AVOID_ENABLE = "AVOID_ENABLE"
@@ -73,7 +83,7 @@ internal class DroneParameterController(
         private const val WRITE_READBACK_MS = 1_000L
         private const val WRITE_TIMEOUT_MS = 3_500L
         private const val VALUE_TOLERANCE = 0.01f
-        private val SUPPORTED_PARAMETERS = setOf(WP_RFND_USE, SURFTRAK_MODE, AVOID_ENABLE)
+        private val SUPPORTED_PARAMETERS = setOf(TERRAIN_ENABLE, WP_RFND_USE, SURFTRAK_MODE, AVOID_ENABLE)
     }
 
     private val mutableStates = SUPPORTED_PARAMETERS.associateWith {
@@ -147,6 +157,12 @@ internal class DroneParameterController(
             .build()
         mavlinkClient.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, request)
         Log.i(TAG, "PARAM_SET sent name=$parameterName requested=$value")
+        DiagnosticLog.event("mavlink", "parameter_write_requested", data = mapOf(
+            "parameter" to parameterName,
+            "requestedValue" to value,
+            "targetSystemId" to targetSystemId(),
+            "targetComponentId" to targetComponentId()
+        ))
 
         handler.postDelayed({
             if (writeGenerations[parameterName] == generation && pendingWrites[parameterName] == value) {
@@ -162,6 +178,10 @@ internal class DroneParameterController(
                     mutableFeedback.value = OneShotEvent(VehicleParameterFeedback(parameterName, false))
                 }
                 Log.w(TAG, "PARAM_SET confirmation timed out name=$parameterName requested=$value")
+                DiagnosticLog.event("mavlink", "parameter_write_timed_out", "ERROR", mapOf(
+                    "parameter" to parameterName,
+                    "requestedValue" to value
+                ))
             }
         }, WRITE_TIMEOUT_MS)
     }
@@ -194,6 +214,12 @@ internal class DroneParameterController(
                 mutableFeedback.value = OneShotEvent(VehicleParameterFeedback(parameterName, confirmed))
             }
             Log.i(TAG, "PARAM_SET confirmation name=$parameterName requested=$requestedValue received=$receivedValue confirmed=$confirmed")
+            DiagnosticLog.event(
+                "mavlink",
+                "parameter_write_confirmed",
+                if (confirmed) "INFO" else "ERROR",
+                mapOf("parameter" to parameterName, "requestedValue" to requestedValue, "receivedValue" to receivedValue, "confirmed" to confirmed)
+            )
             return
         }
 
@@ -202,6 +228,12 @@ internal class DroneParameterController(
             value = roundedValue
         )
         Log.i(TAG, "PARAM_VALUE read name=$parameterName value=$receivedValue")
+        DiagnosticLog.event("mavlink", "parameter_value_received", data = mapOf(
+            "parameter" to parameterName,
+            "value" to receivedValue,
+            "originSystemId" to message.originSystemId,
+            "originComponentId" to message.originComponentId
+        ))
         desiredValues[parameterName]?.takeIf { it != roundedValue }?.let { desiredValue ->
             setValue(parameterName, desiredValue, showFeedback = false)
         }
@@ -246,6 +278,7 @@ internal class DroneParameterController(
             ) {
                 stateLiveData.value = VehicleParameterUiState(VehicleParameterAvailability.UNSUPPORTED)
                 Log.w(TAG, "PARAM_REQUEST_READ timed out; parameter unavailable name=$parameterName")
+                DiagnosticLog.event("mavlink", "parameter_read_timed_out", "WARN", mapOf("parameter" to parameterName))
             }
         }, READ_TIMEOUT_MS)
     }
@@ -268,6 +301,11 @@ internal class DroneParameterController(
             .build()
         mavlinkClient.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, request)
         Log.d(TAG, "PARAM_REQUEST_READ sent name=$parameterName")
+        DiagnosticLog.event("mavlink", "parameter_read_requested", data = mapOf(
+            "parameter" to parameterName,
+            "targetSystemId" to targetSystemId(),
+            "targetComponentId" to targetComponentId()
+        ))
     }
 
     private fun publishFailure(parameterName: String, current: VehicleParameterUiState) {

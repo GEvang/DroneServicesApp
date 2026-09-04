@@ -2,6 +2,7 @@ package com.example.droneservicesapp.mavserver
 
 import android.location.Location
 import android.util.Log
+import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.BatteryStatus
 import io.dronefleet.mavlink.common.CommandAck
@@ -106,6 +107,13 @@ internal class DroneTelemetryProcessor(
             }
             is Statustext -> {
                 val text = payload.text()
+                val statusSeverity = payload.severity().entry()?.name ?: payload.severity().value().toString()
+                DiagnosticLog.event(
+                    module = "flight",
+                    message = "autopilot_status_text",
+                    severity = if (text.contains("fail", ignoreCase = true) || text.contains("error", ignoreCase = true)) "ERROR" else "INFO",
+                    data = mapOf("mavSeverity" to statusSeverity, "text" to text)
+                )
                 if (text.contains("GPS", ignoreCase = true) ||
                     text.contains("RTK", ignoreCase = true) ||
                     text.contains("EKF", ignoreCase = true)
@@ -171,6 +179,17 @@ internal class DroneTelemetryProcessor(
         Log.i(
             "SprayerDebug",
             "RX COMMAND_ACK command=$commandName rawCommand=${payload.command().value()} result=$resultName rawResult=${payload.result().value()} progress=${payload.progress()} resultParam2=${payload.resultParam2()} targetSys=${payload.targetSystem()} targetComp=${payload.targetComponent()}"
+        )
+        DiagnosticLog.event(
+            module = "mavlink",
+            message = "command_ack",
+            data = mapOf(
+                "command" to commandName,
+                "result" to resultName,
+                "progress" to payload.progress(),
+                "targetSystem" to payload.targetSystem(),
+                "targetComponent" to payload.targetComponent()
+            )
         )
     }
 

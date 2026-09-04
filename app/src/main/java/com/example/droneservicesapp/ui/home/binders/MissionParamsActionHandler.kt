@@ -10,6 +10,7 @@ import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.mavserver.DroneViewModel
+import com.example.droneservicesapp.mavserver.TerrainMissionReadiness
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 
 class MissionParamsActionHandler(
@@ -40,17 +41,10 @@ class MissionParamsActionHandler(
         val angle = activityViewModel.angleProgress.value
         val operationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
         val altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value ?: AltitudeReferenceMode.TERRAIN
-        val srtmShouldBeEnabled = operationMode == PlanningOperationMode.SURVEY
 
         when {
             !connected -> {
                 showMessage(context.getString(R.string.no_conn_msg))
-                return
-            }
-
-            !droneViewModel.isSrtmSettingConfirmed(srtmShouldBeEnabled) -> {
-                droneViewModel.setSrtmEnabled(srtmShouldBeEnabled)
-                showMessage(context.getString(R.string.terrain_source_not_confirmed))
                 return
             }
 
@@ -145,6 +139,27 @@ class MissionParamsActionHandler(
             )
             droneViewModel.uploadMissionNew(missionItems, activityViewModel)
             preferencesBridge.saveFromViewModel()
+        }
+
+        // Relative-altitude missions are self-contained and must never be held up by
+        // a terrain/rangefinder parameter. Terrain frames require the actual ArduPilot
+        // terrain database. WP_RFND_USE remains a separate, user-controlled preference.
+        if (uploadAltitudeReferenceMode == AltitudeReferenceMode.TERRAIN) {
+            when (droneViewModel.terrainMissionReadiness()) {
+                TerrainMissionReadiness.READY -> Unit
+                TerrainMissionReadiness.CHECKING -> {
+                    showMessage(context.getString(R.string.terrain_database_enabling))
+                    return
+                }
+                TerrainMissionReadiness.UNSUPPORTED -> {
+                    showMessage(context.getString(R.string.terrain_database_unsupported))
+                    return
+                }
+                TerrainMissionReadiness.REJECTED -> {
+                    showMessage(context.getString(R.string.terrain_database_rejected))
+                    return
+                }
+            }
         }
 
         beforeUploadGuard?.invoke(proceedWithUpload) ?: proceedWithUpload()

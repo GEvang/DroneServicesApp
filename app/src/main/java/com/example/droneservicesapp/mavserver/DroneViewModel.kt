@@ -1,6 +1,12 @@
 package com.example.droneservicesapp.mavserver
 
 import android.location.Location
+import android.content.Intent
+import android.content.IntentFilter
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
+import android.os.BatteryManager
+import android.os.PowerManager
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -9,6 +15,7 @@ import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
 import com.example.droneservicesapp.data.geoawareness.logging.OperatorFlightEventLogger
+import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import com.example.droneservicesapp.data.mavlink.MavlinkClient
 import com.example.droneservicesapp.data.mavlink.MavlinkConfig
 import com.example.droneservicesapp.data.mavlink.MavlinkConnectionManager
@@ -49,6 +56,9 @@ class DroneViewModel : ViewModel() {
         private const val MAVLINK_COMPONENT_ALL = 0
         private const val SERVO_OUTPUT_RAW_MESSAGE_ID = 36
         private const val SERVO_OUTPUT_RAW_INTERVAL_US = 200_000f
+        private const val NORMAL_HEALTH_SNAPSHOT_INTERVAL_MS = 10_000L
+        private const val INCIDENT_HEALTH_SNAPSHOT_INTERVAL_MS = 1_000L
+        private const val INCIDENT_SNAPSHOT_WINDOW_MS = 5 * 60_000L
     }
 
     private val repoDisposables = CompositeDisposable()
@@ -60,6 +70,10 @@ class DroneViewModel : ViewModel() {
     private val repo = MavlinkConnectionManager()
     val mavlinkClient: MavlinkClient = repo
     private var activeMavlinkConfigKey: String? = null
+    @Volatile private var lastHealthSnapshotMs = 0L
+    @Volatile private var highFrequencySnapshotsUntilMs = 0L
+    @Volatile private var flightSessionStartedMs = 0L
+    @Volatile private var lastSnapshotRtkStreaming: Boolean? = null
 
     private val missionService: MissionService by lazy { MissionService(mavlinkClient) }
     private val missionController: DroneMissionController by lazy {
@@ -114,6 +128,7 @@ class DroneViewModel : ViewModel() {
                 } else {
                     operatorEventLogger.logDroneDisarmed(position, altitude, flightMode)
                 }
+                recordFlightSessionBoundary(armed, flightMode)
             },
             onFlightModeChanged = { previous, current ->
                 operatorEventLogger.logFlightModeChanged(previous, current)
@@ -173,6 +188,7 @@ class DroneViewModel : ViewModel() {
     val rtkForwardingState: MutableLiveData<RtkForwardingState> = stateStore.rtkForwardingState
     val selectedRtkMountpoint: MutableLiveData<RtkMountpoint?> = stateStore.selectedRtkMountpoint
     val rtkGpsDebugStatus: MutableLiveData<String> = stateStore.rtkGpsDebugStatus
+    val terrainEnableParameter = parameterController.state(DroneParameterController.TERRAIN_ENABLE)
     val waypointRangefinderParameter = parameterController.state(DroneParameterController.WP_RFND_USE)
     val surfaceTrackingParameter = parameterController.state(DroneParameterController.SURFTRAK_MODE)
     val avoidanceParameter = parameterController.state(DroneParameterController.AVOID_ENABLE)
@@ -194,15 +210,23 @@ class DroneViewModel : ViewModel() {
         parameterController.setValue(DroneParameterController.WP_RFND_USE, if (enabled) 1 else 0)
     }
 
-    fun setSrtmEnabled(enabled: Boolean) {
-        parameterController.setDesiredValue(DroneParameterController.WP_RFND_USE, if (enabled) 0 else 1)
-    }
-
-    fun isSrtmSettingConfirmed(enabled: Boolean): Boolean {
-        val state = waypointRangefinderParameter.value ?: return false
-        val expectedRangefinderValue = if (enabled) 0 else 1
-        return state.availability == VehicleParameterAvailability.SUPPORTED &&
-            !state.isWriting && state.value == expectedRangefinderValue
+    /**
+     * Terrain-altitude mission items require ArduPilot's terrain database, not the
+     * WP_RFND_USE rangefinder preference. This starts/continues the bounded PARAM
+     * transaction and returns a state the upload UI can explain to the operator.
+     */
+    fun terrainMissionReadiness(): TerrainMissionReadiness {
+        val state = terrainEnableParameter.value ?: VehicleParameterUiState()
+        return when {
+            state.availability == VehicleParameterAvailability.UNSUPPORTED -> TerrainMissionReadiness.UNSUPPORTED
+            state.result == VehicleParameterResult.ERROR -> TerrainMissionReadiness.REJECTED
+            state.availability == VehicleParameterAvailability.SUPPORTED &&
+                !state.isWriting && state.value == 1 -> TerrainMissionReadiness.READY
+            else -> {
+                parameterController.setDesiredValue(DroneParameterController.TERRAIN_ENABLE, 1)
+                TerrainMissionReadiness.CHECKING
+            }
+        }
     }
 
     fun setAvoidanceEnabled(enabled: Boolean) {
@@ -250,6 +274,19 @@ class DroneViewModel : ViewModel() {
         return true
     }
 
+    /** Operator marker for a visible anomaly; preserves five minutes of one-second snapshots. */
+    fun markDiagnosticIncident() {
+        val now = System.currentTimeMillis()
+        startHighFrequencyCapture("operator_mark", now)
+        DiagnosticLog.event(
+            module = "flight",
+            message = "operator_incident_marked",
+            severity = "WARN",
+            data = mapOf("highFrequencyWindowSeconds" to (INCIDENT_SNAPSHOT_WINDOW_MS / 1000L))
+        )
+        recordFlightHealthSnapshot(now, reason = "operator_mark")
+    }
+
     private fun sendGcsHeartbeat() {
         val heartbeat = Heartbeat.builder()
             .type(MavType.MAV_TYPE_GCS)
@@ -293,6 +330,12 @@ class DroneViewModel : ViewModel() {
 
     fun startMavlink(config: MavlinkConfig) {
         Log.i(TAG, "connect requested via startMavlink config=$config")
+        DiagnosticLog.event("mavlink", "connection_requested", data = mapOf(
+            "interface" to config.interfaceType.name,
+            "port" to config.port,
+            "targetHostConfigured" to !config.targetHost.isNullOrBlank(),
+            "targetPort" to config.targetPort
+        ))
         mavlinkClient.restart(config)
         activeMavlinkConfigKey = config.toConnectionKey()
         attachRepositoryBridge()
@@ -305,6 +348,7 @@ class DroneViewModel : ViewModel() {
             TAG,
             "foreground transition keepAlive=${shouldKeepRtkAliveInBackground()} healthy=${isMavlinkSessionHealthy()} configChanged=$configChanged lastConfig=$activeMavlinkConfigKey newConfig=$newConfigKey lastHeartbeatMs=${mavlinkClient.lastHeartbeatMs}"
         )
+        DiagnosticLog.event("app", "foregrounded", data = mapOf("mavlinkHealthy" to isMavlinkSessionHealthy(), "configChanged" to configChanged))
         if (isMavlinkSessionHealthy() && !configChanged) {
             Log.i(TAG, "restart skipped: reusing healthy MAVLink session on foreground")
             attachRepositoryBridge()
@@ -332,6 +376,7 @@ class DroneViewModel : ViewModel() {
             TAG,
             "background transition keepAlive=${shouldKeepRtkAliveInBackground()} lastHeartbeatMs=${mavlinkClient.lastHeartbeatMs}"
         )
+        DiagnosticLog.event("app", "backgrounded", data = mapOf("rtkKeepAlive" to shouldKeepRtkAliveInBackground()))
         if (shouldKeepRtkAliveInBackground()) {
             Log.i(TAG, "onAppBackgrounded preserving MAVLink/RTK keep-alive")
             return
@@ -409,6 +454,7 @@ class DroneViewModel : ViewModel() {
                                 )
                             } else {
                                 operatorEventLogger.logDroneDisconnected("Heartbeat timed out")
+                                startHighFrequencyCapture("mavlink_connection_lost", System.currentTimeMillis())
                                 Log.d(MAPPING_TAG, "connection=disconnected")
                                 Log.w(
                                     TAG,
@@ -446,6 +492,7 @@ class DroneViewModel : ViewModel() {
                         }
 
                         rtkController.onConnectionStateEvaluated(connected)
+                        maybeRecordFlightHealthSnapshot(connected)
                     }
             )
         } else {
@@ -474,6 +521,135 @@ class DroneViewModel : ViewModel() {
         parameterController.handle(message)
         telemetryProcessor.handle(message)
     }
+
+    private fun maybeRecordFlightHealthSnapshot(connected: Boolean) {
+        val now = System.currentTimeMillis()
+        val armed = stateStore.armedState.value == true
+        val rtkStreaming = stateStore.rtkForwardingState.value is RtkForwardingState.Streaming
+        if (lastSnapshotRtkStreaming == true && !rtkStreaming) {
+            startHighFrequencyCapture("rtk_stream_lost", now)
+        }
+        lastSnapshotRtkStreaming = rtkStreaming
+        val highCaptureActive = now < highFrequencySnapshotsUntilMs
+        if (!connected && !armed && !rtkStreaming && !highCaptureActive) return
+        val interval = if (now < highFrequencySnapshotsUntilMs) {
+            INCIDENT_HEALTH_SNAPSHOT_INTERVAL_MS
+        } else {
+            NORMAL_HEALTH_SNAPSHOT_INTERVAL_MS
+        }
+        if (now - lastHealthSnapshotMs < interval) return
+        recordFlightHealthSnapshot(now, reason = if (interval == INCIDENT_HEALTH_SNAPSHOT_INTERVAL_MS) "incident" else "periodic")
+    }
+
+    private fun recordFlightHealthSnapshot(now: Long, reason: String) {
+        lastHealthSnapshotMs = now
+        val location = runtimeState.lastDroneLocation
+        DiagnosticLog.event(
+            module = "flight",
+            message = "health_snapshot",
+            data = mapOf(
+                "reason" to reason,
+                "connected" to (stateStore.conStateLiveData.value == true),
+                "telemetryAlive" to (stateStore.telemetryAliveLiveData.value == true),
+                "armed" to (stateStore.armedState.value == true),
+                "flightMode" to stateStore.droneFlightMode.value,
+                "altitudeMeters" to location?.altitude,
+                "altitudeAmslMeters" to stateStore.droneAltitudeAmslMeters.value,
+                "latitude" to location?.latitude,
+                "longitude" to location?.longitude,
+                "groundSpeedMps" to stateStore.droneGroundSpeedMetersPerSecond.value,
+                "verticalSpeedMps" to stateStore.droneVerticalSpeedMetersPerSecond.value,
+                "headingDegrees" to stateStore.droneHeading.value,
+                "batteryVoltage" to stateStore.droneBatteryVoltage.value,
+                "batteryFraction" to stateStore.droneBatteryPercentage.value,
+                "rcRssiPercent" to stateStore.rcRSSI.value,
+                "sprayerLevelPercent" to stateStore.liquidLevel.value,
+                "frontObstacleMeters" to stateStore.droneFrontDistance.value,
+                "rearObstacleMeters" to stateStore.droneBackDistance.value,
+                "gpsFix" to TelemetryMapping.gpsFixLabel(stateStore.gpsFixType.value),
+                "gpsDebug" to stateStore.rtkGpsDebugStatus.value,
+                "rtkState" to stateStore.rtkForwardingState.value?.javaClass?.simpleName,
+                "rtcmQueueDepth" to mavlinkClient.currentRtcmQueueDepth(),
+                "heartbeatAgeMs" to (now - mavlinkClient.lastHeartbeatMs),
+                "tabletBatteryPercent" to tabletBatteryPercent(),
+                "tabletCharging" to isTabletCharging(),
+                "tabletNetwork" to tabletNetworkDescription(),
+                "tabletPowerSaver" to tabletPowerSaverEnabled(),
+                "tabletInteractive" to tabletIsInteractive(),
+                "diagnosticStorageFreeBytes" to Application.getInstance().applicationContext.filesDir.usableSpace
+            )
+        )
+    }
+
+    private fun startHighFrequencyCapture(reason: String, now: Long) {
+        val alreadyActive = now < highFrequencySnapshotsUntilMs
+        highFrequencySnapshotsUntilMs = maxOf(highFrequencySnapshotsUntilMs, now + INCIDENT_SNAPSHOT_WINDOW_MS)
+        if (!alreadyActive) {
+            DiagnosticLog.event(
+                module = "flight",
+                message = "high_frequency_capture_started",
+                severity = "WARN",
+                data = mapOf("reason" to reason, "durationSeconds" to (INCIDENT_SNAPSHOT_WINDOW_MS / 1000L))
+            )
+        }
+    }
+
+    private fun recordFlightSessionBoundary(armed: Boolean, flightMode: String?) {
+        val now = System.currentTimeMillis()
+        if (armed && flightSessionStartedMs == 0L) {
+            flightSessionStartedMs = now
+            DiagnosticLog.event("flight", "session_started", data = mapOf(
+                "autopilotSystemId" to runtimeState.autopilotSysId,
+                "autopilotComponentId" to runtimeState.autopilotCompId,
+                "flightMode" to flightMode
+            ))
+        } else if (!armed && flightSessionStartedMs != 0L) {
+            DiagnosticLog.event("flight", "session_ended", data = mapOf(
+                "durationMs" to (now - flightSessionStartedMs),
+                "flightMode" to flightMode
+            ))
+            flightSessionStartedMs = 0L
+        }
+    }
+
+    private fun tabletBatteryIntent(): Intent? = Application.getInstance().applicationContext
+        .registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+
+    private fun tabletBatteryPercent(): Int? = tabletBatteryIntent()?.let { intent ->
+        val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
+        val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)
+        if (level >= 0 && scale > 0) (level * 100 / scale) else null
+    }
+
+    private fun isTabletCharging(): Boolean? = tabletBatteryIntent()?.let { intent ->
+        when (intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1)) {
+            BatteryManager.BATTERY_STATUS_CHARGING,
+            BatteryManager.BATTERY_STATUS_FULL -> true
+            BatteryManager.BATTERY_STATUS_DISCHARGING,
+            BatteryManager.BATTERY_STATUS_NOT_CHARGING -> false
+            else -> null
+        }
+    }
+
+    private fun tabletNetworkDescription(): String {
+        val manager = Application.getInstance().applicationContext
+            .getSystemService(ConnectivityManager::class.java) ?: return "unavailable"
+        val capabilities = manager.getNetworkCapabilities(manager.activeNetwork) ?: return "offline"
+        return when {
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> "cellular"
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> "wifi"
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> "ethernet"
+            else -> "other"
+        }
+    }
+
+    private fun tabletPowerSaverEnabled(): Boolean? = Application.getInstance().applicationContext
+        .getSystemService(PowerManager::class.java)
+        ?.isPowerSaveMode
+
+    private fun tabletIsInteractive(): Boolean? = Application.getInstance().applicationContext
+        .getSystemService(PowerManager::class.java)
+        ?.isInteractive
 
     override fun onCleared() {
         super.onCleared()

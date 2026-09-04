@@ -12,6 +12,7 @@ import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.data.storage.MissionXmlParser
+import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
@@ -106,6 +107,7 @@ class MissionLoadController(
             }
 
             val selectedFile = files[selectedPosition]
+            DiagnosticLog.event("mission", "mission_load_requested", data = mapOf("format" to selectedFile.extension))
             if (selectedFile.name.endsWith(activity.getString(R.string.waypoints))) {
                 loadWaypointsFile(selectedFile)
             } else {
@@ -157,5 +159,6 @@ class MissionLoadController(
         activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
         activityViewModel.updateSurveyHeightAboveTerrain(averageAltitude.toInt().coerceIn(0, 120))
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.SetFlightParams)
+        DiagnosticLog.event("mission", "waypoints_loaded", data = mapOf("itemCount" to items.size, "averageAltitudeMeters" to averageAltitude))
     }
 }

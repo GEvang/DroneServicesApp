@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.storage.MissionFileStore
+import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
@@ -190,6 +191,7 @@ class MissionSaveController(
             }
 
             if (isSaved && waypointsSaved) {
+                DiagnosticLog.event("mission", "mission_saved", data = mapOf("workflow" to workflow.name, "operationMode" to operationMode.name, "waypointCount" to waypointPath.size))
                 Toast.makeText(
                     activity.baseContext,
                     activity.baseContext.getString(R.string.file_successfully_saved),
@@ -198,6 +200,7 @@ class MissionSaveController(
 
                 activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
             } else {
+                DiagnosticLog.event("mission", "mission_save_failed", "ERROR", mapOf("workflow" to workflow.name, "xmlSaved" to isSaved, "waypointsSaved" to waypointsSaved))
                 val errorStringId = if (overrideFile) {
                     R.string.failed_file_creation
                 } else {

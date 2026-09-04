@@ -3,6 +3,7 @@ package com.example.droneservicesapp.data.rtk
 import android.location.Location
 import android.net.Network
 import android.util.Log
+import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.coroutineScope
@@ -83,6 +84,17 @@ class NtripClient {
                 TAG,
                 "stream open requested attempt=$attemptNumber host=${config.ip.trim()} port=${config.port} mountpoint=${config.mountpoint.trim()} usernamePresent=${config.username.isNotBlank()} passwordPresent=${config.password.isNotBlank()}"
             )
+            DiagnosticLog.event(
+                "rtk",
+                "ntrip_stream_open_requested",
+                data = mapOf(
+                    "attempt" to attemptNumber,
+                    "host" to config.ip.trim(),
+                    "port" to config.port,
+                    "mountpoint" to config.mountpoint.trim(),
+                    "networkBound" to (network != null)
+                )
+            )
             if (!RtkValidator.isValidConfig(config)) {
                 Log.w(TAG, "streamCorrections blocked: invalid config")
                 return@coroutineScope NtripResult.InvalidConfig("RTK settings are incomplete.")
@@ -145,10 +157,21 @@ class NtripClient {
                 }
 
                 Log.i(TAG, "ntrip: stream accepted mountpoint=${config.mountpoint.trim()} attempt=$attemptNumber")
+                DiagnosticLog.event("rtk", "ntrip_stream_accepted", data = mapOf("attempt" to attemptNumber, "mountpoint" to config.mountpoint.trim()))
                 onStreamStarted()
 
                 val initialGgaData = ggaDataProvider()
                 if (initialGgaData != null) {
+                    DiagnosticLog.event(
+                        "rtk",
+                        "ntrip_initial_gga_sent",
+                        data = mapOf(
+                            "attempt" to attemptNumber,
+                            "fixType" to initialGgaData.fixType,
+                            "satellites" to initialGgaData.satellites,
+                            "hdop" to initialGgaData.hdop
+                        )
+                    )
                     Log.i(TAG, "ntrip: sending initial GGA")
                     outputStream.write(NmeaGgaBuilder.build(initialGgaData).toByteArray(StandardCharsets.US_ASCII))
                     outputStream.flush()
@@ -167,6 +190,7 @@ class NtripClient {
                     }
                 } else {
                     Log.i(TAG, "ntrip: GGA not sent locationAvailable=false")
+                    DiagnosticLog.event("rtk", "ntrip_initial_gga_skipped", "WARN", mapOf("attempt" to attemptNumber, "reason" to "drone_location_unavailable"))
                 }
 
                 if (handshake.remainingBody.isNotEmpty()) {
@@ -175,6 +199,7 @@ class NtripClient {
                     if (!firstBytesLogged) {
                         firstBytesLogged = true
                         Log.i(TAG, "rtcm: first bytes received size=${handshake.remainingBody.size} uptimeMs=${System.currentTimeMillis() - startedAtMs}")
+                        DiagnosticLog.event("rtk", "first_rtcm_bytes_received", data = mapOf("attempt" to attemptNumber, "size" to handshake.remainingBody.size, "connectToFirstBytesMs" to (System.currentTimeMillis() - startedAtMs)))
                     }
                     onBytesReceived(handshake.remainingBody)
                 }
@@ -189,6 +214,7 @@ class NtripClient {
                         Log.w(TAG, "ntrip: read timeout lastRtcmAgeMs=$lastRtcmAgeMs")
                         if (lastRtcmAgeMs >= STREAM_STALL_TIMEOUT_MS) {
                             Log.w(TAG, "ntrip: stream stalled lastRtcmAgeMs=$lastRtcmAgeMs")
+                            DiagnosticLog.event("rtk", "ntrip_stream_stalled", "ERROR", mapOf("attempt" to attemptNumber, "lastRtcmAgeMs" to lastRtcmAgeMs, "bytesReceived" to totalBytesReceived))
                             return@coroutineScope NtripResult.NetworkFailure(
                                 "Stream stalled: no RTCM bytes for ${lastRtcmAgeMs / 1000L}s."
                             )
@@ -197,6 +223,7 @@ class NtripClient {
                     }
                     if (count == -1) {
                         Log.w(TAG, "stream ended: caster closed stream")
+                        DiagnosticLog.event("rtk", "ntrip_stream_closed_by_caster", "WARN", mapOf("attempt" to attemptNumber, "bytesReceived" to totalBytesReceived))
                         return@coroutineScope NtripResult.NetworkFailure("Caster closed the correction stream.")
                     }
                     if (count > 0) {
@@ -205,6 +232,7 @@ class NtripClient {
                         if (!firstBytesLogged) {
                             firstBytesLogged = true
                             Log.i(TAG, "rtcm: first bytes received size=$count uptimeMs=${System.currentTimeMillis() - startedAtMs}")
+                            DiagnosticLog.event("rtk", "first_rtcm_bytes_received", data = mapOf("attempt" to attemptNumber, "size" to count, "connectToFirstBytesMs" to (System.currentTimeMillis() - startedAtMs)))
                         }
                         val now = System.currentTimeMillis()
                         if (totalBytesReceived - lastProgressBytes >= PROGRESS_LOG_BYTES ||
@@ -225,6 +253,7 @@ class NtripClient {
                 return@coroutineScope NtripResult.ProtocolFailure("Streaming ended unexpectedly.")
             } catch (e: SocketTimeoutException) {
                 Log.w(TAG, "ntrip: timeout exception type=${e.javaClass.simpleName} message=${sanitizeMessage(e.message)}")
+                DiagnosticLog.event("rtk", "ntrip_connection_timeout", "ERROR", mapOf("attempt" to attemptNumber, "bytesReceived" to totalBytesReceived))
                 return@coroutineScope NtripResult.NetworkFailure("Connection timed out.")
             } catch (e: CancellationException) {
                 throw e
@@ -234,6 +263,7 @@ class NtripClient {
                     TAG,
                     "ntrip: network exception type=${e.javaClass.simpleName} message=${sanitizeMessage(e.message)}"
                 )
+                DiagnosticLog.event("rtk", "ntrip_network_exception", "ERROR", mapOf("attempt" to attemptNumber, "error" to e.javaClass.simpleName, "bytesReceived" to totalBytesReceived))
                 return@coroutineScope NtripResult.NetworkFailure(sanitizeMessage(e.message))
             } finally {
                 ggaJob?.cancel()
@@ -242,6 +272,7 @@ class NtripClient {
                 runCatching { output?.close() }
                 runCatching { socket?.close() }
                 Log.i(TAG, "ntrip: stream closed attempt=$attemptNumber totalBytesReceived=$totalBytesReceived")
+                DiagnosticLog.event("rtk", "ntrip_stream_finished", data = mapOf("attempt" to attemptNumber, "bytesReceived" to totalBytesReceived, "durationMs" to (System.currentTimeMillis() - startedAtMs)))
             }
         }
     }

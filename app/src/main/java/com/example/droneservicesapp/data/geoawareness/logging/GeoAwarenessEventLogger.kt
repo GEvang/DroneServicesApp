@@ -5,6 +5,7 @@ import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
 import android.util.Log
+import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import org.json.JSONArray
 import org.json.JSONObject
 import java.io.File
@@ -29,6 +30,31 @@ class GeoAwarenessEventLogger(private val context: Context) {
                     memoryEvents = memoryEvents.takeLast(MAX_IN_MEMORY_EVENTS).toMutableList()
                 }
                 appendPersistentEvent(event)
+                DiagnosticLog.event(
+                    module = "geo-awareness",
+                    message = "geo_event",
+                    severity = event.severity,
+                    data = mapOf(
+                        "type" to event.type.name,
+                        "message" to event.message,
+                        "category" to event.category,
+                        "operatorAction" to event.operatorAction,
+                        "flightState" to event.flightState,
+                        "connectionState" to event.connectionState,
+                        "datasetTitle" to event.datasetTitle,
+                        "datasetVersion" to event.datasetVersion,
+                        "healthState" to event.healthState,
+                        "zoneIds" to event.zoneIds.joinToString(","),
+                        "zoneNames" to event.zoneNames.joinToString(","),
+                        "restriction" to event.restriction,
+                        "latitude" to event.latitude,
+                        "longitude" to event.longitude,
+                        "altitudeMeters" to event.altitudeMeters,
+                        "batteryPercent" to event.batteryPercent,
+                        "flightMode" to event.flightMode,
+                        "details" to event.details.entries.joinToString(";") { "${it.key}=${it.value}" }
+                    )
+                )
                 cleanupExpiredPersistentLogs()
             } catch (error: Exception) {
                 Log.e(TAG, "Failed to record geo-awareness event", error)

@@ -16,6 +16,9 @@
     <string name="spray_mode_relative_point_cloud">Mode: Tree Crops</string>
     <string name="flight_speed_label">Speed</string>
     <string name="terrain_source_not_confirmed">Waiting for the vehicle to confirm the required terrain source. Try upload again shortly.</string>
+    <string name="terrain_database_enabling">Terrain mission selected. Enabling the vehicle terrain database and waiting for confirmation. Upload again once confirmed.</string>
+    <string name="terrain_database_unsupported">This vehicle does not provide TERRAIN_ENABLE. Terrain-altitude missions cannot be uploaded; choose Relative altitude or install terrain-capable firmware.</string>
+    <string name="terrain_database_rejected">The vehicle did not confirm TERRAIN_ENABLE. Check the MAVLink link and vehicle firmware, then reconnect and try again.</string>
     <string name="parameter_waypoint_rangefinder_label">Use Rangefinder for Terrain Waypoints</string>
     <string name="parameter_waypoint_rangefinder_helper">When enabled, terrain-relative waypoint navigation uses the rangefinder instead of the terrain database/SRTM.</string>
     <string name="parameter_avoidance_label">Avoidance</string>
@@ -365,6 +368,15 @@
     <string name="liters_unit" translatable="false">L</string>
     <string name="liters_short">L</string>
     <string name="debug_sprayer">Debug Sprayer</string>
+    <string name="debug_diagnostics_title">Field diagnostic logs</string>
+    <string name="debug_diagnostics_description">Creates a ZIP with app, MAVLink, RTK, mission, and geo-awareness events. Retrieve it later by USB from Downloads/DroneServicesApp/Logs.</string>
+    <string name="debug_diagnostics_export">Export diagnostic ZIP</string>
+    <string name="debug_diagnostics_mark_incident">Mark RTK / link incident</string>
+    <string name="debug_diagnostics_ready">Ready to export retained diagnostics.</string>
+    <string name="debug_diagnostics_incident_marked">Incident marked. Recording one-second health snapshots for five minutes.</string>
+    <string name="debug_diagnostics_exporting">Creating diagnostic package...</string>
+    <string name="debug_diagnostics_exported">Saved: %1$s</string>
+    <string name="debug_diagnostics_export_failed">Export failed: %1$s</string>
     <string name="debug_sprayer_pwm">Servo 5 PWM</string>
     <string name="debug_sprayer_pwm_1000">1000</string>
     <string name="debug_sprayer_pwm_1500">1500</string>

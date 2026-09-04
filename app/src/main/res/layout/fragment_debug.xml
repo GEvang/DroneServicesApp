@@ -25,6 +25,44 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/ds_space_xl"
+            android:text="@string/debug_diagnostics_title" />
+
+        <TextView
+            style="@style/TextAppearance.DroneServices.Body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_sm"
+            android:text="@string/debug_diagnostics_description" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/debug_export_diagnostics_button"
+            style="@style/Widget.DroneServices.Button.Primary"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:layout_marginTop="@dimen/ds_space_md"
+            android:text="@string/debug_diagnostics_export" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/debug_mark_incident_button"
+            style="@style/Widget.DroneServices.Button.Primary"
+            android:layout_width="wrap_content"
+            android:layout_height="48dp"
+            android:layout_marginTop="@dimen/ds_space_sm"
+            android:text="@string/debug_diagnostics_mark_incident" />
+
+        <TextView
+            android:id="@+id/debug_diagnostics_status"
+            style="@style/TextAppearance.DroneServices.Body"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_sm"
+            android:text="@string/debug_diagnostics_ready" />
+
+        <TextView
+            style="@style/TextAppearance.DroneServices.SectionTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_xl"
             android:text="@string/debug_sprayer" />
 
         <TextView

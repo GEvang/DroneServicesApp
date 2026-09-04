@@ -9,6 +9,9 @@
   <string name="spray_mode_relative_point_cloud">Λειτουργία: Δενδρώδεις καλλιέργειες</string>
   <string name="flight_speed_label">Ταχύτητα</string>
   <string name="terrain_source_not_confirmed">Αναμονή επιβεβαίωσης της απαιτούμενης πηγής εδάφους από το όχημα. Δοκιμάστε ξανά σε λίγο.</string>
+  <string name="terrain_database_enabling">Επιλέχθηκε αποστολή με υψόμετρο εδάφους. Ενεργοποιείται η βάση δεδομένων εδάφους του οχήματος και αναμένεται επιβεβαίωση. Ανεβάστε ξανά μόλις επιβεβαιωθεί.</string>
+  <string name="terrain_database_unsupported">Το όχημα δεν παρέχει το TERRAIN_ENABLE. Δεν μπορούν να ανέβουν αποστολές υψομέτρου εδάφους· επιλέξτε Σχετικό υψόμετρο ή εγκαταστήστε firmware με υποστήριξη εδάφους.</string>
+  <string name="terrain_database_rejected">Το όχημα δεν επιβεβαίωσε το TERRAIN_ENABLE. Ελέγξτε τη σύνδεση MAVLink και το firmware του οχήματος, επανασυνδεθείτε και δοκιμάστε ξανά.</string>
   <string name="parameter_waypoint_rangefinder_label">Χρήση αποστασιόμετρου για σημεία διαδρομής εδάφους</string>
   <string name="parameter_waypoint_rangefinder_helper">Όταν είναι ενεργό, η πλοήγηση σημείων διαδρομής ως προς το έδαφος χρησιμοποιεί το αποστασιόμετρο αντί για τη βάση δεδομένων εδάφους/SRTM.</string>
   <string name="parameter_avoidance_label">Αποφυγή εμποδίων</string>

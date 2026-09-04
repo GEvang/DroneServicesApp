@@ -5,6 +5,7 @@ import androidx.lifecycle.MutableLiveData
 import com.example.droneservicesapp.core.util.Event
 import com.example.droneservicesapp.data.mavlink.MissionService
 import com.example.droneservicesapp.data.mavlink.MissionUploadResult
+import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import io.dronefleet.mavlink.common.MissionItemInt
 import io.reactivex.Single
@@ -46,6 +47,7 @@ internal class DroneMissionController(
 
             if (uploadInProgress) {
                 Log.d(logTag, "Skipping mission download while upload is in progress")
+                DiagnosticLog.event("mission", "download_skipped", "WARN", mapOf("reason" to "upload_in_progress"))
                 return
             }
 
@@ -80,9 +82,13 @@ internal class DroneMissionController(
                 { items ->
                     if (!token.get()) {
                         missionItems.postValue(items)
+                        DiagnosticLog.event("mission", "download_succeeded", data = mapOf("itemCount" to items.size))
                     }
                 },
-                { err -> Log.e(logTag, "downloadMission failed: ${err.message}", err) }
+                { err ->
+                    Log.e(logTag, "downloadMission failed: ${err.message}", err)
+                    DiagnosticLog.event("mission", "download_failed", "ERROR", mapOf("error" to err.javaClass.simpleName, "reason" to (err.message ?: "unknown")))
+                }
             )
 
         currentDownloadDisposable = disposable
@@ -102,6 +108,7 @@ internal class DroneMissionController(
                 activityVm.mapAction.postValue(
                     Event(MainActivityViewModel.MapAction.UploadMissionFailed(reason))
                 )
+                DiagnosticLog.event("mission", "upload_rejected", "WARN", mapOf("reason" to reason, "itemCount" to items.size))
                 return
             }
 
@@ -130,6 +137,7 @@ internal class DroneMissionController(
         }
 
         uploadProgressPercent.postValue(0)
+        DiagnosticLog.event("mission", "upload_started", data = mapOf("itemCount" to items.size, "timeoutMs" to uploadTimeoutMs))
 
         val token = AtomicBoolean(false)
         currentUploadCancelToken = token
@@ -165,6 +173,7 @@ internal class DroneMissionController(
                         when (result) {
                             MissionUploadResult.Success -> {
                                 Log.i(logTag, "uploadMission result=success")
+                                DiagnosticLog.event("mission", "upload_succeeded", data = mapOf("itemCount" to items.size))
                                 uploadProgressPercent.postValue(100)
                                 activityVm.mapAction.postValue(
                                     Event(MainActivityViewModel.MapAction.UploadMissionSuccess)
@@ -172,6 +181,7 @@ internal class DroneMissionController(
                             }
                             is MissionUploadResult.Failure -> {
                                 Log.i(logTag, "uploadMission result=false reason=${result.reason}")
+                                DiagnosticLog.event("mission", "upload_failed", "ERROR", mapOf("itemCount" to items.size, "reason" to result.reason))
                                 uploadProgressPercent.postValue(0)
                                 activityVm.mapAction.postValue(
                                     Event(MainActivityViewModel.MapAction.UploadMissionFailed(result.reason))
@@ -181,6 +191,7 @@ internal class DroneMissionController(
                     },
                     { err ->
                         Log.e(logTag, "uploadMission failed: ${err.message}", err)
+                        DiagnosticLog.event("mission", "upload_failed", "ERROR", mapOf("itemCount" to items.size, "error" to err.javaClass.simpleName, "reason" to (err.message ?: "unknown")))
                         uploadProgressPercent.postValue(0)
                         activityVm.mapAction.postValue(
                             Event(

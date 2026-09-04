@@ -4,6 +4,7 @@ import android.os.SystemClock as AndroidSystemClock
 import android.util.Log
 import com.example.droneservicesapp.core.util.Clock
 import com.example.droneservicesapp.core.util.SystemClock
+import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import io.dronefleet.mavlink.MavlinkConnection
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.GpsRtcmData
@@ -81,6 +82,7 @@ class MavlinkSession(
             return
         }
         Log.i(TAG, "session start: reader creating")
+        DiagnosticLog.event("mavlink", "session_started")
         startReader()
         startRtcmSender()
         Log.i(TAG, "Started")
@@ -96,6 +98,7 @@ class MavlinkSession(
             return
         }
         Log.i(TAG, "session stop: disposing reader")
+        DiagnosticLog.event("mavlink", "session_stopped", data = mapOf("rtcmQueueDepth" to rtcmQueue.size))
         readerDisposable?.dispose()
         readerDisposable = null
         stopRtcmSender()
@@ -141,6 +144,7 @@ class MavlinkSession(
                 RTCM_TAG,
                 "mavlink: dropping low-priority RTCM frame before enqueue frame=$frameCount type=$rtcmMessageType queueDepth=$queueDepthBeforeEnqueue"
             )
+            DiagnosticLog.event("mavlink", "rtcm_frame_dropped_backlog", "WARN", mapOf("type" to rtcmMessageType, "queueDepth" to queueDepthBeforeEnqueue))
             return
         }
         val queued = QueuedRtcmFrame(
@@ -222,6 +226,7 @@ class MavlinkSession(
                 RTCM_TAG,
                 "mavlink: dropping stale frame before send frame=${queuedFrame.frameId} queueLatencyMs=$queueLatencyMs queueDepth=$queueDepth backlogMode=$backlogMode"
             )
+            DiagnosticLog.event("mavlink", "rtcm_frame_dropped_stale", "WARN", mapOf("queueLatencyMs" to queueLatencyMs, "queueDepth" to queueDepth, "type" to queuedFrame.messageType))
             return
         }
         val fragments = buildGpsRtcmMessages(queuedFrame.payload)
@@ -279,6 +284,7 @@ class MavlinkSession(
                     "mavlink: send failure frame=${queuedFrame.frameId} rtcmType=${queuedFrame.messageType} type=${e.javaClass.simpleName} message=${e.message}",
                     e
                 )
+                DiagnosticLog.event("mavlink", "rtcm_send_failed", "ERROR", mapOf("type" to queuedFrame.messageType, "error" to e.javaClass.simpleName, "queueDepth" to queueDepth))
             }
         }
     }
@@ -292,6 +298,7 @@ class MavlinkSession(
                 RTCM_TAG,
                 "mavlink: dropping stale queued frame frame=${staleFrame.frameId} type=${staleFrame.messageType} queueLatencyMs=${nanosToMillis(AndroidSystemClock.elapsedRealtimeNanos() - staleFrame.enqueueMonoNs)} queueDepth=${rtcmQueue.size}"
             )
+            DiagnosticLog.event("mavlink", "rtcm_queue_trimmed", "WARN", mapOf("type" to staleFrame.messageType, "queueDepth" to rtcmQueue.size))
         }
         return discarded
     }
@@ -373,11 +380,13 @@ class MavlinkSession(
                         _lastHeartbeatMs = clock.nowMs()
                         if (firstHeartbeatLogged.compareAndSet(false, true)) {
                             Log.i(TAG, "heartbeat first seen system=${msg.originSystemId} component=${msg.originComponentId}")
+                            DiagnosticLog.event("mavlink", "first_heartbeat", data = mapOf("systemId" to msg.originSystemId, "componentId" to msg.originComponentId))
                         }
                     }
                 },
                 { err ->
                     Log.e(TAG, "Reader error: ${err.message}", err)
+                    DiagnosticLog.event("mavlink", "reader_failed", "ERROR", mapOf("error" to err.javaClass.simpleName))
                 }
             )
     }

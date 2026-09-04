@@ -40,6 +40,7 @@ import com.example.droneservicesapp.data.geoawareness.incident.GeoIncidentLogger
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
 import com.example.droneservicesapp.data.geoawareness.logging.OperatorFlightEventLogger
+import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import com.example.droneservicesapp.data.ortho.SimpleTiffDecoder
 import com.example.droneservicesapp.data.ortho.WorldFileParser
 import com.example.droneservicesapp.data.pointcloud.PlyPointCloudParser
@@ -1355,8 +1356,7 @@ class MissionMapFragment : Fragment() {
             }
         }
 
-        activityViewModel.planningOperationMode.observe(viewLifecycleOwner) { mode ->
-            droneViewModel.setSrtmEnabled(mode == PlanningOperationMode.SURVEY)
+        activityViewModel.planningOperationMode.observe(viewLifecycleOwner) {
             if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
                 activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
                 (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
@@ -2407,6 +2407,16 @@ class MissionMapFragment : Fragment() {
 
         activityViewModel.surveyPath.value = gmsPath
         activityViewModel.terrainSurveyWaypoints.value = orderedTerrainWaypoints
+        DiagnosticLog.event(
+            "mission",
+            "plan_generated",
+            data = mapOf(
+                "workflow" to (activityViewModel.activePlanningWorkflow.value?.name ?: "UNKNOWN"),
+                "operationMode" to (activityViewModel.planningOperationMode.value?.name ?: "UNKNOWN"),
+                "waypointCount" to gmsPath.size,
+                "terrainWaypointCount" to orderedTerrainWaypoints.size
+            )
+        )
         if (orderedTerrainWaypoints.isNotEmpty()) {
             Log.d(TERRAIN_GRID_TAG, "Terrain-aware spray path waypoints=${orderedTerrainWaypoints.size}")
         }

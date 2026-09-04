@@ -9,9 +9,14 @@ import android.widget.Toast
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
+import androidx.lifecycle.lifecycleScope
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.databinding.FragmentDebugBinding
 import com.example.droneservicesapp.mavserver.DroneViewModel
+import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class DebugFragment : Fragment() {
 
@@ -37,6 +42,13 @@ class DebugFragment : Fragment() {
         bindSprayerButton(binding.debugSprayer1500Button, 1500)
         bindSprayerButton(binding.debugSprayer2000Button, 2000)
         bindSprayerButton(binding.debugSprayer2200Button, 2200)
+        binding.debugExportDiagnosticsButton.setOnClickListener {
+            exportDiagnostics()
+        }
+        binding.debugMarkIncidentButton.setOnClickListener {
+            droneViewModel.markDiagnosticIncident()
+            binding.debugDiagnosticsStatus.text = getString(R.string.debug_diagnostics_incident_marked)
+        }
 
         droneViewModel.servo5OutputRaw.observe(viewLifecycleOwner) { pwm ->
             binding.debugSprayerDroneValue.text = if (pwm == null) {
@@ -61,6 +73,29 @@ class DebugFragment : Fragment() {
                 getString(R.string.no_conn_msg)
             }
             Toast.makeText(requireContext(), message, Toast.LENGTH_LONG).show()
+        }
+    }
+
+    private fun exportDiagnostics() {
+        val context = requireContext().applicationContext
+        binding.debugExportDiagnosticsButton.isEnabled = false
+        binding.debugDiagnosticsStatus.text = getString(R.string.debug_diagnostics_exporting)
+        viewLifecycleOwner.lifecycleScope.launch(Dispatchers.IO) {
+            val result = DiagnosticLog.export(context)
+            withContext(Dispatchers.Main) {
+                if (_binding == null) return@withContext
+                binding.debugExportDiagnosticsButton.isEnabled = true
+                binding.debugDiagnosticsStatus.text = when (result) {
+                    is DiagnosticLog.ExportResult.Success -> getString(
+                        R.string.debug_diagnostics_exported,
+                        result.location
+                    )
+                    is DiagnosticLog.ExportResult.Failure -> getString(
+                        R.string.debug_diagnostics_export_failed,
+                        result.reason
+                    )
+                }
+            }
         }
     }
 }

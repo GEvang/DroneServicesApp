@@ -6,6 +6,7 @@ import android.net.Network
 import android.os.PowerManager
 import android.util.Log
 import com.example.droneservicesapp.data.mavlink.MavlinkClient
+import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -330,6 +331,18 @@ class RtkForwardingService(
     private fun updateState(newState: RtkForwardingState) {
         if (_state.value == newState) return
         Log.i(TAG, "state transition: ${_state.value.javaClass.simpleName} -> ${newState.javaClass.simpleName}")
+        DiagnosticLog.event(
+            module = "rtk",
+            message = "forwarding_state_changed",
+            data = mapOf(
+                "from" to _state.value.javaClass.simpleName,
+                "to" to newState.javaClass.simpleName,
+                "detail" to newState.toString(),
+                "lastRtcmByteAgeMs" to lastRtcmByteAgeMs(),
+                "framesForwarded" to totalRtcmFramesForwarded,
+                "queueDepth" to mavlinkClient.currentRtcmQueueDepth()
+            )
+        )
         syncWakeState(newState)
         _state.value = newState
     }

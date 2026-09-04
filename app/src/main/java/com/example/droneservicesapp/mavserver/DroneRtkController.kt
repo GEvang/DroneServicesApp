@@ -6,6 +6,7 @@ import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.mavlink.MavlinkClient
+import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import com.example.droneservicesapp.data.rtk.RtkConfig
 import com.example.droneservicesapp.data.rtk.RtkForwardingService
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
@@ -52,6 +53,7 @@ internal class DroneRtkController(
     @Volatile private var lastGpsLogSummary: String? = null
     @Volatile private var lastGpsLogMs: Long = 0L
     @Volatile private var lastGpsMessageTimeMs: Long = 0L
+    @Volatile private var lastConnectionDiagnosticState: Boolean? = null
     @Volatile private var lastFixType: Int = -1
     @Volatile private var lastSatellitesVisible: Int = -1
     @Volatile private var lastGpsSource: String = "--"
@@ -83,6 +85,11 @@ internal class DroneRtkController(
                 if (internetAvailable == available) return@collect
                 internetAvailable = available
                 Log.i(TAG, "internet availability changed available=$available")
+                DiagnosticLog.event(
+                    module = "rtk",
+                    message = if (available) "internet_available" else "internet_lost",
+                    severity = if (available) "INFO" else "WARN"
+                )
                 ensureRtkForwardingState()
             }
         }
@@ -94,6 +101,17 @@ internal class DroneRtkController(
         Log.i(
             TAG,
             "onRtkConfigurationChanged mountpoint=${config.mountpoint.trim()} desired=${isRtkDesired(config)} baseValid=${RtkValidator.isValidBaseConfig(config)}"
+        )
+        DiagnosticLog.event(
+            module = "rtk",
+            message = "configuration_changed",
+            data = mapOf(
+                "mountpoint" to config.mountpoint.trim(),
+                "host" to config.ip.trim(),
+                "port" to config.port,
+                "valid" to RtkValidator.isValidConfig(config),
+                "forceStart" to forceStart
+            )
         )
         ensureRtkForwardingState(forceStart = forceStart)
     }
@@ -147,6 +165,15 @@ internal class DroneRtkController(
     }
 
     fun onConnectionStateEvaluated(connected: Boolean) {
+        if (lastConnectionDiagnosticState != connected) {
+            lastConnectionDiagnosticState = connected
+            DiagnosticLog.event(
+                module = "mavlink",
+                message = if (connected) "connection_healthy" else "connection_lost",
+                severity = if (connected) "INFO" else "WARN",
+                data = mapOf("lastHeartbeatAgeMs" to (System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs))
+            )
+        }
         if (!connected) {
             if (rtkForwardingService.isRunning()) {
                 Log.w(TAG, "RTK waiting: drone disconnected during forwarding")
@@ -198,6 +225,14 @@ internal class DroneRtkController(
             Log.i(GPS_TAG, "GPS fix changed 4->6 source=$source")
         }
         val summary = "source=$source fixType=$fixType sats=$satellitesVisible eph=$eph epv=$epv"
+        if (summary != lastGpsLogSummary) {
+            DiagnosticLog.event(
+                module = "rtk",
+                message = "gps_status_changed",
+                severity = if (fixType < 5) "WARN" else "INFO",
+                data = mapOf("source" to source, "fixType" to fixType, "satellitesVisible" to satellitesVisible, "eph" to eph, "epv" to epv)
+            )
+        }
         if (summary != lastGpsLogSummary || now - lastGpsLogMs >= GPS_LOG_INTERVAL_MS) {
             lastGpsLogSummary = summary
             lastGpsLogMs = now
