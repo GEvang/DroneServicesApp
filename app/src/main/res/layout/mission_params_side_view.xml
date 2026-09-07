@@ -360,7 +360,7 @@
                 style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/spray_liters" />
+                android:text="@string/spray_flow_rate" />
 
             <LinearLayout
                 android:id="@+id/sprayer_slider_row"
@@ -390,8 +390,8 @@
                     android:layout_marginStart="@dimen/ds_space_xs"
                     android:layout_marginEnd="@dimen/ds_space_xs"
                     android:layout_weight="1"
-                    android:max="100"
-                    android:progress="75"
+                    android:max="30"
+                    android:progress="23"
                     android:progressDrawable="@drawable/seekbar_progress_dji"
                     android:splitTrack="false"
                     android:thumb="@drawable/seekbar_thumb_dji" />
@@ -413,7 +413,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="3dp"
-                    android:text="@string/liters_unit" />
+                    android:text="@string/liters_per_minute_unit" />
 
                 <androidx.appcompat.widget.AppCompatImageButton
                     android:id="@+id/btn_sprayer_plus"

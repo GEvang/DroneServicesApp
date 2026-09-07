@@ -15,6 +15,7 @@ import android.view.MotionEvent
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.ui.preview.buildSurveyDirectionSegments
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.SphericalUtil
@@ -63,6 +64,8 @@ class OsmdroidMapController(
     private val surveyDirectionMarkers = mutableListOf<Marker>()
     private val surveyWaypointMarkers = mutableListOf<Marker>()
     private val surveyInfoMarkers = mutableListOf<Marker>()
+    private val missionServiceMarkers = mutableListOf<Marker>()
+    private var simulationMarker: Marker? = null
     private var directionArrowIcon: BitmapDrawable? = null
     private var surveyWaypointIcon: BitmapDrawable? = null
     private var selectedSurveyWaypointIcon: BitmapDrawable? = null
@@ -421,6 +424,50 @@ class OsmdroidMapController(
         requestMapRedraw()
     }
 
+    fun setMissionServiceMarkers(
+        batteryReturnPoints: List<LatLon>,
+        tankRefillPoints: List<LatLon>,
+    ) {
+        clearMissionServiceMarkers()
+        batteryReturnPoints.forEach { point ->
+            addMissionServiceMarker(
+                point = point,
+                icon = createServiceMarkerIcon(ServiceMarkerType.BATTERY),
+            )
+        }
+        tankRefillPoints.forEach { point ->
+            addMissionServiceMarker(
+                point = point,
+                icon = createServiceMarkerIcon(ServiceMarkerType.TANK),
+            )
+        }
+        requestMapRedraw()
+    }
+
+    fun setSimulationDrone(position: LatLon, headingDegrees: Float) {
+        if (!isValidMapPoint(position.lat, position.lon)) return
+        val marker = simulationMarker ?: Marker(mapView).apply {
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            infoWindow = null
+            icon = createDroneMarkerIcon(isOffsetActive = true)
+            isDraggable = false
+        }.also {
+            simulationMarker = it
+            mapView.overlays.add(it)
+        }
+        marker.position = GeoPoint(position.lat, position.lon)
+        marker.rotation = headingDegrees
+        marker.isEnabled = true
+        marker.setVisible(true)
+        requestMapRedraw()
+    }
+
+    fun clearSimulationDrone() {
+        simulationMarker?.let { mapView.overlays.remove(it) }
+        simulationMarker = null
+        requestMapRedraw()
+    }
+
     fun clearSurveyPath() {
         clearSelectedSurveyWaypoint()
         surveyPolyline?.setPoints(emptyList())
@@ -428,6 +475,8 @@ class OsmdroidMapController(
         clearSurveyDirectionMarkers()
         clearSurveyWaypointMarkers()
         clearSurveyInfoMarkers()
+        clearMissionServiceMarkers()
+        clearSimulationDrone()
         requestMapRedraw()
     }
 
@@ -684,6 +733,85 @@ class OsmdroidMapController(
         }
         canvas.drawCircle(center, center, radius, fillPaint)
         canvas.drawCircle(center, center, radius, strokePaint)
+        return BitmapDrawable(context.resources, bitmap)
+    }
+
+    private fun addMissionServiceMarker(
+        point: LatLon,
+        icon: BitmapDrawable,
+    ) {
+        if (!isValidMapPoint(point.lat, point.lon)) return
+        val marker = Marker(mapView).apply {
+            position = GeoPoint(point.lat, point.lon)
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            infoWindow = null
+            this.icon = icon
+        }
+        missionServiceMarkers += marker
+        mapView.overlays.add(marker)
+    }
+
+    private fun clearMissionServiceMarkers() {
+        mapView.overlays.removeAll(missionServiceMarkers)
+        missionServiceMarkers.clear()
+    }
+
+    private enum class ServiceMarkerType {
+        BATTERY,
+        TANK,
+    }
+
+    private fun createServiceMarkerIcon(type: ServiceMarkerType): BitmapDrawable {
+        val density = context.resources.displayMetrics.density
+        val size = (38f * density).toInt()
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val center = size / 2f
+        val backgroundPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = when (type) {
+                ServiceMarkerType.BATTERY -> Color.rgb(255, 184, 77)
+                ServiceMarkerType.TANK -> Color.rgb(55, 170, 255)
+            }
+            style = Paint.Style.FILL
+        }
+        val borderPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeWidth = 2f * density
+        }
+        val symbolPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.rgb(15, 25, 34)
+            style = Paint.Style.STROKE
+            strokeWidth = 2.2f * density
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
+        canvas.drawCircle(center, center, center - 2f * density, backgroundPaint)
+        canvas.drawCircle(center, center, center - 2f * density, borderPaint)
+
+        when (type) {
+            ServiceMarkerType.BATTERY -> {
+                val left = center - 7f * density
+                val top = center - 9f * density
+                val right = center + 7f * density
+                val bottom = center + 9f * density
+                canvas.drawRoundRect(left, top, right, bottom, 2f * density, 2f * density, symbolPaint)
+                canvas.drawLine(center - 3f * density, top - 2f * density, center + 3f * density, top - 2f * density, symbolPaint)
+                canvas.drawLine(center, center - 5f * density, center, center + 5f * density, symbolPaint)
+                canvas.drawLine(center - 4f * density, center, center + 4f * density, center, symbolPaint)
+            }
+            ServiceMarkerType.TANK -> {
+                val left = center - 8f * density
+                val top = center - 8f * density
+                val right = center + 8f * density
+                val bottom = center + 9f * density
+                canvas.drawRoundRect(left, top, right, bottom, 3f * density, 3f * density, symbolPaint)
+                canvas.drawLine(center - 4f * density, top - 3f * density, center + 4f * density, top - 3f * density, symbolPaint)
+                canvas.drawLine(center, top - 3f * density, center, top, symbolPaint)
+                val waveY = center + 2f * density
+                canvas.drawLine(left + 2f * density, waveY, right - 2f * density, waveY, symbolPaint)
+            }
+        }
         return BitmapDrawable(context.resources, bitmap)
     }
 

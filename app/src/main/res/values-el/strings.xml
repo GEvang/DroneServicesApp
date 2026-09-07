@@ -154,7 +154,11 @@
   <string name="locales_categ_pref">Επιλογές γλώσσας</string>
   <string name="sprayer_intensity">Ένταση ψεκασμού</string>
   <string name="spray_liters">Λίτρα</string>
+  <string name="spray_flow_rate">Ροή ψεκασμού</string>
   <string name="liters_short">L</string>
+  <string name="simulate_mission_path">Προσομοίωση διαδρομής</string>
+  <string name="stop_mission_simulation">Διακοπή προσομοίωσης</string>
+  <string name="simulation_requires_path">Δημιουργήστε ή σχεδιάστε πρώτα μια διαδρομή αποστολής.</string>
   <string name="action_failed">Δεν ήταν δυνατή η εκτέλεση της ενέργειας!</string>
   <string name="flight_time">Ταχύτητα - Χρόνος Πτήσης</string>
   <string name="disarmed">ΑΦΟΠΛΙΣΜΕΝΟ</string>

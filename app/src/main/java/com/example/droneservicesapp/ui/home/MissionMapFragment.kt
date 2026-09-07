@@ -1,5 +1,8 @@
 package com.example.droneservicesapp.ui.home
 
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -64,6 +67,8 @@ import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
+import com.example.droneservicesapp.domain.planning.MissionResourcePlan
+import com.example.droneservicesapp.domain.planning.MissionResourcePlanner
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
 import com.example.droneservicesapp.domain.survey.SurveyGridPlanner
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
@@ -202,6 +207,7 @@ class MissionMapFragment : Fragment() {
     private var selectedSurveyWaypointIndex: Int? = null
     private var previewHeightColorModeEnabled: Boolean = false
     private var homePlacementMode: Boolean = false
+    private var missionSimulationAnimator: ValueAnimator? = null
 
     private enum class PreviewMode {
         MAP,
@@ -228,6 +234,9 @@ class MissionMapFragment : Fragment() {
         private const val PREVIEW_MAP_FIT_PADDING_PX = 96
         private const val MIN_PREVIEW_MAP_SPAN_METERS = 10.0
         private const val TILE_SIZE_PX = 256.0
+        private const val SIMULATION_SPEED_MULTIPLIER = 20.0
+        private const val MIN_SIMULATION_DURATION_MS = 4_000L
+        private const val MAX_SIMULATION_DURATION_MS = 60_000L
         private const val MIN_MAP_VIEWPORT_PX = 320
         private const val MIN_PREVIEW_BOUNDS_SPAN_DEGREES = 0.000001
         private const val MIN_PREVIEW_MERCATOR_SPAN = 0.000001
@@ -445,6 +454,11 @@ class MissionMapFragment : Fragment() {
         requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_add_home_button)
             ?.setOnClickListener {
                 startPlannedHomePlacement()
+            }
+
+        requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_simulate_button)
+            ?.setOnClickListener {
+                if (missionSimulationAnimator != null) stopMissionSimulation() else startMissionSimulation()
             }
 
         requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_close_button)
@@ -745,10 +759,12 @@ class MissionMapFragment : Fragment() {
         activityViewModel.activePlanningWorkflow.observe(viewLifecycleOwner) { workflow ->
             obstaclePlacementMode = false
             osmdroidObstacleEditor.cancelPlacement()
+            stopMissionSimulation()
             renderWorkflowSelection(workflow)
             updateRouteEditorEnabled()
             updateSurveyWaypointEditorEnabled()
             updateGeoAwarenessPlanningStatus()
+            updateMissionSummaryCard()
         }
     }
 
@@ -904,30 +920,162 @@ class MissionMapFragment : Fragment() {
     private fun updateMissionSummaryCard() {
         val summaryCard = view?.findViewById<TextView?>(R.id.home_mission_summary_card) ?: return
         val areaVertices = activityViewModel.missionArea.value?.vertices.orEmpty()
-        val missionPath = activityViewModel.surveyPath.value.orEmpty()
-        if (areaVertices.size < 3 || missionPath.size < 2) {
+        val missionPath = currentMissionPath()
+        updateSimulationButton(missionPath.size >= 2)
+        if (missionPath.size < 2) {
             summaryCard.visibility = View.GONE
+            osmdroidMapController.setMissionServiceMarkers(emptyList(), emptyList())
+            stopMissionSimulation()
             return
         }
 
-        val areaMeters = SphericalUtil.computeArea(areaVertices)
+        val areaMeters = if (areaVertices.size >= 3) SphericalUtil.computeArea(areaVertices) else 0.0
         val passes = when {
             missionPath.size % 2 == 0 -> missionPath.size / 2
             else -> missionPath.size - 1
         }.coerceAtLeast(0)
-        val totalDistanceMeters = missionPathTotalDistance(missionPath)
-        val speedMetersPerSecond = (activityViewModel.flightSpeed.value ?: 5.0).coerceAtLeast(0.1)
-        val estimatedSeconds = (totalDistanceMeters / speedMetersPerSecond).toInt().coerceAtLeast(0)
-        val altitudeMeters = activityViewModel.flightAltProgress.value ?: 0.0
+        val plan = buildMissionResourcePlan(missionPath)
+        val altitudeMeters = if (activityViewModel.planningOperationMode.value == PlanningOperationMode.SURVEY) {
+            activityViewModel.surveyHeightAboveTerrain.value ?: 0.0
+        } else {
+            activityViewModel.flightAltProgress.value ?: 0.0
+        }
+        val isSpraying = activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
+
+        osmdroidMapController.setMissionServiceMarkers(
+            batteryReturnPoints = plan.batteryReturnPoints,
+            tankRefillPoints = if (isSpraying) plan.tankRefillPoints else emptyList(),
+        )
 
         summaryCard.text = buildString {
-            append("Area: ${formatMissionArea(areaMeters)}")
-            append("   |   Passes: $passes")
-            append("   |   Time: ${formatEstimatedTime(estimatedSeconds)}")
+            if (areaMeters > 0.0) append("Area: ${formatMissionArea(areaMeters)}   |   ")
+            append("Passes: $passes")
+            append("   |   Time: ${formatEstimatedTime(plan.estimatedFlightSeconds.toInt())}")
             appendLine()
-            append("ALT (AGL): ${altitudeMeters.toInt()} m")
+            append("ALT (AGL): ${altitudeMeters.toInt()} m   |   Batteries: ${plan.batteryCount}")
+            if (isSpraying) {
+                appendLine()
+                append("Flow: ${formatSprayFlow(activityViewModel.sprayFlowLitersPerMinute())} Lt/min")
+                append("   |   Liquid: ${formatSprayLiters(plan.totalSprayLiters)} Lt")
+                append("   |   Tank refills: ${plan.tankRefillCount}")
+            }
         }
         summaryCard.visibility = View.VISIBLE
+    }
+
+    private fun currentMissionPath(): List<LatLng> {
+        return when (activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA) {
+            PlanningWorkflow.AREA -> activityViewModel.surveyPath.value.orEmpty()
+            PlanningWorkflow.POINTS -> activityViewModel.routeWaypoints.value.orEmpty().map {
+                LatLng(it.latitude, it.longitude)
+            }
+        }
+    }
+
+    private fun buildMissionResourcePlan(path: List<LatLng>): MissionResourcePlan {
+        return MissionResourcePlanner.plan(
+            path = path.map { LatLon(it.latitude, it.longitude) },
+            home = activityViewModel.plannedHomePosition.value,
+            speedMetersPerSecond = (activityViewModel.flightSpeed.value ?: 5.0).coerceAtLeast(0.1),
+            sprayRateLitersPerMinute = if (
+                activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
+            ) {
+                activityViewModel.sprayFlowLitersPerMinute()
+            } else {
+                0.0
+            },
+        )
+    }
+
+    private fun formatSprayFlow(value: Double): String = String.format(Locale.US, "%.1f", value)
+
+    private fun formatSprayLiters(value: Double): String = String.format(Locale.US, "%.1f", value)
+
+    private fun updateSimulationButton(hasPath: Boolean) {
+        view?.findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_simulate_button)
+            ?.apply {
+                isEnabled = hasPath
+                alpha = if (hasPath) 1.0f else 0.5f
+                setText(
+                    if (missionSimulationAnimator != null) R.string.stop_mission_simulation
+                    else R.string.simulate_mission_path
+                )
+            }
+    }
+
+    private fun startMissionSimulation() {
+        val missionPath = currentMissionPath()
+        if (missionPath.size < 2) {
+            Toast.makeText(requireContext(), R.string.simulation_requires_path, Toast.LENGTH_SHORT).show()
+            return
+        }
+        stopMissionSimulation()
+        activePreviewMode = PreviewMode.MAP
+        renderPreviewMode()
+
+        val home = activityViewModel.plannedHomePosition.value?.let { LatLng(it.lat, it.lon) }
+        val simulationPath = buildList {
+            if (home != null && home != missionPath.first()) add(home)
+            addAll(missionPath)
+            if (home != null && home != missionPath.last()) add(home)
+        }
+        val cumulative = MutableList(simulationPath.size) { 0.0 }
+        for (index in 1 until simulationPath.size) {
+            cumulative[index] = cumulative[index - 1] +
+                SphericalUtil.computeDistanceBetween(simulationPath[index - 1], simulationPath[index])
+        }
+        val totalDistance = cumulative.last()
+        if (totalDistance <= 0.0) return
+
+        val speed = (activityViewModel.flightSpeed.value ?: 5.0).coerceAtLeast(0.1)
+        val durationMillis = (totalDistance / speed / SIMULATION_SPEED_MULTIPLIER * 1000.0)
+            .toLong()
+            .coerceIn(MIN_SIMULATION_DURATION_MS, MAX_SIMULATION_DURATION_MS)
+        val animator = ValueAnimator.ofFloat(0f, totalDistance.toFloat()).apply {
+            duration = durationMillis
+            addUpdateListener { animation ->
+                val traveled = (animation.animatedValue as Float).toDouble()
+                val upper = cumulative.indexOfFirst { it >= traveled }.takeIf { it >= 0 }
+                    ?: simulationPath.lastIndex
+                val lower = (upper - 1).coerceAtLeast(0)
+                val segmentLength = cumulative[upper] - cumulative[lower]
+                val fraction = if (segmentLength > 0.0) {
+                    ((traveled - cumulative[lower]) / segmentLength).coerceIn(0.0, 1.0)
+                } else {
+                    0.0
+                }
+                val point = SphericalUtil.interpolate(simulationPath[lower], simulationPath[upper], fraction)
+                val heading = bearingDegrees(
+                    LatLon(simulationPath[lower].latitude, simulationPath[lower].longitude),
+                    LatLon(simulationPath[upper].latitude, simulationPath[upper].longitude),
+                ).toFloat()
+                osmdroidMapController.setSimulationDrone(
+                    LatLon(point.latitude, point.longitude),
+                    heading,
+                )
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    if (missionSimulationAnimator === animation) {
+                        missionSimulationAnimator = null
+                        updateSimulationButton(hasPath = true)
+                    }
+                }
+            })
+        }
+        missionSimulationAnimator = animator
+        updateSimulationButton(hasPath = true)
+        animator.start()
+    }
+
+    private fun stopMissionSimulation() {
+        missionSimulationAnimator?.let { animator ->
+            missionSimulationAnimator = null
+            animator.removeAllListeners()
+            animator.cancel()
+        }
+        if (::osmdroidMapController.isInitialized) osmdroidMapController.clearSimulationDrone()
+        updateSimulationButton(currentMissionPath().size >= 2)
     }
 
     private fun formatEstimatedTime(totalSeconds: Int): String {
@@ -1333,6 +1481,7 @@ class MissionMapFragment : Fragment() {
                 updateRouteDistance(waypoints.orEmpty())
             }
             updateRouteSummary()
+            updateMissionSummaryCard()
             updateGeoAwarenessPlanningStatus()
             updatePointCloudMissionOverlay()
             updateSurveyWaypointEditorEnabled()
@@ -1363,6 +1512,15 @@ class MissionMapFragment : Fragment() {
             ) {
                 redrawAreaMissionOnMap()
             }
+            updateMissionSummaryCard()
+        }
+
+        activityViewModel.flightSpeed.observe(viewLifecycleOwner) {
+            updateMissionSummaryCard()
+        }
+
+        activityViewModel.sprayerProgress.observe(viewLifecycleOwner) {
+            updateMissionSummaryCard()
         }
 
         activityViewModel.mapAction.observe(viewLifecycleOwner) { event ->
@@ -2462,6 +2620,7 @@ class MissionMapFragment : Fragment() {
         val altitudeMeters = activityViewModel.flightAltProgress.value ?: 0.0
         val speedMetersPerSecond = activityViewModel.flightSpeed.value ?: 5.0
         val mode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
+        val resourcePlan = buildMissionResourcePlan(missionPath)
 
         val message = buildString {
             appendLine("Mode: ${mode.name.lowercase().replaceFirstChar { it.uppercase() }}")
@@ -2471,6 +2630,13 @@ class MissionMapFragment : Fragment() {
             appendLine("Lines: $lineCount")
             appendLine("Altitude: ${altitudeMeters.toInt()} m")
             appendLine("Speed: ${String.format(Locale.US, "%.1f", speedMetersPerSecond)} m/s")
+            appendLine("Estimated time: ${formatEstimatedTime(resourcePlan.estimatedFlightSeconds.toInt())}")
+            appendLine("Batteries required: ${resourcePlan.batteryCount}")
+            if (mode == PlanningOperationMode.SPRAY) {
+                appendLine("Spray flow: ${formatSprayFlow(activityViewModel.sprayFlowLitersPerMinute())} Lt/min")
+                appendLine("Liquid required: ${formatSprayLiters(resourcePlan.totalSprayLiters)} Lt")
+                appendLine("Tank refills: ${resourcePlan.tankRefillCount}")
+            }
         }
 
         val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
@@ -2500,6 +2666,7 @@ class MissionMapFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        stopMissionSimulation()
         terrainSurveyJob?.cancel()
         terrainSurveyJob = null
         previewAssetLoadJob?.cancel()
@@ -2536,6 +2703,7 @@ class MissionMapFragment : Fragment() {
     }
 
     override fun onPause() {
+        stopMissionSimulation()
         cancelDroneOffsetAdjustment()
         showShellToolbar()
         binding.homePointCloudGlView.onPause()

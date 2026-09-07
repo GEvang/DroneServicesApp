@@ -22,8 +22,13 @@ import com.example.droneservicesapp.domain.model.SurveyGridParams
 import com.example.droneservicesapp.domain.survey.SprayPresets
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
 import com.google.android.gms.maps.model.LatLng
+import kotlin.math.roundToInt
 
 class MainActivityViewModel : ViewModel() {
+
+    companion object {
+        const val MAX_SPRAY_FLOW_LITERS_PER_MINUTE = 15.0
+    }
 
     enum class MapState {
         Idle,
@@ -303,6 +308,17 @@ class MainActivityViewModel : ViewModel() {
         sprayerProgress.value = value.coerceIn(0, 100).toDouble()
         updateMissionParams { copy(sprayer = sprayerProgress.value ?: 75.0) }
         markPresetCustomIfNeeded(markCustom)
+    }
+
+    fun updateSprayFlowLitersPerMinute(value: Double, markCustom: Boolean = true) {
+        val flow = value.coerceIn(0.0, MAX_SPRAY_FLOW_LITERS_PER_MINUTE)
+        val intensityPercent = (flow / MAX_SPRAY_FLOW_LITERS_PER_MINUTE * 100.0).roundToInt()
+        updateSprayIntensity(intensityPercent, markCustom)
+    }
+
+    fun sprayFlowLitersPerMinute(): Double {
+        val intensityPercent = (sprayerProgress.value ?: 0.0).coerceIn(0.0, 100.0)
+        return intensityPercent / 100.0 * MAX_SPRAY_FLOW_LITERS_PER_MINUTE
     }
 
     fun updateMissionSpeed(value: Double, markCustom: Boolean = true) {

@@ -10,9 +10,8 @@ import kotlin.math.sqrt
 internal object TelemetryMapping {
     const val UNKNOWN_PERCENT = -1
     const val UINT16_MAX = 65535
-    private const val BATTERY_EMPTY_VOLTS = 41.0f
-    private const val BATTERY_TEN_PERCENT_VOLTS = 44.5f
-    private const val BATTERY_FULL_VOLTS = 50.0f
+    private const val BATTERY_EMPTY_VOLTS = 19.0f
+    private const val BATTERY_FULL_VOLTS = 25.2f
 
     fun gpsFixLabel(fixType: GpsFixType?): String {
         return when (gpsFixQuality(fixType, isConnected = true)) {
@@ -46,18 +45,8 @@ internal object TelemetryMapping {
 
     fun batteryFractionFromVoltage(voltage: Float?): Float {
         val safeVoltage = voltage?.takeIf { it.isFinite() && it > 0f } ?: return -1f
-        return when {
-            safeVoltage >= BATTERY_FULL_VOLTS -> 1.0f
-            safeVoltage <= BATTERY_EMPTY_VOLTS -> 0.0f
-            safeVoltage <= BATTERY_TEN_PERCENT_VOLTS -> {
-                val fraction = (safeVoltage - BATTERY_EMPTY_VOLTS) / (BATTERY_TEN_PERCENT_VOLTS - BATTERY_EMPTY_VOLTS)
-                (fraction * 0.1f).coerceIn(0f, 0.1f)
-            }
-            else -> {
-                val fraction = (safeVoltage - BATTERY_TEN_PERCENT_VOLTS) / (BATTERY_FULL_VOLTS - BATTERY_TEN_PERCENT_VOLTS)
-                (0.1f + fraction * 0.9f).coerceIn(0.1f, 1.0f)
-            }
-        }
+        return ((safeVoltage - BATTERY_EMPTY_VOLTS) / (BATTERY_FULL_VOLTS - BATTERY_EMPTY_VOLTS))
+            .coerceIn(0.0f, 1.0f)
     }
 
     fun placeholderSprayLiters(rawPercent: Float?): Double? {

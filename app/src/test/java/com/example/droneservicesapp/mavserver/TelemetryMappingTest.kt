@@ -47,6 +47,15 @@ class TelemetryMappingTest {
     }
 
     @Test
+    fun mapsSurveyBatteryVoltageLinearlyBetweenNineteenAndTwentyFivePointTwoVolts() {
+        assertEquals(0.0f, TelemetryMapping.batteryFractionFromVoltage(19.0f), 0.001f)
+        assertEquals(0.5f, TelemetryMapping.batteryFractionFromVoltage(22.1f), 0.001f)
+        assertEquals(1.0f, TelemetryMapping.batteryFractionFromVoltage(25.2f), 0.001f)
+        assertEquals(0.0f, TelemetryMapping.batteryFractionFromVoltage(18.0f), 0.001f)
+        assertEquals(1.0f, TelemetryMapping.batteryFractionFromVoltage(26.0f), 0.001f)
+    }
+
+    @Test
     fun calculatesGlobalHorizontalSpeed() {
         assertEquals(
             5.0f,

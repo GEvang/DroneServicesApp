@@ -365,8 +365,13 @@
     <string name="unknown_value" translatable="false">\?</string>
     <string name="sprayer_intensity">Sprayer Intensity</string>
     <string name="spray_liters">Liters</string>
+    <string name="spray_flow_rate">Spray flow</string>
+    <string name="liters_per_minute_unit" translatable="false">Lt/min</string>
     <string name="liters_unit" translatable="false">L</string>
     <string name="liters_short">L</string>
+    <string name="simulate_mission_path">Simulate path</string>
+    <string name="stop_mission_simulation">Stop simulation</string>
+    <string name="simulation_requires_path">Generate or draw a mission path first.</string>
     <string name="debug_sprayer">Debug Sprayer</string>
     <string name="debug_diagnostics_title">Field diagnostic logs</string>
     <string name="debug_diagnostics_description">Creates a ZIP with app, MAVLink, RTK, mission, and geo-awareness events. Retrieve it later by USB from Downloads/DroneServicesApp/Logs.</string>
