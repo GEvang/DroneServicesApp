@@ -89,6 +89,7 @@
         app:icon="@drawable/ic_draw_area_24"
         app:iconGravity="textStart"
         app:iconPadding="@dimen/ds_space_sm"
+        app:iconSize="24dp"
         app:iconTint="@color/ds_color_text_primary" />
 
     <com.google.android.material.button.MaterialButton
@@ -178,6 +179,7 @@
         app:icon="@drawable/ic_save_24"
         app:iconGravity="textStart"
         app:iconPadding="@dimen/ds_space_sm"
+        app:iconSize="24dp"
         app:iconTint="@color/ds_color_text_primary" />
 
     <com.google.android.material.button.MaterialButton
@@ -194,6 +196,19 @@
         app:iconTint="@color/ds_color_text_primary" />
 
     <com.google.android.material.button.MaterialButton
+        android:id="@+id/right_panel_weather_button"
+        style="@style/Widget.DroneServices.Button.MapDark"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/phone_map_panel_button_height_tall"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:text="@string/weather"
+        android:textSize="@dimen/phone_map_panel_label_text_size"
+        app:icon="@drawable/ic_weather_wind_24"
+        app:iconGravity="textStart"
+        app:iconPadding="@dimen/ds_space_sm"
+        app:iconTint="@color/ds_color_text_primary" />
+
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/right_panel_add_home_button"
         style="@style/Widget.DroneServices.Button.MapDark"
         android:layout_width="match_parent"
@@ -205,6 +220,7 @@
         app:icon="@drawable/ic_home_takeoff_marker"
         app:iconGravity="textStart"
         app:iconPadding="@dimen/ds_space_sm"
+        app:iconSize="24dp"
         app:iconTint="@color/ds_color_text_primary" />
 
     <com.google.android.material.button.MaterialButton
@@ -218,6 +234,7 @@
         app:icon="@drawable/drone_marker_36"
         app:iconGravity="textStart"
         app:iconPadding="@dimen/ds_space_sm"
+        app:iconSize="24dp"
         app:iconTint="@color/ds_color_text_primary" />
 
     <com.google.android.material.button.MaterialButton

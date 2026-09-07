@@ -114,10 +114,18 @@ class DatasetsFragment : Fragment() {
         binding.datasetOrthoOpacitySlider.addOnChangeListener { _, value, fromUser ->
             if (!fromUser || suppressOptionCallbacks) return@addOnChangeListener
             updateActiveDataset { copy(orthoOpacity = value) }
+            binding.datasetOrthoOpacityLabel.text = getString(
+                R.string.dataset_ortho_opacity_value,
+                (value * 100).toInt()
+            )
         }
         binding.datasetPointSizeSlider.addOnChangeListener { _, value, fromUser ->
             if (!fromUser || suppressOptionCallbacks) return@addOnChangeListener
             updateActiveDataset { copy(pointCloudPointSize = value) }
+            binding.datasetPointSizeLabel.text = getString(
+                R.string.dataset_point_size_value,
+                value
+            )
         }
         binding.datasetHeightColorsSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (suppressOptionCallbacks) return@setOnCheckedChangeListener
@@ -158,7 +166,6 @@ class DatasetsFragment : Fragment() {
         val updated = activeDataset().update()
         datasetStore.upsert(updated)
         applySettings(updated)
-        render()
     }
 
     private fun attachOrthoImage(uri: Uri) {

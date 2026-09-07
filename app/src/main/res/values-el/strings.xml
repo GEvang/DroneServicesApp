@@ -157,6 +157,13 @@
   <string name="spray_flow_rate">Ροή ψεκασμού</string>
   <string name="liters_short">L</string>
   <string name="simulate_mission_path">Προσομοίωση διαδρομής</string>
+  <string name="weather">Καιρός</string>
+  <string name="weather_loading">Ενημέρωση…</string>
+  <string name="weather_live">Ζωντανά</string>
+  <string name="weather_unavailable">Ο άνεμος δεν είναι διαθέσιμος</string>
+  <string name="weather_wind_direction">Διεύθυνση ανέμου</string>
+  <string name="weather_wind_from_format">Άνεμος από %1$s</string>
+  <string name="weather_wind_speed_format">%1$.0f km/h</string>
   <string name="stop_mission_simulation">Διακοπή προσομοίωσης</string>
   <string name="resume_mission">Συνέχιση αποστολής</string>
   <string name="resume_mission_service_format">Συνέχιση: %1$s</string>

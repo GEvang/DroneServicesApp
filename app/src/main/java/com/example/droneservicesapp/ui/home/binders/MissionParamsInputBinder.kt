@@ -287,30 +287,17 @@ class MissionParamsInputBinder(
     }
 
     private fun bindExpandedTouchTarget(touchTarget: View, seekbar: SeekBar) {
-        touchTarget.setOnTouchListener { _, event ->
-            if (event.actionMasked == MotionEvent.ACTION_DOWN) {
-                seekbar.parent?.requestDisallowInterceptTouchEvent(true)
+        // TouchDelegateSeekBar already expands its hit area into this row. Forwarding
+        // synthetic events from the row caused the SeekBar to lose its active gesture
+        // after the first progress update inside a scrollable settings panel.
+        touchTarget.setOnTouchListener(null)
+        seekbar.setOnTouchListener { _, event ->
+            when (event.actionMasked) {
+                MotionEvent.ACTION_DOWN -> seekbar.parent?.requestDisallowInterceptTouchEvent(true)
+                MotionEvent.ACTION_UP,
+                MotionEvent.ACTION_CANCEL -> seekbar.parent?.requestDisallowInterceptTouchEvent(false)
             }
-
-            val forwardedEvent = MotionEvent.obtain(event)
-            val seekbarLocation = IntArray(2)
-            val touchTargetLocation = IntArray(2)
-            seekbar.getLocationOnScreen(seekbarLocation)
-            touchTarget.getLocationOnScreen(touchTargetLocation)
-            forwardedEvent.offsetLocation(
-                (touchTargetLocation[0] - seekbarLocation[0]).toFloat(),
-                (touchTargetLocation[1] - seekbarLocation[1]).toFloat()
-            )
-            val handled = seekbar.dispatchTouchEvent(forwardedEvent)
-            forwardedEvent.recycle()
-
-            if (event.actionMasked == MotionEvent.ACTION_UP ||
-                event.actionMasked == MotionEvent.ACTION_CANCEL
-            ) {
-                seekbar.parent?.requestDisallowInterceptTouchEvent(false)
-            }
-
-            handled
+            false
         }
     }
 

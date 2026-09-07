@@ -5,6 +5,7 @@ import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.app.Activity
 import android.content.Context
+import android.content.res.ColorStateList
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -49,6 +50,7 @@ import com.example.droneservicesapp.data.ortho.WorldFileParser
 import com.example.droneservicesapp.data.pointcloud.PlyPointCloudParser
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.storage.MissionFileStore
+import com.example.droneservicesapp.data.weather.OpenMeteoWindRepository
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessChecker
 import com.example.droneservicesapp.domain.geoawareness.GeoAltitudeContext
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
@@ -73,6 +75,7 @@ import com.example.droneservicesapp.domain.planning.MissionServiceStop
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
 import com.example.droneservicesapp.domain.survey.SurveyGridPlanner
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
+import com.example.droneservicesapp.domain.weather.WindWeather
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.mavserver.GpsFixQuality
 import com.example.droneservicesapp.mavserver.TelemetryMapping
@@ -155,6 +158,7 @@ class MissionMapFragment : Fragment() {
     private val tiffDecoder = SimpleTiffDecoder()
     private val worldFileParser = WorldFileParser()
     private val pointCloudParser = PlyPointCloudParser()
+    private val windWeatherRepository = OpenMeteoWindRepository()
     private var geoAwarenessZones: List<GeoZone> = emptyList()
     private var geoZoneDatasetInfo: GeoZoneDatasetInfo? = null
     private var geoAwarenessHealth: GeoAwarenessHealth? = null
@@ -218,6 +222,8 @@ class MissionMapFragment : Fragment() {
     private var simulationCurrentWorkDistance: Double = 0.0
     private var simulationHome: LatLng? = null
     private var pendingSimulationServiceStop: MissionServiceStop? = null
+    private var weatherVisible: Boolean = false
+    private var weatherRequestJob: Job? = null
     private enum class PreviewMode {
         MAP,
         ORTHO,
@@ -471,6 +477,10 @@ class MissionMapFragment : Fragment() {
             ?.setOnClickListener {
                 startPlannedHomePlacement()
             }
+
+        requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_weather_button)
+            ?.setOnClickListener { toggleWindWeather() }
+        renderWindWeatherVisibility()
 
         requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_simulate_button)
             ?.setOnClickListener {
@@ -1013,6 +1023,81 @@ class MissionMapFragment : Fragment() {
     private fun formatSprayFlow(value: Double): String = String.format(Locale.US, "%.1f", value)
 
     private fun formatSprayLiters(value: Double): String = String.format(Locale.US, "%.1f", value)
+
+    private fun toggleWindWeather() {
+        weatherVisible = !weatherVisible
+        renderWindWeatherVisibility()
+        if (weatherVisible) refreshWindWeather()
+    }
+
+    private fun renderWindWeatherVisibility() {
+        view?.findViewById<View?>(R.id.wind_weather_panel_include)?.visibility =
+            if (weatherVisible) View.VISIBLE else View.GONE
+        val button = view?.findViewById<com.google.android.material.button.MaterialButton?>(
+            R.id.right_panel_weather_button
+        ) ?: return
+        val selectedColor = if (weatherVisible) {
+            ContextCompat.getColor(requireContext(), R.color.ds_color_shell_selected_surface)
+        } else {
+            ContextCompat.getColor(requireContext(), R.color.ds_color_shell_overlay_strong)
+        }
+        val contentColor = if (weatherVisible) {
+            ContextCompat.getColor(requireContext(), R.color.ds_color_shell_active)
+        } else {
+            ContextCompat.getColor(requireContext(), R.color.ds_color_text_primary)
+        }
+        button.backgroundTintList = ColorStateList.valueOf(selectedColor)
+        button.setTextColor(contentColor)
+        button.iconTint = ColorStateList.valueOf(contentColor)
+    }
+
+    private fun refreshWindWeather() {
+        val location = activityViewModel.plannedHomePosition.value
+            ?: latestRealDronePosition
+            ?: mapView.mapCenter.let { LatLon(it.latitude, it.longitude) }
+        renderWindWeatherLoading()
+        weatherRequestJob?.cancel()
+        weatherRequestJob = viewLifecycleOwner.lifecycleScope.launch {
+            runCatching {
+                windWeatherRepository.currentWind(
+                    latitude = location.lat,
+                    longitude = location.lon,
+                    internetNetwork = droneViewModel.currentRtkInternetNetwork(),
+                )
+            }.onSuccess(::renderWindWeather).onFailure {
+                Log.w("WindWeather", "Current wind request failed", it)
+                renderWindWeatherUnavailable()
+            }
+        }
+    }
+
+    private fun renderWindWeatherLoading() {
+        view?.findViewById<TextView?>(R.id.wind_weather_status)?.setText(R.string.weather_loading)
+        view?.findViewById<TextView?>(R.id.wind_weather_direction)?.setText(R.string.weather_loading)
+        view?.findViewById<TextView?>(R.id.wind_weather_speed)?.text = "--"
+        view?.findViewById<ImageView?>(R.id.wind_weather_direction_arrow)?.rotation = 0f
+    }
+
+    private fun renderWindWeather(wind: WindWeather) {
+        if (!weatherVisible) return
+        view?.findViewById<TextView?>(R.id.wind_weather_status)?.setText(R.string.weather_live)
+        view?.findViewById<TextView?>(R.id.wind_weather_direction)?.text = getString(
+            R.string.weather_wind_from_format,
+            wind.directionFromCompass,
+        )
+        view?.findViewById<TextView?>(R.id.wind_weather_speed)?.text = getString(
+            R.string.weather_wind_speed_format,
+            wind.speedKilometersPerHour,
+        )
+        view?.findViewById<ImageView?>(R.id.wind_weather_direction_arrow)?.rotation = wind.directionToDegrees
+    }
+
+    private fun renderWindWeatherUnavailable() {
+        if (!weatherVisible) return
+        view?.findViewById<TextView?>(R.id.wind_weather_status)?.setText(R.string.weather_unavailable)
+        view?.findViewById<TextView?>(R.id.wind_weather_direction)?.setText(R.string.weather_unavailable)
+        view?.findViewById<TextView?>(R.id.wind_weather_speed)?.text = "--"
+    }
 
     private fun updateSimulationButton(hasPath: Boolean) {
         view?.findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_simulate_button)
@@ -2850,6 +2935,8 @@ class MissionMapFragment : Fragment() {
         terrainSurveyJob = null
         previewAssetLoadJob?.cancel()
         previewAssetLoadJob = null
+        weatherRequestJob?.cancel()
+        weatherRequestJob = null
         cancelDroneOffsetAdjustment()
         showShellToolbar()
         geoZoneOverlayController?.clear()

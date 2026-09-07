@@ -370,6 +370,13 @@
     <string name="liters_unit" translatable="false">L</string>
     <string name="liters_short">L</string>
     <string name="simulate_mission_path">Simulate path</string>
+    <string name="weather">Weather</string>
+    <string name="weather_loading">Updating…</string>
+    <string name="weather_live">Live</string>
+    <string name="weather_unavailable">Wind unavailable</string>
+    <string name="weather_wind_direction">Wind direction</string>
+    <string name="weather_wind_from_format">Wind from %1$s</string>
+    <string name="weather_wind_speed_format">%1$.0f km/h</string>
     <string name="stop_mission_simulation">Stop simulation</string>
     <string name="resume_mission">Resume mission</string>
     <string name="resume_mission_service_format">Resume: %1$s</string>

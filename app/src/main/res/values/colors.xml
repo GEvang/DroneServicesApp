@@ -45,7 +45,7 @@
     <color name="ds_color_accent">@color/ds_color_shell_active</color>
     <color name="ds_color_accent_dim">@color/ds_color_shell_active_dim</color>
     <color name="ds_color_stroke">@color/stroke_subtle</color>
-    <color name="ds_color_button_on_accent">@color/ds_color_shell_selected_content</color>
+    <color name="ds_color_button_on_accent">#071314</color>
     <color name="ds_color_button_on_surface">@color/text_primary</color>
     <color name="ds_color_control_pill">@color/slider_pill_bg</color>
     <color name="ds_color_control_neutral">@color/slider_end_btn_bg</color>
