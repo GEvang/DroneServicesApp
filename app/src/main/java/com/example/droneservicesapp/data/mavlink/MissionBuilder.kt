@@ -52,7 +52,9 @@ object MissionBuilder {
         targetSystemId: Int,
         targetComponentId: Int,
         altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
-        waypointAltitudes: List<Float>? = null
+        waypointAltitudes: List<Float>? = null,
+        startClosestToHome: Boolean = true,
+        preserveWaypointOrder: Boolean = false,
     ): ArrayList<MissionItemInt> {
 
         val sprayerIntensityPWM = servo5PwmForSprayerIntensity(sprayerIntensity)
@@ -66,7 +68,8 @@ object MissionBuilder {
             waypointAltitudes = waypointAltitudes,
             homeLatitude = currentPos.latitude,
             homeLongitude = currentPos.longitude,
-            startClosestToHome = true
+            startClosestToHome = startClosestToHome,
+            preserveWaypointOrder = preserveWaypointOrder,
         )
         var seq = 0
 
@@ -204,14 +207,16 @@ object MissionBuilder {
         targetSystemId: Int,
         targetComponentId: Int,
         altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
-        waypointAltitudes: List<Float>? = null
+        waypointAltitudes: List<Float>? = null,
+        preserveWaypointOrder: Boolean = false,
     ): ArrayList<MissionItemInt> {
         val orderedPath = orderAreaPath(
             waypoints = waypoints,
             waypointAltitudes = waypointAltitudes,
             homeLatitude = currentPos.latitude,
             homeLongitude = currentPos.longitude,
-            startClosestToHome = false
+            startClosestToHome = false,
+            preserveWaypointOrder = preserveWaypointOrder,
         )
         val missionItems = ArrayList<MissionItemInt>()
         val waypointFrame = missionWaypointFrameFor(altitudeReferenceMode)
@@ -558,9 +563,11 @@ object MissionBuilder {
         waypointAltitudes: List<Float>?,
         homeLatitude: Double,
         homeLongitude: Double,
-        startClosestToHome: Boolean
+        startClosestToHome: Boolean,
+        preserveWaypointOrder: Boolean = false,
     ): OrderedAreaPath {
         if (waypoints.size < 2) return OrderedAreaPath(waypoints, waypointAltitudes)
+        if (preserveWaypointOrder) return OrderedAreaPath(waypoints, waypointAltitudes)
         val firstDistance = distanceMeters(homeLatitude, homeLongitude, waypoints.first())
         val lastDistance = distanceMeters(homeLatitude, homeLongitude, waypoints.last())
         val shouldReverse = if (startClosestToHome) {

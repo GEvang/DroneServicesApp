@@ -4,6 +4,8 @@ import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
+import com.example.droneservicesapp.domain.planning.MissionServiceLeg
+import com.example.droneservicesapp.domain.planning.MissionServiceStop
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
 import com.google.android.gms.maps.model.LatLng
 import org.junit.Assert.assertEquals
@@ -14,6 +16,31 @@ import org.junit.Test
 class MainActivityViewModelRouteTest {
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
+
+    @Test
+    fun serviceMissionWaitsAtHomeAndResumesTheNextLeg() {
+        val viewModel = MainActivityViewModel()
+        val start = LatLon(35.0, 25.0)
+        val stopPoint = LatLon(35.001, 25.0)
+        val end = LatLon(35.002, 25.0)
+        val stop = MissionServiceStop(100.0, stopPoint, requiresBattery = true, requiresTankRefill = false)
+        val legs = listOf(
+            MissionServiceLeg(listOf(start, stopPoint), stop, 0.0, 100.0),
+            MissionServiceLeg(listOf(stopPoint, end), null, 100.0, 200.0),
+        )
+
+        viewModel.beginServiceMission(legs)
+        assertTrue(viewModel.markServiceLegUploadSucceeded())
+        viewModel.onServiceMissionArmedStateChanged(true)
+        viewModel.onServiceMissionArmedStateChanged(false)
+
+        assertEquals(MainActivityViewModel.ServiceMissionState.WAITING_FOR_SERVICE, viewModel.serviceMissionState.value)
+        assertEquals(legs[1], viewModel.takeNextServiceMissionLeg())
+        assertTrue(viewModel.markServiceLegUploadSucceeded())
+        viewModel.onServiceMissionArmedStateChanged(true)
+        viewModel.onServiceMissionArmedStateChanged(false)
+        assertEquals(MainActivityViewModel.ServiceMissionState.IDLE, viewModel.serviceMissionState.value)
+    }
 
     @Test
     fun planningDefaultsMatchRequestedSprayAndSurveyValues() {

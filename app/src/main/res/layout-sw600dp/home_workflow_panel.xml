@@ -236,4 +236,19 @@
         app:iconGravity="textStart"
         app:iconPadding="@dimen/ds_space_sm"
         app:iconTint="@color/ds_color_shell_active" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/right_panel_resume_mission_button"
+        style="@style/Widget.DroneServices.Button.MapEmphasis"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/phone_map_panel_button_height_tall"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:text="@string/resume_mission"
+        android:textSize="@dimen/phone_map_panel_label_text_size"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:icon="@drawable/drone_marker_36"
+        app:iconGravity="textStart"
+        app:iconPadding="@dimen/ds_space_sm"
+        app:iconTint="@color/ds_color_shell_active" />
 </LinearLayout>

@@ -54,4 +54,8 @@ class MissionParamsController(
         actionHandler.bind()
         isBound = true
     }
+
+    fun resumeServiceMission() {
+        actionHandler.resumeServiceMission()
+    }
 }

@@ -4,6 +4,7 @@ import com.example.droneservicesapp.domain.model.LatLon
 import kotlin.math.atan2
 import kotlin.math.ceil
 import kotlin.math.cos
+import kotlin.math.abs
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -14,6 +15,21 @@ data class MissionResourcePlan(
     val tankRefillPoints: List<LatLon> = emptyList(),
     val totalSprayLiters: Double = 0.0,
     val estimatedFlightSeconds: Double = 0.0,
+    val serviceStops: List<MissionServiceStop> = emptyList(),
+)
+
+data class MissionServiceStop(
+    val pathDistanceMeters: Double,
+    val point: LatLon,
+    val requiresBattery: Boolean,
+    val requiresTankRefill: Boolean,
+)
+
+data class MissionServiceLeg(
+    val path: List<LatLon>,
+    val serviceAfter: MissionServiceStop?,
+    val startPathDistanceMeters: Double,
+    val endPathDistanceMeters: Double,
 )
 
 /**
@@ -46,6 +62,7 @@ object MissionResourcePlanner {
 
         val batteryBudgetMeters = speedMetersPerSecond * usableBatteryMinutes * 60.0
         val batteryReturnPoints = mutableListOf<LatLon>()
+        val batteryReturnDistances = mutableListOf<Double>()
         var batteryCount = 0
         var workStartDistance = 0.0
         while (workStartDistance < workDistance - MIN_PROGRESS_METERS) {
@@ -77,6 +94,7 @@ object MissionResourcePlanner {
                 break
             }
             batteryReturnPoints += pointAtDistance(path, cumulativeDistances, low)
+            batteryReturnDistances += low
             workStartDistance = low
         }
         if (batteryCount == 0) batteryCount = 1
@@ -86,14 +104,23 @@ object MissionResourcePlanner {
             ?: 0.0
         val totalSprayLiters = workDistance / speedMetersPerSecond / 60.0 * validSprayRate
         val refillPoints = mutableListOf<LatLon>()
+        val refillDistances = mutableListOf<Double>()
         if (validSprayRate > 0.0 && tankCapacityLiters > 0.0) {
             val metersPerTank = tankCapacityLiters * speedMetersPerSecond * 60.0 / validSprayRate
             var refillDistance = metersPerTank
             while (refillDistance < workDistance - MIN_PROGRESS_METERS) {
                 refillPoints += pointAtDistance(path, cumulativeDistances, refillDistance)
+                refillDistances += refillDistance
                 refillDistance += metersPerTank
             }
         }
+
+        val serviceStops = mergeServiceStops(
+            path = path,
+            cumulativeDistances = cumulativeDistances,
+            batteryDistances = batteryReturnDistances,
+            refillDistances = refillDistances,
+        )
 
         return MissionResourcePlan(
             batteryCount = batteryCount,
@@ -102,7 +129,73 @@ object MissionResourcePlanner {
             tankRefillPoints = refillPoints,
             totalSprayLiters = totalSprayLiters,
             estimatedFlightSeconds = estimatedSeconds,
+            serviceStops = serviceStops,
         )
+    }
+
+    fun splitIntoServiceLegs(
+        path: List<LatLon>,
+        serviceStops: List<MissionServiceStop>,
+    ): List<MissionServiceLeg> {
+        if (path.size < 2) return emptyList()
+        val cumulative = cumulativeDistances(path)
+        val totalDistance = cumulative.last()
+        val stops = serviceStops
+            .filter { it.pathDistanceMeters > MIN_PROGRESS_METERS && it.pathDistanceMeters < totalDistance - MIN_PROGRESS_METERS }
+            .sortedBy { it.pathDistanceMeters }
+        val boundaries = listOf(0.0) + stops.map { it.pathDistanceMeters } + totalDistance
+        return boundaries.zipWithNext().mapIndexedNotNull { index, (start, end) ->
+            if (end - start <= MIN_PROGRESS_METERS) return@mapIndexedNotNull null
+            val points = buildList {
+                add(pointAtDistance(path, cumulative, start))
+                path.forEachIndexed { pointIndex, point ->
+                    val distance = cumulative[pointIndex]
+                    if (distance > start + MIN_PROGRESS_METERS && distance < end - MIN_PROGRESS_METERS) add(point)
+                }
+                add(pointAtDistance(path, cumulative, end))
+            }
+            MissionServiceLeg(
+                path = points,
+                serviceAfter = stops.getOrNull(index),
+                startPathDistanceMeters = start,
+                endPathDistanceMeters = end,
+            )
+        }
+    }
+
+    private fun mergeServiceStops(
+        path: List<LatLon>,
+        cumulativeDistances: List<Double>,
+        batteryDistances: List<Double>,
+        refillDistances: List<Double>,
+    ): List<MissionServiceStop> {
+        data class Event(val distance: Double, val battery: Boolean, val tank: Boolean)
+
+        val events = (
+            batteryDistances.map { Event(it, battery = true, tank = false) } +
+                refillDistances.map { Event(it, battery = false, tank = true) }
+            ).sortedBy { it.distance }
+        val merged = mutableListOf<Event>()
+        events.forEach { event ->
+            val previous = merged.lastOrNull()
+            if (previous != null && abs(previous.distance - event.distance) <= MIN_PROGRESS_METERS) {
+                merged[merged.lastIndex] = Event(
+                    distance = minOf(previous.distance, event.distance),
+                    battery = previous.battery || event.battery,
+                    tank = previous.tank || event.tank,
+                )
+            } else {
+                merged += event
+            }
+        }
+        return merged.map { event ->
+            MissionServiceStop(
+                pathDistanceMeters = event.distance,
+                point = pointAtDistance(path, cumulativeDistances, event.distance),
+                requiresBattery = event.battery,
+                requiresTankRefill = event.tank,
+            )
+        }
     }
 
     private fun cumulativeDistances(path: List<LatLon>): List<Double> {

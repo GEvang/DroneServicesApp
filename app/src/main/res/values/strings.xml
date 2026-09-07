@@ -371,6 +371,15 @@
     <string name="liters_short">L</string>
     <string name="simulate_mission_path">Simulate path</string>
     <string name="stop_mission_simulation">Stop simulation</string>
+    <string name="resume_mission">Resume mission</string>
+    <string name="resume_mission_service_format">Resume: %1$s</string>
+    <string name="service_change_battery">change battery</string>
+    <string name="service_refill_tank">refill tank</string>
+    <string name="service_change_battery_and_refill_tank">change battery + refill tank</string>
+    <string name="mission_leg_uploaded">Mission leg uploaded. The drone will return home for service.</string>
+    <string name="mission_final_leg_uploaded">Final mission leg uploaded.</string>
+    <string name="simulation_waiting_for_service_format">Drone is home. %1$s, then resume the mission.</string>
+    <string name="resume_requires_landed">The drone must be landed and disarmed before resuming.</string>
     <string name="simulation_requires_path">Generate or draw a mission path first.</string>
     <string name="debug_sprayer">Debug Sprayer</string>
     <string name="debug_diagnostics_title">Field diagnostic logs</string>

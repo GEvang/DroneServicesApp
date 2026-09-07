@@ -19,6 +19,7 @@ import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.model.RouteWaypoint
 import com.example.droneservicesapp.domain.model.SurveyGridParams
+import com.example.droneservicesapp.domain.planning.MissionServiceLeg
 import com.example.droneservicesapp.domain.survey.SprayPresets
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
 import com.google.android.gms.maps.model.LatLng
@@ -149,6 +150,14 @@ class MainActivityViewModel : ViewModel() {
         MutableLiveData(emptyList())
     }
 
+    enum class ServiceMissionState {
+        IDLE,
+        LEG_UPLOADING,
+        LEG_READY,
+        FLYING,
+        WAITING_FOR_SERVICE,
+    }
+
     /** True only when a georeferenced point cloud contributes points inside the drawn area. */
     val pointCloudCoversMissionArea: MutableLiveData<Boolean> by lazy {
         MutableLiveData(false)
@@ -176,6 +185,18 @@ class MainActivityViewModel : ViewModel() {
 
     val plannedHomePosition: MutableLiveData<LatLon?> by lazy {
         MutableLiveData(null)
+    }
+
+    val serviceMissionLegs: MutableLiveData<List<MissionServiceLeg>> by lazy {
+        MutableLiveData(emptyList())
+    }
+
+    val serviceMissionLegIndex: MutableLiveData<Int> by lazy {
+        MutableLiveData(0)
+    }
+
+    val serviceMissionState: MutableLiveData<ServiceMissionState> by lazy {
+        MutableLiveData(ServiceMissionState.IDLE)
     }
 
     val geoAwarenessLayerVisible: MutableLiveData<Boolean> by lazy {
@@ -481,6 +502,68 @@ class MainActivityViewModel : ViewModel() {
 
     fun clearPlannedHomePosition() {
         plannedHomePosition.value = null
+    }
+
+    fun beginServiceMission(legs: List<MissionServiceLeg>) {
+        if (legs.size <= 1) {
+            clearServiceMission()
+            return
+        }
+        serviceMissionLegs.value = legs
+        serviceMissionLegIndex.value = 0
+        serviceMissionState.value = ServiceMissionState.LEG_UPLOADING
+    }
+
+    fun currentServiceMissionLeg(): MissionServiceLeg? {
+        return serviceMissionLegs.value.orEmpty().getOrNull(serviceMissionLegIndex.value ?: 0)
+    }
+
+    fun markServiceLegUploadSucceeded(): Boolean {
+        currentServiceMissionLeg() ?: return false
+        serviceMissionState.value = ServiceMissionState.LEG_READY
+        return true
+    }
+
+    fun markServiceLegUploadFailed() {
+        if ((serviceMissionLegIndex.value ?: 0) == 0) {
+            clearServiceMission()
+            return
+        }
+        serviceMissionState.value = if ((serviceMissionLegIndex.value ?: 0) > 0) {
+            ServiceMissionState.WAITING_FOR_SERVICE
+        } else {
+            ServiceMissionState.IDLE
+        }
+    }
+
+    fun onServiceMissionArmedStateChanged(isArmed: Boolean) {
+        when {
+            isArmed && serviceMissionState.value == ServiceMissionState.LEG_READY -> {
+                serviceMissionState.value = ServiceMissionState.FLYING
+            }
+            !isArmed && serviceMissionState.value == ServiceMissionState.FLYING -> {
+                if (currentServiceMissionLeg()?.serviceAfter == null) {
+                    clearServiceMission()
+                } else {
+                    serviceMissionState.value = ServiceMissionState.WAITING_FOR_SERVICE
+                }
+            }
+        }
+    }
+
+    fun takeNextServiceMissionLeg(): MissionServiceLeg? {
+        if (serviceMissionState.value != ServiceMissionState.WAITING_FOR_SERVICE) return null
+        val nextIndex = (serviceMissionLegIndex.value ?: 0) + 1
+        val nextLeg = serviceMissionLegs.value.orEmpty().getOrNull(nextIndex) ?: return null
+        serviceMissionLegIndex.value = nextIndex
+        serviceMissionState.value = ServiceMissionState.LEG_UPLOADING
+        return nextLeg
+    }
+
+    fun clearServiceMission() {
+        serviceMissionLegs.value = emptyList()
+        serviceMissionLegIndex.value = 0
+        serviceMissionState.value = ServiceMissionState.IDLE
     }
 
     fun applySavedMission(mission: SavedMission) {

@@ -7,11 +7,18 @@ import android.widget.Toast
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.mavlink.MissionBuilder
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
+import com.example.droneservicesapp.domain.planning.MissionResourcePlanner
+import com.example.droneservicesapp.domain.planning.MissionServiceLeg
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.mavserver.TerrainMissionReadiness
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
+import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel.ServiceMissionState
+import com.google.android.gms.maps.model.LatLng
+import com.google.maps.android.SphericalUtil
+import io.dronefleet.mavlink.common.MissionItemInt
 
 class MissionParamsActionHandler(
     private val context: Context,
@@ -22,6 +29,12 @@ class MissionParamsActionHandler(
     private val preferencesBridge: MissionParamsPreferencesBridge,
     private val beforeUploadGuard: (((onAllowed: () -> Unit) -> Unit))? = null,
 ) {
+    private data class MissionBuild(
+        val items: ArrayList<MissionItemInt>,
+        val altitudeReferenceMode: AltitudeReferenceMode,
+        val usesTerrainAltitudes: Boolean,
+    )
+
     fun bind() {
         views.uploadMissionButton?.setOnClickListener { uploadMission() }
         views.saveMissionButton?.setOnClickListener {
@@ -31,7 +44,7 @@ class MissionParamsActionHandler(
 
     private fun uploadMission() {
         val connected = droneViewModel.conStateLiveData.value == true
-        val droneLoc = droneLocationProvider?.invoke() ?: droneViewModel.droneLocationLiveData.value
+        val droneLoc = currentDroneLocation()
         val path = activityViewModel.surveyPath.value
         val routeWaypoints = activityViewModel.routeWaypoints.value.orEmpty()
         val workflow = activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA
@@ -43,29 +56,16 @@ class MissionParamsActionHandler(
         val altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value ?: AltitudeReferenceMode.TERRAIN
 
         when {
-            !connected -> {
-                showMessage(context.getString(R.string.no_conn_msg))
-                return
-            }
-
-            droneLoc == null -> {
-                showMessage(context.getString(R.string.drone_gps_not_available_yet))
-                return
-            }
-
+            !connected -> return showMessage(context.getString(R.string.no_conn_msg))
+            droneLoc == null -> return showMessage(context.getString(R.string.drone_gps_not_available_yet))
             workflow == PlanningWorkflow.AREA && path.isNullOrEmpty() -> {
-                showMessage(context.getString(R.string.no_survey_path_available))
-                return
+                return showMessage(context.getString(R.string.no_survey_path_available))
             }
-
             workflow == PlanningWorkflow.POINTS && routeWaypoints.size < 2 -> {
-                showMessage(context.getString(R.string.route_requires_two_points))
-                return
+                return showMessage(context.getString(R.string.route_requires_two_points))
             }
-
             alt == null || sprayer == null || speed == null || angle == null -> {
-                showMessage(context.getString(R.string.missing_mission_parameters))
-                return
+                return showMessage(context.getString(R.string.missing_mission_parameters))
             }
         }
 
@@ -74,96 +74,247 @@ class MissionParamsActionHandler(
         val validatedSprayer = sprayer ?: return
         val validatedSpeed = speed ?: return
         val validatedAngle = angle ?: return
-        var usedTerrainAltitudes = false
-        var uploadAltitudeReferenceMode = altitudeReferenceMode
-
-        val missionItems = if (workflow == PlanningWorkflow.POINTS) {
-            MissionBuilder.buildPointRouteMission(
-                routeWaypoints = routeWaypoints,
-                currentPos = validatedDroneLoc,
-                targetSystemId = droneViewModel.getTargetSystemId(),
-                targetComponentId = droneViewModel.getTargetComponentId(),
-                altitudeReferenceMode = altitudeReferenceMode
-            )
-        } else {
-            val validatedPath = path ?: return
-            if (operationMode == PlanningOperationMode.SPRAY) {
-                val pointCloudAltitudes = activityViewModel.terrainSurveyWaypoints.value.orEmpty()
-                    .takeIf {
-                        activityViewModel.pointCloudCoversMissionArea.value == true &&
-                            it.size == validatedPath.size
-                    }
-                    ?.map { it.missionAltitudeMeters.toFloat() }
-                val sprayAltitudeReferenceMode = if (pointCloudAltitudes != null) {
-                    AltitudeReferenceMode.RELATIVE
+        val fullPath = path.orEmpty().map { LatLon(it.latitude, it.longitude) }
+        val serviceLegs = if (workflow == PlanningWorkflow.AREA) {
+            val effectiveHome = activityViewModel.plannedHomePosition.value
+                ?: LatLon(validatedDroneLoc.latitude, validatedDroneLoc.longitude)
+            val plan = MissionResourcePlanner.plan(
+                path = fullPath,
+                home = effectiveHome,
+                speedMetersPerSecond = validatedSpeed.coerceAtLeast(0.1),
+                sprayRateLitersPerMinute = if (operationMode == PlanningOperationMode.SPRAY) {
+                    activityViewModel.sprayFlowLitersPerMinute()
                 } else {
-                    AltitudeReferenceMode.TERRAIN
-                }
-                usedTerrainAltitudes = pointCloudAltitudes != null
-                uploadAltitudeReferenceMode = sprayAltitudeReferenceMode
-                MissionBuilder.buildSprayAreaMission(
-                    waypoints = ArrayList(validatedPath),
+                    0.0
+                },
+            )
+            MissionResourcePlanner.splitIntoServiceLegs(fullPath, plan.serviceStops)
+        } else {
+            emptyList()
+        }
+
+        val firstLeg = serviceLegs.firstOrNull()
+        val build = if (workflow == PlanningWorkflow.POINTS) {
+            MissionBuild(
+                items = MissionBuilder.buildPointRouteMission(
+                    routeWaypoints = routeWaypoints,
                     currentPos = validatedDroneLoc,
-                    alt = validatedAlt.toFloat(),
-                    sprayerIntensity = validatedSprayer.toInt(),
-                    flightSpeed = validatedSpeed.toFloat(),
-                    angleProgress = validatedAngle.toFloat(),
-                    targetSystemId = droneViewModel.getTargetSystemId(),
-                    targetComponentId = droneViewModel.getTargetComponentId(),
-                    altitudeReferenceMode = sprayAltitudeReferenceMode,
-                    waypointAltitudes = pointCloudAltitudes
-                )
-            } else {
-                usedTerrainAltitudes = false
-                uploadAltitudeReferenceMode = altitudeReferenceMode
-                MissionBuilder.buildSurveyAreaMission(
-                    waypoints = ArrayList(validatedPath),
-                    currentPos = validatedDroneLoc,
-                    alt = (activityViewModel.surveyHeightAboveTerrain.value ?: validatedAlt).toFloat(),
-                    flightSpeed = validatedSpeed.toFloat(),
-                    angleProgress = (activityViewModel.surveyGridAngle.value ?: validatedAngle).toFloat(),
                     targetSystemId = droneViewModel.getTargetSystemId(),
                     targetComponentId = droneViewModel.getTargetComponentId(),
                     altitudeReferenceMode = altitudeReferenceMode,
-                    waypointAltitudes = null
-                )
-            }
+                ),
+                altitudeReferenceMode = altitudeReferenceMode,
+                usesTerrainAltitudes = false,
+            )
+        } else {
+            buildAreaMission(
+                missionPath = firstLeg?.path ?: fullPath,
+                fullPath = fullPath,
+                serviceLeg = firstLeg,
+                currentLocation = validatedDroneLoc,
+                altitude = validatedAlt,
+                sprayer = validatedSprayer,
+                speed = validatedSpeed,
+                angle = validatedAngle,
+                operationMode = operationMode,
+                altitudeReferenceMode = altitudeReferenceMode,
+            )
         }
+
+        if (!terrainReady(build.altitudeReferenceMode)) return
 
         val proceedWithUpload = {
-            Log.i(
-                "MissionUpload",
-                "Proceeding with upload workflow=$workflow altitudeReference=$uploadAltitudeReferenceMode " +
-                    "terrainAware=$usedTerrainAltitudes " +
-                    "altitude=${validatedAlt.toInt()}m missionItems=${missionItems.size}"
-            )
-            droneViewModel.uploadMissionNew(missionItems, activityViewModel)
+            if (serviceLegs.size > 1) {
+                activityViewModel.beginServiceMission(serviceLegs)
+                if (activityViewModel.plannedHomePosition.value == null) {
+                    activityViewModel.setPlannedHomePosition(
+                        LatLon(validatedDroneLoc.latitude, validatedDroneLoc.longitude)
+                    )
+                }
+            } else {
+                activityViewModel.clearServiceMission()
+            }
+            logUpload(workflow, build, validatedAlt)
+            droneViewModel.uploadMissionNew(build.items, activityViewModel)
             preferencesBridge.saveFromViewModel()
         }
-
-        // Relative-altitude missions are self-contained and must never be held up by
-        // a terrain/rangefinder parameter. Terrain frames require the actual ArduPilot
-        // terrain database. WP_RFND_USE remains a separate, user-controlled preference.
-        if (uploadAltitudeReferenceMode == AltitudeReferenceMode.TERRAIN) {
-            when (droneViewModel.terrainMissionReadiness()) {
-                TerrainMissionReadiness.READY -> Unit
-                TerrainMissionReadiness.CHECKING -> {
-                    showMessage(context.getString(R.string.terrain_database_enabling))
-                    return
-                }
-                TerrainMissionReadiness.UNSUPPORTED -> {
-                    showMessage(context.getString(R.string.terrain_database_unsupported))
-                    return
-                }
-                TerrainMissionReadiness.REJECTED -> {
-                    showMessage(context.getString(R.string.terrain_database_rejected))
-                    return
-                }
-            }
-        }
-
         beforeUploadGuard?.invoke(proceedWithUpload) ?: proceedWithUpload()
     }
+
+    fun resumeServiceMission() {
+        if (activityViewModel.serviceMissionState.value != ServiceMissionState.WAITING_FOR_SERVICE) return
+        if (droneViewModel.conStateLiveData.value != true) {
+            showMessage(context.getString(R.string.no_conn_msg))
+            return
+        }
+        if (droneViewModel.armedState.value == true) {
+            showMessage(context.getString(R.string.resume_requires_landed))
+            return
+        }
+        val droneLoc = currentDroneLocation()
+        if (droneLoc == null) {
+            showMessage(context.getString(R.string.drone_gps_not_available_yet))
+            return
+        }
+
+        val leg = activityViewModel.takeNextServiceMissionLeg() ?: return
+        val fullPath = activityViewModel.surveyPath.value.orEmpty()
+            .map { LatLon(it.latitude, it.longitude) }
+        val altitude = activityViewModel.flightAltProgress.value ?: 0.0
+        val build = buildAreaMission(
+            missionPath = leg.path,
+            fullPath = fullPath,
+            serviceLeg = leg,
+            currentLocation = droneLoc,
+            altitude = altitude,
+            sprayer = activityViewModel.sprayerProgress.value ?: 0.0,
+            speed = activityViewModel.flightSpeed.value ?: 5.0,
+            angle = activityViewModel.angleProgress.value ?: 90.0,
+            operationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY,
+            altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value ?: AltitudeReferenceMode.TERRAIN,
+        )
+        if (!terrainReady(build.altitudeReferenceMode)) {
+            activityViewModel.markServiceLegUploadFailed()
+            return
+        }
+
+        logUpload(PlanningWorkflow.AREA, build, altitude)
+        droneViewModel.uploadMissionNew(build.items, activityViewModel)
+        preferencesBridge.saveFromViewModel()
+    }
+
+    private fun buildAreaMission(
+        missionPath: List<LatLon>,
+        fullPath: List<LatLon>,
+        serviceLeg: MissionServiceLeg?,
+        currentLocation: Location,
+        altitude: Double,
+        sprayer: Double,
+        speed: Double,
+        angle: Double,
+        operationMode: PlanningOperationMode,
+        altitudeReferenceMode: AltitudeReferenceMode,
+    ): MissionBuild {
+        val mapPath = ArrayList(missionPath.map { LatLng(it.lat, it.lon) })
+        if (operationMode == PlanningOperationMode.SPRAY) {
+            val fullAltitudes = activityViewModel.terrainSurveyWaypoints.value.orEmpty()
+                .takeIf {
+                    activityViewModel.pointCloudCoversMissionArea.value == true &&
+                        it.size == fullPath.size
+                }
+                ?.map { it.missionAltitudeMeters.toFloat() }
+            val legAltitudes = when {
+                fullAltitudes == null -> null
+                serviceLeg == null -> fullAltitudes
+                else -> terrainAltitudesForLeg(fullPath, fullAltitudes, serviceLeg)
+            }
+            val reference = if (legAltitudes != null) {
+                AltitudeReferenceMode.RELATIVE
+            } else {
+                AltitudeReferenceMode.TERRAIN
+            }
+            return MissionBuild(
+                items = MissionBuilder.buildSprayAreaMission(
+                    waypoints = mapPath,
+                    currentPos = currentLocation,
+                    alt = altitude.toFloat(),
+                    sprayerIntensity = sprayer.toInt(),
+                    flightSpeed = speed.toFloat(),
+                    angleProgress = angle.toFloat(),
+                    targetSystemId = droneViewModel.getTargetSystemId(),
+                    targetComponentId = droneViewModel.getTargetComponentId(),
+                    altitudeReferenceMode = reference,
+                    waypointAltitudes = legAltitudes,
+                    startClosestToHome = true,
+                    preserveWaypointOrder = serviceLeg != null,
+                ),
+                altitudeReferenceMode = reference,
+                usesTerrainAltitudes = legAltitudes != null,
+            )
+        }
+
+        return MissionBuild(
+            items = MissionBuilder.buildSurveyAreaMission(
+                waypoints = mapPath,
+                currentPos = currentLocation,
+                alt = (activityViewModel.surveyHeightAboveTerrain.value ?: altitude).toFloat(),
+                flightSpeed = speed.toFloat(),
+                angleProgress = (activityViewModel.surveyGridAngle.value ?: angle).toFloat(),
+                targetSystemId = droneViewModel.getTargetSystemId(),
+                targetComponentId = droneViewModel.getTargetComponentId(),
+                altitudeReferenceMode = altitudeReferenceMode,
+                waypointAltitudes = null,
+                preserveWaypointOrder = serviceLeg != null,
+            ),
+            altitudeReferenceMode = altitudeReferenceMode,
+            usesTerrainAltitudes = false,
+        )
+    }
+
+    private fun terrainAltitudesForLeg(
+        fullPath: List<LatLon>,
+        fullAltitudes: List<Float>,
+        leg: MissionServiceLeg,
+    ): List<Float> {
+        if (fullPath.size != fullAltitudes.size || fullPath.size < 2) return emptyList()
+        val cumulative = MutableList(fullPath.size) { 0.0 }
+        for (index in 1 until fullPath.size) {
+            cumulative[index] = cumulative[index - 1] + SphericalUtil.computeDistanceBetween(
+                LatLng(fullPath[index - 1].lat, fullPath[index - 1].lon),
+                LatLng(fullPath[index].lat, fullPath[index].lon),
+            )
+        }
+        val distances = buildList {
+            add(leg.startPathDistanceMeters)
+            cumulative.forEach { distance ->
+                if (distance > leg.startPathDistanceMeters + 0.5 &&
+                    distance < leg.endPathDistanceMeters - 0.5
+                ) {
+                    add(distance)
+                }
+            }
+            add(leg.endPathDistanceMeters)
+        }
+        return distances.map { distance -> interpolateAltitude(cumulative, fullAltitudes, distance) }
+    }
+
+    private fun interpolateAltitude(
+        cumulative: List<Double>,
+        altitudes: List<Float>,
+        distance: Double,
+    ): Float {
+        val target = distance.coerceIn(0.0, cumulative.last())
+        val upper = cumulative.indexOfFirst { it >= target }.takeIf { it >= 0 } ?: cumulative.lastIndex
+        if (upper == 0) return altitudes.first()
+        val lower = upper - 1
+        val segment = cumulative[upper] - cumulative[lower]
+        if (segment <= 0.0) return altitudes[upper]
+        val fraction = ((target - cumulative[lower]) / segment).toFloat()
+        return altitudes[lower] + (altitudes[upper] - altitudes[lower]) * fraction
+    }
+
+    private fun terrainReady(referenceMode: AltitudeReferenceMode): Boolean {
+        if (referenceMode != AltitudeReferenceMode.TERRAIN) return true
+        when (droneViewModel.terrainMissionReadiness()) {
+            TerrainMissionReadiness.READY -> return true
+            TerrainMissionReadiness.CHECKING -> showMessage(context.getString(R.string.terrain_database_enabling))
+            TerrainMissionReadiness.UNSUPPORTED -> showMessage(context.getString(R.string.terrain_database_unsupported))
+            TerrainMissionReadiness.REJECTED -> showMessage(context.getString(R.string.terrain_database_rejected))
+        }
+        return false
+    }
+
+    private fun logUpload(workflow: PlanningWorkflow, build: MissionBuild, altitude: Double) {
+        Log.i(
+            "MissionUpload",
+            "Proceeding with upload workflow=$workflow altitudeReference=${build.altitudeReferenceMode} " +
+                "terrainAware=${build.usesTerrainAltitudes} " +
+                "altitude=${altitude.toInt()}m missionItems=${build.items.size}",
+        )
+    }
+
+    private fun currentDroneLocation(): Location? =
+        droneLocationProvider?.invoke() ?: droneViewModel.droneLocationLiveData.value
 
     private fun showMessage(message: String) {
         Toast.makeText(context, message, Toast.LENGTH_LONG).show()

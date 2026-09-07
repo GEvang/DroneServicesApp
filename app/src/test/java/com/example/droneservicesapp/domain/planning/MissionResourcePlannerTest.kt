@@ -45,5 +45,25 @@ class MissionResourcePlannerTest {
         assertTrue(plan.totalSprayLiters > 100.0)
         assertEquals(6, plan.tankRefillCount)
         assertEquals(plan.tankRefillCount, plan.tankRefillPoints.size)
+        assertEquals(6, plan.serviceStops.count { it.requiresTankRefill })
+    }
+
+    @Test
+    fun splitsPathAtEveryServiceStopForReturnAndResume() {
+        val path = listOf(LatLon(35.0, 25.0), LatLon(35.01, 25.0))
+        val plan = MissionResourcePlanner.plan(
+            path = path,
+            home = path.first(),
+            speedMetersPerSecond = 2.0,
+            sprayRateLitersPerMinute = 15.0,
+        )
+
+        val legs = MissionResourcePlanner.splitIntoServiceLegs(path, plan.serviceStops)
+
+        assertEquals(plan.serviceStops.size + 1, legs.size)
+        assertEquals(plan.serviceStops.first().point, legs.first().path.last())
+        assertEquals(plan.serviceStops.first().point, legs[1].path.first())
+        assertEquals(plan.serviceStops.first(), legs.first().serviceAfter)
+        assertEquals(null, legs.last().serviceAfter)
     }
 }

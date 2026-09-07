@@ -69,6 +69,7 @@ import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.planning.MissionResourcePlan
 import com.example.droneservicesapp.domain.planning.MissionResourcePlanner
+import com.example.droneservicesapp.domain.planning.MissionServiceStop
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
 import com.example.droneservicesapp.domain.survey.SurveyGridPlanner
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
@@ -82,6 +83,7 @@ import com.example.droneservicesapp.ui.home.binders.HomeMapTelemetryBinder
 import com.example.droneservicesapp.ui.home.binders.MissionLoadController
 import com.example.droneservicesapp.ui.home.binders.MissionParamsController
 import com.example.droneservicesapp.ui.home.binders.MissionSaveController
+import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel.ServiceMissionState
 import com.example.droneservicesapp.ui.home.components.EsriWorldImageryTileSource
 import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
 import com.example.droneservicesapp.ui.home.components.OsmdroidObstacleEditor
@@ -208,11 +210,25 @@ class MissionMapFragment : Fragment() {
     private var previewHeightColorModeEnabled: Boolean = false
     private var homePlacementMode: Boolean = false
     private var missionSimulationAnimator: ValueAnimator? = null
-
+    private var missionSimulationState: SimulationState = SimulationState.IDLE
+    private var simulationMissionPath: List<LatLng> = emptyList()
+    private var simulationCumulativeDistances: List<Double> = emptyList()
+    private var simulationServiceStops: List<MissionServiceStop> = emptyList()
+    private var simulationNextServiceStopIndex: Int = 0
+    private var simulationCurrentWorkDistance: Double = 0.0
+    private var simulationHome: LatLng? = null
+    private var pendingSimulationServiceStop: MissionServiceStop? = null
     private enum class PreviewMode {
         MAP,
         ORTHO,
         POINT_CLOUD
+    }
+
+    private enum class SimulationState {
+        IDLE,
+        FLYING,
+        WAITING_FOR_SERVICE,
+        COMPLETE,
     }
 
     companion object {
@@ -458,8 +474,15 @@ class MissionMapFragment : Fragment() {
 
         requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_simulate_button)
             ?.setOnClickListener {
-                if (missionSimulationAnimator != null) stopMissionSimulation() else startMissionSimulation()
+                when (missionSimulationState) {
+                    SimulationState.FLYING -> stopMissionSimulation()
+                    SimulationState.WAITING_FOR_SERVICE -> resumeMissionSimulation()
+                    else -> startMissionSimulation()
+                }
             }
+
+        requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_resume_mission_button)
+            ?.setOnClickListener { missionParamsController.resumeServiceMission() }
 
         requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_close_button)
             ?.setOnClickListener {
@@ -997,8 +1020,11 @@ class MissionMapFragment : Fragment() {
                 isEnabled = hasPath
                 alpha = if (hasPath) 1.0f else 0.5f
                 setText(
-                    if (missionSimulationAnimator != null) R.string.stop_mission_simulation
-                    else R.string.simulate_mission_path
+                    when (missionSimulationState) {
+                        SimulationState.FLYING -> R.string.stop_mission_simulation
+                        SimulationState.WAITING_FOR_SERVICE -> R.string.resume_mission
+                        else -> R.string.simulate_mission_path
+                    }
                 )
             }
     }
@@ -1013,20 +1039,84 @@ class MissionMapFragment : Fragment() {
         activePreviewMode = PreviewMode.MAP
         renderPreviewMode()
 
-        val home = activityViewModel.plannedHomePosition.value?.let { LatLng(it.lat, it.lon) }
-        val simulationPath = buildList {
-            if (home != null && home != missionPath.first()) add(home)
-            addAll(missionPath)
-            if (home != null && home != missionPath.last()) add(home)
+        simulationMissionPath = missionPath
+        simulationCumulativeDistances = cumulativeDistances(missionPath)
+        simulationServiceStops = buildMissionResourcePlan(missionPath).serviceStops
+        simulationNextServiceStopIndex = 0
+        simulationCurrentWorkDistance = 0.0
+        pendingSimulationServiceStop = null
+        simulationHome = activityViewModel.plannedHomePosition.value
+            ?.let { LatLng(it.lat, it.lon) }
+            ?: missionPath.first()
+        missionSimulationState = SimulationState.FLYING
+        updateSimulationButton(hasPath = true)
+        animateSimulationPath(listOf(simulationHome ?: missionPath.first(), missionPath.first())) {
+            animateSimulationWorkLeg()
         }
-        val cumulative = MutableList(simulationPath.size) { 0.0 }
-        for (index in 1 until simulationPath.size) {
-            cumulative[index] = cumulative[index - 1] +
-                SphericalUtil.computeDistanceBetween(simulationPath[index - 1], simulationPath[index])
-        }
-        val totalDistance = cumulative.last()
-        if (totalDistance <= 0.0) return
+    }
 
+    private fun animateSimulationWorkLeg() {
+        val totalWorkDistance = simulationCumulativeDistances.lastOrNull() ?: return
+        val nextStop = simulationServiceStops.getOrNull(simulationNextServiceStopIndex)
+        val targetDistance = nextStop?.pathDistanceMeters ?: totalWorkDistance
+        animateSimulationPath(
+            simulationSubpath(simulationCurrentWorkDistance, targetDistance)
+        ) {
+            simulationCurrentWorkDistance = targetDistance
+            if (nextStop != null) {
+                pendingSimulationServiceStop = nextStop
+                val workPoint = LatLng(nextStop.point.lat, nextStop.point.lon)
+                animateSimulationPath(listOf(workPoint, simulationHome ?: workPoint)) {
+                    missionSimulationAnimator = null
+                    missionSimulationState = SimulationState.WAITING_FOR_SERVICE
+                    updateSimulationButton(hasPath = true)
+                    Toast.makeText(
+                        requireContext(),
+                        getString(
+                            R.string.simulation_waiting_for_service_format,
+                            serviceDescription(nextStop),
+                        ),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            } else {
+                val end = simulationMissionPath.last()
+                animateSimulationPath(listOf(end, simulationHome ?: end)) {
+                    missionSimulationAnimator = null
+                    missionSimulationState = SimulationState.COMPLETE
+                    updateSimulationButton(hasPath = true)
+                }
+            }
+        }
+    }
+
+    private fun resumeMissionSimulation() {
+        val stop = pendingSimulationServiceStop ?: return
+        val workPoint = LatLng(stop.point.lat, stop.point.lon)
+        missionSimulationState = SimulationState.FLYING
+        updateSimulationButton(hasPath = true)
+        animateSimulationPath(listOf(simulationHome ?: workPoint, workPoint)) {
+            simulationNextServiceStopIndex += 1
+            pendingSimulationServiceStop = null
+            animateSimulationWorkLeg()
+        }
+    }
+
+    private fun animateSimulationPath(rawPath: List<LatLng>, onComplete: () -> Unit) {
+        val path = rawPath.filterIndexed { index, point -> index == 0 || point != rawPath[index - 1] }
+        if (path.size < 2) {
+            path.firstOrNull()?.let {
+                osmdroidMapController.setSimulationDrone(LatLon(it.latitude, it.longitude), 0f)
+            }
+            onComplete()
+            return
+        }
+        val cumulative = cumulativeDistances(path)
+        val totalDistance = cumulative.last()
+        if (totalDistance <= 0.0) {
+            onComplete()
+            return
+        }
         val speed = (activityViewModel.flightSpeed.value ?: 5.0).coerceAtLeast(0.1)
         val durationMillis = (totalDistance / speed / SIMULATION_SPEED_MULTIPLIER * 1000.0)
             .toLong()
@@ -1036,7 +1126,7 @@ class MissionMapFragment : Fragment() {
             addUpdateListener { animation ->
                 val traveled = (animation.animatedValue as Float).toDouble()
                 val upper = cumulative.indexOfFirst { it >= traveled }.takeIf { it >= 0 }
-                    ?: simulationPath.lastIndex
+                    ?: path.lastIndex
                 val lower = (upper - 1).coerceAtLeast(0)
                 val segmentLength = cumulative[upper] - cumulative[lower]
                 val fraction = if (segmentLength > 0.0) {
@@ -1044,10 +1134,10 @@ class MissionMapFragment : Fragment() {
                 } else {
                     0.0
                 }
-                val point = SphericalUtil.interpolate(simulationPath[lower], simulationPath[upper], fraction)
+                val point = SphericalUtil.interpolate(path[lower], path[upper], fraction)
                 val heading = bearingDegrees(
-                    LatLon(simulationPath[lower].latitude, simulationPath[lower].longitude),
-                    LatLon(simulationPath[upper].latitude, simulationPath[upper].longitude),
+                    LatLon(path[lower].latitude, path[lower].longitude),
+                    LatLon(path[upper].latitude, path[upper].longitude),
                 ).toFloat()
                 osmdroidMapController.setSimulationDrone(
                     LatLon(point.latitude, point.longitude),
@@ -1058,14 +1148,58 @@ class MissionMapFragment : Fragment() {
                 override fun onAnimationEnd(animation: Animator) {
                     if (missionSimulationAnimator === animation) {
                         missionSimulationAnimator = null
-                        updateSimulationButton(hasPath = true)
+                        onComplete()
                     }
                 }
             })
         }
         missionSimulationAnimator = animator
-        updateSimulationButton(hasPath = true)
         animator.start()
+    }
+
+    private fun simulationSubpath(startDistance: Double, endDistance: Double): List<LatLng> {
+        if (simulationMissionPath.size < 2 || simulationCumulativeDistances.isEmpty()) return emptyList()
+        return buildList {
+            add(pointOnSimulationPath(startDistance))
+            simulationMissionPath.forEachIndexed { index, point ->
+                val distance = simulationCumulativeDistances[index]
+                if (distance > startDistance + 0.5 && distance < endDistance - 0.5) add(point)
+            }
+            add(pointOnSimulationPath(endDistance))
+        }
+    }
+
+    private fun pointOnSimulationPath(distance: Double): LatLng {
+        val target = distance.coerceIn(0.0, simulationCumulativeDistances.last())
+        val upper = simulationCumulativeDistances.indexOfFirst { it >= target }
+            .takeIf { it >= 0 }
+            ?: simulationMissionPath.lastIndex
+        if (upper == 0) return simulationMissionPath.first()
+        val lower = upper - 1
+        val segment = simulationCumulativeDistances[upper] - simulationCumulativeDistances[lower]
+        val fraction = if (segment > 0.0) {
+            ((target - simulationCumulativeDistances[lower]) / segment).coerceIn(0.0, 1.0)
+        } else {
+            0.0
+        }
+        return SphericalUtil.interpolate(simulationMissionPath[lower], simulationMissionPath[upper], fraction)
+    }
+
+    private fun cumulativeDistances(path: List<LatLng>): List<Double> {
+        val cumulative = MutableList(path.size) { 0.0 }
+        for (index in 1 until path.size) {
+            cumulative[index] = cumulative[index - 1] +
+                SphericalUtil.computeDistanceBetween(path[index - 1], path[index])
+        }
+        return cumulative
+    }
+
+    private fun serviceDescription(stop: MissionServiceStop): String = when {
+        stop.requiresBattery && stop.requiresTankRefill -> {
+            getString(R.string.service_change_battery_and_refill_tank)
+        }
+        stop.requiresBattery -> getString(R.string.service_change_battery)
+        else -> getString(R.string.service_refill_tank)
     }
 
     private fun stopMissionSimulation() {
@@ -1074,6 +1208,14 @@ class MissionMapFragment : Fragment() {
             animator.removeAllListeners()
             animator.cancel()
         }
+        missionSimulationState = SimulationState.IDLE
+        simulationMissionPath = emptyList()
+        simulationCumulativeDistances = emptyList()
+        simulationServiceStops = emptyList()
+        simulationNextServiceStopIndex = 0
+        simulationCurrentWorkDistance = 0.0
+        simulationHome = null
+        pendingSimulationServiceStop = null
         if (::osmdroidMapController.isInitialized) osmdroidMapController.clearSimulationDrone()
         updateSimulationButton(currentMissionPath().size >= 2)
     }
@@ -1266,6 +1408,12 @@ class MissionMapFragment : Fragment() {
 
         droneViewModel.armedState.observe(viewLifecycleOwner) { armed ->
             handleArmedStateChanged(armed == true)
+            activityViewModel.onServiceMissionArmedStateChanged(armed == true)
+            renderServiceMissionResumeButton()
+        }
+
+        activityViewModel.serviceMissionState.observe(viewLifecycleOwner) {
+            renderServiceMissionResumeButton()
         }
 
         activityViewModel.missionArea.observe(viewLifecycleOwner) { missionArea ->
@@ -1561,6 +1709,7 @@ class MissionMapFragment : Fragment() {
                 }
                 is MainActivityViewModel.MapAction.ResetToIdle -> {
                     cancelObstaclePlacement()
+                    activityViewModel.clearServiceMission()
                     activityViewModel.clearPlannedHomePosition()
                     activityViewModel.clearPolygonVertices()
                     activityViewModel.clearMissionObstacles()
@@ -1573,10 +1722,25 @@ class MissionMapFragment : Fragment() {
                 }
                 is MainActivityViewModel.MapAction.UploadMissionSuccess -> {
                     operatorEventLogger.logMissionUploadSucceeded(activityViewModel.surveyPath.value?.size)
-                    Snackbar.make(requireView(), getString(R.string.upload_complete), Snackbar.LENGTH_LONG).show()
-                    activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
+                    val serviceAfter = activityViewModel.currentServiceMissionLeg()?.serviceAfter
+                    if (activityViewModel.markServiceLegUploadSucceeded()) {
+                        Snackbar.make(
+                            requireView(),
+                            getString(
+                                if (serviceAfter == null) R.string.mission_final_leg_uploaded
+                                else R.string.mission_leg_uploaded
+                            ),
+                            Snackbar.LENGTH_LONG,
+                        ).show()
+                    } else {
+                        Snackbar.make(requireView(), getString(R.string.upload_complete), Snackbar.LENGTH_LONG).show()
+                        activityViewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
+                    }
                 }
                 is MainActivityViewModel.MapAction.UploadMissionFailed -> {
+                    if (activityViewModel.serviceMissionState.value == ServiceMissionState.LEG_UPLOADING) {
+                        activityViewModel.markServiceLegUploadFailed()
+                    }
                     operatorEventLogger.logMissionUploadFailed(action.reason)
                     Toast.makeText(context, action.reason, Toast.LENGTH_LONG).show()
                     Snackbar.make(
@@ -1639,6 +1803,21 @@ class MissionMapFragment : Fragment() {
             View.GONE
         } else {
             View.VISIBLE
+        }
+    }
+
+    private fun renderServiceMissionResumeButton() {
+        val button = view?.findViewById<com.google.android.material.button.MaterialButton?>(
+            R.id.right_panel_resume_mission_button
+        ) ?: return
+        val waiting = activityViewModel.serviceMissionState.value == ServiceMissionState.WAITING_FOR_SERVICE
+        button.visibility = if (waiting) View.VISIBLE else View.GONE
+        if (!waiting) return
+        val stop = activityViewModel.currentServiceMissionLeg()?.serviceAfter
+        button.text = if (stop != null) {
+            getString(R.string.resume_mission_service_format, serviceDescription(stop))
+        } else {
+            getString(R.string.resume_mission)
         }
     }
 

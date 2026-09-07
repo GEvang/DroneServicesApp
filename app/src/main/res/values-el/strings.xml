@@ -158,6 +158,15 @@
   <string name="liters_short">L</string>
   <string name="simulate_mission_path">Προσομοίωση διαδρομής</string>
   <string name="stop_mission_simulation">Διακοπή προσομοίωσης</string>
+  <string name="resume_mission">Συνέχιση αποστολής</string>
+  <string name="resume_mission_service_format">Συνέχιση: %1$s</string>
+  <string name="service_change_battery">αλλάξτε μπαταρία</string>
+  <string name="service_refill_tank">γεμίστε τη δεξαμενή</string>
+  <string name="service_change_battery_and_refill_tank">αλλάξτε μπαταρία + γεμίστε τη δεξαμενή</string>
+  <string name="mission_leg_uploaded">Το σκέλος αποστολής ανέβηκε. Το drone θα επιστρέψει στη βάση για συντήρηση.</string>
+  <string name="mission_final_leg_uploaded">Το τελευταίο σκέλος της αποστολής ανέβηκε.</string>
+  <string name="simulation_waiting_for_service_format">Το drone είναι στη βάση. %1$s και μετά συνεχίστε την αποστολή.</string>
+  <string name="resume_requires_landed">Το drone πρέπει να έχει προσγειωθεί και αφοπλιστεί πριν συνεχίσει.</string>
   <string name="simulation_requires_path">Δημιουργήστε ή σχεδιάστε πρώτα μια διαδρομή αποστολής.</string>
   <string name="action_failed">Δεν ήταν δυνατή η εκτέλεση της ενέργειας!</string>
   <string name="flight_time">Ταχύτητα - Χρόνος Πτήσης</string>

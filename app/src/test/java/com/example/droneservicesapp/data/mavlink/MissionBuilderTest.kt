@@ -78,6 +78,22 @@ class MissionBuilderTest {
     }
 
     @Test
+    fun serviceLegKeepsItsSavedResumeDirection() {
+        val path = listOf(LatLng(35.01, 24.0), LatLng(35.02, 24.0))
+
+        val ordered = MissionBuilder.orderAreaPath(
+            waypoints = path,
+            waypointAltitudes = null,
+            homeLatitude = 35.0,
+            homeLongitude = 24.0,
+            startClosestToHome = false,
+            preserveWaypointOrder = true,
+        )
+
+        assertEquals(path, ordered.waypoints)
+    }
+
+    @Test
     fun buildsPointRouteMissionFromRouteWaypoints() {
         val route = listOf(
             RouteWaypoint(
