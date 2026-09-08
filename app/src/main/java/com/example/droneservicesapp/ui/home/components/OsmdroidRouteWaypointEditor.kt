@@ -39,6 +39,7 @@ class OsmdroidRouteWaypointEditor(
     private var eventsOverlay: MapEventsOverlay? = null
     private var waypointGestureOverlay: Overlay? = null
     private var enabled = false
+    private var addingEnabled = false
     private var dragCandidateIndex: Int? = null
     private var dragStartX = 0f
     private var dragStartY = 0f
@@ -66,8 +67,10 @@ class OsmdroidRouteWaypointEditor(
                 if (selectedIndex != null) {
                     selectedControlWaypointIndex = null
                     activityViewModel.updateRouteWaypoint(selectedIndex, p.latitude, p.longitude)
-                } else {
+                } else if (addingEnabled) {
                     activityViewModel.addRouteWaypoint(p.latitude, p.longitude)
+                } else {
+                    return false
                 }
                 return true
             }
@@ -140,8 +143,13 @@ class OsmdroidRouteWaypointEditor(
 
     fun setEnabled(isEnabled: Boolean) {
         enabled = isEnabled
+        if (!isEnabled) addingEnabled = false
         waypointMarkers.forEach { it.isDraggable = isEnabled }
         if (!isEnabled) clearTerrainWaypointSelection()
+    }
+
+    fun setAddingEnabled(isEnabled: Boolean) {
+        addingEnabled = enabled && isEnabled
     }
 
     fun setTerrainWaypointSelectionCallback(callback: (Int?) -> Unit) {
@@ -279,14 +287,24 @@ class OsmdroidRouteWaypointEditor(
 
     private fun renderDistanceMarkers(waypoints: List<RouteWaypoint>) {
         clearMarkers(distanceMarkers)
+        val labelOffsetPx = DISTANCE_LABEL_OFFSET_DP * context.resources.displayMetrics.density
         waypoints.zipWithNext().forEach { (from, to) ->
             val fromPoint = LatLng(from.latitude, from.longitude)
             val toPoint = LatLng(to.latitude, to.longitude)
+            val fromPixel = android.graphics.Point()
+            val toPixel = android.graphics.Point()
+            mapView.projection.toPixels(GeoPoint(from.latitude, from.longitude), fromPixel)
+            mapView.projection.toPixels(GeoPoint(to.latitude, to.longitude), toPixel)
+            val dx = (toPixel.x - fromPixel.x).toFloat()
+            val dy = (toPixel.y - fromPixel.y).toFloat()
+            val length = kotlin.math.sqrt(dx * dx + dy * dy)
+            val midpointX = (fromPixel.x + toPixel.x) / 2f
+            val midpointY = (fromPixel.y + toPixel.y) / 2f
+            val labelPixelX = if (length > 0f) midpointX - dy / length * labelOffsetPx else midpointX
+            val labelPixelY = if (length > 0f) midpointY + dx / length * labelOffsetPx else midpointY
+            val labelPoint = mapView.projection.fromPixels(labelPixelX.toInt(), labelPixelY.toInt())
             val marker = Marker(mapView).apply {
-                position = GeoPoint(
-                    (from.latitude + to.latitude) / 2.0,
-                    (from.longitude + to.longitude) / 2.0
-                )
+                position = GeoPoint(labelPoint.latitude, labelPoint.longitude)
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 infoWindow = null
                 icon = createTextIcon(
@@ -455,5 +473,6 @@ class OsmdroidRouteWaypointEditor(
         private const val WAYPOINT_DOUBLE_TAP_RADIUS_DP = 30f
         private const val WAYPOINT_DRAG_RADIUS_DP = 26f
         private const val WAYPOINT_DRAG_SLOP_DP = 4f
+        private const val DISTANCE_LABEL_OFFSET_DP = 28f
     }
 }

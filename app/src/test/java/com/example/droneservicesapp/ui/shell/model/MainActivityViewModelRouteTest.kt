@@ -131,6 +131,22 @@ class MainActivityViewModelRouteTest {
     }
 
     @Test
+    fun deletingTerrainRoutePointConnectsItsNeighbors() {
+        val viewModel = MainActivityViewModel()
+        viewModel.terrainRouteWaypoints.value = listOf(
+            TerrainWaypoint(LatLon(35.1, 24.1), displayAltitudeMeters = 10.0, missionAltitudeMeters = 10.0),
+            TerrainWaypoint(LatLon(35.2, 24.2), displayAltitudeMeters = 11.0, missionAltitudeMeters = 11.0),
+            TerrainWaypoint(LatLon(35.3, 24.3), displayAltitudeMeters = 12.0, missionAltitudeMeters = 12.0),
+        )
+
+        viewModel.removeTerrainRouteWaypoint(1)
+
+        assertEquals(2, viewModel.terrainRouteWaypoints.value!!.size)
+        assertEquals(35.1, viewModel.terrainRouteWaypoints.value!![0].latLon.lat, 0.000001)
+        assertEquals(35.3, viewModel.terrainRouteWaypoints.value!![1].latLon.lat, 0.000001)
+    }
+
+    @Test
     fun updateSurveyWaypointKeepsTerrainWaypointAligned() {
         val viewModel = MainActivityViewModel()
         viewModel.surveyPath.value = listOf(

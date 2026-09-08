@@ -24,7 +24,10 @@ data class PointCloudMissionOverlay(
     val lineVertexCount: Int,
     val pointVertices: FloatArray = FloatArray(0),
     val pointColors: FloatArray = FloatArray(0),
-    val pointVertexCount: Int = 0
+    val pointVertexCount: Int = 0,
+    val selectedPointVertices: FloatArray = FloatArray(0),
+    val selectedPointColors: FloatArray = FloatArray(0),
+    val selectedPointVertexCount: Int = 0,
 )
 
 class PointCloudGlView @JvmOverloads constructor(
@@ -202,9 +205,12 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     private var overlayColorBuffer: FloatBuffer? = null
     private var overlayPointPositionBuffer: FloatBuffer? = null
     private var overlayPointColorBuffer: FloatBuffer? = null
+    private var selectedPointPositionBuffer: FloatBuffer? = null
+    private var selectedPointColorBuffer: FloatBuffer? = null
     private var pointCount = 0
     private var overlayLineVertexCount = 0
     private var overlayPointVertexCount = 0
+    private var selectedPointVertexCount = 0
     private var overlayPointPositions = FloatArray(0)
     private var cloudSpan = 100f
     private var heightColorModeEnabled = true
@@ -290,8 +296,11 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
             overlayColorBuffer = null
             overlayPointPositionBuffer = null
             overlayPointColorBuffer = null
+            selectedPointPositionBuffer = null
+            selectedPointColorBuffer = null
             overlayLineVertexCount = 0
             overlayPointVertexCount = 0
+            selectedPointVertexCount = 0
             overlayPointPositions = FloatArray(0)
             return
         }
@@ -299,8 +308,15 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
         overlayColorBuffer = overlay.colors.takeIf { overlay.lineVertexCount > 0 }?.toFloatBuffer()
         overlayPointPositionBuffer = overlay.pointVertices.takeIf { overlay.pointVertexCount > 0 }?.toFloatBuffer()
         overlayPointColorBuffer = overlay.pointColors.takeIf { overlay.pointVertexCount > 0 }?.toFloatBuffer()
+        selectedPointPositionBuffer = overlay.selectedPointVertices
+            .takeIf { overlay.selectedPointVertexCount > 0 }
+            ?.toFloatBuffer()
+        selectedPointColorBuffer = overlay.selectedPointColors
+            .takeIf { overlay.selectedPointVertexCount > 0 }
+            ?.toFloatBuffer()
         overlayLineVertexCount = overlay.lineVertexCount
         overlayPointVertexCount = overlay.pointVertexCount
+        selectedPointVertexCount = overlay.selectedPointVertexCount
         overlayPointPositions = overlay.pointVertices.copyOf()
     }
 
@@ -373,6 +389,25 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
                 GLES20.glVertexAttribPointer(colorHandle, 3, GLES20.GL_FLOAT, false, 0, pointColors)
 
                 GLES20.glDrawArrays(GLES20.GL_POINTS, 0, overlayPointVertexCount)
+            }
+        }
+
+        if (selectedPointVertexCount > 0) {
+            val selectedPositions = selectedPointPositionBuffer
+            val selectedColors = selectedPointColorBuffer
+            if (selectedPositions != null && selectedColors != null) {
+                GLES20.glUniform1f(pointSizeHandle, MISSION_SELECTED_POINT_SIZE)
+                GLES20.glUniform1f(alphaHandle, 1f)
+
+                selectedPositions.position(0)
+                GLES20.glEnableVertexAttribArray(positionHandle)
+                GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, selectedPositions)
+
+                selectedColors.position(0)
+                GLES20.glEnableVertexAttribArray(colorHandle)
+                GLES20.glVertexAttribPointer(colorHandle, 3, GLES20.GL_FLOAT, false, 0, selectedColors)
+
+                GLES20.glDrawArrays(GLES20.GL_POINTS, 0, selectedPointVertexCount)
             }
         }
 
@@ -484,6 +519,7 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
         private const val VALUES_PER_POINT = 3
         private const val MISSION_OVERLAY_LINE_WIDTH = 6f
         private const val MISSION_OVERLAY_POINT_SIZE = 22f
+        private const val MISSION_SELECTED_POINT_SIZE = 32f
         private const val VERTEX_SHADER = """
             uniform mat4 u_MvpMatrix;
             uniform float u_PointSize;

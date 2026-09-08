@@ -628,11 +628,16 @@ class MissionMapFragment : Fragment() {
 
         binding.surveyWaypointDeleteButton.setOnClickListener {
             val selectedIndex = selectedSurveyWaypointIndex ?: return@setOnClickListener
-            if (selectedTerrainWaypointWorkflow == PlanningWorkflow.POINTS) return@setOnClickListener
-            activityViewModel.removeSurveyWaypoint(selectedIndex)
-            osmdroidMapController.clearSelectedSurveyWaypoint()
-            updateFlightDistance(activityViewModel.surveyPath.value.orEmpty())
-            renderCurrentSurveyPathOnMap()
+            if (selectedTerrainWaypointWorkflow == PlanningWorkflow.POINTS) {
+                activityViewModel.removeTerrainRouteWaypoint(selectedIndex)
+                osmdroidRouteWaypointEditor.clearTerrainWaypointSelection()
+                updateFlightDistance(currentMissionPath())
+            } else {
+                activityViewModel.removeSurveyWaypoint(selectedIndex)
+                osmdroidMapController.clearSelectedSurveyWaypoint()
+                updateFlightDistance(activityViewModel.surveyPath.value.orEmpty())
+                renderCurrentSurveyPathOnMap()
+            }
             Toast.makeText(requireContext(), getString(R.string.survey_waypoint_deleted), Toast.LENGTH_SHORT).show()
         }
 
@@ -1492,13 +1497,17 @@ class MissionMapFragment : Fragment() {
 
     private fun updateRouteEditorEnabled() {
         if (!::osmdroidRouteWaypointEditor.isInitialized) return
-        osmdroidRouteWaypointEditor.setEnabled(
-            activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS &&
-                activityViewModel.mapState.value in setOf(
+        val pointWorkflow = activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS
+        val mapState = activityViewModel.mapState.value
+        val editingEnabled = pointWorkflow &&
+            mapState in setOf(
                     MainActivityViewModel.MapState.Draw,
                     MainActivityViewModel.MapState.SetFlightParams
                 ) &&
-                !homePlacementMode
+            !homePlacementMode
+        osmdroidRouteWaypointEditor.setEnabled(editingEnabled)
+        osmdroidRouteWaypointEditor.setAddingEnabled(
+            editingEnabled && mapState == MainActivityViewModel.MapState.Draw
         )
     }
 
@@ -1537,8 +1546,7 @@ class MissionMapFragment : Fragment() {
         selectedTerrainWaypointWorkflow = workflow
         selectedSurveyWaypointIndex = index
         binding.surveyWaypointEditDock.visibility = if (index == null) View.GONE else View.VISIBLE
-        binding.surveyWaypointDeleteButton.visibility =
-            if (workflow == PlanningWorkflow.AREA) View.VISIBLE else View.GONE
+        binding.surveyWaypointDeleteButton.visibility = View.VISIBLE
         updateSelectedSurveyWaypointHeightLabel()
         updatePointCloudMissionOverlay()
         if (index != null && activePreviewMode != PreviewMode.POINT_CLOUD) {
@@ -2601,6 +2609,8 @@ class MissionMapFragment : Fragment() {
         val lineColors = ArrayList<Float>()
         val pointVertices = ArrayList<Float>()
         val pointColors = ArrayList<Float>()
+        val selectedPointVertices = ArrayList<Float>()
+        val selectedPointColors = ArrayList<Float>()
 
         val areaVertices = activityViewModel.missionArea.value?.vertices.orEmpty()
         addPointCloudClosedLineStrip(
@@ -2698,7 +2708,34 @@ class MissionMapFragment : Fragment() {
             colors = lineColors
         ) { point -> frame.latLonToLocal(point.latitude, point.longitude) }
 
-        if (lineVertices.isEmpty() && pointVertices.isEmpty()) {
+        val selectedIndex = selectedSurveyWaypointIndex
+        if (selectedIndex != null) {
+            if (selectedTerrainWaypointWorkflow == PlanningWorkflow.AREA) {
+                surveyPoints.getOrNull(selectedIndex)?.let { point ->
+                    addPointCloudMissionVertex(
+                        point = point,
+                        z = surveyZValues?.getOrNull(selectedIndex)
+                            ?: overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 1.5f,
+                        color = POINT_CLOUD_SELECTED_POINT_COLOR,
+                        vertices = selectedPointVertices,
+                        colors = selectedPointColors,
+                    ) { frame.latLonToLocal(it.latitude, it.longitude) }
+                }
+            } else if (routeZValues != null) {
+                routePoints.getOrNull(selectedIndex)?.let { point ->
+                    addPointCloudMissionVertex(
+                        point = point,
+                        z = routeZValues.getOrNull(selectedIndex)
+                            ?: overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 2.2f,
+                        color = POINT_CLOUD_SELECTED_POINT_COLOR,
+                        vertices = selectedPointVertices,
+                        colors = selectedPointColors,
+                    ) { frame.latLonToLocal(it.latitude, it.longitude) }
+                }
+            }
+        }
+
+        if (lineVertices.isEmpty() && pointVertices.isEmpty() && selectedPointVertices.isEmpty()) {
             binding.homePointCloudGlView.setMissionOverlay(null)
             return
         }
@@ -2710,7 +2747,10 @@ class MissionMapFragment : Fragment() {
                 lineVertexCount = lineVertices.size / VALUES_PER_MISSION_VERTEX,
                 pointVertices = pointVertices.toFloatArray(),
                 pointColors = pointColors.toFloatArray(),
-                pointVertexCount = pointVertices.size / VALUES_PER_MISSION_VERTEX
+                pointVertexCount = pointVertices.size / VALUES_PER_MISSION_VERTEX,
+                selectedPointVertices = selectedPointVertices.toFloatArray(),
+                selectedPointColors = selectedPointColors.toFloatArray(),
+                selectedPointVertexCount = selectedPointVertices.size / VALUES_PER_MISSION_VERTEX,
             )
         )
     }

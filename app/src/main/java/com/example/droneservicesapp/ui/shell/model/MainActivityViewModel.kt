@@ -532,6 +532,14 @@ class MainActivityViewModel : ViewModel() {
         }
     }
 
+    fun removeTerrainRouteWaypoint(index: Int) {
+        val terrainPath = terrainRouteWaypoints.value.orEmpty()
+        if (index !in terrainPath.indices) return
+        terrainRouteWaypoints.value = terrainPath.filterIndexed { waypointIndex, _ ->
+            waypointIndex != index
+        }
+    }
+
     fun undoLastRouteWaypoint() {
         val existing = routeWaypoints.value.orEmpty()
         if (existing.isEmpty()) return
