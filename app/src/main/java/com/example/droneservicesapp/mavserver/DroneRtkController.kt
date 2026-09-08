@@ -30,6 +30,7 @@ internal class DroneRtkController(
     private val targetSystemId: () -> Int,
     private val targetComponentId: () -> Int,
     private val lastDroneLocation: () -> Location?,
+    private val lastAutopilotHeartbeatMs: () -> Long,
 ) {
     companion object {
         private const val TAG = "DroneViewModel"
@@ -171,7 +172,7 @@ internal class DroneRtkController(
                 module = "mavlink",
                 message = if (connected) "connection_healthy" else "connection_lost",
                 severity = if (connected) "INFO" else "WARN",
-                data = mapOf("lastHeartbeatAgeMs" to (System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs))
+                data = mapOf("lastAutopilotHeartbeatAgeMs" to (System.currentTimeMillis() - lastAutopilotHeartbeatMs()))
             )
         }
         if (!connected) {
@@ -329,7 +330,7 @@ internal class DroneRtkController(
                 ) -> {
                 Log.i(
                     TAG,
-                    "automatic RTK start due to mountpoint + internet + drone readiness mountpoint=${config.mountpoint.trim()} mavHeartbeatAgeMs=${System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs}"
+                    "automatic RTK start due to mountpoint + internet + drone readiness mountpoint=${config.mountpoint.trim()} autopilotHeartbeatAgeMs=${System.currentTimeMillis() - lastAutopilotHeartbeatMs()}"
                 )
                 RtkKeepAliveForegroundService.startSession(context)
                 rtkForwardingService.start(

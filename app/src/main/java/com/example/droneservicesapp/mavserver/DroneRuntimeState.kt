@@ -6,6 +6,7 @@ import java.util.concurrent.ConcurrentHashMap
 
 internal class DroneRuntimeState {
     @Volatile var bridgeAttached: Boolean = false
+    @Volatile var lastAutopilotHeartbeatMs: Long = 0L
     @Volatile var lastNonHeartbeatMs: Long = 0L
     @Volatile var lastDroneLocation: Location? = null
     @Volatile var autopilotSysId: Int = -1
@@ -21,12 +22,16 @@ internal class DroneRuntimeState {
     @Volatile var lastSpeedSourceUpdatedMs: Long = 0L
     @Volatile var rtkGroundAltitudeOffsetMeters: Double? = null
     val lastTelemetryMappingSummaries: ConcurrentHashMap<String, String> = ConcurrentHashMap()
+    val batteryPercentageStabilizer = BatteryPercentageStabilizer()
     @Volatile var mavlinkMessagesDisposable: Disposable? = null
 
     fun clearAutopilotTarget() {
         autopilotSysId = -1
         autopilotCompId = -1
+        lastAutopilotHeartbeatMs = 0L
+        lastNonHeartbeatMs = 0L
         lastSpeedSourceRank = Int.MAX_VALUE
         lastSpeedSourceUpdatedMs = 0L
+        batteryPercentageStabilizer.reset()
     }
 }

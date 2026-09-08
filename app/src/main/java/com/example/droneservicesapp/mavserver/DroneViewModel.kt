@@ -94,7 +94,8 @@ class DroneViewModel : ViewModel() {
             isConnected = { stateStore.conStateLiveData.value == true },
             targetSystemId = { runtimeState.autopilotSysId },
             targetComponentId = { runtimeState.autopilotCompId },
-            lastDroneLocation = { runtimeState.lastDroneLocation }
+            lastDroneLocation = { runtimeState.lastDroneLocation },
+            lastAutopilotHeartbeatMs = { runtimeState.lastAutopilotHeartbeatMs }
         )
     }
     private val telemetryProcessor: DroneTelemetryProcessor by lazy {
@@ -336,6 +337,7 @@ class DroneViewModel : ViewModel() {
             "targetHostConfigured" to !config.targetHost.isNullOrBlank(),
             "targetPort" to config.targetPort
         ))
+        runtimeState.clearAutopilotTarget()
         mavlinkClient.restart(config)
         activeMavlinkConfigKey = config.toConnectionKey()
         attachRepositoryBridge()
@@ -346,7 +348,7 @@ class DroneViewModel : ViewModel() {
         val configChanged = activeMavlinkConfigKey != newConfigKey
         Log.i(
             TAG,
-            "foreground transition keepAlive=${shouldKeepRtkAliveInBackground()} healthy=${isMavlinkSessionHealthy()} configChanged=$configChanged lastConfig=$activeMavlinkConfigKey newConfig=$newConfigKey lastHeartbeatMs=${mavlinkClient.lastHeartbeatMs}"
+            "foreground transition keepAlive=${shouldKeepRtkAliveInBackground()} healthy=${isMavlinkSessionHealthy()} configChanged=$configChanged lastConfig=$activeMavlinkConfigKey newConfig=$newConfigKey lastAutopilotHeartbeatMs=${runtimeState.lastAutopilotHeartbeatMs}"
         )
         DiagnosticLog.event("app", "foregrounded", data = mapOf("mavlinkHealthy" to isMavlinkSessionHealthy(), "configChanged" to configChanged))
         if (isMavlinkSessionHealthy() && !configChanged) {
@@ -360,6 +362,7 @@ class DroneViewModel : ViewModel() {
                 Log.w(TAG, "onAppForegrounded restarting stale MAVLink session before resuming RTK")
                 rtkController.stopStreamingForMavlinkRestart()
             }
+            runtimeState.clearAutopilotTarget()
             mavlinkClient.restart(config)
             activeMavlinkConfigKey = newConfigKey
             attachRepositoryBridge()
@@ -374,7 +377,7 @@ class DroneViewModel : ViewModel() {
     fun onAppBackgrounded() {
         Log.i(
             TAG,
-            "background transition keepAlive=${shouldKeepRtkAliveInBackground()} lastHeartbeatMs=${mavlinkClient.lastHeartbeatMs}"
+            "background transition keepAlive=${shouldKeepRtkAliveInBackground()} lastAutopilotHeartbeatMs=${runtimeState.lastAutopilotHeartbeatMs}"
         )
         DiagnosticLog.event("app", "backgrounded", data = mapOf("rtkKeepAlive" to shouldKeepRtkAliveInBackground()))
         if (shouldKeepRtkAliveInBackground()) {
@@ -383,6 +386,7 @@ class DroneViewModel : ViewModel() {
         }
         stopRtkForwarding(clearRequest = true)
         mavlinkClient.stop()
+        runtimeState.clearAutopilotTarget()
         activeMavlinkConfigKey = null
     }
 
@@ -428,7 +432,11 @@ class DroneViewModel : ViewModel() {
     }
 
     private fun isMavlinkSessionHealthy(): Boolean {
-        return (System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs) < HEARTBEAT_STALE_MS
+        return isAutopilotLinkHealthy(
+            runtimeState.lastAutopilotHeartbeatMs,
+            System.currentTimeMillis(),
+            HEARTBEAT_STALE_MS
+        )
     }
 
     private fun attachRepositoryBridge() {
@@ -440,8 +448,12 @@ class DroneViewModel : ViewModel() {
                 Observable.interval(0, CONNECTION_TICK_MS, TimeUnit.MILLISECONDS)
                     .subscribeOn(Schedulers.io())
                     .subscribe {
-                        val connected =
-                            (System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs) < HEARTBEAT_STALE_MS
+                        val now = System.currentTimeMillis()
+                        val connected = isAutopilotLinkHealthy(
+                            runtimeState.lastAutopilotHeartbeatMs,
+                            now,
+                            HEARTBEAT_STALE_MS
+                        )
                         stateStore.conStateLiveData.postValue(connected)
                         if (runtimeState.lastLoggedConnectionState != connected) {
                             runtimeState.lastLoggedConnectionState = connected
@@ -450,7 +462,7 @@ class DroneViewModel : ViewModel() {
                                 Log.d(MAPPING_TAG, "connection=connected")
                                 Log.i(
                                     TAG,
-                                    "heartbeat healthy lastHeartbeatAgeMs=${System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs}"
+                                    "autopilot heartbeat healthy ageMs=${now - runtimeState.lastAutopilotHeartbeatMs}"
                                 )
                             } else {
                                 operatorEventLogger.logDroneDisconnected("Heartbeat timed out")
@@ -458,13 +470,13 @@ class DroneViewModel : ViewModel() {
                                 Log.d(MAPPING_TAG, "connection=disconnected")
                                 Log.w(
                                     TAG,
-                                    "heartbeat lost lastHeartbeatAgeMs=${System.currentTimeMillis() - mavlinkClient.lastHeartbeatMs}"
+                                    "autopilot heartbeat lost ageMs=${now - runtimeState.lastAutopilotHeartbeatMs}"
                                 )
                             }
                         }
 
                         val telemetryAlive =
-                            (System.currentTimeMillis() - runtimeState.lastNonHeartbeatMs) < TELEMETRY_STALE_MS
+                            connected && (now - runtimeState.lastNonHeartbeatMs) < TELEMETRY_STALE_MS
                         stateStore.telemetryAliveLiveData.postValue(telemetryAlive)
                         if (runtimeState.lastLoggedTelemetryAlive != telemetryAlive) {
                             runtimeState.lastLoggedTelemetryAlive = telemetryAlive
@@ -481,6 +493,7 @@ class DroneViewModel : ViewModel() {
 
                         if (!connected) {
                             stateStore.telemetryAliveLiveData.postValue(false)
+                            stateStore.armedState.postValue(false)
                             stateStore.gpsFixType.postValue(null)
                             stateStore.droneBatteryPercentage.postValue(-1.0f)
                             stateStore.droneGroundSpeedMetersPerSecond.postValue(0.0f)
@@ -570,7 +583,7 @@ class DroneViewModel : ViewModel() {
                 "gpsDebug" to stateStore.rtkGpsDebugStatus.value,
                 "rtkState" to stateStore.rtkForwardingState.value?.javaClass?.simpleName,
                 "rtcmQueueDepth" to mavlinkClient.currentRtcmQueueDepth(),
-                "heartbeatAgeMs" to (now - mavlinkClient.lastHeartbeatMs),
+                "autopilotHeartbeatAgeMs" to (now - runtimeState.lastAutopilotHeartbeatMs),
                 "tabletBatteryPercent" to tabletBatteryPercent(),
                 "tabletCharging" to isTabletCharging(),
                 "tabletNetwork" to tabletNetworkDescription(),

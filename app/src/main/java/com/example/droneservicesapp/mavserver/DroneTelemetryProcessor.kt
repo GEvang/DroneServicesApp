@@ -49,23 +49,27 @@ internal class DroneTelemetryProcessor(
     }
 
     fun handle(message: MavlinkMessage<*>) {
-        if (message.payload !is Heartbeat) {
-            runtimeState.lastNonHeartbeatMs = System.currentTimeMillis()
+        val payload = message.payload
+        if (payload is Heartbeat) {
+            handleHeartbeat(message, payload)
+            return
         }
 
-        if (message.payload is CommandAck) {
-            handleCommandAck(message.payload as CommandAck)
+        if (payload is CommandAck) {
+            handleCommandAck(payload)
+            return
         }
 
-        if (runtimeState.autopilotSysId != -1 &&
+        if (runtimeState.autopilotSysId == -1 ||
             (message.originSystemId != runtimeState.autopilotSysId ||
                 message.originComponentId != runtimeState.autopilotCompId)
         ) {
-            if (message.payload !is Heartbeat && message.payload !is CommandAck) return
+            return
         }
 
-        when (val payload = message.payload) {
-            is Heartbeat -> handleHeartbeat(message, payload)
+        runtimeState.lastNonHeartbeatMs = System.currentTimeMillis()
+
+        when (payload) {
             is GlobalPositionInt -> handleGlobalPosition(payload)
             is VfrHud -> updateGroundSpeed(
                 source = "VFR_HUD.groundspeed",
@@ -128,19 +132,25 @@ internal class DroneTelemetryProcessor(
                     ?.toFloat()
                     ?.times(10.0f.pow(-3))
                     ?: 0.0f
-                val batteryFraction = TelemetryMapping.batteryFractionFromVoltage(batteryVoltage)
+                val reportedBatteryFraction = TelemetryMapping.batteryFractionFromRaw(payload.batteryRemaining())
+                val voltageBatteryFraction = TelemetryMapping.batteryFractionFromVoltage(batteryVoltage)
+                val batteryFraction = reportedBatteryFraction.takeIf { it >= 0f } ?: voltageBatteryFraction
+                val stableBatteryPercent = runtimeState.batteryPercentageStabilizer.update(batteryFraction)
+                val stableBatteryFraction = stableBatteryPercent?.div(100.0f) ?: -1.0f
                 val sprayerPercent = TelemetryMapping.displayPercentFromRaw(voltages.getOrNull(1)?.toFloat())
                     ?: TelemetryMapping.UNKNOWN_PERCENT
                 stateStore.droneBatteryVoltage.postValue(batteryVoltage)
-                stateStore.droneBatteryPercentage.postValue(batteryFraction)
+                stateStore.droneBatteryPercentage.postValue(stableBatteryFraction)
                 stateStore.liquidLevel.postValue(sprayerPercent.toFloat())
                 logMappingSummary(
                     key = "battery-sprayer",
                     "batteryVoltage=${String.format(java.util.Locale.US, "%.1f", batteryVoltage)}V " +
-                        "batteryDisplay=${TelemetryMapping.formatBatteryText(batteryVoltage, batteryFraction)} " +
+                        "batteryReportedPercent=${payload.batteryRemaining()} " +
+                        "batteryRawPercent=${TelemetryMapping.displayPercentFromFraction(batteryFraction)} " +
+                        "batteryDisplay=${TelemetryMapping.formatBatteryText(batteryVoltage, stableBatteryFraction)} " +
                         "sprayerRaw=${voltages.getOrNull(1)} sprayerDisplay=${TelemetryMapping.displayPercentFromRaw(voltages.getOrNull(1)?.toFloat())?.let { "$it%" } ?: "--%"}"
                 )
-                handleBatteryLevel(TelemetryMapping.displayPercentFromFraction(batteryFraction) ?: -1)
+                handleBatteryLevel(stableBatteryPercent ?: -1)
             }
             is RcChannels -> {
                 stateStore.rcRSSI.postValue(payload.rssi() * 100.0F / 255.0F)
@@ -198,9 +208,13 @@ internal class DroneTelemetryProcessor(
         val hasAutopilot =
             heartbeat.autopilot().entry() != MavAutopilot.MAV_AUTOPILOT_INVALID
 
-        if (!isGcs && hasAutopilot && runtimeState.autopilotSysId == -1) {
+        // Controller/GCS heartbeats prove that the network is alive, not that the aircraft is.
+        if (!isAircraftHeartbeat(isGcs, hasAutopilot)) return
+
+        if (runtimeState.autopilotSysId == -1) {
             runtimeState.autopilotSysId = message.originSystemId
             runtimeState.autopilotCompId = message.originComponentId
+            runtimeState.lastAutopilotHeartbeatMs = System.currentTimeMillis()
             Log.i(TAG, "Locked autopilot sys=${runtimeState.autopilotSysId} comp=${runtimeState.autopilotCompId}")
             updateMissionTargets(runtimeState.autopilotSysId, runtimeState.autopilotCompId)
             onAutopilotHeartbeatLocked()
@@ -212,6 +226,8 @@ internal class DroneTelemetryProcessor(
         ) {
             return
         }
+
+        runtimeState.lastAutopilotHeartbeatMs = System.currentTimeMillis()
 
         stateStore.droneFlightMode.postValue(heartbeat.customMode().toInt())
         val previousMode = runtimeState.lastLoggedFlightMode
