@@ -984,6 +984,11 @@ class MissionMapFragment : Fragment() {
         val home = activityViewModel.plannedHomePosition.value
         val speed = (activityViewModel.flightSpeed.value ?: 5.0).coerceAtLeast(0.1)
         val sprayRate = if (isSpraying) activityViewModel.sprayFlowLitersPerMinute() else 0.0
+        val usableBatteryMinutes = if (isSpraying) {
+            MissionResourcePlanner.sprayerBatteryMinutes(sprayRate)
+        } else {
+            MissionResourcePlanner.USABLE_BATTERY_MINUTES
+        }
 
         missionSummaryJob?.cancel()
         missionSummaryJob = viewLifecycleOwner.lifecycleScope.launch {
@@ -993,6 +998,7 @@ class MissionMapFragment : Fragment() {
                     home = home,
                     speedMetersPerSecond = speed,
                     sprayRateLitersPerMinute = sprayRate,
+                    usableBatteryMinutes = usableBatteryMinutes,
                 )
             }
             if (_binding == null || currentMissionPath() != missionPath) return@launch
@@ -1028,16 +1034,17 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun buildMissionResourcePlan(path: List<LatLng>): MissionResourcePlan {
+        val isSpraying = activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
+        val sprayRate = if (isSpraying) activityViewModel.sprayFlowLitersPerMinute() else 0.0
         return MissionResourcePlanner.plan(
             path = path.map { LatLon(it.latitude, it.longitude) },
             home = activityViewModel.plannedHomePosition.value,
             speedMetersPerSecond = (activityViewModel.flightSpeed.value ?: 5.0).coerceAtLeast(0.1),
-            sprayRateLitersPerMinute = if (
-                activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
-            ) {
-                activityViewModel.sprayFlowLitersPerMinute()
+            sprayRateLitersPerMinute = sprayRate,
+            usableBatteryMinutes = if (isSpraying) {
+                MissionResourcePlanner.sprayerBatteryMinutes(sprayRate)
             } else {
-                0.0
+                MissionResourcePlanner.USABLE_BATTERY_MINUTES
             },
         )
     }
@@ -1173,7 +1180,7 @@ class MissionMapFragment : Fragment() {
             if (nextStop != null) {
                 pendingSimulationServiceStop = nextStop
                 val workPoint = LatLng(nextStop.point.lat, nextStop.point.lon)
-                animateSimulationPath(listOf(workPoint, simulationHome ?: workPoint)) {
+                animateSimulationPath(obstacleAwareServiceTransit(workPoint, simulationHome ?: workPoint)) {
                     missionSimulationAnimator = null
                     missionSimulationState = SimulationState.WAITING_FOR_SERVICE
                     updateSimulationButton(hasPath = true)
@@ -1202,11 +1209,19 @@ class MissionMapFragment : Fragment() {
         val workPoint = LatLng(stop.point.lat, stop.point.lon)
         missionSimulationState = SimulationState.FLYING
         updateSimulationButton(hasPath = true)
-        animateSimulationPath(listOf(simulationHome ?: workPoint, workPoint)) {
+        animateSimulationPath(obstacleAwareServiceTransit(simulationHome ?: workPoint, workPoint)) {
             simulationNextServiceStopIndex += 1
             pendingSimulationServiceStop = null
             animateSimulationWorkLeg()
         }
+    }
+
+    private fun obstacleAwareServiceTransit(from: LatLng, to: LatLng): List<LatLng> {
+        return SurveyPlanner().buildObstacleAvoidingTransitPath(
+            from = LatLon(from.latitude, from.longitude),
+            to = LatLon(to.latitude, to.longitude),
+            obstacles = activityViewModel.missionObstacles.value.orEmpty(),
+        ).map { LatLng(it.lat, it.lon) }
     }
 
     private fun animateSimulationPath(rawPath: List<LatLng>, onComplete: () -> Unit) {
@@ -2044,6 +2059,7 @@ class MissionMapFragment : Fragment() {
                 areaVertices = areaVertices,
                 segmentColors = mapSurveyHeightSegmentColors(path)
             )
+            osmdroidObstacleEditor.bringToFront()
         } else {
             osmdroidMapController.clearSurveyPath()
         }
@@ -2852,6 +2868,7 @@ class MissionMapFragment : Fragment() {
             Log.d(TERRAIN_GRID_TAG, "Terrain-aware spray path waypoints=${orderedTerrainWaypoints.size}")
         }
         osmdroidMapController.setSurveyPath(gmsPath, areaVertices)
+        osmdroidObstacleEditor.bringToFront()
     }
 
     private fun updateFlightDistance(path: List<LatLng>) {

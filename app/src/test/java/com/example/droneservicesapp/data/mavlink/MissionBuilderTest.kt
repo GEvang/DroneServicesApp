@@ -34,16 +34,20 @@ class MissionBuilderTest {
     }
 
     @Test
-    fun mapsSprayerIntensityToServo5PwmRange() {
+    fun mapsSprayerIntensityToCalibratedServo5Pwm() {
         assertEquals(1000.0f, MissionBuilder.servo5PwmForSprayerIntensity(0), 0.001f)
-        assertEquals(1600.0f, MissionBuilder.servo5PwmForSprayerIntensity(50), 0.001f)
-        assertEquals(2200.0f, MissionBuilder.servo5PwmForSprayerIntensity(100), 0.001f)
+        assertEquals(1350.0f, MissionBuilder.servo5PwmForSprayerIntensity(63), 0.001f)
+        assertEquals(1400.0f, MissionBuilder.servo5PwmForSprayerIntensity(75), 0.001f)
+        assertEquals(1600.0f, MissionBuilder.servo5PwmForSprayerIntensity(88), 0.001f)
+        assertEquals(1800.0f, MissionBuilder.servo5PwmForSprayerIntensity(95), 0.001f)
+        assertEquals(1800.0f, MissionBuilder.servo5PwmForSprayerIntensity(98), 0.001f)
+        assertEquals(2000.0f, MissionBuilder.servo5PwmForSprayerIntensity(100), 0.001f)
     }
 
     @Test
     fun clampsSprayerIntensityBeforeMappingServo5Pwm() {
         assertEquals(1000.0f, MissionBuilder.servo5PwmForSprayerIntensity(-10), 0.001f)
-        assertEquals(2200.0f, MissionBuilder.servo5PwmForSprayerIntensity(120), 0.001f)
+        assertEquals(2000.0f, MissionBuilder.servo5PwmForSprayerIntensity(120), 0.001f)
     }
 
     @Test
@@ -143,7 +147,7 @@ class MissionBuilderTest {
         assertEquals((24.1 * 1e7).toInt(), navWaypoints[0].y())
         assertEquals(8.0f, navWaypoints[0].z(), 0.001f)
         assertEquals(2, servoCommands.size)
-        assertEquals(1600.0f, servoCommands.first().param2(), 0.001f)
+        assertEquals(1350.0f, servoCommands.first().param2(), 0.001f)
         assertEquals(1000.0f, servoCommands.last().param2(), 0.001f)
     }
 

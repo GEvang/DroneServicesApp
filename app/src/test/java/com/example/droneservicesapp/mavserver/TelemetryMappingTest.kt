@@ -56,6 +56,14 @@ class TelemetryMappingTest {
     }
 
     @Test
+    fun mapsSprayerBatteryWithCriticalTenPercentBreakpoint() {
+        assertEquals(0.0f, TelemetryMapping.batteryFractionFromVoltage(41.0f), 0.001f)
+        assertEquals(0.1f, TelemetryMapping.batteryFractionFromVoltage(44.5f), 0.001f)
+        assertEquals(0.55f, TelemetryMapping.batteryFractionFromVoltage(47.25f), 0.001f)
+        assertEquals(1.0f, TelemetryMapping.batteryFractionFromVoltage(50.0f), 0.001f)
+    }
+
+    @Test
     fun calculatesGlobalHorizontalSpeed() {
         assertEquals(
             5.0f,

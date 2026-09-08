@@ -134,7 +134,7 @@ internal class DroneTelemetryProcessor(
                     ?: 0.0f
                 val reportedBatteryFraction = TelemetryMapping.batteryFractionFromRaw(payload.batteryRemaining())
                 val voltageBatteryFraction = TelemetryMapping.batteryFractionFromVoltage(batteryVoltage)
-                val batteryFraction = reportedBatteryFraction.takeIf { it >= 0f } ?: voltageBatteryFraction
+                val batteryFraction = voltageBatteryFraction.takeIf { it >= 0f } ?: reportedBatteryFraction
                 val stableBatteryPercent = runtimeState.batteryPercentageStabilizer.update(batteryFraction)
                 val stableBatteryFraction = stableBatteryPercent?.div(100.0f) ?: -1.0f
                 val sprayerPercent = TelemetryMapping.displayPercentFromRaw(voltages.getOrNull(1)?.toFloat())

@@ -75,7 +75,7 @@ class MainActivityViewModelRouteTest {
         assertEquals(8.0, waypoint.altitudeMeters, 0.001)
         assertEquals(2.5, waypoint.speedMetersPerSecond, 0.001)
         assertTrue(waypoint.sprayEnabled)
-        assertEquals(55, waypoint.sprayerIntensityPercent)
+        assertEquals(63, waypoint.sprayerIntensityPercent)
     }
 
     @Test

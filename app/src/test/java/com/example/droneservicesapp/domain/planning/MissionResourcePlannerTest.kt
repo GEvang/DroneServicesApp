@@ -12,7 +12,7 @@ class MissionResourcePlannerTest {
             path = listOf(LatLon(35.0, 25.0), LatLon(35.001, 25.0)),
             home = LatLon(35.0, 25.0),
             speedMetersPerSecond = 5.0,
-            sprayRateLitersPerMinute = 5.0,
+            sprayRateLitersPerMinute = 4.0,
         )
 
         assertEquals(1, plan.batteryCount)
@@ -31,6 +31,7 @@ class MissionResourcePlannerTest {
 
         assertTrue(plan.batteryCount > 1)
         assertEquals(plan.batteryCount - 1, plan.batteryReturnPoints.size)
+        assertTrue(plan.serviceStops.isEmpty())
     }
 
     @Test
@@ -39,13 +40,14 @@ class MissionResourcePlannerTest {
             path = listOf(LatLon(35.0, 25.0), LatLon(35.01, 25.0)),
             home = LatLon(35.0, 25.0),
             speedMetersPerSecond = 2.0,
-            sprayRateLitersPerMinute = 15.0,
+            sprayRateLitersPerMinute = 4.0,
         )
 
-        assertTrue(plan.totalSprayLiters > 100.0)
-        assertEquals(6, plan.tankRefillCount)
+        assertTrue(plan.totalSprayLiters > 30.0)
+        assertEquals(2, plan.tankRefillCount)
         assertEquals(plan.tankRefillCount, plan.tankRefillPoints.size)
-        assertEquals(6, plan.serviceStops.count { it.requiresTankRefill })
+        assertEquals(2, plan.serviceStops.count { it.requiresTankRefill })
+        assertTrue(plan.serviceStops.none { it.requiresBattery })
     }
 
     @Test
@@ -55,7 +57,7 @@ class MissionResourcePlannerTest {
             path = path,
             home = path.first(),
             speedMetersPerSecond = 2.0,
-            sprayRateLitersPerMinute = 15.0,
+            sprayRateLitersPerMinute = 4.0,
         )
 
         val legs = MissionResourcePlanner.splitIntoServiceLegs(path, plan.serviceStops)
@@ -65,5 +67,13 @@ class MissionResourcePlannerTest {
         assertEquals(plan.serviceStops.first().point, legs[1].path.first())
         assertEquals(plan.serviceStops.first(), legs.first().serviceAfter)
         assertEquals(null, legs.last().serviceAfter)
+    }
+
+    @Test
+    fun interpolatesSprayerEnduranceFromEmptyToFullFlow() {
+        assertEquals(15.0, MissionResourcePlanner.sprayerBatteryMinutes(0.0), 0.001)
+        assertEquals(8.75, MissionResourcePlanner.sprayerBatteryMinutes(2.5), 0.001)
+        assertEquals(5.0, MissionResourcePlanner.sprayerBatteryMinutes(4.0), 0.001)
+        assertEquals(5.0, MissionResourcePlanner.sprayerBatteryMinutes(8.0), 0.001)
     }
 }

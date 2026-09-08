@@ -12,6 +12,7 @@ import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.planning.MissionResourcePlanner
 import com.example.droneservicesapp.domain.planning.MissionServiceLeg
+import com.example.droneservicesapp.domain.survey.SurveyPlanner
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.mavserver.TerrainMissionReadiness
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
@@ -86,6 +87,11 @@ class MissionParamsActionHandler(
                     activityViewModel.sprayFlowLitersPerMinute()
                 } else {
                     0.0
+                },
+                usableBatteryMinutes = if (operationMode == PlanningOperationMode.SPRAY) {
+                    MissionResourcePlanner.sprayerBatteryMinutes(activityViewModel.sprayFlowLitersPerMinute())
+                } else {
+                    MissionResourcePlanner.USABLE_BATTERY_MINUTES
                 },
             )
             MissionResourcePlanner.splitIntoServiceLegs(fullPath, plan.serviceStops)
@@ -196,6 +202,19 @@ class MissionParamsActionHandler(
         altitudeReferenceMode: AltitudeReferenceMode,
     ): MissionBuild {
         val mapPath = ArrayList(missionPath.map { LatLng(it.lat, it.lon) })
+        val home = activityViewModel.plannedHomePosition.value
+            ?: LatLon(currentLocation.latitude, currentLocation.longitude)
+        val returnPathToHome = if (
+            serviceLeg?.serviceAfter?.requiresTankRefill == true && missionPath.isNotEmpty()
+        ) {
+            SurveyPlanner().buildObstacleAvoidingTransitPath(
+                from = missionPath.last(),
+                to = home,
+                obstacles = activityViewModel.missionObstacles.value.orEmpty(),
+            ).map { LatLng(it.lat, it.lon) }
+        } else {
+            emptyList()
+        }
         if (operationMode == PlanningOperationMode.SPRAY) {
             val fullAltitudes = activityViewModel.terrainSurveyWaypoints.value.orEmpty()
                 .takeIf {
@@ -227,6 +246,7 @@ class MissionParamsActionHandler(
                     waypointAltitudes = legAltitudes,
                     startClosestToHome = true,
                     preserveWaypointOrder = serviceLeg != null,
+                    returnPathToHome = returnPathToHome,
                 ),
                 altitudeReferenceMode = reference,
                 usesTerrainAltitudes = legAltitudes != null,

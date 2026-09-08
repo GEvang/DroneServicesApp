@@ -72,6 +72,20 @@ class SurveyPlanner {
         return resultLatLng.map { LatLon(it.latitude, it.longitude) }
     }
 
+    fun buildObstacleAvoidingTransitPath(
+        from: LatLon,
+        to: LatLon,
+        obstacles: List<MissionObstacle>,
+        bufferMeters: Double = 5.0,
+    ): List<LatLon> {
+        return routeSegmentAroundObstacles(
+            from = LatLng(from.lat, from.lon),
+            to = LatLng(to.lat, to.lon),
+            obstacles = obstacles.filter { it.isValid() },
+            bufferMeters = bufferMeters.coerceAtLeast(0.0),
+        ).map { LatLon(it.latitude, it.longitude) }
+    }
+
     /**
      * Core angled survey algorithm (extracted from Survey class).
      * Generates survey waypoints by creating parallel lines at the specified angle.

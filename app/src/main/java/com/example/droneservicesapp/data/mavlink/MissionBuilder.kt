@@ -4,6 +4,7 @@ import android.location.Location
 import android.util.Log
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.RouteWaypoint
+import com.example.droneservicesapp.domain.survey.SprayFlowCalibration
 import com.google.android.gms.maps.model.LatLng
 import io.dronefleet.mavlink.common.MavCmd
 import io.dronefleet.mavlink.common.MavFrame
@@ -55,6 +56,7 @@ object MissionBuilder {
         waypointAltitudes: List<Float>? = null,
         startClosestToHome: Boolean = true,
         preserveWaypointOrder: Boolean = false,
+        returnPathToHome: List<LatLng> = emptyList(),
     ): ArrayList<MissionItemInt> {
 
         val sprayerIntensityPWM = servo5PwmForSprayerIntensity(sprayerIntensity)
@@ -172,6 +174,23 @@ object MissionBuilder {
                 x = 0, y = 0, z = 0.0f
             )
         )
+
+        // A service leg may provide an obstacle-aware corridor back to home.
+        // The final RTL remains as the landing/failsafe command once that
+        // corridor has brought the aircraft to the home position.
+        returnPathToHome.drop(1).forEach { waypoint ->
+            missionItems.add(
+                buildItem(
+                    frame = waypointFrame,
+                    command = MavCmd.MAV_CMD_NAV_WAYPOINT,
+                    currentFlag = 0,
+                    p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
+                    x = waypoint.latitude.toE7(),
+                    y = waypoint.longitude.toE7(),
+                    z = alt,
+                )
+            )
+        }
 
         // RTL - NAV commands MUST use a positional frame, not MISSION
         missionItems.add(
@@ -602,10 +621,7 @@ object MissionBuilder {
     }
 
     fun servo5PwmForSprayerIntensity(sprayerIntensity: Int): Float {
-        val closedPwm = 1000.0F
-        val maxPwm = 2200.0F
-        val percent = sprayerIntensity.coerceIn(0, 100) / 100.0F
-        return closedPwm + ((maxPwm - closedPwm) * percent)
+        return SprayFlowCalibration.servo5PwmForIntensityPercent(sprayerIntensity)
     }
 
     private fun logInfo(tag: String, message: String) {

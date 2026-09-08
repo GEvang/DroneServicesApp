@@ -10,8 +10,13 @@ import kotlin.math.sqrt
 internal object TelemetryMapping {
     const val UNKNOWN_PERCENT = -1
     const val UINT16_MAX = 65535
-    private const val BATTERY_EMPTY_VOLTS = 19.0f
-    private const val BATTERY_FULL_VOLTS = 25.2f
+    private const val SURVEY_BATTERY_EMPTY_VOLTS = 19.0f
+    private const val SURVEY_BATTERY_FULL_VOLTS = 25.2f
+    private const val SPRAYER_BATTERY_EMPTY_VOLTS = 41.0f
+    private const val SPRAYER_BATTERY_CRITICAL_VOLTS = 44.5f
+    private const val SPRAYER_BATTERY_FULL_VOLTS = 50.0f
+    private const val SPRAYER_BATTERY_CRITICAL_FRACTION = 0.10f
+    private const val SPRAYER_PROFILE_THRESHOLD_VOLTS = 30.0f
 
     fun gpsFixLabel(fixType: GpsFixType?): String {
         return when (gpsFixQuality(fixType, isConnected = true)) {
@@ -45,8 +50,26 @@ internal object TelemetryMapping {
 
     fun batteryFractionFromVoltage(voltage: Float?): Float {
         val safeVoltage = voltage?.takeIf { it.isFinite() && it > 0f } ?: return -1f
-        return ((safeVoltage - BATTERY_EMPTY_VOLTS) / (BATTERY_FULL_VOLTS - BATTERY_EMPTY_VOLTS))
-            .coerceIn(0.0f, 1.0f)
+        return if (safeVoltage > SPRAYER_PROFILE_THRESHOLD_VOLTS) {
+            when {
+                safeVoltage <= SPRAYER_BATTERY_EMPTY_VOLTS -> 0f
+                safeVoltage <= SPRAYER_BATTERY_CRITICAL_VOLTS -> {
+                    (safeVoltage - SPRAYER_BATTERY_EMPTY_VOLTS) /
+                        (SPRAYER_BATTERY_CRITICAL_VOLTS - SPRAYER_BATTERY_EMPTY_VOLTS) *
+                        SPRAYER_BATTERY_CRITICAL_FRACTION
+                }
+                else -> {
+                    SPRAYER_BATTERY_CRITICAL_FRACTION +
+                        (safeVoltage - SPRAYER_BATTERY_CRITICAL_VOLTS) /
+                        (SPRAYER_BATTERY_FULL_VOLTS - SPRAYER_BATTERY_CRITICAL_VOLTS) *
+                        (1f - SPRAYER_BATTERY_CRITICAL_FRACTION)
+                }
+            }.coerceIn(0f, 1f)
+        } else {
+            ((safeVoltage - SURVEY_BATTERY_EMPTY_VOLTS) /
+                (SURVEY_BATTERY_FULL_VOLTS - SURVEY_BATTERY_EMPTY_VOLTS))
+                .coerceIn(0f, 1f)
+        }
     }
 
     fun placeholderSprayLiters(rawPercent: Float?): Double? {

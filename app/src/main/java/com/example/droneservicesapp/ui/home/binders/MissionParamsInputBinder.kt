@@ -9,8 +9,8 @@ import android.widget.SeekBar
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.MutableLiveData
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
+import com.example.droneservicesapp.domain.survey.SprayFlowCalibration
 import java.util.Locale
-import kotlin.math.roundToInt
 
 class MissionParamsInputBinder(
     private val views: MissionParamsViews,
@@ -19,7 +19,6 @@ class MissionParamsInputBinder(
 ) {
     private val minSpeed = 1.0
     private val speedStep = 0.5
-    private val sprayFlowStep = 0.5
 
     fun bind() {
         bindSeekbars()
@@ -312,8 +311,7 @@ class MissionParamsInputBinder(
     private fun bindSprayerSeekbar() {
         var suppressChange = false
         val initial = activityViewModel.sprayerProgress.value ?: 0.0
-        views.sprayerSeekbar.max =
-            (MainActivityViewModel.MAX_SPRAY_FLOW_LITERS_PER_MINUTE / sprayFlowStep).toInt()
+        views.sprayerSeekbar.max = SprayFlowCalibration.settings.lastIndex
         views.sprayerSeekbar.progress = sprayProgressForPercent(initial)
         views.sprayerValue.setText(formatSprayFlow(activityViewModel.sprayFlowLitersPerMinute()))
         bindExpandedTouchTarget(views.sprayerSliderRow, views.sprayerSeekbar)
@@ -321,9 +319,7 @@ class MissionParamsInputBinder(
         activityViewModel.sprayerProgress.observe(lifecycleOwner) { value ->
             val raw = value ?: 0.0
             val progress = sprayProgressForPercent(raw)
-            val formatted = formatSprayFlow(
-                raw.coerceIn(0.0, 100.0) / 100.0 * MainActivityViewModel.MAX_SPRAY_FLOW_LITERS_PER_MINUTE
-            )
+            val formatted = formatSprayFlow(SprayFlowCalibration.flowForIntensityPercent(raw))
             if (views.sprayerSeekbar.progress == progress &&
                 views.sprayerValue.text.toString() == formatted
             ) {
@@ -338,7 +334,7 @@ class MissionParamsInputBinder(
         views.sprayerSeekbar.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) {
                 if (suppressChange) return
-                val flow = progress * sprayFlowStep
+                val flow = SprayFlowCalibration.settingAt(progress).litersPerMinute
                 views.sprayerValue.setText(formatSprayFlow(flow))
                 activityViewModel.updateSprayFlowLitersPerMinute(flow)
             }
@@ -349,9 +345,8 @@ class MissionParamsInputBinder(
     }
 
     private fun sprayProgressForPercent(percent: Double): Int {
-        val flow = percent.coerceIn(0.0, 100.0) / 100.0 *
-            MainActivityViewModel.MAX_SPRAY_FLOW_LITERS_PER_MINUTE
-        return (flow / sprayFlowStep).roundToInt().coerceIn(0, views.sprayerSeekbar.max)
+        val flow = SprayFlowCalibration.flowForIntensityPercent(percent)
+        return SprayFlowCalibration.indexForFlow(flow).coerceIn(0, views.sprayerSeekbar.max)
     }
 
     private fun formatSprayFlow(litersPerMinute: Double): String {

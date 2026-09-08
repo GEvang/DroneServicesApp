@@ -21,14 +21,14 @@ import com.example.droneservicesapp.domain.model.RouteWaypoint
 import com.example.droneservicesapp.domain.model.SurveyGridParams
 import com.example.droneservicesapp.domain.planning.MissionServiceLeg
 import com.example.droneservicesapp.domain.survey.SprayPresets
+import com.example.droneservicesapp.domain.survey.SprayFlowCalibration
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
 import com.google.android.gms.maps.model.LatLng
-import kotlin.math.roundToInt
 
 class MainActivityViewModel : ViewModel() {
 
     companion object {
-        const val MAX_SPRAY_FLOW_LITERS_PER_MINUTE = 15.0
+        const val MAX_SPRAY_FLOW_LITERS_PER_MINUTE = SprayFlowCalibration.MAX_LITERS_PER_MINUTE
     }
 
     enum class MapState {
@@ -326,20 +326,20 @@ class MainActivityViewModel : ViewModel() {
     }
 
     fun updateSprayIntensity(value: Int, markCustom: Boolean = true) {
-        sprayerProgress.value = value.coerceIn(0, 100).toDouble()
+        val flow = SprayFlowCalibration.flowForIntensityPercent(value.toDouble())
+        sprayerProgress.value = SprayFlowCalibration.intensityPercentForFlow(flow).toDouble()
         updateMissionParams { copy(sprayer = sprayerProgress.value ?: 75.0) }
         markPresetCustomIfNeeded(markCustom)
     }
 
     fun updateSprayFlowLitersPerMinute(value: Double, markCustom: Boolean = true) {
-        val flow = value.coerceIn(0.0, MAX_SPRAY_FLOW_LITERS_PER_MINUTE)
-        val intensityPercent = (flow / MAX_SPRAY_FLOW_LITERS_PER_MINUTE * 100.0).roundToInt()
+        val flow = SprayFlowCalibration.nearestSetting(value).litersPerMinute
+        val intensityPercent = SprayFlowCalibration.intensityPercentForFlow(flow)
         updateSprayIntensity(intensityPercent, markCustom)
     }
 
     fun sprayFlowLitersPerMinute(): Double {
-        val intensityPercent = (sprayerProgress.value ?: 0.0).coerceIn(0.0, 100.0)
-        return intensityPercent / 100.0 * MAX_SPRAY_FLOW_LITERS_PER_MINUTE
+        return SprayFlowCalibration.flowForIntensityPercent(sprayerProgress.value ?: 0.0)
     }
 
     fun updateMissionSpeed(value: Double, markCustom: Boolean = true) {

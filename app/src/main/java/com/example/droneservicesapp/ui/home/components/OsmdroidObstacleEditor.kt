@@ -76,11 +76,13 @@ class OsmdroidObstacleEditor(
         clearDraft()
         mode = Mode.CIRCLE
         defaultRadiusMeters = radiusMeters.coerceIn(2.0, 100.0)
+        bringToFront()
     }
 
     fun startPolygonPlacement() {
         clearDraft()
         mode = Mode.POLYGON
+        bringToFront()
     }
 
     fun cancelPlacement() {
@@ -116,7 +118,28 @@ class OsmdroidObstacleEditor(
             }
             overlay.points = obstaclePoints(obstacle)
         }
+        bringToFront()
         mapView.invalidate()
+    }
+
+    /** Keeps obstacle drawing and tap handling above subsequently rendered mission lines. */
+    fun bringToFront() {
+        obstacleOverlays.values.forEach { overlay ->
+            mapView.overlays.remove(overlay)
+            mapView.overlays.add(overlay)
+        }
+        draftPolygon?.let { overlay ->
+            mapView.overlays.remove(overlay)
+            mapView.overlays.add(overlay)
+        }
+        draftMarkers.forEach { marker ->
+            mapView.overlays.remove(marker)
+            mapView.overlays.add(marker)
+        }
+        eventsOverlay?.let { overlay ->
+            mapView.overlays.remove(overlay)
+            mapView.overlays.add(overlay)
+        }
     }
 
     fun clear() {

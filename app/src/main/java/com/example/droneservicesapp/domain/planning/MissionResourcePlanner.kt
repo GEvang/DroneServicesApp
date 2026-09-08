@@ -37,8 +37,11 @@ data class MissionServiceLeg(
  * the trip from home to the work point and the return to home for every swap.
  */
 object MissionResourcePlanner {
-    const val USABLE_BATTERY_MINUTES = 20.0
-    const val SPRAY_TANK_CAPACITY_LITERS = 20.0
+    const val USABLE_BATTERY_MINUTES = 21.0
+    const val SPRAY_TANK_CAPACITY_LITERS = 15.0
+    private const val SPRAYER_EMPTY_TANK_BATTERY_MINUTES = 15.0
+    private const val SPRAYER_FULL_FLOW_BATTERY_MINUTES = 5.0
+    private const val SPRAYER_MAX_FLOW_LITERS_PER_MINUTE = 4.0
     private const val MIN_PROGRESS_METERS = 0.5
 
     fun plan(
@@ -118,7 +121,9 @@ object MissionResourcePlanner {
         val serviceStops = mergeServiceStops(
             path = path,
             cumulativeDistances = cumulativeDistances,
-            batteryDistances = batteryReturnDistances,
+            // Battery points are estimates for map symbols only. ArduPilot owns
+            // low-battery RTL, so they must not split the uploaded mission.
+            batteryDistances = emptyList(),
             refillDistances = refillDistances,
         )
 
@@ -131,6 +136,16 @@ object MissionResourcePlanner {
             estimatedFlightSeconds = estimatedSeconds,
             serviceStops = serviceStops,
         )
+    }
+
+    fun sprayerBatteryMinutes(sprayRateLitersPerMinute: Double): Double {
+        val normalizedFlow = sprayRateLitersPerMinute
+            .takeIf { it.isFinite() }
+            ?.coerceIn(0.0, SPRAYER_MAX_FLOW_LITERS_PER_MINUTE)
+            ?: 0.0
+        val loadFraction = normalizedFlow / SPRAYER_MAX_FLOW_LITERS_PER_MINUTE
+        return SPRAYER_EMPTY_TANK_BATTERY_MINUTES -
+            loadFraction * (SPRAYER_EMPTY_TANK_BATTERY_MINUTES - SPRAYER_FULL_FLOW_BATTERY_MINUTES)
     }
 
     fun splitIntoServiceLegs(
