@@ -203,24 +203,24 @@
 
             <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/survey_waypoint_delete_button"
-                android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
-                android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                android:layout_width="@dimen/terrain_point_action_size"
+                android:layout_height="@dimen/terrain_point_action_size"
                 android:background="@drawable/bg_bottom_dock_button"
                 android:contentDescription="@string/survey_waypoint_delete"
-                android:padding="@dimen/phone_map_bottom_dock_icon_padding"
-                android:scaleType="centerInside"
+                android:padding="@dimen/terrain_point_action_padding"
+                android:scaleType="fitCenter"
                 android:src="@drawable/ic_delete_24"
                 app:tint="@android:color/white" />
 
             <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/survey_waypoint_cancel_button"
-                android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
-                android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
+                android:layout_width="@dimen/terrain_point_action_size"
+                android:layout_height="@dimen/terrain_point_action_size"
                 android:layout_marginStart="@dimen/phone_map_bottom_dock_item_spacing"
                 android:background="@drawable/bg_bottom_dock_button"
                 android:contentDescription="@string/survey_waypoint_cancel"
-                android:padding="@dimen/phone_map_bottom_dock_icon_padding"
-                android:scaleType="centerInside"
+                android:padding="@dimen/terrain_point_action_padding"
+                android:scaleType="fitCenter"
                 android:src="@drawable/ic_baseline_cancel_24"
                 app:tint="@android:color/white" />
         </LinearLayout>

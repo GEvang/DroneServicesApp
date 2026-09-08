@@ -8,8 +8,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Typeface
 import android.graphics.drawable.BitmapDrawable
-import android.os.SystemClock
-import android.view.ViewConfiguration
+import android.view.MotionEvent
 import androidx.core.content.ContextCompat
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.RouteWaypoint
@@ -23,6 +22,7 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.MapEventsOverlay
 import org.osmdroid.views.overlay.Marker
+import org.osmdroid.views.overlay.Overlay
 import org.osmdroid.views.overlay.Polyline
 import java.util.Locale
 
@@ -37,9 +37,12 @@ class OsmdroidRouteWaypointEditor(
     private val distanceMarkers = mutableListOf<Marker>()
     private var routePolyline: Polyline? = null
     private var eventsOverlay: MapEventsOverlay? = null
+    private var waypointGestureOverlay: Overlay? = null
     private var enabled = false
-    private var lastTappedWaypointIndex = -1
-    private var lastWaypointTapAt = 0L
+    private var dragCandidateIndex: Int? = null
+    private var dragStartX = 0f
+    private var dragStartY = 0f
+    private var draggingWaypoint = false
     private var onTerrainWaypointSelected: ((Int?) -> Unit)? = null
     private var selectedTerrainWaypointIndex: Int? = null
     private var selectedControlWaypointIndex: Int? = null
@@ -72,6 +75,66 @@ class OsmdroidRouteWaypointEditor(
             override fun longPressHelper(p: GeoPoint): Boolean = false
         })
         mapView.overlays.add(eventsOverlay)
+
+        waypointGestureOverlay = object : Overlay() {
+            override fun onDoubleTap(event: MotionEvent, mapView: MapView): Boolean {
+                if (!enabled) return false
+                val waypointIndex = findWaypointAt(event.x, event.y, WAYPOINT_DOUBLE_TAP_RADIUS_DP)
+                    ?: return false
+                clearDragState()
+                selectedControlWaypointIndex = null
+                activityViewModel.removeRouteWaypoint(waypointIndex)
+                return true
+            }
+
+            override fun onTouchEvent(event: MotionEvent, mapView: MapView): Boolean {
+                if (!enabled) return false
+                when (event.actionMasked) {
+                    MotionEvent.ACTION_DOWN -> {
+                        dragCandidateIndex = findWaypointAt(event.x, event.y, WAYPOINT_DRAG_RADIUS_DP)
+                        dragStartX = event.x
+                        dragStartY = event.y
+                        draggingWaypoint = false
+                        return dragCandidateIndex != null
+                    }
+                    MotionEvent.ACTION_MOVE -> {
+                        val index = dragCandidateIndex ?: return false
+                        val slop = WAYPOINT_DRAG_SLOP_DP * context.resources.displayMetrics.density
+                        val dx = event.x - dragStartX
+                        val dy = event.y - dragStartY
+                        if (!draggingWaypoint && dx * dx + dy * dy >= slop * slop) {
+                            draggingWaypoint = true
+                        }
+                        if (draggingWaypoint) {
+                            val point = mapView.projection.fromPixels(event.x.toInt(), event.y.toInt())
+                            waypointMarkers.getOrNull(index)?.position = GeoPoint(point.latitude, point.longitude)
+                            routePolyline?.setPoints(waypointMarkers.map { it.position })
+                            mapView.invalidate()
+                        }
+                        return true
+                    }
+                    MotionEvent.ACTION_UP -> {
+                        val index = dragCandidateIndex ?: return false
+                        if (draggingWaypoint) {
+                            val point = waypointMarkers.getOrNull(index)?.position
+                            if (point != null) {
+                                selectedControlWaypointIndex = null
+                                activityViewModel.updateRouteWaypoint(index, point.latitude, point.longitude)
+                            }
+                        }
+                        clearDragState()
+                        return true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        val handled = dragCandidateIndex != null
+                        clearDragState()
+                        return handled
+                    }
+                }
+                return false
+            }
+        }
+        mapView.overlays.add(waypointGestureOverlay)
         mapView.invalidate()
     }
 
@@ -110,25 +173,14 @@ class OsmdroidRouteWaypointEditor(
                 icon = createNumberedIcon(waypoint.index, listIndex == selectedControlWaypointIndex)
                 setOnMarkerClickListener { _, _ ->
                     if (!enabled) return@setOnMarkerClickListener false
-                    val now = SystemClock.elapsedRealtime()
-                    val isDoubleTap = lastTappedWaypointIndex == listIndex &&
-                        now - lastWaypointTapAt <= ViewConfiguration.getDoubleTapTimeout()
-                    lastTappedWaypointIndex = listIndex
-                    lastWaypointTapAt = now
-                    if (isDoubleTap) {
-                        lastTappedWaypointIndex = -1
-                        selectedControlWaypointIndex = null
-                        activityViewModel.removeRouteWaypoint(listIndex)
-                    } else {
-                        selectedControlWaypointIndex = listIndex
-                        waypointMarkers.forEachIndexed { markerIndex, routeMarker ->
-                            routeMarker.icon = createNumberedIcon(
-                                waypoints[markerIndex].index,
-                                markerIndex == selectedControlWaypointIndex
-                            )
-                        }
-                        mapView.invalidate()
+                    selectedControlWaypointIndex = listIndex
+                    waypointMarkers.forEachIndexed { markerIndex, routeMarker ->
+                        routeMarker.icon = createNumberedIcon(
+                            waypoints[markerIndex].index,
+                            markerIndex == selectedControlWaypointIndex
+                        )
                     }
+                    mapView.invalidate()
                     true
                 }
                 setOnMarkerDragListener(object : Marker.OnMarkerDragListener {
@@ -151,7 +203,7 @@ class OsmdroidRouteWaypointEditor(
 
         renderTerrainMarkers(terrainPath)
         renderDirectionMarkers(displayPath)
-        renderDistanceMarkers(displayPath)
+        renderDistanceMarkers(waypoints)
         bringControlPointsToFront()
         mapView.invalidate()
     }
@@ -225,9 +277,9 @@ class OsmdroidRouteWaypointEditor(
         }
     }
 
-    private fun renderDistanceMarkers(path: List<GeoPoint>) {
+    private fun renderDistanceMarkers(waypoints: List<RouteWaypoint>) {
         clearMarkers(distanceMarkers)
-        path.zipWithNext().forEach { (from, to) ->
+        waypoints.zipWithNext().forEach { (from, to) ->
             val fromPoint = LatLng(from.latitude, from.longitude)
             val toPoint = LatLng(to.latitude, to.longitude)
             val marker = Marker(mapView).apply {
@@ -251,6 +303,10 @@ class OsmdroidRouteWaypointEditor(
             mapView.overlays.remove(it)
             mapView.overlays.add(it)
         }
+        waypointGestureOverlay?.let {
+            mapView.overlays.remove(it)
+            mapView.overlays.add(it)
+        }
         terrainMarkers.forEach {
             mapView.overlays.remove(it)
             mapView.overlays.add(it)
@@ -264,6 +320,23 @@ class OsmdroidRouteWaypointEditor(
     private fun clearMarkers(markers: MutableList<Marker>) {
         mapView.overlays.removeAll(markers)
         markers.clear()
+    }
+
+    private fun findWaypointAt(x: Float, y: Float, radiusDp: Float): Int? {
+        val radius = radiusDp * context.resources.displayMetrics.density
+        val radiusSquared = radius * radius
+        val point = android.graphics.Point()
+        return waypointMarkers.indexOfFirst { marker ->
+            mapView.projection.toPixels(marker.position, point)
+            val dx = point.x - x
+            val dy = point.y - y
+            dx * dx + dy * dy <= radiusSquared
+        }.takeIf { it >= 0 }
+    }
+
+    private fun clearDragState() {
+        dragCandidateIndex = null
+        draggingWaypoint = false
     }
 
     private fun terrainIcon(selected: Boolean): BitmapDrawable = if (selected) {
@@ -379,5 +452,8 @@ class OsmdroidRouteWaypointEditor(
     companion object {
         private const val ROUTE_LINE_WIDTH_PX = 8f
         private const val MAX_DIRECTION_MARKERS = 80
+        private const val WAYPOINT_DOUBLE_TAP_RADIUS_DP = 30f
+        private const val WAYPOINT_DRAG_RADIUS_DP = 26f
+        private const val WAYPOINT_DRAG_SLOP_DP = 4f
     }
 }
