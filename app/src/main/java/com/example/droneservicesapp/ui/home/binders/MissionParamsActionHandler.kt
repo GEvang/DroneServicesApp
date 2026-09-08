@@ -78,21 +78,33 @@ class MissionParamsActionHandler(
         val fullPath = path.orEmpty().map { LatLon(it.latitude, it.longitude) }
         val terrainPointRoute = activityViewModel.terrainRouteWaypoints.value.orEmpty()
             .takeIf { workflow == PlanningWorkflow.POINTS && it.size >= 2 }
-        val uploadRouteWaypoints = terrainPointRoute?.mapIndexed { index, terrainWaypoint ->
-            val nearestAuthoredWaypoint = routeWaypoints.minByOrNull { authored ->
-                SphericalUtil.computeDistanceBetween(
-                    LatLng(authored.latitude, authored.longitude),
-                    LatLng(terrainWaypoint.latLon.lat, terrainWaypoint.latLon.lon)
+        val plannedPointRoute = activityViewModel.plannedRoutePath.value.orEmpty()
+            .takeIf { workflow == PlanningWorkflow.POINTS && it.size >= 2 }
+        val uploadRouteWaypoints = when {
+            terrainPointRoute != null -> terrainPointRoute.mapIndexed { index, terrainWaypoint ->
+                val nearestAuthoredWaypoint = nearestRouteWaypoint(
+                    routeWaypoints,
+                    terrainWaypoint.latLon.lat,
+                    terrainWaypoint.latLon.lon
                 )
-            } ?: routeWaypoints.first()
-            nearestAuthoredWaypoint.copy(
-                id = "terrain-route-$index",
-                index = index + 1,
-                latitude = terrainWaypoint.latLon.lat,
-                longitude = terrainWaypoint.latLon.lon,
-                altitudeMeters = terrainWaypoint.missionAltitudeMeters
-            )
-        } ?: routeWaypoints
+                nearestAuthoredWaypoint.copy(
+                    id = "terrain-route-$index",
+                    index = index + 1,
+                    latitude = terrainWaypoint.latLon.lat,
+                    longitude = terrainWaypoint.latLon.lon,
+                    altitudeMeters = terrainWaypoint.missionAltitudeMeters
+                )
+            }
+            plannedPointRoute != null -> plannedPointRoute.mapIndexed { index, point ->
+                nearestRouteWaypoint(routeWaypoints, point.latitude, point.longitude).copy(
+                    id = "planned-route-$index",
+                    index = index + 1,
+                    latitude = point.latitude,
+                    longitude = point.longitude,
+                )
+            }
+            else -> routeWaypoints
+        }
         val serviceLegs = if (workflow == PlanningWorkflow.AREA) {
             val effectiveHome = activityViewModel.plannedHomePosition.value
                 ?: LatLon(validatedDroneLoc.latitude, validatedDroneLoc.longitude)
@@ -170,6 +182,19 @@ class MissionParamsActionHandler(
             preferencesBridge.saveFromViewModel()
         }
         beforeUploadGuard?.invoke(proceedWithUpload) ?: proceedWithUpload()
+    }
+
+    private fun nearestRouteWaypoint(
+        waypoints: List<com.example.droneservicesapp.domain.model.RouteWaypoint>,
+        latitude: Double,
+        longitude: Double,
+    ): com.example.droneservicesapp.domain.model.RouteWaypoint {
+        return waypoints.minByOrNull { authored ->
+            SphericalUtil.computeDistanceBetween(
+                LatLng(authored.latitude, authored.longitude),
+                LatLng(latitude, longitude)
+            )
+        } ?: error("Point-route upload requires authored waypoints")
     }
 
     fun resumeServiceMission() {

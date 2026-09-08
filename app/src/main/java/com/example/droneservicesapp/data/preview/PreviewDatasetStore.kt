@@ -20,7 +20,7 @@ data class PreviewDatasetRecord(
     val orthoOpacity: Float = 0.85f,
     val orthoBackgroundEnabled: Boolean = true,
     val pointCloudPointSize: Float = 2.5f,
-    val heightColorModeEnabled: Boolean = false,
+    val heightColorModeEnabled: Boolean = true,
 )
 
 class PreviewDatasetStore(context: Context) {
@@ -86,7 +86,7 @@ class PreviewDatasetStore(context: Context) {
             orthoOpacity = optDouble("orthoOpacity", 0.85).toFloat(),
             orthoBackgroundEnabled = optBoolean("orthoBackgroundEnabled", true),
             pointCloudPointSize = optDouble("pointCloudPointSize", 2.5).toFloat(),
-            heightColorModeEnabled = optBoolean("heightColorModeEnabled", false),
+            heightColorModeEnabled = optBoolean("heightColorModeEnabled", true),
         )
     }
 

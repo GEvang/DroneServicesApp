@@ -461,4 +461,5 @@
     <string name="survey_grid_angle">Angle</string>
     <string name="survey_terrain_segment">Terrain segment</string>
     <string name="survey_canopy_smoothing">Canopy smoothing</string>
+    <string name="dataset_matching_world_not_found">No matching .tfw file was accessible in the selected folder</string>
 </resources>

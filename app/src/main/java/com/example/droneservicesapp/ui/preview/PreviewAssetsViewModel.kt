@@ -142,5 +142,5 @@ data class PreviewSettings(
     val orthoOpacity: Float = 0.85f,
     val orthoBackgroundEnabled: Boolean = true,
     val pointCloudPointSize: Float = 2.5f,
-    val heightColorModeEnabled: Boolean = false,
+    val heightColorModeEnabled: Boolean = true,
 )

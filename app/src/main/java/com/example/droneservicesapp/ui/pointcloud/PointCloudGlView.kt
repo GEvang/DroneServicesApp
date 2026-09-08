@@ -41,7 +41,7 @@ class PointCloudGlView @JvmOverloads constructor(
     private var touchDownX = 0f
     private var touchDownY = 0f
     private var touchMoved = false
-    private var onMissionPointClick: ((Int) -> Unit)? = null
+    private var onMissionPointClick: ((Int, Float, Float) -> Unit)? = null
 
     init {
         setEGLContextClientVersion(2)
@@ -61,7 +61,7 @@ class PointCloudGlView @JvmOverloads constructor(
         }
     }
 
-    fun setOnMissionPointClickListener(listener: ((Int) -> Unit)?) {
+    fun setOnMissionPointClickListener(listener: ((Int, Float, Float) -> Unit)?) {
         onMissionPointClick = listener
     }
 
@@ -152,7 +152,7 @@ class PointCloudGlView @JvmOverloads constructor(
                     val hitRadius = 24f * resources.displayMetrics.density
                     queueEvent {
                         val selectedIndex = pointRenderer.pickMissionPoint(tapX, tapY, hitRadius)
-                        if (selectedIndex != null) post { onMissionPointClick?.invoke(selectedIndex) }
+                        if (selectedIndex != null) post { onMissionPointClick?.invoke(selectedIndex, tapX, tapY) }
                     }
                 }
                 previousDistance = 0f
@@ -207,7 +207,7 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     private var overlayPointVertexCount = 0
     private var overlayPointPositions = FloatArray(0)
     private var cloudSpan = 100f
-    private var heightColorModeEnabled = false
+    private var heightColorModeEnabled = true
     var pointCloudOpacity: Float = 1f
     private var viewportWidth = 1
     private var viewportHeight = 1

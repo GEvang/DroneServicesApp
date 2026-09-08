@@ -155,6 +155,7 @@ class MissionLoadController(
         activityViewModel.setPlanningWorkflow(PlanningWorkflow.AREA)
         activityViewModel.setPlanningOperationMode(PlanningOperationMode.SURVEY)
         activityViewModel.clearPolygonVertices()
+        activityViewModel.clearRouteWaypoints()
         activityViewModel.surveyPath.postValue(path)
         activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
         activityViewModel.updateSurveyHeightAboveTerrain(averageAltitude.toInt().coerceIn(0, 120))

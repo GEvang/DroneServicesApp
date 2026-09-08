@@ -188,6 +188,11 @@ class MainActivityViewModel : ViewModel() {
         MutableLiveData(emptyList())
     }
 
+    /** Computed point-to-point route after detouring around forbidden areas. */
+    val plannedRoutePath: MutableLiveData<List<LatLng>> by lazy {
+        MutableLiveData(emptyList())
+    }
+
     val plannedHomePosition: MutableLiveData<LatLon?> by lazy {
         MutableLiveData(null)
     }
@@ -536,6 +541,7 @@ class MainActivityViewModel : ViewModel() {
     fun clearRouteWaypoints() {
         routeWaypoints.value = emptyList()
         terrainRouteWaypoints.value = emptyList()
+        plannedRoutePath.value = emptyList()
     }
 
     fun setPlannedHomePosition(position: LatLon?) {
@@ -609,6 +615,11 @@ class MainActivityViewModel : ViewModel() {
     }
 
     fun applySavedMission(mission: SavedMission) {
+        // A loaded mission replaces whichever geometry is currently on the map.
+        clearPolygonVertices()
+        clearRouteWaypoints()
+        surveyPath.value = emptyList()
+        terrainSurveyWaypoints.value = emptyList()
         setPlanningOperationMode(mission.operationMode)
         setPlanningWorkflow(mission.workflow)
         updateMissionAngle(mission.angleDegrees, markCustom = false)
@@ -624,17 +635,26 @@ class MainActivityViewModel : ViewModel() {
         surveyGridAngle.value = mission.surveyGridParams.gridAngleDegrees.toDouble()
         surveyTerrainSegment.value = mission.surveyGridParams.terrainSegmentMeters
         surveyCanopySmoothing.value = mission.surveyGridParams.canopySmoothingMeters.toDouble()
-        setPolygonVertices(mission.polygon)
-        setRouteWaypoints(mission.routeWaypoints)
+        if (mission.workflow == PlanningWorkflow.AREA) {
+            setPolygonVertices(mission.polygon)
+            setRouteWaypoints(emptyList())
+        } else {
+            setPolygonVertices(emptyList())
+            setRouteWaypoints(mission.routeWaypoints)
+        }
         plannedHomePosition.value = mission.plannedHomePosition
         missionObstacles.value = mission.obstacles
-        surveyPath.value = mission.surveyPath
-        terrainSurveyWaypoints.value = mission.terrainSurveyWaypoints.map {
-            TerrainWaypoint(
-                latLon = it.position,
-                displayAltitudeMeters = it.displayAltitudeMeters,
-                missionAltitudeMeters = it.missionAltitudeMeters
-            )
+        surveyPath.value = if (mission.workflow == PlanningWorkflow.AREA) mission.surveyPath else emptyList()
+        terrainSurveyWaypoints.value = if (mission.workflow == PlanningWorkflow.AREA) {
+            mission.terrainSurveyWaypoints.map {
+                TerrainWaypoint(
+                    latLon = it.position,
+                    displayAltitudeMeters = it.displayAltitudeMeters,
+                    missionAltitudeMeters = it.missionAltitudeMeters
+                )
+            }
+        } else {
+            emptyList()
         }
         mapState.value = MapState.SetFlightParams
     }

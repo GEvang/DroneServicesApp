@@ -87,6 +87,7 @@ class OsmdroidRouteWaypointEditor(
 
     fun setWaypoints(
         waypoints: List<RouteWaypoint>,
+        plannedPath: List<LatLng> = emptyList(),
         terrainPath: List<TerrainWaypoint> = emptyList(),
         reverseDirection: Boolean = false
     ) {
@@ -94,6 +95,8 @@ class OsmdroidRouteWaypointEditor(
         if (selectedControlWaypointIndex !in waypoints.indices) selectedControlWaypointIndex = null
         val baseDisplayPath = terrainPath.takeIf { it.size >= 2 }
             ?.map { GeoPoint(it.latLon.lat, it.latLon.lon) }
+            ?: plannedPath.takeIf { it.size >= 2 }
+                ?.map { GeoPoint(it.latitude, it.longitude) }
             ?: waypoints.map { GeoPoint(it.latitude, it.longitude) }
         val displayPath = if (reverseDirection) baseDisplayPath.reversed() else baseDisplayPath
         routePolyline?.setPoints(displayPath)
@@ -148,7 +151,7 @@ class OsmdroidRouteWaypointEditor(
 
         renderTerrainMarkers(terrainPath)
         renderDirectionMarkers(displayPath)
-        renderDistanceMarkers(waypoints)
+        renderDistanceMarkers(displayPath)
         bringControlPointsToFront()
         mapView.invalidate()
     }
@@ -222,9 +225,9 @@ class OsmdroidRouteWaypointEditor(
         }
     }
 
-    private fun renderDistanceMarkers(waypoints: List<RouteWaypoint>) {
+    private fun renderDistanceMarkers(path: List<GeoPoint>) {
         clearMarkers(distanceMarkers)
-        waypoints.zipWithNext().forEach { (from, to) ->
+        path.zipWithNext().forEach { (from, to) ->
             val fromPoint = LatLng(from.latitude, from.longitude)
             val toPoint = LatLng(to.latitude, to.longitude)
             val marker = Marker(mapView).apply {

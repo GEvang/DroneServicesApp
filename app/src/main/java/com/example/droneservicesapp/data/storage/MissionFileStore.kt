@@ -45,26 +45,22 @@ class MissionFileStore(
      */
     fun listMissionFiles(mode: PlanningOperationMode? = null): List<File> {
         val suffix = context.getString(R.string.DroneServicesFilePageSuffix)
-        val waypointSuffix = context.getString(R.string.waypoints)
         val scopedFiles = buildList {
             if (mode == null) {
                 addAll(baseDir.listFiles()
-                    ?.filter { it.isFile && (it.name.endsWith(suffix) || it.name.endsWith(waypointSuffix)) }
+                    ?.filter { it.isFile && it.name.endsWith(suffix) }
                     .orEmpty())
                 PlanningOperationMode.values().forEach { operationMode ->
                     addAll(modeDir(operationMode).listFiles()
-                        ?.filter { it.isFile && (it.name.endsWith(suffix) || it.name.endsWith(waypointSuffix)) }
+                        ?.filter { it.isFile && it.name.endsWith(suffix) }
                         .orEmpty())
                 }
             } else {
                 addAll(modeDir(mode).listFiles()
-                    ?.filter { it.isFile && (it.name.endsWith(suffix) || it.name.endsWith(waypointSuffix)) }
+                    ?.filter { it.isFile && it.name.endsWith(suffix) }
                     .orEmpty())
                 addAll(baseDir.listFiles()
                     ?.filter { it.isFile && it.name.endsWith(suffix) && readOperationMode(it) == mode }
-                    .orEmpty())
-                addAll(baseDir.listFiles()
-                    ?.filter { it.isFile && it.name.endsWith(waypointSuffix) }
                     .orEmpty())
             }
         }

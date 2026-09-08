@@ -1,9 +1,12 @@
 package com.example.droneservicesapp.ui.shell.model
 
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import com.example.droneservicesapp.data.storage.SavedMission
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
+import com.example.droneservicesapp.domain.model.PlanningWorkflow
+import com.example.droneservicesapp.domain.model.RouteWaypoint
 import com.example.droneservicesapp.domain.planning.MissionServiceLeg
 import com.example.droneservicesapp.domain.planning.MissionServiceStop
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
@@ -201,5 +204,33 @@ class MainActivityViewModelRouteTest {
         assertEquals(15.0, viewModel.terrainSurveyWaypoints.value!![0].missionAltitudeMeters, 0.001)
         assertEquals(22.0, viewModel.terrainSurveyWaypoints.value!![1].missionAltitudeMeters, 0.001)
         assertEquals(22.0, viewModel.terrainSurveyWaypoints.value!![1].displayAltitudeMeters, 0.001)
+    }
+
+    @Test
+    fun loadingPointMissionReplacesAreaGeometryAndRestoresHome() {
+        val viewModel = MainActivityViewModel()
+        viewModel.setPolygonVertices(
+            listOf(LatLng(35.0, 25.0), LatLng(35.0, 25.001), LatLng(35.001, 25.0))
+        )
+        val home = LatLon(35.2, 25.2)
+        val route = listOf(
+            RouteWaypoint("one", 1, 35.1, 25.1, 20.0, 5.0, false, 0),
+            RouteWaypoint("two", 2, 35.2, 25.2, 20.0, 5.0, false, 0),
+        )
+
+        viewModel.applySavedMission(
+            SavedMission(
+                workflow = PlanningWorkflow.POINTS,
+                polygon = listOf(LatLng(34.0, 24.0), LatLng(34.0, 24.1), LatLng(34.1, 24.0)),
+                surveyPath = listOf(LatLng(34.0, 24.0), LatLng(34.1, 24.1)),
+                routeWaypoints = route,
+                plannedHomePosition = home,
+            )
+        )
+
+        assertTrue(viewModel.missionArea.value!!.vertices.isEmpty())
+        assertTrue(viewModel.surveyPath.value!!.isEmpty())
+        assertEquals(route, viewModel.routeWaypoints.value)
+        assertEquals(home, viewModel.plannedHomePosition.value)
     }
 }

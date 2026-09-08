@@ -5,6 +5,8 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Environment
+import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.view.LayoutInflater
 import android.view.View
@@ -29,6 +31,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.Locale
 
 class DatasetsFragment : Fragment() {
@@ -75,7 +78,6 @@ class DatasetsFragment : Fragment() {
         persistReadPermission(uri, data.flags)
         when (requestCode) {
             REQUEST_OPEN_TIFF -> attachOrthoImage(uri)
-            REQUEST_OPEN_WORLD -> attachOrthoWorld(uri)
             REQUEST_OPEN_POINT_CLOUD -> attachPointCloud(uri)
         }
     }
@@ -105,11 +107,11 @@ class DatasetsFragment : Fragment() {
             render()
         }
         binding.datasetLoadTifButton.setOnClickListener { openFilePicker(REQUEST_OPEN_TIFF) }
-        binding.datasetLoadTfwButton.setOnClickListener { openFilePicker(REQUEST_OPEN_WORLD) }
         binding.datasetLoadPlyButton.setOnClickListener { openFilePicker(REQUEST_OPEN_POINT_CLOUD) }
         binding.datasetOrthoBackgroundSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (suppressOptionCallbacks) return@setOnCheckedChangeListener
             updateActiveDataset { copy(orthoBackgroundEnabled = isChecked) }
+            binding.datasetOrthoBackgroundSwitch.jumpDrawablesToCurrentState()
         }
         binding.datasetOrthoOpacitySlider.addOnChangeListener { _, value, fromUser ->
             if (!fromUser || suppressOptionCallbacks) return@addOnChangeListener
@@ -130,6 +132,7 @@ class DatasetsFragment : Fragment() {
         binding.datasetHeightColorsSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (suppressOptionCallbacks) return@setOnCheckedChangeListener
             updateActiveDataset { copy(heightColorModeEnabled = isChecked) }
+            binding.datasetHeightColorsSwitch.jumpDrawablesToCurrentState()
         }
         binding.datasetSelector.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -178,19 +181,26 @@ class DatasetsFragment : Fragment() {
         loadJob = viewLifecycleOwner.lifecycleScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    requireContext().contentResolver.openInputStream(uri)?.use { stream ->
+                    val decoded = requireContext().contentResolver.openInputStream(uri)?.use { stream ->
                         tiffDecoder.decodePreview(stream, MAX_ORTHO_PREVIEW_DIMENSION_PX)
                     } ?: error("Could not open image file.")
+                    val worldFile = findMatchingWorldFile(uri, fileName)
+                    val bounds = worldFile?.first?.let { worldUri ->
+                        requireContext().contentResolver.openInputStream(worldUri)?.use { stream ->
+                            worldFileParser.parse(stream, decoded.sourceWidth, decoded.sourceHeight)
+                        }
+                    }
+                    Triple(decoded, worldFile, bounds)
                 }
             }
-            result.onSuccess { decoded ->
+            result.onSuccess { (decoded, worldFile, bounds) ->
                 val updated = activeDataset().copy(
                     orthoImageUri = uri,
                     orthoImageName = fileName,
                     orthoSourceWidth = decoded.sourceWidth,
                     orthoSourceHeight = decoded.sourceHeight,
-                    orthoWorldUri = null,
-                    orthoWorldName = null,
+                    orthoWorldUri = worldFile?.first,
+                    orthoWorldName = worldFile?.second,
                 )
                 datasetStore.upsert(updated)
                 previewAssetsViewModel.setOrthoImage(
@@ -199,11 +209,19 @@ class DatasetsFragment : Fragment() {
                     bitmapUri = uri,
                     sourceWidth = decoded.sourceWidth,
                     sourceHeight = decoded.sourceHeight,
-                    notifyChange = false
+                    notifyChange = bounds == null
                 )
+                if (bounds != null && worldFile != null) {
+                    previewAssetsViewModel.requestMapFocus(PreviewMapFocus.ORTHO)
+                    previewAssetsViewModel.setOrthoBounds(bounds, worldFile.second, worldFile.first)
+                }
                 applySettings(updated)
                 saveLegacyPreviewReferences(updated)
-                Toast.makeText(requireContext(), R.string.ortho_load_world_next, Toast.LENGTH_SHORT).show()
+                Toast.makeText(
+                    requireContext(),
+                    if (worldFile != null) R.string.dataset_loaded else R.string.dataset_matching_world_not_found,
+                    Toast.LENGTH_SHORT
+                ).show()
                 render()
             }.onFailure { showLoadError(it) }
         }
@@ -383,6 +401,8 @@ class DatasetsFragment : Fragment() {
         binding.datasetOrthoOpacitySlider.value = record.orthoOpacity.coerceIn(0f, 1f)
         binding.datasetPointSizeSlider.value = record.pointCloudPointSize.coerceIn(1f, 10f)
         binding.datasetHeightColorsSwitch.isChecked = record.heightColorModeEnabled
+        binding.datasetOrthoBackgroundSwitch.jumpDrawablesToCurrentState()
+        binding.datasetHeightColorsSwitch.jumpDrawablesToCurrentState()
         suppressOptionCallbacks = false
         binding.datasetOrthoOpacityLabel.text = getString(
             R.string.dataset_ortho_opacity_value,
@@ -407,6 +427,50 @@ class DatasetsFragment : Fragment() {
         return requireContext().contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
             if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
+        }
+    }
+
+    private fun findMatchingWorldFile(imageUri: Uri, imageName: String): Pair<Uri, String>? {
+        val baseName = imageName.substringBeforeLast('.', imageName)
+        val candidateNames = listOf("$baseName.tfw", "$baseName.TFW", "$baseName.wld", "$baseName.WLD")
+        if (imageUri.scheme == "file") {
+            val parent = imageUri.path?.let(::File)?.parentFile ?: return null
+            return candidateNames.firstNotNullOfOrNull { name ->
+                File(parent, name).takeIf(File::isFile)?.let { Uri.fromFile(it) to name }
+            }
+        }
+        val authority = imageUri.authority ?: return null
+        if (!DocumentsContract.isDocumentUri(requireContext(), imageUri)) return null
+        val documentId = runCatching { DocumentsContract.getDocumentId(imageUri) }.getOrNull() ?: return null
+        val documentParts = documentId.split(':', limit = 2)
+        if (documentParts.size == 2) {
+            val storageRoot = if (documentParts[0].equals("primary", ignoreCase = true)) {
+                Environment.getExternalStorageDirectory()
+            } else {
+                File("/storage", documentParts[0])
+            }
+            val parent = File(storageRoot, documentParts[1]).parentFile
+            val directMatch = parent?.let { folder ->
+                candidateNames.firstNotNullOfOrNull { name ->
+                    File(folder, name).takeIf(File::isFile)?.let { Uri.fromFile(it) to name }
+                }
+            }
+            if (directMatch != null) return directMatch
+        }
+        val separator = documentId.lastIndexOf('/')
+        val parentId = if (separator >= 0) documentId.substring(0, separator + 1) else {
+            documentId.substringBeforeLast(':', missingDelimiterValue = "") + ":"
+        }
+        return candidateNames.firstNotNullOfOrNull { name ->
+            val candidateUri = runCatching {
+                DocumentsContract.buildDocumentUri(authority, parentId + name)
+            }.getOrNull() ?: return@firstNotNullOfOrNull null
+            val actualName = runCatching { queryDisplayName(candidateUri) }.getOrNull()
+            if (!actualName.equals(name, ignoreCase = true)) return@firstNotNullOfOrNull null
+            val readable = runCatching {
+                requireContext().contentResolver.openInputStream(candidateUri)?.use { true } ?: false
+            }.getOrDefault(false)
+            if (readable) candidateUri to actualName!! else null
         }
     }
 
@@ -449,7 +513,6 @@ class DatasetsFragment : Fragment() {
 
     companion object {
         private const val REQUEST_OPEN_TIFF = 4301
-        private const val REQUEST_OPEN_WORLD = 4302
         private const val REQUEST_OPEN_POINT_CLOUD = 4303
         private const val MAX_ORTHO_PREVIEW_DIMENSION_PX = 2048
         private const val PREVIEW_PREFS = "preview_assets"
