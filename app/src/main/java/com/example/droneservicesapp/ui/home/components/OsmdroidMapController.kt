@@ -528,38 +528,46 @@ class OsmdroidMapController(
     }
 
     private fun renderSurveyDirectionMarkers(path: List<LatLng>) {
-        clearSurveyDirectionMarkers()
-        buildSurveyDirectionSegments(path, MAX_SURVEY_DIRECTION_MARKERS).forEach { segment ->
+        val segments = buildSurveyDirectionSegments(path, MAX_SURVEY_DIRECTION_MARKERS)
+        while (surveyDirectionMarkers.size > segments.size) {
+            val marker = surveyDirectionMarkers.removeAt(surveyDirectionMarkers.lastIndex)
+            mapView.overlays.remove(marker)
+        }
+        segments.forEachIndexed { index, segment ->
             val from = GeoPoint(segment.from.latitude, segment.from.longitude)
             val to = GeoPoint(segment.to.latitude, segment.to.longitude)
             if (!isValidMapPoint(from.latitude, from.longitude) || !isValidMapPoint(to.latitude, to.longitude)) {
-                return@forEach
+                return@forEachIndexed
             }
 
-            val marker = Marker(mapView).apply {
+            val marker = surveyDirectionMarkers.getOrNull(index) ?: Marker(mapView).apply {
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                infoWindow = null
+                icon = directionArrowIcon ?: createDirectionArrowIcon().also { directionArrowIcon = it }
+            }.also {
+                surveyDirectionMarkers += it
+                mapView.overlays.add(it)
+            }
+            marker.apply {
                 position = GeoPoint(
                     (from.latitude + to.latitude) / 2.0,
                     (from.longitude + to.longitude) / 2.0
                 )
-                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
-                infoWindow = null
-                icon = directionArrowIcon ?: createDirectionArrowIcon().also { directionArrowIcon = it }
                 rotation = screenVectorRotationDegrees(from, to)
             }
-            surveyDirectionMarkers += marker
-            mapView.overlays.add(marker)
         }
     }
 
     private fun renderSurveyWaypointMarkers(path: List<LatLng>) {
-        clearSurveyWaypointMarkers()
+        while (surveyWaypointMarkers.size > path.size) {
+            val marker = surveyWaypointMarkers.removeAt(surveyWaypointMarkers.lastIndex)
+            mapView.overlays.remove(marker)
+        }
         path.forEachIndexed { index, point ->
             if (!isValidMapPoint(point.latitude, point.longitude)) return@forEachIndexed
-            val marker = Marker(mapView).apply {
-                position = GeoPoint(point.latitude, point.longitude)
+            val marker = surveyWaypointMarkers.getOrNull(index) ?: Marker(mapView).apply {
                 setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
                 infoWindow = null
-                icon = surveyWaypointIconFor(index)
                 setOnMarkerClickListener { _, _ ->
                     if (!waypointEditingEnabled) return@setOnMarkerClickListener false
                     selectedSurveyWaypointIndex = if (selectedSurveyWaypointIndex == index) null else index
@@ -568,9 +576,12 @@ class OsmdroidMapController(
                     requestMapRedraw()
                     true
                 }
+            }.also {
+                surveyWaypointMarkers += it
+                mapView.overlays.add(it)
             }
-            surveyWaypointMarkers += marker
-            mapView.overlays.add(marker)
+            marker.position = GeoPoint(point.latitude, point.longitude)
+            marker.icon = surveyWaypointIconFor(index)
         }
     }
 

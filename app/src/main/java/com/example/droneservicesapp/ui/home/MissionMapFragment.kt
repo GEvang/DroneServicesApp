@@ -116,6 +116,7 @@ import org.osmdroid.views.overlay.Marker
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.PI
@@ -207,6 +208,10 @@ class MissionMapFragment : Fragment() {
     private var obstaclePlacementMode: Boolean = false
     private var selectedObstacleMode: OsmdroidObstacleEditor.Mode = OsmdroidObstacleEditor.Mode.CIRCLE
     private var terrainSurveyJob: Job? = null
+    private var missionRedrawDebounceJob: Job? = null
+    private var geoPlanningJob: Job? = null
+    private var missionSummaryJob: Job? = null
+    private var missionPlanningGeneration: Long = 0L
     private var previewAssetLoadJob: Job? = null
     private var activePreviewMode: PreviewMode = PreviewMode.MAP
     private var homeOrthoOverlay: OrthoImageOverlay? = null
@@ -267,6 +272,7 @@ class MissionMapFragment : Fragment() {
         private const val MIN_PREVIEW_MAP_ZOOM = 2.0
         private const val MAX_PREVIEW_MAP_ZOOM = 21.0
         private const val MAX_ORTHO_PREVIEW_DIMENSION_PX = 2048
+        private const val MISSION_EDIT_DEBOUNCE_MS = 140L
         private const val REQUEST_HOME_OPEN_TIFF = 3301
         private const val REQUEST_HOME_OPEN_WORLD = 3302
         private const val REQUEST_HOME_OPEN_PLY = 3303
@@ -956,6 +962,7 @@ class MissionMapFragment : Fragment() {
         val missionPath = currentMissionPath()
         updateSimulationButton(missionPath.size >= 2)
         if (missionPath.size < 2) {
+            missionSummaryJob?.cancel()
             summaryCard.visibility = View.GONE
             osmdroidMapController.setMissionServiceMarkers(emptyList(), emptyList())
             stopMissionSimulation()
@@ -967,33 +974,48 @@ class MissionMapFragment : Fragment() {
             missionPath.size % 2 == 0 -> missionPath.size / 2
             else -> missionPath.size - 1
         }.coerceAtLeast(0)
-        val plan = buildMissionResourcePlan(missionPath)
-        val altitudeMeters = if (activityViewModel.planningOperationMode.value == PlanningOperationMode.SURVEY) {
+        val operationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
+        val altitudeMeters = if (operationMode == PlanningOperationMode.SURVEY) {
             activityViewModel.surveyHeightAboveTerrain.value ?: 0.0
         } else {
             activityViewModel.flightAltProgress.value ?: 0.0
         }
-        val isSpraying = activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
+        val isSpraying = operationMode == PlanningOperationMode.SPRAY
+        val home = activityViewModel.plannedHomePosition.value
+        val speed = (activityViewModel.flightSpeed.value ?: 5.0).coerceAtLeast(0.1)
+        val sprayRate = if (isSpraying) activityViewModel.sprayFlowLitersPerMinute() else 0.0
 
-        osmdroidMapController.setMissionServiceMarkers(
-            batteryReturnPoints = plan.batteryReturnPoints,
-            tankRefillPoints = if (isSpraying) plan.tankRefillPoints else emptyList(),
-        )
-
-        summaryCard.text = buildString {
-            if (areaMeters > 0.0) append("Area: ${formatMissionArea(areaMeters)}   |   ")
-            append("Passes: $passes")
-            append("   |   Time: ${formatEstimatedTime(plan.estimatedFlightSeconds.toInt())}")
-            appendLine()
-            append("ALT (AGL): ${altitudeMeters.toInt()} m   |   Batteries: ${plan.batteryCount}")
-            if (isSpraying) {
-                appendLine()
-                append("Flow: ${formatSprayFlow(activityViewModel.sprayFlowLitersPerMinute())} Lt/min")
-                append("   |   Liquid: ${formatSprayLiters(plan.totalSprayLiters)} Lt")
-                append("   |   Tank refills: ${plan.tankRefillCount}")
+        missionSummaryJob?.cancel()
+        missionSummaryJob = viewLifecycleOwner.lifecycleScope.launch {
+            val plan = withContext(Dispatchers.Default) {
+                MissionResourcePlanner.plan(
+                    path = missionPath.map { LatLon(it.latitude, it.longitude) },
+                    home = home,
+                    speedMetersPerSecond = speed,
+                    sprayRateLitersPerMinute = sprayRate,
+                )
             }
+            if (_binding == null || currentMissionPath() != missionPath) return@launch
+            osmdroidMapController.setMissionServiceMarkers(
+                batteryReturnPoints = plan.batteryReturnPoints,
+                tankRefillPoints = if (isSpraying) plan.tankRefillPoints else emptyList(),
+            )
+
+            summaryCard.text = buildString {
+                if (areaMeters > 0.0) append("Area: ${formatMissionArea(areaMeters)}   |   ")
+                append("Passes: $passes")
+                append("   |   Time: ${formatEstimatedTime(plan.estimatedFlightSeconds.toInt())}")
+                appendLine()
+                append("ALT (AGL): ${altitudeMeters.toInt()} m   |   Batteries: ${plan.batteryCount}")
+                if (isSpraying) {
+                    appendLine()
+                    append("Flow: ${formatSprayFlow(sprayRate)} Lt/min")
+                    append("   |   Liquid: ${formatSprayLiters(plan.totalSprayLiters)} Lt")
+                    append("   |   Tank refills: ${plan.tankRefillCount}")
+                }
+            }
+            summaryCard.visibility = View.VISIBLE
         }
-        summaryCard.visibility = View.VISIBLE
     }
 
     private fun currentMissionPath(): List<LatLng> {
@@ -1579,116 +1601,49 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun observeMapState() {
-        activityViewModel.angleProgress.observe(viewLifecycleOwner, Observer { angle ->
+        activityViewModel.angleProgress.observe(viewLifecycleOwner, Observer {
             if (
                 activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
                 activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
                 activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
             ) {
-                savePreference(getString(R.string.survey_angle_pref), angle.toInt().toString())
-                drawSprayMissionOnMap(
-                    activityViewModel.lineDistanceProgress.value!!,
-                    angle.toInt()
-                )
+                scheduleAreaMissionRedraw()
             }
         })
 
-        activityViewModel.lineDistanceProgress.observe(viewLifecycleOwner, Observer { distance ->
+        activityViewModel.lineDistanceProgress.observe(viewLifecycleOwner, Observer {
             if (
                 activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
                 activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
                 activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
             ) {
-                savePreference(
-                    getString(R.string.survey_line_distance_pref),
-                    distance.toInt().toString()
-                )
-                drawSprayMissionOnMap(
-                    distance,
-                    activityViewModel.angleProgress.value!!.toInt()
-                )
+                scheduleAreaMissionRedraw()
             }
         })
 
         activityViewModel.flightAltProgress.observe(viewLifecycleOwner, Observer { altitude ->
-            if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams) {
+            val isPointWorkflow = activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS
+            if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams && isPointWorkflow) {
                 savePreference(
                     getString(R.string.survey_altitude_pref),
                     altitude.toInt().toString()
                 )
             }
-            updateGeoAwarenessPlanningStatus()
-            updateMissionSummaryCard()
+            if (isPointWorkflow) {
+                updateGeoAwarenessPlanningStatus()
+                updateMissionSummaryCard()
+            }
             if (activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY) {
-                redrawAreaMissionIfEditable()
+                redrawAreaMissionIfEditable(debounced = true)
             }
         })
 
-        activityViewModel.surveyStripSpacing.observe(viewLifecycleOwner) { spacing ->
-            if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
-                activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
-                activityViewModel.planningOperationMode.value == PlanningOperationMode.SURVEY
-            ) {
-                savePreference(getString(R.string.survey_strip_spacing_pref), spacing?.toInt().toString())
-                redrawAreaMissionOnMap()
-            }
-        }
-
-        activityViewModel.surveyHeightAboveTerrain.observe(viewLifecycleOwner) { height ->
-            if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
-                activityViewModel.planningOperationMode.value == PlanningOperationMode.SURVEY
-            ) {
-                savePreference(getString(R.string.survey_height_above_terrain_pref), height?.toInt().toString())
-                if (activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA) {
-                    redrawAreaMissionOnMap()
-                }
-            }
-            updateGeoAwarenessPlanningStatus()
+        activityViewModel.surveyHeightAboveTerrain.observe(viewLifecycleOwner) {
             updateSelectedSurveyWaypointHeightLabel()
         }
 
-        activityViewModel.surveyOverlapPercent.observe(viewLifecycleOwner) { overlap ->
-            if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
-                activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
-                activityViewModel.planningOperationMode.value == PlanningOperationMode.SURVEY
-            ) {
-                savePreference(getString(R.string.survey_overlap_pref), overlap?.toInt().toString())
-                redrawAreaMissionOnMap()
-            }
-        }
-
-        activityViewModel.surveyGridAngle.observe(viewLifecycleOwner) { angle ->
-            if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
-                activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
-                activityViewModel.planningOperationMode.value == PlanningOperationMode.SURVEY
-            ) {
-                savePreference(getString(R.string.survey_grid_angle_pref), angle?.toInt().toString())
-                redrawAreaMissionOnMap()
-            }
-        }
-
-        activityViewModel.surveyTerrainSegment.observe(viewLifecycleOwner) { segment ->
-            if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
-                activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
-                activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
-            ) {
-                savePreference(getString(R.string.survey_terrain_segment_pref), segment.toString())
-                redrawAreaMissionOnMap()
-            }
-        }
-
-        activityViewModel.surveyCanopySmoothing.observe(viewLifecycleOwner) { canopy ->
-            if (activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
-                activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
-                activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
-            ) {
-                savePreference(getString(R.string.survey_canopy_smoothing_pref), canopy?.toInt().toString())
-                redrawAreaMissionOnMap()
-            }
-        }
-
         activityViewModel.surveyGridParams.observe(viewLifecycleOwner) {
-            redrawAreaMissionIfEditable()
+            redrawAreaMissionIfEditable(debounced = true)
         }
 
         activityViewModel.surveyPath.observe(viewLifecycleOwner) { surveyPath ->
@@ -1696,7 +1651,7 @@ class MissionMapFragment : Fragment() {
             val hasRoute = activityViewModel.routeWaypoints.value.orEmpty().size >= 2
             mapViewModel.setMissionAreaAvailable(hasPolygon || hasRoute || !surveyPath.isNullOrEmpty())
             updateSurveyWaypointEditorEnabled()
-            updateGeoAwarenessPlanningStatus()
+            scheduleGeoAwarenessPlanningStatusUpdate()
             updateMissionSummaryCard()
             updatePointCloudMissionOverlay()
         }
@@ -1760,6 +1715,7 @@ class MissionMapFragment : Fragment() {
             val action = event?.getContentIfNotHandled() ?: return@observe
             when (action) {
                 is MainActivityViewModel.MapAction.ClearAll -> {
+                    cancelPendingMissionPlanning()
                     cancelObstaclePlacement()
                     activityViewModel.clearPlannedHomePosition()
                     activityViewModel.clearPolygonVertices()
@@ -1772,6 +1728,7 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
                 }
                 is MainActivityViewModel.MapAction.ClearAreaOnly -> {
+                    cancelPendingMissionPlanning()
                     cancelObstaclePlacement()
                     activityViewModel.clearPolygonVertices()
                     activityViewModel.clearMissionObstacles()
@@ -1783,6 +1740,7 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
                 }
                 is MainActivityViewModel.MapAction.ClearKeepDrawing -> {
+                    cancelPendingMissionPlanning()
                     cancelObstaclePlacement()
                     activityViewModel.clearMissionObstacles()
                     activityViewModel.surveyPath.postValue(emptyList())
@@ -1793,6 +1751,7 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
                 }
                 is MainActivityViewModel.MapAction.ResetToIdle -> {
+                    cancelPendingMissionPlanning()
                     cancelObstaclePlacement()
                     activityViewModel.clearServiceMission()
                     activityViewModel.clearPlannedHomePosition()
@@ -1994,22 +1953,85 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun redrawAreaMissionOnMap() {
-        when (activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY) {
-            PlanningOperationMode.SPRAY -> drawSprayMissionOnMap(
-                activityViewModel.lineDistanceProgress.value ?: 5.0,
-                activityViewModel.angleProgress.value?.toInt() ?: 90
-            )
-            PlanningOperationMode.SURVEY -> drawSurveyGridMissionOnMap()
+        scheduleAreaMissionRedraw(immediate = true)
+    }
+
+    private fun scheduleAreaMissionRedraw(immediate: Boolean = false) {
+        cancelPendingMissionPlanning()
+        val generation = missionPlanningGeneration
+        missionRedrawDebounceJob = viewLifecycleOwner.lifecycleScope.launch {
+            if (!immediate) delay(MISSION_EDIT_DEBOUNCE_MS)
+            generateAreaMissionOnMap(generation)
         }
     }
 
-    private fun redrawAreaMissionIfEditable() {
+    private fun cancelPendingMissionPlanning() {
+        missionRedrawDebounceJob?.cancel()
+        terrainSurveyJob?.cancel()
+        missionPlanningGeneration += 1L
+    }
+
+    private fun generateAreaMissionOnMap(generation: Long) {
+        persistMissionEditingPreferences()
+        when (activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY) {
+            PlanningOperationMode.SPRAY -> drawSprayMissionOnMap(
+                activityViewModel.lineDistanceProgress.value ?: 5.0,
+                activityViewModel.angleProgress.value?.toInt() ?: 90,
+                generation
+            )
+            PlanningOperationMode.SURVEY -> drawSurveyGridMissionOnMap(generation)
+        }
+    }
+
+    private fun persistMissionEditingPreferences() {
+        PreferenceManager.getDefaultSharedPreferences(requireContext().applicationContext)
+            .edit()
+            .putString(
+                getString(R.string.survey_angle_pref),
+                (activityViewModel.angleProgress.value?.toInt() ?: 90).toString()
+            )
+            .putString(
+                getString(R.string.survey_line_distance_pref),
+                (activityViewModel.lineDistanceProgress.value?.toInt() ?: 5).toString()
+            )
+            .putString(
+                getString(R.string.survey_altitude_pref),
+                (activityViewModel.flightAltProgress.value?.toInt() ?: 0).toString()
+            )
+            .putString(
+                getString(R.string.survey_strip_spacing_pref),
+                (activityViewModel.surveyStripSpacing.value?.toInt() ?: 70).toString()
+            )
+            .putString(
+                getString(R.string.survey_height_above_terrain_pref),
+                (activityViewModel.surveyHeightAboveTerrain.value?.toInt() ?: 50).toString()
+            )
+            .putString(
+                getString(R.string.survey_overlap_pref),
+                (activityViewModel.surveyOverlapPercent.value?.toInt() ?: 80).toString()
+            )
+            .putString(
+                getString(R.string.survey_grid_angle_pref),
+                (activityViewModel.surveyGridAngle.value?.toInt() ?: 90).toString()
+            )
+            .putString(
+                getString(R.string.survey_terrain_segment_pref),
+                (activityViewModel.surveyTerrainSegment.value ?: 2.5).toString()
+            )
+            .putString(
+                getString(R.string.survey_canopy_smoothing_pref),
+                (activityViewModel.surveyCanopySmoothing.value?.toInt() ?: 5).toString()
+            )
+            .apply()
+    }
+
+    private fun redrawAreaMissionIfEditable(debounced: Boolean = false) {
         if (
             activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
             activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
             (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
         ) {
-            redrawAreaMissionOnMap()
+            if (debounced) scheduleAreaMissionRedraw() else redrawAreaMissionOnMap()
         }
     }
 
@@ -2208,6 +2230,7 @@ class MissionMapFragment : Fragment() {
 
     private fun updatePointCloudMissionOverlay() {
         if (_binding == null) return
+        if (activePreviewMode != PreviewMode.POINT_CLOUD) return
         val pointCloud = previewAssetsViewModel.pointCloudAsset?.pointCloud
         val frame = pointCloud?.coordinateFrame
         if (pointCloud == null || frame == null) {
@@ -2698,84 +2721,65 @@ class MissionMapFragment : Fragment() {
 
     private fun previewPreferences() = requireContext().getSharedPreferences(PREVIEW_PREFS, Context.MODE_PRIVATE)
 
-    private fun drawSprayMissionOnMap(distance: Double, angle: Int) {
+    private fun drawSprayMissionOnMap(distance: Double, angle: Int, generation: Long) {
         terrainSurveyJob?.cancel()
         val area = activityViewModel.missionArea.value ?: return
         val polygonLatLon = area.vertices.map { LatLon(it.latitude, it.longitude) }
         val obstacles = activityViewModel.missionObstacles.value.orEmpty()
         val terrainModel = previewAssetsViewModel.pointCloudTerrainModel
             ?.takeIf { it.isGeoreferenced }
+        val heightAboveTerrain = activityViewModel.flightAltProgress.value ?: 0.0
+        val terrainSegment = activityViewModel.surveyTerrainSegment.value ?: 2.5
+        val canopySmoothing = activityViewModel.surveyCanopySmoothing.value ?: 5.0
 
-        if (terrainModel != null) {
-            val heightAboveTerrain = activityViewModel.flightAltProgress.value ?: 0.0
-            val terrainSegment = activityViewModel.surveyTerrainSegment.value ?: 2.5
-            val canopySmoothing = activityViewModel.surveyCanopySmoothing.value ?: 5.0
-            terrainSurveyJob = viewLifecycleOwner.lifecycleScope.launch {
-                val terrainWaypoints = withContext(Dispatchers.Default) {
-                    val basePath = SurveyPlanner().buildSurveyPath(
-                        polygon = polygonLatLon,
-                        distanceMeters = distance,
-                        angleDeg = angle,
-                        obstacles = obstacles
-                    )
-                    if (terrainModel.hasPointsInside(polygonLatLon)) {
-                        terrainModel.buildTerrainPath(
-                            path = basePath,
-                            heightAboveTerrainMeters = heightAboveTerrain,
-                            segmentMeters = terrainSegment,
-                            canopySmoothingMeters = canopySmoothing
-                        )
-                    } else {
-                        emptyList()
-                    }
-                }
-                if (terrainWaypoints.isNotEmpty()) {
-                    activityViewModel.pointCloudCoversMissionArea.value = true
-                    renderSurveyPath(
-                        pathLatLon = terrainWaypoints.map { it.latLon },
-                        areaVertices = area.vertices,
-                        terrainWaypoints = terrainWaypoints
+        terrainSurveyJob = viewLifecycleOwner.lifecycleScope.launch {
+            val (basePath, terrainWaypoints) = withContext(Dispatchers.Default) {
+                val generatedBasePath = SurveyPlanner().buildSurveyPath(
+                    polygon = polygonLatLon,
+                    distanceMeters = distance,
+                    angleDeg = angle,
+                    obstacles = obstacles
+                )
+                val generatedTerrainPath = if (
+                    terrainModel != null &&
+                    generatedBasePath.isNotEmpty() &&
+                    terrainModel.hasPointsInside(polygonLatLon)
+                ) {
+                    terrainModel.buildTerrainPath(
+                        path = generatedBasePath,
+                        heightAboveTerrainMeters = heightAboveTerrain,
+                        segmentMeters = terrainSegment,
+                        canopySmoothingMeters = canopySmoothing
                     )
                 } else {
-                    activityViewModel.pointCloudCoversMissionArea.value = false
-                    drawFlatSprayMission(area, polygonLatLon, distance, angle, obstacles)
+                    emptyList()
+                }
+                generatedBasePath to generatedTerrainPath
+            }
+
+            if (generation != missionPlanningGeneration || _binding == null) return@launch
+            if (terrainWaypoints.isNotEmpty()) {
+                activityViewModel.pointCloudCoversMissionArea.value = true
+                renderSurveyPath(
+                    pathLatLon = terrainWaypoints.map { it.latLon },
+                    areaVertices = area.vertices,
+                    terrainWaypoints = terrainWaypoints
+                )
+            } else {
+                activityViewModel.pointCloudCoversMissionArea.value = false
+                if (basePath.isEmpty()) {
+                    osmdroidMapController.clearSurveyPath()
+                    activityViewModel.surveyPath.value = emptyList()
+                    activityViewModel.terrainSurveyWaypoints.value = emptyList()
+                    activityViewModel.mapState.value = MainActivityViewModel.MapState.Draw
+                } else {
+                    renderSurveyPath(basePath, area.vertices)
                 }
             }
-            return
         }
-
-        activityViewModel.pointCloudCoversMissionArea.value = false
-        drawFlatSprayMission(area, polygonLatLon, distance, angle, obstacles)
     }
 
-    private fun drawFlatSprayMission(
-        area: com.example.droneservicesapp.domain.model.MissionArea,
-        polygonLatLon: List<LatLon>,
-        distance: Double,
-        angle: Int,
-        obstacles: List<com.example.droneservicesapp.domain.model.MissionObstacle>
-    ) {
-
-        val planner = SurveyPlanner()
-        val pathLatLon = planner.buildSurveyPath(
-            polygon = polygonLatLon,
-            distanceMeters = distance,
-            angleDeg = angle,
-            obstacles = obstacles
-        )
-
-        if (pathLatLon.isEmpty()) {
-            osmdroidMapController.clearSurveyPath()
-            activityViewModel.surveyPath.postValue(emptyList())
-            activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
-            activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
-            return
-        }
-
-        renderSurveyPath(pathLatLon, area.vertices)
-    }
-
-    private fun drawSurveyGridMissionOnMap() {
+    private fun drawSurveyGridMissionOnMap(generation: Long) {
         terrainSurveyJob?.cancel()
 
         val area = activityViewModel.missionArea.value ?: return
@@ -2784,12 +2788,17 @@ class MissionMapFragment : Fragment() {
         val obstacles = activityViewModel.missionObstacles.value.orEmpty()
         activityViewModel.pointCloudCoversMissionArea.value = false
 
-        val pathLatLon = SurveyGridPlanner().buildSurveyPath(
-            polygon = polygonLatLon,
-            params = params,
-            obstacles = obstacles
-        )
-        renderSurveyPath(pathLatLon, area.vertices)
+        terrainSurveyJob = viewLifecycleOwner.lifecycleScope.launch {
+            val pathLatLon = withContext(Dispatchers.Default) {
+                SurveyGridPlanner().buildSurveyPath(
+                    polygon = polygonLatLon,
+                    params = params,
+                    obstacles = obstacles
+                )
+            }
+            if (generation != missionPlanningGeneration || _binding == null) return@launch
+            renderSurveyPath(pathLatLon, area.vertices)
+        }
     }
 
     private fun renderSurveyPath(
@@ -2931,6 +2940,12 @@ class MissionMapFragment : Fragment() {
 
     override fun onDestroyView() {
         stopMissionSimulation()
+        missionRedrawDebounceJob?.cancel()
+        missionRedrawDebounceJob = null
+        geoPlanningJob?.cancel()
+        geoPlanningJob = null
+        missionSummaryJob?.cancel()
+        missionSummaryJob = null
         terrainSurveyJob?.cancel()
         terrainSurveyJob = null
         previewAssetLoadJob?.cancel()
@@ -3467,6 +3482,56 @@ class MissionMapFragment : Fragment() {
             GEO_PLANNING_STATUS_TAG,
             "Planning geo-awareness updated: conflicts=${latestGeoAwarenessResult.conflicts.size} highest=${latestGeoAwarenessResult.highestRestriction} canUpload=${latestGeoAwarenessResult.canUpload}"
         )
+    }
+
+    private fun scheduleGeoAwarenessPlanningStatusUpdate() {
+        if (_binding == null) return
+
+        val missionPolygon = activityViewModel.missionArea.value?.vertices
+            ?.takeIf { it.isNotEmpty() }
+            ?.map { LatLon(lat = it.latitude, lon = it.longitude) }
+        val surveyPath = activityViewModel.surveyPath.value.orEmpty()
+            .map { LatLon(lat = it.latitude, lon = it.longitude) }
+        val pointRoutePath = activityViewModel.routeWaypoints.value.orEmpty()
+            .map { LatLon(lat = it.latitude, lon = it.longitude) }
+        val planningPath = if (activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS) {
+            pointRoutePath
+        } else {
+            surveyPath
+        }
+        val altitudeContext = GeoAltitudeContext(
+            aglMeters = activityViewModel.flightAltProgress.value?.toDouble()
+        )
+
+        if (missionPolygon.isNullOrEmpty() && planningPath.isEmpty()) {
+            geoPlanningJob?.cancel()
+            latestGeoAwarenessResult = GeoAwarenessResult.clear()
+            return
+        }
+        if (!loadGeoAwarenessZonesIfNeeded()) return
+        val checker = geoAwarenessChecker ?: return
+        val zones = geoAwarenessZones.toList()
+
+        geoPlanningJob?.cancel()
+        geoPlanningJob = viewLifecycleOwner.lifecycleScope.launch {
+            val result = withContext(Dispatchers.Default) {
+                checker.checkMission(
+                    missionPolygon = missionPolygon,
+                    surveyPath = planningPath,
+                    altitudeContext = altitudeContext,
+                    zones = zones
+                )
+            }
+            if (_binding == null) return@launch
+            latestGeoAwarenessResult = result
+            ensureGeoAwarenessHealth()
+            logPlanningStatusIfNeeded(result)
+            Log.d(
+                GEO_PLANNING_STATUS_TAG,
+                "Planning geo-awareness updated: conflicts=${result.conflicts.size} " +
+                    "highest=${result.highestRestriction} canUpload=${result.canUpload}"
+            )
+        }
     }
 
     private fun calculateGeoAwarenessPlanningResult(): GeoAwarenessResult {
