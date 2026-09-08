@@ -95,6 +95,39 @@ class MainActivityViewModelRouteTest {
     }
 
     @Test
+    fun movingAndRemovingMiddleRouteWaypointKeepsRouteConnectedAndRenumbered() {
+        val viewModel = MainActivityViewModel()
+        viewModel.addRouteWaypoint(latitude = 35.1, longitude = 24.1)
+        viewModel.addRouteWaypoint(latitude = 35.2, longitude = 24.2)
+        viewModel.addRouteWaypoint(latitude = 35.3, longitude = 24.3)
+
+        viewModel.updateRouteWaypoint(index = 1, latitude = 35.25, longitude = 24.25)
+        assertEquals(35.25, viewModel.routeWaypoints.value!![1].latitude, 0.000001)
+
+        viewModel.removeRouteWaypoint(index = 1)
+
+        val waypoints = viewModel.routeWaypoints.value!!
+        assertEquals(2, waypoints.size)
+        assertEquals(1, waypoints[0].index)
+        assertEquals(2, waypoints[1].index)
+        assertEquals(35.3, waypoints[1].latitude, 0.000001)
+    }
+
+    @Test
+    fun clearingRouteAlsoClearsItsTerrainSamples() {
+        val viewModel = MainActivityViewModel()
+        viewModel.addRouteWaypoint(latitude = 35.1, longitude = 24.1)
+        viewModel.terrainRouteWaypoints.value = listOf(
+            TerrainWaypoint(LatLon(35.1, 24.1), displayAltitudeMeters = 10.0, missionAltitudeMeters = 10.0)
+        )
+
+        viewModel.clearRouteWaypoints()
+
+        assertTrue(viewModel.routeWaypoints.value!!.isEmpty())
+        assertTrue(viewModel.terrainRouteWaypoints.value!!.isEmpty())
+    }
+
+    @Test
     fun updateSurveyWaypointKeepsTerrainWaypointAligned() {
         val viewModel = MainActivityViewModel()
         viewModel.surveyPath.value = listOf(

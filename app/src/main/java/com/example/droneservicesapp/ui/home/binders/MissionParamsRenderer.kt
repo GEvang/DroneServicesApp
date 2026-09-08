@@ -80,6 +80,13 @@ class MissionParamsRenderer(
             renderMode(operationMode, activityViewModel.pointCloudCoversMissionArea.value == true)
         }
 
+        activityViewModel.activePlanningWorkflow.observe(lifecycleOwner) {
+            renderMode(
+                missionParamsUiState.operationMode,
+                activityViewModel.pointCloudCoversMissionArea.value == true
+            )
+        }
+
         activityViewModel.pointCloudCoversMissionArea.observe(lifecycleOwner) { covered ->
             renderMode(missionParamsUiState.operationMode, covered == true)
         }
@@ -164,8 +171,10 @@ class MissionParamsRenderer(
 
     private fun renderMode(mode: PlanningOperationMode, hasPointCloudInArea: Boolean) {
         val isSurvey = mode == PlanningOperationMode.SURVEY
+        val isPointRoute = activityViewModel.activePlanningWorkflow.value ==
+            com.example.droneservicesapp.domain.model.PlanningWorkflow.POINTS
         val isThreeDimensionalSpray = !isSurvey && hasPointCloudInArea
-        arrangeParameterFields(isSurvey)
+        arrangeParameterFields(isSurvey, isPointRoute)
         views.surveyModeSection.isVisible = isSurvey
         views.sprayModeSection.isVisible = !isSurvey
         views.presetSelector.isVisible = false
@@ -177,8 +186,8 @@ class MissionParamsRenderer(
         views.surveyHeightField.isVisible = isSurvey
         views.surveyOverlapField.isVisible = isSurvey
         views.surveyGridAngleField.isVisible = isSurvey
-        views.surveyTerrainSegmentField.isVisible = isThreeDimensionalSpray
-        views.surveyCanopySmoothingField.isVisible = isThreeDimensionalSpray
+        views.surveyTerrainSegmentField.isVisible = isThreeDimensionalSpray || isPointRoute
+        views.surveyCanopySmoothingField.isVisible = isThreeDimensionalSpray || isPointRoute
         views.flightTimeLabel.isVisible = true
         views.speedTimeRow.isVisible = true
         views.flightTimeValue.isVisible = false
@@ -200,19 +209,21 @@ class MissionParamsRenderer(
         }
     }
 
-    private fun arrangeParameterFields(isSurvey: Boolean) {
+    private fun arrangeParameterFields(isSurvey: Boolean, isPointRoute: Boolean) {
         val spraySection = views.sprayModeSection as ViewGroup
         val surveySection = views.surveyModeSection as ViewGroup
 
-        moveToEnd(
-            surveySection,
-            listOf(
+        val surveyFields = mutableListOf(
                 views.surveyOverlapField,
                 views.surveyStripSpacingField,
                 views.surveyHeightField,
                 views.surveyGridAngleField
             )
-        )
+        if (isSurvey && isPointRoute) {
+            surveyFields += views.surveyTerrainSegmentField
+            surveyFields += views.surveyCanopySmoothingField
+        }
+        moveToEnd(surveySection, surveyFields)
 
         val sprayFields = mutableListOf(
             views.sprayStripSpacingField,
@@ -223,11 +234,11 @@ class MissionParamsRenderer(
             sprayFields += views.flightTimeLabel
             sprayFields += views.speedTimeRow
         }
-        sprayFields += listOf(
-            views.sprayLitersField,
-            views.surveyTerrainSegmentField,
-            views.surveyCanopySmoothingField
-        )
+        sprayFields += views.sprayLitersField
+        if (!isSurvey || !isPointRoute) {
+            sprayFields += views.surveyTerrainSegmentField
+            sprayFields += views.surveyCanopySmoothingField
+        }
         moveToEnd(spraySection, sprayFields)
 
         if (isSurvey) {

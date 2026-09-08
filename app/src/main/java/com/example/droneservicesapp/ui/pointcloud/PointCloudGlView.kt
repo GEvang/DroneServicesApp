@@ -38,6 +38,10 @@ class PointCloudGlView @JvmOverloads constructor(
     private var previousDistance = 0f
     private var previousCenterX = 0f
     private var previousCenterY = 0f
+    private var touchDownX = 0f
+    private var touchDownY = 0f
+    private var touchMoved = false
+    private var onMissionPointClick: ((Int) -> Unit)? = null
 
     init {
         setEGLContextClientVersion(2)
@@ -55,6 +59,10 @@ class PointCloudGlView @JvmOverloads constructor(
         queueEvent {
             pointRenderer.setMissionOverlay(overlay)
         }
+    }
+
+    fun setOnMissionPointClickListener(listener: ((Int) -> Unit)?) {
+        onMissionPointClick = listener
     }
 
     fun setPointSize(pointSize: Float) {
@@ -86,10 +94,14 @@ class PointCloudGlView @JvmOverloads constructor(
             MotionEvent.ACTION_DOWN -> {
                 previousX = event.x
                 previousY = event.y
+                touchDownX = event.x
+                touchDownY = event.y
+                touchMoved = false
                 previousDistance = 0f
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
                 if (event.pointerCount >= 2) {
+                    touchMoved = true
                     parent?.requestDisallowInterceptTouchEvent(true)
                     previousDistance = pointerDistance(event)
                     previousCenterX = pointerCenterX(event)
@@ -117,6 +129,9 @@ class PointCloudGlView @JvmOverloads constructor(
                 } else {
                     val dx = event.x - previousX
                     val dy = event.y - previousY
+                    if (abs(event.x - touchDownX) > TAP_SLOP_PX || abs(event.y - touchDownY) > TAP_SLOP_PX) {
+                        touchMoved = true
+                    }
                     queueEvent { pointRenderer.rotate(dx, dy) }
                     previousX = event.x
                     previousY = event.y
@@ -130,7 +145,20 @@ class PointCloudGlView @JvmOverloads constructor(
                     previousY = event.getY(remainingIndex)
                 }
             }
-            MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+            MotionEvent.ACTION_UP -> {
+                if (!touchMoved) {
+                    val tapX = event.x
+                    val tapY = event.y
+                    val hitRadius = 24f * resources.displayMetrics.density
+                    queueEvent {
+                        val selectedIndex = pointRenderer.pickMissionPoint(tapX, tapY, hitRadius)
+                        if (selectedIndex != null) post { onMissionPointClick?.invoke(selectedIndex) }
+                    }
+                }
+                previousDistance = 0f
+                parent?.requestDisallowInterceptTouchEvent(false)
+            }
+            MotionEvent.ACTION_CANCEL -> {
                 previousDistance = 0f
                 parent?.requestDisallowInterceptTouchEvent(false)
             }
@@ -152,6 +180,7 @@ class PointCloudGlView @JvmOverloads constructor(
         private const val MIN_PINCH_SCALE = 0.92f
         private const val MAX_PINCH_SCALE = 1.08f
         private const val TOUCH_EPSILON = 0.5f
+        private const val TAP_SLOP_PX = 12f
     }
 }
 
@@ -176,6 +205,7 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     private var pointCount = 0
     private var overlayLineVertexCount = 0
     private var overlayPointVertexCount = 0
+    private var overlayPointPositions = FloatArray(0)
     private var cloudSpan = 100f
     private var heightColorModeEnabled = false
     var pointCloudOpacity: Float = 1f
@@ -262,6 +292,7 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
             overlayPointColorBuffer = null
             overlayLineVertexCount = 0
             overlayPointVertexCount = 0
+            overlayPointPositions = FloatArray(0)
             return
         }
         overlayPositionBuffer = overlay.vertices.takeIf { overlay.lineVertexCount > 0 }?.toFloatBuffer()
@@ -270,6 +301,38 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
         overlayPointColorBuffer = overlay.pointColors.takeIf { overlay.pointVertexCount > 0 }?.toFloatBuffer()
         overlayLineVertexCount = overlay.lineVertexCount
         overlayPointVertexCount = overlay.pointVertexCount
+        overlayPointPositions = overlay.pointVertices.copyOf()
+    }
+
+    fun pickMissionPoint(screenX: Float, screenY: Float, hitRadiusPx: Float): Int? {
+        if (overlayPointVertexCount <= 0 || overlayPointPositions.isEmpty()) return null
+        updateViewMatrix()
+        var bestIndex: Int? = null
+        var bestDistanceSquared = hitRadiusPx * hitRadiusPx
+        val world = FloatArray(4)
+        val clip = FloatArray(4)
+        repeat(overlayPointVertexCount) { index ->
+            val offset = index * VALUES_PER_POINT
+            world[0] = overlayPointPositions[offset]
+            world[1] = overlayPointPositions[offset + 1]
+            world[2] = overlayPointPositions[offset + 2]
+            world[3] = 1f
+            Matrix.multiplyMV(clip, 0, viewProjectionMatrix, 0, world, 0)
+            if (clip[3] <= 0f) return@repeat
+            val ndcX = clip[0] / clip[3]
+            val ndcY = clip[1] / clip[3]
+            if (ndcX !in -1.2f..1.2f || ndcY !in -1.2f..1.2f) return@repeat
+            val pointX = (ndcX + 1f) * 0.5f * viewportWidth
+            val pointY = (1f - ndcY) * 0.5f * viewportHeight
+            val dx = pointX - screenX
+            val dy = pointY - screenY
+            val distanceSquared = dx * dx + dy * dy
+            if (distanceSquared <= bestDistanceSquared) {
+                bestDistanceSquared = distanceSquared
+                bestIndex = index
+            }
+        }
+        return bestIndex
     }
 
     private fun drawMissionOverlay() {
@@ -420,7 +483,7 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
         private const val BYTES_PER_FLOAT = 4
         private const val VALUES_PER_POINT = 3
         private const val MISSION_OVERLAY_LINE_WIDTH = 6f
-        private const val MISSION_OVERLAY_POINT_SIZE = 14f
+        private const val MISSION_OVERLAY_POINT_SIZE = 22f
         private const val VERTEX_SHADER = """
             uniform mat4 u_MvpMatrix;
             uniform float u_PointSize;

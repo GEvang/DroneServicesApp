@@ -721,8 +721,8 @@ class OsmdroidMapController(
 
     private fun createSurveyWaypointIcon(selected: Boolean): BitmapDrawable {
         val density = context.resources.displayMetrics.density
-        val sizeDp = if (selected) 22f else 10f
-        val size = (sizeDp * density).toInt().coerceAtLeast(if (selected) 18 else 8)
+        val sizeDp = if (selected) 30f else 18f
+        val size = (sizeDp * density).toInt().coerceAtLeast(if (selected) 24 else 14)
         val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(bitmap)
         val center = size / 2f

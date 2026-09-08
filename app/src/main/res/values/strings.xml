@@ -220,6 +220,9 @@
     <string name="obstacle_shape_circle">Circle</string>
     <string name="obstacle_shape_polygon">Polygon</string>
     <string name="obstacle_radius_format">Radius: %1$d m</string>
+    <string name="obstacle_circle_item_format">Obstacle %1$s · Circle · %2$.1f m²</string>
+    <string name="obstacle_polygon_item_format">Obstacle %1$s · Polygon · %2$.1f m²</string>
+    <string name="delete_obstacle_format">Delete obstacle %1$s</string>
     <string name="add_route_points">Tap Map to Add Points</string>
     <string name="clear_route">Clear Route</string>
     <string name="undo_route_point">Undo Last Point</string>
@@ -233,6 +236,7 @@
     <string name="survey_waypoint_height_increase">Increase selected waypoint height</string>
     <string name="survey_waypoint_height_label">Alt %1$.0f m</string>
     <string name="survey_waypoint_deleted">Waypoint deleted</string>
+    <string name="simulation_requires_home">Select a home point before simulating the mission.</string>
     <string name="work_in_progress">Work in progress</string>
     <string name="home_panel_instruction_title">Instructions</string>
     <string name="home_panel_mode_title">Mode Select</string>

@@ -183,6 +183,11 @@ class MainActivityViewModel : ViewModel() {
         MutableLiveData(emptyList())
     }
 
+    /** Terrain-sampled version of the operator-authored point route. */
+    val terrainRouteWaypoints: MutableLiveData<List<TerrainWaypoint>> by lazy {
+        MutableLiveData(emptyList())
+    }
+
     val plannedHomePosition: MutableLiveData<LatLon?> by lazy {
         MutableLiveData(null)
     }
@@ -424,6 +429,26 @@ class MainActivityViewModel : ViewModel() {
         routeWaypoints.value = renumberRouteWaypoints(waypoints)
     }
 
+    fun updateRouteWaypoint(index: Int, latitude: Double, longitude: Double) {
+        val existing = routeWaypoints.value.orEmpty()
+        if (index !in existing.indices) return
+        routeWaypoints.value = existing.mapIndexed { waypointIndex, waypoint ->
+            if (waypointIndex == index) {
+                waypoint.copy(latitude = latitude, longitude = longitude)
+            } else {
+                waypoint
+            }
+        }
+    }
+
+    fun removeRouteWaypoint(index: Int) {
+        val existing = routeWaypoints.value.orEmpty()
+        if (index !in existing.indices) return
+        routeWaypoints.value = renumberRouteWaypoints(
+            existing.filterIndexed { waypointIndex, _ -> waypointIndex != index }
+        )
+    }
+
     fun updateSurveyWaypoint(index: Int, point: LatLng, terrainWaypoint: TerrainWaypoint?) {
         val path = surveyPath.value.orEmpty()
         if (index !in path.indices) return
@@ -486,6 +511,22 @@ class MainActivityViewModel : ViewModel() {
         }
     }
 
+    fun updateTerrainRouteWaypointAltitude(index: Int, altitudeMeters: Double) {
+        val terrainPath = terrainRouteWaypoints.value.orEmpty()
+        if (index !in terrainPath.indices) return
+        val normalizedAltitude = altitudeMeters.coerceAtLeast(0.0)
+        terrainRouteWaypoints.value = terrainPath.mapIndexed { waypointIndex, waypoint ->
+            if (waypointIndex == index) {
+                waypoint.copy(
+                    displayAltitudeMeters = normalizedAltitude,
+                    missionAltitudeMeters = normalizedAltitude
+                )
+            } else {
+                waypoint
+            }
+        }
+    }
+
     fun undoLastRouteWaypoint() {
         val existing = routeWaypoints.value.orEmpty()
         if (existing.isEmpty()) return
@@ -494,6 +535,7 @@ class MainActivityViewModel : ViewModel() {
 
     fun clearRouteWaypoints() {
         routeWaypoints.value = emptyList()
+        terrainRouteWaypoints.value = emptyList()
     }
 
     fun setPlannedHomePosition(position: LatLon?) {

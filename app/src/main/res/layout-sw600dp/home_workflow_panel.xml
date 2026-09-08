@@ -79,6 +79,21 @@
         android:textSize="@dimen/phone_map_panel_label_text_size" />
 
     <com.google.android.material.button.MaterialButton
+        android:id="@+id/right_panel_add_home_button"
+        style="@style/Widget.DroneServices.Button.MapDark"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/phone_map_panel_button_height_tall"
+        android:layout_marginTop="@dimen/ds_space_sm"
+        android:text="@string/add_home"
+        android:textSize="@dimen/phone_map_panel_label_text_size"
+        android:visibility="gone"
+        app:icon="@drawable/ic_home_takeoff_marker"
+        app:iconGravity="textStart"
+        app:iconPadding="@dimen/ds_space_sm"
+        app:iconSize="24dp"
+        app:iconTint="@color/ds_color_text_primary" />
+
+    <com.google.android.material.button.MaterialButton
         android:id="@+id/right_panel_draw_area_button"
         style="@style/Widget.DroneServices.Button.MapDark"
         android:layout_width="match_parent"
@@ -110,19 +125,6 @@
         app:iconPadding="@dimen/ds_space_sm"
         app:iconTint="@color/ds_color_shell_danger"
         app:strokeColor="@color/ds_color_shell_danger" />
-
-    <TextView
-        android:id="@+id/right_panel_undo_route_button"
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/phone_map_panel_button_height"
-        android:layout_marginTop="@dimen/ds_space_sm"
-        android:background="@drawable/bg_ds_panel_pill_inactive"
-        android:fontFamily="@font/inter"
-        android:gravity="center"
-        android:text="@string/undo_route_point"
-        android:textColor="@color/ds_color_text_primary"
-        android:textSize="@dimen/phone_map_panel_label_text_size"
-        android:visibility="gone" />
 
     <TextView
         android:id="@+id/right_panel_route_summary"
@@ -208,21 +210,6 @@
         app:icon="@drawable/ic_weather_wind_24"
         app:iconGravity="textStart"
         app:iconPadding="@dimen/ds_space_sm"
-        app:iconTint="@color/ds_color_text_primary" />
-
-    <com.google.android.material.button.MaterialButton
-        android:id="@+id/right_panel_add_home_button"
-        style="@style/Widget.DroneServices.Button.MapDark"
-        android:layout_width="match_parent"
-        android:layout_height="@dimen/phone_map_panel_button_height_tall"
-        android:layout_marginTop="@dimen/ds_space_sm"
-        android:text="@string/add_home"
-        android:textSize="@dimen/phone_map_panel_label_text_size"
-        android:visibility="gone"
-        app:icon="@drawable/ic_home_takeoff_marker"
-        app:iconGravity="textStart"
-        app:iconPadding="@dimen/ds_space_sm"
-        app:iconSize="24dp"
         app:iconTint="@color/ds_color_text_primary" />
 
     <com.google.android.material.button.MaterialButton

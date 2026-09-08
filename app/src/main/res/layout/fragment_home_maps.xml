@@ -176,40 +176,48 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent">
 
-            <androidx.appcompat.widget.AppCompatImageButton
-                android:id="@+id/survey_waypoint_height_minus_button"
-                android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
-                android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
-                android:background="@drawable/bg_bottom_dock_button"
-                android:contentDescription="@string/survey_waypoint_height_decrease"
-                android:padding="@dimen/phone_map_bottom_dock_icon_padding"
-                android:scaleType="centerInside"
-                android:src="@drawable/ic_remove_24"
-                android:tint="@android:color/white" />
+            <LinearLayout
+                android:layout_width="36dp"
+                android:layout_height="wrap_content"
+                android:orientation="vertical">
 
-            <TextView
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/survey_waypoint_height_plus_button"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:background="@drawable/bg_bottom_dock_button"
+                    android:contentDescription="@string/survey_waypoint_height_increase"
+                    android:padding="8dp"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_add_24"
+                    android:tint="@android:color/white" />
+
+                <androidx.appcompat.widget.AppCompatImageButton
+                    android:id="@+id/survey_waypoint_height_minus_button"
+                    android:layout_width="36dp"
+                    android:layout_height="36dp"
+                    android:layout_marginTop="2dp"
+                    android:background="@drawable/bg_bottom_dock_button"
+                    android:contentDescription="@string/survey_waypoint_height_decrease"
+                    android:padding="8dp"
+                    android:scaleType="centerInside"
+                    android:src="@drawable/ic_remove_24"
+                    android:tint="@android:color/white" />
+            </LinearLayout>
+
+            <EditText
                 android:id="@+id/survey_waypoint_height_label"
                 style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                android:layout_width="wrap_content"
+                android:layout_width="84dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/phone_map_bottom_dock_item_spacing"
                 android:layout_marginEnd="@dimen/phone_map_bottom_dock_item_spacing"
-                android:minWidth="76dp"
                 android:gravity="center"
+                android:inputType="numberDecimal"
+                android:selectAllOnFocus="true"
+                android:singleLine="true"
                 android:textColor="@color/ds_color_text_primary"
                 tools:text="Alt 12 m" />
-
-            <androidx.appcompat.widget.AppCompatImageButton
-                android:id="@+id/survey_waypoint_height_plus_button"
-                android:layout_width="@dimen/phone_map_bottom_dock_icon_size"
-                android:layout_height="@dimen/phone_map_bottom_dock_icon_size"
-                android:layout_marginEnd="@dimen/phone_map_bottom_dock_item_spacing"
-                android:background="@drawable/bg_bottom_dock_button"
-                android:contentDescription="@string/survey_waypoint_height_increase"
-                android:padding="@dimen/phone_map_bottom_dock_icon_padding"
-                android:scaleType="centerInside"
-                android:src="@drawable/ic_add_24"
-                android:tint="@android:color/white" />
 
             <androidx.appcompat.widget.AppCompatImageButton
                 android:id="@+id/survey_waypoint_delete_button"

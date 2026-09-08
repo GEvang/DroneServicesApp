@@ -1,7 +1,12 @@
 package com.example.droneservicesapp.ui.home.components
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.Canvas
 import android.graphics.Color
+import android.graphics.Paint
+import android.graphics.Typeface
+import android.graphics.drawable.BitmapDrawable
 import android.widget.Toast
 import com.example.droneservicesapp.domain.model.MissionObstacle
 import com.example.droneservicesapp.domain.model.MissionObstacleShape
@@ -27,6 +32,7 @@ class OsmdroidObstacleEditor(
     }
 
     private val obstacleOverlays = mutableMapOf<String, Polygon>()
+    private val obstacleLabels = mutableMapOf<String, Marker>()
     private val draftMarkers = mutableListOf<Marker>()
     private val draftPoints = mutableListOf<GeoPoint>()
     private var draftPolygon: Polygon? = null
@@ -109,14 +115,24 @@ class OsmdroidObstacleEditor(
         val removedIds = obstacleOverlays.keys.filterNot { it in activeIds }
         removedIds.forEach { id ->
             obstacleOverlays.remove(id)?.let { mapView.overlays.remove(it) }
+            obstacleLabels.remove(id)?.let { mapView.overlays.remove(it) }
         }
 
-        obstacles.filter { it.isValid() }.forEach { obstacle ->
+        obstacles.filter { it.isValid() }.forEachIndexed { index, obstacle ->
             val overlay = obstacleOverlays[obstacle.id] ?: createObstacleOverlay(obstacle).also {
                 obstacleOverlays[obstacle.id] = it
                 mapView.overlays.add(it)
             }
             overlay.points = obstaclePoints(obstacle)
+            val label = obstacleLabels[obstacle.id] ?: Marker(mapView).apply {
+                setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+                infoWindow = null
+            }.also {
+                obstacleLabels[obstacle.id] = it
+                mapView.overlays.add(it)
+            }
+            label.position = obstacleCenter(obstacle)
+            label.icon = createObstacleLabel(index)
         }
         bringToFront()
         mapView.invalidate()
@@ -127,6 +143,10 @@ class OsmdroidObstacleEditor(
         obstacleOverlays.values.forEach { overlay ->
             mapView.overlays.remove(overlay)
             mapView.overlays.add(overlay)
+        }
+        obstacleLabels.values.forEach { label ->
+            mapView.overlays.remove(label)
+            mapView.overlays.add(label)
         }
         draftPolygon?.let { overlay ->
             mapView.overlays.remove(overlay)
@@ -146,6 +166,8 @@ class OsmdroidObstacleEditor(
         clearDraft()
         mapView.overlays.removeAll(obstacleOverlays.values)
         obstacleOverlays.clear()
+        mapView.overlays.removeAll(obstacleLabels.values)
+        obstacleLabels.clear()
         mapView.invalidate()
     }
 
@@ -156,6 +178,8 @@ class OsmdroidObstacleEditor(
         draftPoints.clear()
         mapView.overlays.removeAll(obstacleOverlays.values)
         obstacleOverlays.clear()
+        mapView.overlays.removeAll(obstacleLabels.values)
+        obstacleLabels.clear()
         draftPolygon?.let { mapView.overlays.remove(it) }
         draftPolygon = null
         eventsOverlay?.let { mapView.overlays.remove(it) }
@@ -205,12 +229,43 @@ class OsmdroidObstacleEditor(
             outlinePaint.color = Color.rgb(220, 38, 38)
             outlinePaint.strokeWidth = 5f
             points = obstaclePoints(obstacle)
-            setOnClickListener { _, _, _ ->
-                activityViewModel.removeMissionObstacle(obstacle.id)
-                true
-            }
         }
     }
+
+    private fun obstacleCenter(obstacle: MissionObstacle): GeoPoint {
+        obstacle.center?.let { return GeoPoint(it.lat, it.lon) }
+        return GeoPoint(
+            obstacle.vertices.map { it.lat }.average(),
+            obstacle.vertices.map { it.lon }.average()
+        )
+    }
+
+    private fun createObstacleLabel(index: Int): BitmapDrawable {
+        val density = context.resources.displayMetrics.density
+        val size = (30f * density).toInt()
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(bitmap)
+        val center = size / 2f
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = Color.rgb(220, 38, 38) }
+        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            style = Paint.Style.STROKE
+            strokeWidth = 2f * density
+        }
+        val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = Color.WHITE
+            textAlign = Paint.Align.CENTER
+            textSize = 15f * density
+            typeface = Typeface.DEFAULT_BOLD
+        }
+        canvas.drawCircle(center, center, center - 2f * density, fill)
+        canvas.drawCircle(center, center, center - 2f * density, stroke)
+        val baseline = center - (text.descent() + text.ascent()) / 2f
+        canvas.drawText(obstacleLetter(index), center, baseline, text)
+        return BitmapDrawable(context.resources, bitmap)
+    }
+
+    private fun obstacleLetter(index: Int): String = ('A'.code + index).toChar().toString()
 
     private fun obstaclePoints(obstacle: MissionObstacle): ArrayList<GeoPoint> {
         return when (obstacle.shape) {

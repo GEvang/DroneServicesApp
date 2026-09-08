@@ -76,6 +76,23 @@ class MissionParamsActionHandler(
         val validatedSpeed = speed ?: return
         val validatedAngle = angle ?: return
         val fullPath = path.orEmpty().map { LatLon(it.latitude, it.longitude) }
+        val terrainPointRoute = activityViewModel.terrainRouteWaypoints.value.orEmpty()
+            .takeIf { workflow == PlanningWorkflow.POINTS && it.size >= 2 }
+        val uploadRouteWaypoints = terrainPointRoute?.mapIndexed { index, terrainWaypoint ->
+            val nearestAuthoredWaypoint = routeWaypoints.minByOrNull { authored ->
+                SphericalUtil.computeDistanceBetween(
+                    LatLng(authored.latitude, authored.longitude),
+                    LatLng(terrainWaypoint.latLon.lat, terrainWaypoint.latLon.lon)
+                )
+            } ?: routeWaypoints.first()
+            nearestAuthoredWaypoint.copy(
+                id = "terrain-route-$index",
+                index = index + 1,
+                latitude = terrainWaypoint.latLon.lat,
+                longitude = terrainWaypoint.latLon.lon,
+                altitudeMeters = terrainWaypoint.missionAltitudeMeters
+            )
+        } ?: routeWaypoints
         val serviceLegs = if (workflow == PlanningWorkflow.AREA) {
             val effectiveHome = activityViewModel.plannedHomePosition.value
                 ?: LatLon(validatedDroneLoc.latitude, validatedDroneLoc.longitude)
@@ -103,14 +120,22 @@ class MissionParamsActionHandler(
         val build = if (workflow == PlanningWorkflow.POINTS) {
             MissionBuild(
                 items = MissionBuilder.buildPointRouteMission(
-                    routeWaypoints = routeWaypoints,
+                    routeWaypoints = uploadRouteWaypoints,
                     currentPos = validatedDroneLoc,
                     targetSystemId = droneViewModel.getTargetSystemId(),
                     targetComponentId = droneViewModel.getTargetComponentId(),
-                    altitudeReferenceMode = altitudeReferenceMode,
+                    altitudeReferenceMode = if (terrainPointRoute != null) {
+                        AltitudeReferenceMode.RELATIVE
+                    } else {
+                        altitudeReferenceMode
+                    },
                 ),
-                altitudeReferenceMode = altitudeReferenceMode,
-                usesTerrainAltitudes = false,
+                altitudeReferenceMode = if (terrainPointRoute != null) {
+                    AltitudeReferenceMode.RELATIVE
+                } else {
+                    altitudeReferenceMode
+                },
+                usesTerrainAltitudes = terrainPointRoute != null,
             )
         } else {
             buildAreaMission(
