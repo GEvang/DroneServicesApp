@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 
@@ -69,6 +70,35 @@ class PlyPointCloudParserTest {
         assertTrue(cloud.hasRgb)
         assertEquals(10f / 255f, cloud.colors[0], 0.001f)
         assertEquals(34f, cloud.bounds.maxZ, 0.001f)
+    }
+
+    @Test
+    fun streamsBinaryPlyFromInputWithoutNeedingWholeFileBuffer() {
+        val header = """
+            ply
+            format binary_little_endian 1.0
+            element vertex 4
+            property float x
+            property float y
+            property float z
+            end_header
+        """.trimIndent() + "\n"
+        val body = ByteBuffer.allocate(4 * 3 * Float.SIZE_BYTES)
+            .order(ByteOrder.LITTLE_ENDIAN)
+            .putFloat(0f).putFloat(1f).putFloat(2f)
+            .putFloat(3f).putFloat(4f).putFloat(5f)
+            .putFloat(6f).putFloat(7f).putFloat(8f)
+            .putFloat(9f).putFloat(10f).putFloat(11f)
+            .array()
+
+        val cloud = PlyPointCloudParser(maxDisplayPoints = 2).parse(
+            ByteArrayInputStream(header.toByteArray() + body),
+            "streamed.ply"
+        )
+
+        assertEquals(4, cloud.totalPointCount)
+        assertEquals(2, cloud.displayedPointCount)
+        assertEquals(11f, cloud.bounds.maxZ, 0.001f)
     }
 
     @Test

@@ -1,7 +1,10 @@
 package com.example.droneservicesapp.data.pointcloud
 
-import java.io.ByteArrayOutputStream
+import java.io.BufferedInputStream
+import java.io.BufferedReader
+import java.io.ByteArrayInputStream
 import java.io.InputStream
+import java.io.InputStreamReader
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.charset.StandardCharsets
@@ -11,23 +14,17 @@ class PlyPointCloudParser(
     private val maxDisplayPoints: Int = DEFAULT_MAX_DISPLAY_POINTS
 ) {
     fun parse(inputStream: InputStream): PointCloudData {
-        val bytes = inputStream.use { stream ->
-            ByteArrayOutputStream().use { output ->
-                stream.copyTo(output)
-                output.toByteArray()
-            }
-        }
-        return parse(bytes)
+        return inputStream.use(::parsePlyStream)
     }
 
     fun parse(inputStream: InputStream, fileName: String): PointCloudData {
-        val bytes = inputStream.use { stream ->
-            ByteArrayOutputStream().use { output ->
-                stream.copyTo(output)
-                output.toByteArray()
+        return inputStream.use { stream ->
+            when (fileName.substringAfterLast('.', "").lowercase()) {
+                "ply" -> parsePlyStream(stream)
+                "xyz", "csv", "txt", "pcd" -> parse(stream.readBytes(), fileName)
+                else -> error("Unsupported point cloud format: $fileName")
             }
         }
-        return parse(bytes, fileName)
     }
 
     fun parse(bytes: ByteArray, fileName: String): PointCloudData {
@@ -40,16 +37,152 @@ class PlyPointCloudParser(
     }
 
     fun parse(bytes: ByteArray): PointCloudData {
-        val headerEnd = findHeaderEnd(bytes)
-        val headerText = bytes.copyOfRange(0, headerEnd.headerLength)
-            .toString(StandardCharsets.US_ASCII)
+        return ByteArrayInputStream(bytes).use(::parsePlyStream)
+    }
+
+    private fun parsePlyStream(source: InputStream): PointCloudData {
+        val input = if (source is BufferedInputStream) source else BufferedInputStream(source)
+        val headerText = readHeader(input)
         val header = parseHeader(headerText)
         require(header.vertexCount > 0) { "PLY has no vertices." }
 
         return when (header.format) {
-            PlyFormat.ASCII -> parseAscii(bytes, headerEnd.bodyOffset, header)
-            PlyFormat.BINARY_LITTLE_ENDIAN -> parseBinary(bytes, headerEnd.bodyOffset, header, ByteOrder.LITTLE_ENDIAN)
-            PlyFormat.BINARY_BIG_ENDIAN -> parseBinary(bytes, headerEnd.bodyOffset, header, ByteOrder.BIG_ENDIAN)
+            PlyFormat.ASCII -> parseAsciiStream(input, header)
+            PlyFormat.BINARY_LITTLE_ENDIAN -> parseBinaryStream(input, header, ByteOrder.LITTLE_ENDIAN)
+            PlyFormat.BINARY_BIG_ENDIAN -> parseBinaryStream(input, header, ByteOrder.BIG_ENDIAN)
+        }
+    }
+
+    private fun readHeader(input: InputStream): String {
+        val header = StringBuilder()
+        val line = StringBuilder()
+        while (header.length < MAX_HEADER_BYTES) {
+            val value = input.read()
+            require(value >= 0) { "PLY header is incomplete." }
+            val char = value.toChar()
+            header.append(char)
+            if (char == '\n') {
+                if (line.toString().trimEnd('\r') == "end_header") return header.toString()
+                line.setLength(0)
+            } else {
+                line.append(char)
+            }
+        }
+        error("PLY header exceeds $MAX_HEADER_BYTES bytes.")
+    }
+
+    private fun parseBinaryStream(
+        input: InputStream,
+        header: PlyHeader,
+        byteOrder: ByteOrder
+    ): PointCloudData {
+        val vertexSize = header.vertexProperties.sumOf { it.type.byteSize }
+        val vertexBytes = ByteArray(vertexSize)
+        val buffer = ByteBuffer.wrap(vertexBytes).order(byteOrder)
+        val stride = displayStride(header.vertexCount)
+        val displayedCount = displayedCount(header.vertexCount, stride)
+        val positions = FloatArray(displayedCount * VALUES_PER_POINT)
+        val colors = FloatArray(displayedCount * VALUES_PER_POINT)
+        val state = ParseState()
+        var displayIndex = 0
+
+        repeat(header.vertexCount) { pointIndex ->
+            input.readFully(vertexBytes, "PLY body is shorter than expected for ${header.vertexCount} vertices.")
+            buffer.position(0)
+            var x = 0f
+            var y = 0f
+            var z = 0f
+            var red: Int? = null
+            var green: Int? = null
+            var blue: Int? = null
+            header.vertexProperties.forEach { property ->
+                when (property.name) {
+                    "x" -> x = buffer.readAsFloat(property.type)
+                    "y" -> y = buffer.readAsFloat(property.type)
+                    "z" -> z = buffer.readAsFloat(property.type)
+                    "red", "r" -> red = buffer.readAsColor(property.type)
+                    "green", "g" -> green = buffer.readAsColor(property.type)
+                    "blue", "b" -> blue = buffer.readAsColor(property.type)
+                    else -> buffer.position(buffer.position() + property.type.byteSize)
+                }
+            }
+            state.includeInBounds(x, y, z)
+            if (pointIndex % stride == 0) {
+                val offset = displayIndex * VALUES_PER_POINT
+                positions[offset] = x
+                positions[offset + 1] = y
+                positions[offset + 2] = z
+                if (red != null && green != null && blue != null) {
+                    colors[offset] = red!!.coerceIn(0, 255) / 255f
+                    colors[offset + 1] = green!!.coerceIn(0, 255) / 255f
+                    colors[offset + 2] = blue!!.coerceIn(0, 255) / 255f
+                    state.hasRgb = true
+                }
+                displayIndex++
+            }
+        }
+        return buildPointCloud(positions, colors, displayIndex, header.vertexCount, state)
+    }
+
+    private fun parseAsciiStream(input: InputStream, header: PlyHeader): PointCloudData {
+        val propNames = header.vertexProperties.map { it.name }
+        val xIndex = propNames.indexOf("x")
+        val yIndex = propNames.indexOf("y")
+        val zIndex = propNames.indexOf("z")
+        require(xIndex >= 0 && yIndex >= 0 && zIndex >= 0) { "PLY vertex properties must include x, y, and z." }
+        val redIndex = firstExistingIndex(propNames, "red", "r")
+        val greenIndex = firstExistingIndex(propNames, "green", "g")
+        val blueIndex = firstExistingIndex(propNames, "blue", "b")
+        val stride = displayStride(header.vertexCount)
+        val displayedCount = displayedCount(header.vertexCount, stride)
+        val positions = FloatArray(displayedCount * VALUES_PER_POINT)
+        val colors = FloatArray(displayedCount * VALUES_PER_POINT)
+        val state = ParseState()
+        var pointIndex = 0
+        var displayIndex = 0
+
+        val reader = BufferedReader(InputStreamReader(input, StandardCharsets.UTF_8))
+        while (pointIndex < header.vertexCount) {
+            val text = reader.readLine() ?: break
+            val values = text.trim().split(WHITESPACE_REGEX)
+            if (values.size < header.vertexProperties.size) continue
+            val x = values[xIndex].toFloat()
+            val y = values[yIndex].toFloat()
+            val z = values[zIndex].toFloat()
+            state.includeInBounds(x, y, z)
+            if (pointIndex % stride == 0) {
+                val offset = displayIndex * VALUES_PER_POINT
+                positions[offset] = x
+                positions[offset + 1] = y
+                positions[offset + 2] = z
+                if (redIndex >= 0 && greenIndex >= 0 && blueIndex >= 0) {
+                    colors[offset] = values[redIndex].toFloat().coerceIn(0f, 255f) / 255f
+                    colors[offset + 1] = values[greenIndex].toFloat().coerceIn(0f, 255f) / 255f
+                    colors[offset + 2] = values[blueIndex].toFloat().coerceIn(0f, 255f) / 255f
+                    state.hasRgb = true
+                }
+                displayIndex++
+            }
+            pointIndex++
+        }
+        require(pointIndex == header.vertexCount) {
+            "PLY contains $pointIndex vertices, expected ${header.vertexCount}."
+        }
+        return buildPointCloud(positions, colors, displayIndex, header.vertexCount, state)
+    }
+
+    private fun InputStream.readFully(destination: ByteArray, errorMessage: String) {
+        var offset = 0
+        while (offset < destination.size) {
+            val count = read(destination, offset, destination.size - offset)
+            require(count >= 0) { errorMessage }
+            if (count == 0) {
+                val value = read()
+                require(value >= 0) { errorMessage }
+                destination[offset++] = value.toByte()
+            } else {
+                offset += count
+            }
         }
     }
 
@@ -505,5 +638,7 @@ class PlyPointCloudParser(
         const val DEFAULT_MAX_DISPLAY_POINTS = 500_000
         private const val VALUES_PER_POINT = 3
         private const val METERS_PER_DEGREE = 111_320f
+        private const val MAX_HEADER_BYTES = 1024 * 1024
+        private val WHITESPACE_REGEX = Regex("\\s+")
     }
 }

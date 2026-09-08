@@ -58,80 +58,52 @@ class SimpleTiffDecoder {
         val bitsPerSample = tags.requireValues(TAG_BITS_PER_SAMPLE)
         val compression = tags.valueOrDefault(TAG_COMPRESSION, COMPRESSION_NONE)
         val photometric = tags.valueOrDefault(TAG_PHOTOMETRIC, PHOTOMETRIC_RGB)
-        val stripOffsets = tags.requireValues(TAG_STRIP_OFFSETS)
-        val stripByteCounts = tags.requireValues(TAG_STRIP_BYTE_COUNTS)
         val samplesPerPixel = tags.valueOrDefault(TAG_SAMPLES_PER_PIXEL, bitsPerSample.size.toLong()).toInt()
         val planarConfiguration = tags.valueOrDefault(TAG_PLANAR_CONFIGURATION, PLANAR_CHUNKY)
+        val predictor = tags.valueOrDefault(TAG_PREDICTOR, PREDICTOR_NONE)
 
-        require(compression == COMPRESSION_NONE) { "Only uncompressed TIFF files are supported." }
+        require(compression == COMPRESSION_NONE || compression == COMPRESSION_LZW) {
+            "Only uncompressed and LZW-compressed TIFF files are supported."
+        }
         require(photometric == PHOTOMETRIC_RGB) { "Only RGB/RGBA TIFF files are supported." }
         require(planarConfiguration == PLANAR_CHUNKY) { "Planar TIFF files are not supported." }
+        require(predictor == PREDICTOR_NONE || predictor == PREDICTOR_HORIZONTAL) {
+            "Unsupported TIFF predictor $predictor."
+        }
         require(samplesPerPixel == RGB_SAMPLES || samplesPerPixel == RGBA_SAMPLES) {
             "Only RGB and RGBA TIFF files are supported."
         }
         require(bitsPerSample.take(samplesPerPixel).all { it == BITS_PER_SAMPLE_8 }) {
             "Only 8-bit RGB/RGBA TIFF files are supported."
         }
-        require(stripOffsets.size == stripByteCounts.size) {
-            "TIFF strip offset/count mismatch."
-        }
-
-        val totalPixelBytes = width.toLong() * height.toLong() * samplesPerPixel.toLong()
-        val totalStripBytes = stripByteCounts.sum()
-        require(totalStripBytes >= totalPixelBytes) {
-            "TIFF strips contain less image data than expected."
-        }
-        stripOffsets.zip(stripByteCounts).forEach { (offsetValue, countValue) ->
-            val sourceOffset = offsetValue.toInt()
-            val count = countValue.toInt()
-            require(sourceOffset >= 0 && sourceOffset + count <= bytes.size) {
-                "TIFF strip points outside file."
-            }
-        }
-
         val sample = maxPreviewDimension
             ?.let { ceil(max(width, height).toDouble() / it.toDouble()).toInt().coerceAtLeast(1) }
             ?: 1
         val outputWidth = ceil(width.toDouble() / sample.toDouble()).toInt().coerceAtLeast(1)
         val outputHeight = ceil(height.toDouble() / sample.toDouble()).toInt().coerceAtLeast(1)
         val pixels = IntArray(outputWidth * outputHeight)
-        val cumulativeStripOffsets = LongArray(stripByteCounts.size)
-        var cumulative = 0L
-        stripByteCounts.forEachIndexed { index, count ->
-            cumulativeStripOffsets[index] = cumulative
-            cumulative += count
-        }
-
-        var currentStripIndex = 0
-        fun fileOffsetForPixelByte(pixelByteOffset: Long): Int {
-            while (
-                currentStripIndex < stripByteCounts.lastIndex &&
-                pixelByteOffset >= cumulativeStripOffsets[currentStripIndex] + stripByteCounts[currentStripIndex]
-            ) {
-                currentStripIndex++
-            }
-            val offsetWithinStrip = pixelByteOffset - cumulativeStripOffsets[currentStripIndex]
-            return (stripOffsets[currentStripIndex] + offsetWithinStrip).toInt()
-        }
-
-        var destinationIndex = 0
-        for (outY in 0 until outputHeight) {
-            val sourceY = min(outY * sample, height - 1)
-            for (outX in 0 until outputWidth) {
-                val sourceX = min(outX * sample, width - 1)
-                val pixelByteOffset = ((sourceY.toLong() * width.toLong()) + sourceX.toLong()) *
-                    samplesPerPixel.toLong()
-                val sourceIndex = fileOffsetForPixelByte(pixelByteOffset)
-                val red = bytes[sourceIndex].toInt() and BYTE_MASK
-                val green = bytes[sourceIndex + 1].toInt() and BYTE_MASK
-                val blue = bytes[sourceIndex + 2].toInt() and BYTE_MASK
-                val alpha = if (samplesPerPixel == RGBA_SAMPLES) {
-                    bytes[sourceIndex + 3].toInt() and BYTE_MASK
-                } else {
-                    BYTE_MASK
+        val blocks = buildImageBlocks(tags, width, height)
+        blocks.forEach { block ->
+            val encoded = readBlock(bytes, block.fileOffset, block.byteCount)
+            val expectedBytes = block.storageWidth * block.storageHeight * samplesPerPixel
+            val decoded = when (compression) {
+                COMPRESSION_NONE -> encoded.also {
+                    require(it.size >= expectedBytes) { "TIFF block contains less image data than expected." }
                 }
-                pixels[destinationIndex++] = Color.argb(alpha, red, green, blue)
+                COMPRESSION_LZW -> TiffLzwDecoder.decode(encoded, expectedBytes)
+                else -> error("Unsupported TIFF compression $compression.")
             }
+            if (predictor == PREDICTOR_HORIZONTAL) {
+                undoHorizontalPredictor(decoded, block.storageWidth, block.storageHeight, samplesPerPixel)
+            }
+            copyBlockToPreview(
+                decoded = decoded,
+                block = block,
+                samplesPerPixel = samplesPerPixel,
+                sample = sample,
+                outputWidth = outputWidth,
+                pixels = pixels
+            )
         }
 
         return DecodedTiffBitmap(
@@ -140,6 +112,126 @@ class SimpleTiffDecoder {
             sourceHeight = height
         )
     }
+
+    private fun buildImageBlocks(
+        tags: Map<Int, List<Long>>,
+        imageWidth: Int,
+        imageHeight: Int
+    ): List<ImageBlock> {
+        val tileOffsets = tags[TAG_TILE_OFFSETS]
+        val tileByteCounts = tags[TAG_TILE_BYTE_COUNTS]
+        if (tileOffsets != null || tileByteCounts != null) {
+            requireNotNull(tileOffsets) { "TIFF missing required tile-offset tag $TAG_TILE_OFFSETS." }
+            requireNotNull(tileByteCounts) { "TIFF missing required tile-byte-count tag $TAG_TILE_BYTE_COUNTS." }
+            require(tileOffsets.size == tileByteCounts.size) { "TIFF tile offset/count mismatch." }
+            val tileWidth = tags.requireSingle(TAG_TILE_WIDTH).toInt()
+            val tileHeight = tags.requireSingle(TAG_TILE_LENGTH).toInt()
+            require(tileWidth > 0 && tileHeight > 0) { "Invalid TIFF tile dimensions." }
+            val tilesAcross = ceil(imageWidth.toDouble() / tileWidth).toInt()
+            val tilesDown = ceil(imageHeight.toDouble() / tileHeight).toInt()
+            require(tileOffsets.size >= tilesAcross * tilesDown) { "TIFF contains fewer tiles than expected." }
+            return List(tilesAcross * tilesDown) { index ->
+                val tileX = (index % tilesAcross) * tileWidth
+                val tileY = (index / tilesAcross) * tileHeight
+                ImageBlock(
+                    fileOffset = tileOffsets[index],
+                    byteCount = tileByteCounts[index],
+                    sourceX = tileX,
+                    sourceY = tileY,
+                    sourceWidth = min(tileWidth, imageWidth - tileX),
+                    sourceHeight = min(tileHeight, imageHeight - tileY),
+                    storageWidth = tileWidth,
+                    storageHeight = tileHeight
+                )
+            }
+        }
+
+        val stripOffsets = requireNotNull(tags[TAG_STRIP_OFFSETS]) {
+            "TIFF has neither strip tag $TAG_STRIP_OFFSETS nor tile tag $TAG_TILE_OFFSETS."
+        }
+        val stripByteCounts = requireNotNull(tags[TAG_STRIP_BYTE_COUNTS]) {
+            "TIFF missing required strip-byte-count tag $TAG_STRIP_BYTE_COUNTS."
+        }
+        require(stripOffsets.size == stripByteCounts.size) { "TIFF strip offset/count mismatch." }
+        val rowsPerStrip = tags.valueOrDefault(TAG_ROWS_PER_STRIP, imageHeight.toLong()).toInt()
+        require(rowsPerStrip > 0) { "Invalid TIFF rows-per-strip value." }
+        val stripCount = ceil(imageHeight.toDouble() / rowsPerStrip).toInt()
+        require(stripOffsets.size >= stripCount) { "TIFF contains fewer strips than expected." }
+        return List(stripCount) { index ->
+            val sourceY = index * rowsPerStrip
+            val rows = min(rowsPerStrip, imageHeight - sourceY)
+            ImageBlock(
+                fileOffset = stripOffsets[index],
+                byteCount = stripByteCounts[index],
+                sourceX = 0,
+                sourceY = sourceY,
+                sourceWidth = imageWidth,
+                sourceHeight = rows,
+                storageWidth = imageWidth,
+                storageHeight = rows
+            )
+        }
+    }
+
+    private fun readBlock(bytes: ByteArray, offsetValue: Long, countValue: Long): ByteArray {
+        require(offsetValue >= 0 && countValue >= 0 && offsetValue + countValue <= bytes.size.toLong()) {
+            "TIFF block points outside file."
+        }
+        require(countValue <= Int.MAX_VALUE) { "TIFF block is too large." }
+        return bytes.copyOfRange(offsetValue.toInt(), (offsetValue + countValue).toInt())
+    }
+
+    private fun undoHorizontalPredictor(data: ByteArray, width: Int, height: Int, samplesPerPixel: Int) {
+        val rowBytes = width * samplesPerPixel
+        repeat(height) { row ->
+            val rowOffset = row * rowBytes
+            for (index in samplesPerPixel until rowBytes) {
+                val position = rowOffset + index
+                data[position] = (data[position].toInt() + data[position - samplesPerPixel].toInt()).toByte()
+            }
+        }
+    }
+
+    private fun copyBlockToPreview(
+        decoded: ByteArray,
+        block: ImageBlock,
+        samplesPerPixel: Int,
+        sample: Int,
+        outputWidth: Int,
+        pixels: IntArray
+    ) {
+        val firstOutputX = ceil(block.sourceX.toDouble() / sample).toInt()
+        val lastOutputX = (block.sourceX + block.sourceWidth - 1) / sample
+        val firstOutputY = ceil(block.sourceY.toDouble() / sample).toInt()
+        val lastOutputY = (block.sourceY + block.sourceHeight - 1) / sample
+        for (outY in firstOutputY..lastOutputY) {
+            val localY = outY * sample - block.sourceY
+            for (outX in firstOutputX..lastOutputX) {
+                val localX = outX * sample - block.sourceX
+                val sourceIndex = (localY * block.storageWidth + localX) * samplesPerPixel
+                val red = decoded[sourceIndex].toInt() and BYTE_MASK
+                val green = decoded[sourceIndex + 1].toInt() and BYTE_MASK
+                val blue = decoded[sourceIndex + 2].toInt() and BYTE_MASK
+                val alpha = if (samplesPerPixel == RGBA_SAMPLES) {
+                    decoded[sourceIndex + 3].toInt() and BYTE_MASK
+                } else {
+                    BYTE_MASK
+                }
+                pixels[outY * outputWidth + outX] = Color.argb(alpha, red, green, blue)
+            }
+        }
+    }
+
+    private data class ImageBlock(
+        val fileOffset: Long,
+        val byteCount: Long,
+        val sourceX: Int,
+        val sourceY: Int,
+        val sourceWidth: Int,
+        val sourceHeight: Int,
+        val storageWidth: Int,
+        val storageHeight: Int
+    )
 
     private fun readTags(buffer: ByteBuffer, ifdOffset: Int): Map<Int, List<Long>> {
         require(ifdOffset > 0 && ifdOffset + 2 <= buffer.capacity()) { "Invalid TIFF IFD offset." }
@@ -215,26 +307,41 @@ class SimpleTiffDecoder {
         private const val TAG_PHOTOMETRIC = 262
         private const val TAG_STRIP_OFFSETS = 273
         private const val TAG_SAMPLES_PER_PIXEL = 277
+        private const val TAG_ROWS_PER_STRIP = 278
         private const val TAG_STRIP_BYTE_COUNTS = 279
         private const val TAG_PLANAR_CONFIGURATION = 284
+        private const val TAG_PREDICTOR = 317
+        private const val TAG_TILE_WIDTH = 322
+        private const val TAG_TILE_LENGTH = 323
+        private const val TAG_TILE_OFFSETS = 324
+        private const val TAG_TILE_BYTE_COUNTS = 325
 
         private val REQUIRED_TAGS = setOf(
             TAG_IMAGE_WIDTH,
             TAG_IMAGE_LENGTH,
-            TAG_BITS_PER_SAMPLE,
-            TAG_STRIP_OFFSETS,
-            TAG_STRIP_BYTE_COUNTS
+            TAG_BITS_PER_SAMPLE
         )
         private val OPTIONAL_TAGS = setOf(
             TAG_COMPRESSION,
             TAG_PHOTOMETRIC,
+            TAG_STRIP_OFFSETS,
             TAG_SAMPLES_PER_PIXEL,
-            TAG_PLANAR_CONFIGURATION
+            TAG_ROWS_PER_STRIP,
+            TAG_STRIP_BYTE_COUNTS,
+            TAG_PLANAR_CONFIGURATION,
+            TAG_PREDICTOR,
+            TAG_TILE_WIDTH,
+            TAG_TILE_LENGTH,
+            TAG_TILE_OFFSETS,
+            TAG_TILE_BYTE_COUNTS
         )
 
         private const val COMPRESSION_NONE = 1L
+        private const val COMPRESSION_LZW = 5L
         private const val PHOTOMETRIC_RGB = 2L
         private const val PLANAR_CHUNKY = 1L
+        private const val PREDICTOR_NONE = 1L
+        private const val PREDICTOR_HORIZONTAL = 2L
         private const val BITS_PER_SAMPLE_8 = 8L
         private const val RGB_SAMPLES = 3
         private const val RGBA_SAMPLES = 4
