@@ -401,5 +401,8 @@
   <string name="debug_sprayer_command_sent">Το Servo 5 ορίστηκε σε %1$d</string>
   <string name="debug_sprayer_drone_value">Servo 5 drone: %1$d</string>
   <string name="debug_sprayer_drone_value_unknown">Servo 5 drone: --</string>
-  <string name="dataset_matching_world_not_found">Δεν ήταν προσβάσιμο αντίστοιχο αρχείο .tfw στον επιλεγμένο φάκελο</string>
+  <string name="dataset_delete">Διαγραφή συνόλου δεδομένων</string>
+  <string name="dataset_delete_confirmation">Να διαγραφεί το %1$s; Οι αναφορές αρχείων και οι ρυθμίσεις εμφάνισής του θα αφαιρεθούν.</string>
+  <string name="dataset_loading">Φόρτωση συνόλου δεδομένων %1$s...</string>
+  <string name="dataset_deleted">Το σύνολο δεδομένων διαγράφηκε</string>
 </resources>

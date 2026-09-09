@@ -37,13 +37,13 @@ class PointCloudTerrainModel(
     val isGeoreferenced: Boolean get() = coordinateFrame != null
     val pointCount: Int get() = pointCloud.displayedPointCount
 
-    private val terrainGrid: Map<CellKey, Float> by lazy { buildTerrainGrid() }
+    private val terrainGrid: LongFloatMaxMap by lazy { buildTerrainGrid() }
     private val fallbackTerrainZ: Double by lazy { medianZ(pointCloud.positions) }
 
     fun terrainGridSummary(): TerrainGridSummary {
         val grid = terrainGrid
-        val minHeight = grid.values.minOrNull()?.toDouble() ?: fallbackTerrainZ
-        val maxHeight = grid.values.maxOrNull()?.toDouble() ?: fallbackTerrainZ
+        val minHeight = grid.minValueOrNull()?.toDouble() ?: fallbackTerrainZ
+        val maxHeight = grid.maxValueOrNull()?.toDouble() ?: fallbackTerrainZ
         return TerrainGridSummary(
             cellSizeMeters = cellSizeMeters,
             cellCount = grid.size,
@@ -213,28 +213,23 @@ class PointCloudTerrainModel(
         for (dx in -radiusCells..radiusCells) {
             for (dy in -radiusCells..radiusCells) {
                 if (dx * dx + dy * dy > radiusCellsSquared) continue
-                val z = terrainGrid[CellKey(centerX + dx, centerY + dy)] ?: continue
-                if (best == null || z > best) best = z
+                val z = terrainGrid.getOrNaN(packCellKey(centerX + dx, centerY + dy))
+                if (!z.isNaN() && (best == null || z > best)) best = z
             }
         }
 
         return best?.toDouble() ?: fallback
     }
 
-    private fun buildTerrainGrid(): Map<CellKey, Float> {
+    private fun buildTerrainGrid(): LongFloatMaxMap {
         val positions = pointCloud.positions
-        val grid = LinkedHashMap<CellKey, Float>()
+        val grid = LongFloatMaxMap(pointCloud.displayedPointCount)
         var index = 0
         while (index + 2 < positions.size) {
-            val x = positions[index].toDouble()
-            val y = positions[index + 1].toDouble()
+            val cellX = floor(positions[index] / cellSizeMeters).toInt()
+            val cellY = floor(positions[index + 1] / cellSizeMeters).toInt()
             val z = positions[index + 2]
-            val key = CellKey(
-                x = floor(x / cellSizeMeters).toInt(),
-                y = floor(y / cellSizeMeters).toInt()
-            )
-            val current = grid[key]
-            if (current == null || z > current) grid[key] = z
+            grid.putMax(packCellKey(cellX, cellY), z)
             index += VALUES_PER_POINT
         }
         return grid
@@ -321,8 +316,99 @@ class PointCloudTerrainModel(
 
     private data class LocalPoint(val x: Double, val y: Double)
 
-    private data class CellKey(val x: Int, val y: Int) {
-        override fun hashCode(): Int = 31 * x + y
+    private fun packCellKey(x: Int, y: Int): Long {
+        return (x.toLong() shl Int.SIZE_BITS) xor (y.toLong() and 0xFFFF_FFFFL)
+    }
+
+    private class LongFloatMaxMap(expectedSize: Int) {
+        private var keys: LongArray
+        private var values: FloatArray
+        private var occupied: BooleanArray
+        private var mask: Int
+        private var resizeThreshold: Int
+        var size: Int = 0
+            private set
+
+        init {
+            var capacity = MIN_GRID_CAPACITY
+            val requiredCapacity = (expectedSize / GRID_LOAD_FACTOR).toInt().coerceAtLeast(MIN_GRID_CAPACITY)
+            while (capacity < requiredCapacity && capacity < MAX_GRID_CAPACITY) capacity = capacity shl 1
+            keys = LongArray(capacity)
+            values = FloatArray(capacity)
+            occupied = BooleanArray(capacity)
+            mask = capacity - 1
+            resizeThreshold = (capacity * GRID_LOAD_FACTOR).toInt()
+        }
+
+        fun isEmpty(): Boolean = size == 0
+
+        fun putMax(key: Long, value: Float) {
+            if (size >= resizeThreshold) resize()
+            var index = indexFor(key)
+            while (occupied[index]) {
+                if (keys[index] == key) {
+                    if (value > values[index]) values[index] = value
+                    return
+                }
+                index = (index + 1) and mask
+            }
+            occupied[index] = true
+            keys[index] = key
+            values[index] = value
+            size++
+        }
+
+        fun getOrNaN(key: Long): Float {
+            var index = indexFor(key)
+            while (occupied[index]) {
+                if (keys[index] == key) return values[index]
+                index = (index + 1) and mask
+            }
+            return Float.NaN
+        }
+
+        fun minValueOrNull(): Float? {
+            if (size == 0) return null
+            var result = Float.POSITIVE_INFINITY
+            for (index in values.indices) {
+                if (occupied[index] && values[index] < result) result = values[index]
+            }
+            return result
+        }
+
+        fun maxValueOrNull(): Float? {
+            if (size == 0) return null
+            var result = Float.NEGATIVE_INFINITY
+            for (index in values.indices) {
+                if (occupied[index] && values[index] > result) result = values[index]
+            }
+            return result
+        }
+
+        private fun resize() {
+            require(keys.size < MAX_GRID_CAPACITY) { "Terrain grid is too large." }
+            val previousKeys = keys
+            val previousValues = values
+            val previousOccupied = occupied
+            val newCapacity = (keys.size shl 1).coerceAtMost(MAX_GRID_CAPACITY)
+            keys = LongArray(newCapacity)
+            values = FloatArray(newCapacity)
+            occupied = BooleanArray(newCapacity)
+            mask = newCapacity - 1
+            resizeThreshold = (newCapacity * GRID_LOAD_FACTOR).toInt()
+            size = 0
+            for (index in previousKeys.indices) {
+                if (previousOccupied[index]) putMax(previousKeys[index], previousValues[index])
+            }
+        }
+
+        private fun indexFor(key: Long): Int {
+            var mixed = key
+            mixed = mixed xor (mixed ushr 33)
+            mixed *= -49064778989728563L
+            mixed = mixed xor (mixed ushr 33)
+            return mixed.toInt() and mask
+        }
     }
 
     companion object {
@@ -332,5 +418,8 @@ class PointCloudTerrainModel(
         private const val MIN_SEGMENT_METERS = 0.5
         private const val MIN_STRIP_SPACING_METERS = 1.0
         private const val CANCELLATION_CHECK_INTERVAL = 4096
+        private const val MIN_GRID_CAPACITY = 16
+        private const val MAX_GRID_CAPACITY = 1 shl 27
+        private const val GRID_LOAD_FACTOR = 0.7
     }
 }

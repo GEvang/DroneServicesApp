@@ -7,6 +7,7 @@ import org.junit.Test
 import java.io.ByteArrayInputStream
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import kotlin.math.min
 
 class PlyPointCloudParserTest {
 
@@ -99,6 +100,37 @@ class PlyPointCloudParserTest {
         assertEquals(4, cloud.totalPointCount)
         assertEquals(2, cloud.displayedPointCount)
         assertEquals(11f, cloud.bounds.maxZ, 0.001f)
+    }
+
+    @Test
+    fun streamsAsciiPlyAcrossSmallInputChunks() {
+        val ply = """
+            ply
+            format ascii 1.0
+            element vertex 2
+            property float x
+            property float y
+            property float z
+            property uchar red
+            property uchar green
+            property uchar blue
+            end_header
+            1e2 -2.5e1 3.25 10 20 30
+            110 -20 4.25 40 50 60
+        """.trimIndent().toByteArray()
+        val chunkedInput = object : ByteArrayInputStream(ply) {
+            override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+                return super.read(buffer, offset, min(length, 3))
+            }
+        }
+
+        val cloud = PlyPointCloudParser().parse(chunkedInput, "chunked.ply")
+
+        assertEquals(2, cloud.displayedPointCount)
+        assertEquals(10f, cloud.bounds.spanX, 0.001f)
+        assertEquals(1f, cloud.bounds.spanZ, 0.001f)
+        assertEquals(10f / 255f, cloud.colors[0], 0.001f)
+        assertEquals(60f / 255f, cloud.colors[5], 0.001f)
     }
 
     @Test

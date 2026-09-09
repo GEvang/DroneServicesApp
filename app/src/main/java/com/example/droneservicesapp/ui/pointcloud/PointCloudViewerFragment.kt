@@ -139,6 +139,8 @@ class PointCloudViewerFragment : Fragment() {
         binding.pointCloudProgress.visibility = View.VISIBLE
         binding.pointCloudLoadButton.isEnabled = false
         binding.pointCloudStatusText.text = getString(R.string.point_cloud_loading, fileName)
+        previewAssetsViewModel.clearPointCloud()
+        binding.pointCloudGlView.clearPointCloud()
 
         viewLifecycleOwner.lifecycleScope.launch {
             val result = runCatching {

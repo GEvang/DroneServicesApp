@@ -1,10 +1,8 @@
 package com.example.droneservicesapp.data.pointcloud
 
 import java.io.BufferedInputStream
-import java.io.BufferedReader
 import java.io.ByteArrayInputStream
 import java.io.InputStream
-import java.io.InputStreamReader
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.nio.charset.StandardCharsets
@@ -125,50 +123,126 @@ class PlyPointCloudParser(
     }
 
     private fun parseAsciiStream(input: InputStream, header: PlyHeader): PointCloudData {
-        val propNames = header.vertexProperties.map { it.name }
-        val xIndex = propNames.indexOf("x")
-        val yIndex = propNames.indexOf("y")
-        val zIndex = propNames.indexOf("z")
-        require(xIndex >= 0 && yIndex >= 0 && zIndex >= 0) { "PLY vertex properties must include x, y, and z." }
-        val redIndex = firstExistingIndex(propNames, "red", "r")
-        val greenIndex = firstExistingIndex(propNames, "green", "g")
-        val blueIndex = firstExistingIndex(propNames, "blue", "b")
+        val propertyNames = header.vertexProperties.map { it.name }
+        val hasRgbProperties =
+            firstExistingIndex(propertyNames, "red", "r") >= 0 &&
+                firstExistingIndex(propertyNames, "green", "g") >= 0 &&
+                firstExistingIndex(propertyNames, "blue", "b") >= 0
         val stride = displayStride(header.vertexCount)
         val displayedCount = displayedCount(header.vertexCount, stride)
         val positions = FloatArray(displayedCount * VALUES_PER_POINT)
         val colors = FloatArray(displayedCount * VALUES_PER_POINT)
         val state = ParseState()
-        var pointIndex = 0
         var displayIndex = 0
+        val reader = AsciiNumberReader(input)
 
-        val reader = BufferedReader(InputStreamReader(input, StandardCharsets.UTF_8))
-        while (pointIndex < header.vertexCount) {
-            val text = reader.readLine() ?: break
-            val values = text.trim().split(WHITESPACE_REGEX)
-            if (values.size < header.vertexProperties.size) continue
-            val x = values[xIndex].toFloat()
-            val y = values[yIndex].toFloat()
-            val z = values[zIndex].toFloat()
+        repeat(header.vertexCount) { pointIndex ->
+            var x = 0f
+            var y = 0f
+            var z = 0f
+            var red = 0f
+            var green = 0f
+            var blue = 0f
+            header.vertexProperties.forEach { property ->
+                val value = reader.nextFloat()
+                    ?: error("PLY contains $pointIndex vertices, expected ${header.vertexCount}.")
+                when (property.name) {
+                    "x" -> x = value
+                    "y" -> y = value
+                    "z" -> z = value
+                    "red", "r" -> red = value
+                    "green", "g" -> green = value
+                    "blue", "b" -> blue = value
+                }
+            }
             state.includeInBounds(x, y, z)
             if (pointIndex % stride == 0) {
                 val offset = displayIndex * VALUES_PER_POINT
                 positions[offset] = x
                 positions[offset + 1] = y
                 positions[offset + 2] = z
-                if (redIndex >= 0 && greenIndex >= 0 && blueIndex >= 0) {
-                    colors[offset] = values[redIndex].toFloat().coerceIn(0f, 255f) / 255f
-                    colors[offset + 1] = values[greenIndex].toFloat().coerceIn(0f, 255f) / 255f
-                    colors[offset + 2] = values[blueIndex].toFloat().coerceIn(0f, 255f) / 255f
+                if (hasRgbProperties) {
+                    colors[offset] = red.coerceIn(0f, 255f) / 255f
+                    colors[offset + 1] = green.coerceIn(0f, 255f) / 255f
+                    colors[offset + 2] = blue.coerceIn(0f, 255f) / 255f
                     state.hasRgb = true
                 }
                 displayIndex++
             }
-            pointIndex++
-        }
-        require(pointIndex == header.vertexCount) {
-            "PLY contains $pointIndex vertices, expected ${header.vertexCount}."
         }
         return buildPointCloud(positions, colors, displayIndex, header.vertexCount, state)
+    }
+
+    private class AsciiNumberReader(private val input: InputStream) {
+        private val buffer = ByteArray(ASCII_READ_BUFFER_BYTES)
+        private var position = 0
+        private var limit = 0
+
+        fun nextFloat(): Float? {
+            var current = readByte()
+            while (current >= 0 && current.isAsciiDelimiter()) current = readByte()
+            if (current < 0) return null
+
+            var sign = 1.0
+            if (current == '-'.code || current == '+'.code) {
+                if (current == '-'.code) sign = -1.0
+                current = readByte()
+            }
+
+            var value = 0.0
+            var hasDigits = false
+            while (current in '0'.code..'9'.code) {
+                value = value * 10.0 + (current - '0'.code)
+                hasDigits = true
+                current = readByte()
+            }
+
+            if (current == '.'.code) {
+                var fractionScale = 0.1
+                current = readByte()
+                while (current in '0'.code..'9'.code) {
+                    value += (current - '0'.code) * fractionScale
+                    fractionScale *= 0.1
+                    hasDigits = true
+                    current = readByte()
+                }
+            }
+
+            require(hasDigits) { "PLY contains a non-numeric vertex value." }
+            if (current == 'e'.code || current == 'E'.code) {
+                var exponentSign = 1
+                var exponent = 0
+                var hasExponentDigits = false
+                current = readByte()
+                if (current == '-'.code || current == '+'.code) {
+                    if (current == '-'.code) exponentSign = -1
+                    current = readByte()
+                }
+                while (current in '0'.code..'9'.code) {
+                    exponent = exponent * 10 + (current - '0'.code)
+                    hasExponentDigits = true
+                    current = readByte()
+                }
+                require(hasExponentDigits) { "PLY contains an invalid exponent." }
+                value *= Math.pow(10.0, (exponentSign * exponent).toDouble())
+            }
+
+            require(current < 0 || current.isAsciiDelimiter()) {
+                "PLY contains an unsupported vertex value."
+            }
+            return (sign * value).toFloat()
+        }
+
+        private fun readByte(): Int {
+            if (position >= limit) {
+                limit = input.read(buffer)
+                position = 0
+                if (limit <= 0) return -1
+            }
+            return buffer[position++].toInt() and 0xFF
+        }
+
+        private fun Int.isAsciiDelimiter(): Boolean = this <= ' '.code || this == ','.code || this == ';'.code
     }
 
     private fun InputStream.readFully(destination: ByteArray, errorMessage: String) {
@@ -639,6 +713,7 @@ class PlyPointCloudParser(
         private const val VALUES_PER_POINT = 3
         private const val METERS_PER_DEGREE = 111_320f
         private const val MAX_HEADER_BYTES = 1024 * 1024
+        private const val ASCII_READ_BUFFER_BYTES = 64 * 1024
         private val WHITESPACE_REGEX = Regex("\\s+")
     }
 }

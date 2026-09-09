@@ -73,6 +73,8 @@
     <string name="dataset_create">Create Dataset</string>
     <string name="dataset_load">Load Dataset</string>
     <string name="dataset_unload">Unload Dataset</string>
+    <string name="dataset_delete">Delete Dataset</string>
+    <string name="dataset_delete_confirmation">Delete %1$s? Its file references and display settings will be removed.</string>
     <string name="dataset_assets">Dataset Assets</string>
     <string name="dataset_display_options">Display Options</string>
     <string name="dataset_active_name">Active: %1$s</string>
@@ -83,8 +85,10 @@
     <string name="dataset_ortho_opacity_value">Ortho opacity: %1$d%%</string>
     <string name="dataset_point_size_value">3D point size: %.1f</string>
     <string name="dataset_created">Dataset created</string>
+    <string name="dataset_loading">Loading dataset %1$s...</string>
     <string name="dataset_loaded">Dataset loaded</string>
     <string name="dataset_unloaded">Dataset unloaded</string>
+    <string name="dataset_deleted">Dataset deleted</string>
     <string name="ortho_empty_state">Load an ortho .tif image, then its .tfw world file.</string>
     <string name="ortho_stats_empty">Image: --</string>
     <string name="ortho_loading_image">Loading image %1$s...</string>
@@ -461,5 +465,4 @@
     <string name="survey_grid_angle">Angle</string>
     <string name="survey_terrain_segment">Terrain segment</string>
     <string name="survey_canopy_smoothing">Canopy smoothing</string>
-    <string name="dataset_matching_world_not_found">No matching .tfw file was accessible in the selected folder</string>
 </resources>

@@ -2424,12 +2424,11 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun refreshPreviewAssets() {
-        if (activePreviewMode == PreviewMode.POINT_CLOUD) {
-            previewAssetsViewModel.pointCloudAsset?.pointCloud?.let { pointCloud ->
-                binding.homePointCloudGlView.setPointCloud(pointCloud)
-                binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
-            }
+        val pointCloud = previewAssetsViewModel.pointCloudAsset?.pointCloud
+        if (pointCloud == null) {
+            binding.homePointCloudGlView.clearPointCloud()
         }
+        if (previewAssetsViewModel.orthoAsset == null) removeHomeOrthoOverlay()
         renderPreviewMode()
     }
 
@@ -2925,6 +2924,8 @@ class MissionMapFragment : Fragment() {
             return
         }
 
+        previewAssetsViewModel.clearOrtho()
+        removeHomeOrthoOverlay()
         previewAssetLoadJob?.cancel()
         previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
             val result = runCatching {
@@ -3000,6 +3001,8 @@ class MissionMapFragment : Fragment() {
             return
         }
 
+        previewAssetsViewModel.clearPointCloud()
+        binding.homePointCloudGlView.clearPointCloud()
         previewAssetLoadJob?.cancel()
         previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
             val result = runCatching {
@@ -3031,13 +3034,17 @@ class MissionMapFragment : Fragment() {
 
     private fun restorePersistedPreviewAssets() {
         val preferences = previewPreferences()
-        if (previewAssetsViewModel.orthoAsset == null) {
-            val imageUri = preferences.getString(KEY_ORTHO_IMAGE_URI, null)?.let(Uri::parse)
-            val imageName = preferences.getString(KEY_ORTHO_IMAGE_NAME, null) ?: getString(R.string.ortho_unknown_image)
-            val worldUri = preferences.getString(KEY_ORTHO_WORLD_URI, null)?.let(Uri::parse)
-            val worldName = preferences.getString(KEY_ORTHO_WORLD_NAME, null)
-            if (imageUri != null) {
-                viewLifecycleOwner.lifecycleScope.launch {
+        val imageUri = preferences.getString(KEY_ORTHO_IMAGE_URI, null)?.let(Uri::parse)
+        val imageName = preferences.getString(KEY_ORTHO_IMAGE_NAME, null) ?: getString(R.string.ortho_unknown_image)
+        val worldUri = preferences.getString(KEY_ORTHO_WORLD_URI, null)?.let(Uri::parse)
+        val worldName = preferences.getString(KEY_ORTHO_WORLD_NAME, null)
+        val pointCloudUri = preferences.getString(KEY_POINT_CLOUD_URI, null)?.let(Uri::parse)
+        val pointCloudName = preferences.getString(KEY_POINT_CLOUD_NAME, null) ?: getString(R.string.point_cloud_unknown_file)
+        if (imageUri == null && pointCloudUri == null) return
+
+        previewAssetLoadJob?.cancel()
+        previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
+            if (previewAssetsViewModel.orthoAsset == null && imageUri != null) {
                     val result = runCatching {
                         withContext(Dispatchers.IO) {
                             val decoded = requireContext().contentResolver.openInputStream(imageUri)?.use { stream ->
@@ -3067,15 +3074,9 @@ class MissionMapFragment : Fragment() {
                             if (activePreviewMode == PreviewMode.ORTHO) renderPreviewMode()
                         }
                     }
-                }
             }
-        }
 
-        if (previewAssetsViewModel.pointCloudAsset == null) {
-            val pointCloudUri = preferences.getString(KEY_POINT_CLOUD_URI, null)?.let(Uri::parse)
-            val pointCloudName = preferences.getString(KEY_POINT_CLOUD_NAME, null) ?: getString(R.string.point_cloud_unknown_file)
-            if (pointCloudUri != null) {
-                viewLifecycleOwner.lifecycleScope.launch {
+            if (previewAssetsViewModel.pointCloudAsset == null && pointCloudUri != null) {
                     val result = runCatching {
                         withContext(Dispatchers.IO) {
                             requireContext().contentResolver.openInputStream(pointCloudUri)?.use { stream ->
@@ -3093,7 +3094,6 @@ class MissionMapFragment : Fragment() {
                         generatePointRouteTerrainPath()
                         updatePointCloudMissionOverlay()
                     }
-                }
             }
         }
     }
@@ -3152,6 +3152,8 @@ class MissionMapFragment : Fragment() {
         previewPreferences().edit()
             .putString(KEY_ORTHO_IMAGE_URI, uri.toString())
             .putString(KEY_ORTHO_IMAGE_NAME, fileName)
+            .remove(KEY_ORTHO_WORLD_URI)
+            .remove(KEY_ORTHO_WORLD_NAME)
             .apply()
     }
 

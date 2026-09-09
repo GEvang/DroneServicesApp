@@ -58,6 +58,12 @@ class PointCloudGlView @JvmOverloads constructor(
         }
     }
 
+    fun clearPointCloud() {
+        queueEvent {
+            pointRenderer.clearPointCloud()
+        }
+    }
+
     fun setMissionOverlay(overlay: PointCloudMissionOverlay?) {
         queueEvent {
             pointRenderer.setMissionOverlay(overlay)
@@ -208,6 +214,7 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     private var selectedPointPositionBuffer: FloatBuffer? = null
     private var selectedPointColorBuffer: FloatBuffer? = null
     private var pointCount = 0
+    private var loadedPointCloud: PointCloudData? = null
     private var overlayLineVertexCount = 0
     private var overlayPointVertexCount = 0
     private var selectedPointVertexCount = 0
@@ -276,6 +283,8 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     }
 
     fun setPointCloud(pointCloud: PointCloudData) {
+        if (loadedPointCloud === pointCloud) return
+        loadedPointCloud = pointCloud
         positionBuffer = pointCloud.positions.toFloatBuffer()
         sourceColorBuffer = pointCloud.colors.toFloatBuffer()
         heightColorBuffer = createHeightColors(pointCloud.positions, pointCloud.displayedPointCount).toFloatBuffer()
@@ -283,6 +292,15 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
         pointCount = pointCloud.displayedPointCount
         cloudSpan = pointCloud.bounds.maxSpan.coerceAtLeast(10f)
         resetCamera()
+    }
+
+    fun clearPointCloud() {
+        loadedPointCloud = null
+        positionBuffer = null
+        sourceColorBuffer = null
+        heightColorBuffer = null
+        colorBuffer = null
+        pointCount = 0
     }
 
     fun setHeightColorModeEnabled(enabled: Boolean) {

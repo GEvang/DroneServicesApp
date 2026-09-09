@@ -197,6 +197,12 @@ class OrthoPreviewFragment : Fragment() {
             binding.orthoStatusText.text = getString(R.string.ortho_select_tif)
             return
         }
+        overlay?.let { binding.orthoMap.overlays.remove(it) }
+        overlay = null
+        bitmap = null
+        bounds = null
+        previewAssetsViewModel.clearOrtho()
+        binding.orthoMap.invalidate()
         setLoading(true, getString(R.string.ortho_loading_image, fileName))
         orthoLoadJob?.cancel()
         orthoLoadJob = viewLifecycleOwner.lifecycleScope.launch {
@@ -756,6 +762,8 @@ class OrthoPreviewFragment : Fragment() {
         previewPreferences().edit()
             .putString(KEY_ORTHO_IMAGE_URI, uri.toString())
             .putString(KEY_ORTHO_IMAGE_NAME, fileName)
+            .remove(KEY_ORTHO_WORLD_URI)
+            .remove(KEY_ORTHO_WORLD_NAME)
             .apply()
     }
 

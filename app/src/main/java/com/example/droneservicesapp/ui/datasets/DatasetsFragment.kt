@@ -5,8 +5,6 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.os.Environment
-import android.provider.DocumentsContract
 import android.provider.OpenableColumns
 import android.view.LayoutInflater
 import android.view.View
@@ -14,7 +12,9 @@ import android.view.ViewGroup
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.core.content.edit
+import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
@@ -31,7 +31,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import java.io.File
 import java.util.Locale
 
 class DatasetsFragment : Fragment() {
@@ -44,6 +43,7 @@ class DatasetsFragment : Fragment() {
     private val worldFileParser = WorldFileParser()
     private val pointCloudParser = PlyPointCloudParser()
     private var loadJob: Job? = null
+    private var loadRequestId = 0
     private var suppressOptionCallbacks = false
     private var suppressDatasetSelection = false
 
@@ -85,6 +85,7 @@ class DatasetsFragment : Fragment() {
 
     private fun bindActions() {
         binding.datasetCreateButton.setOnClickListener {
+            unloadPreviewAssets()
             val index = datasetStore.loadDatasets().size + 1
             val record = PreviewDatasetRecord(
                 id = System.currentTimeMillis().toString(),
@@ -100,13 +101,11 @@ class DatasetsFragment : Fragment() {
             datasetStore.activeDataset()?.let { loadDataset(it) }
         }
         binding.datasetUnloadButton.setOnClickListener {
-            previewAssetsViewModel.clearAssets()
-            datasetStore.setActiveDatasetId(null)
-            clearLegacyPreviewReferences()
+            unloadPreviewAssets()
             Toast.makeText(requireContext(), R.string.dataset_unloaded, Toast.LENGTH_SHORT).show()
-            ensureActiveDataset()
             render()
         }
+        binding.datasetDeleteButton.setOnClickListener { confirmDeleteActiveDataset() }
         binding.datasetLoadTifButton.setOnClickListener { openFilePicker(REQUEST_OPEN_TIFF) }
         binding.datasetLoadTfwButton.setOnClickListener { openFilePicker(REQUEST_OPEN_WORLD) }
         binding.datasetLoadPlyButton.setOnClickListener { openFilePicker(REQUEST_OPEN_POINT_CLOUD) }
@@ -140,6 +139,7 @@ class DatasetsFragment : Fragment() {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 if (suppressDatasetSelection) return
                 val record = datasetStore.loadDatasets().getOrNull(position) ?: return
+                if (datasetStore.activeDatasetId() != record.id) unloadPreviewAssets()
                 datasetStore.setActiveDatasetId(record.id)
                 applySettings(record)
                 render()
@@ -179,30 +179,24 @@ class DatasetsFragment : Fragment() {
             Toast.makeText(requireContext(), R.string.ortho_select_tif, Toast.LENGTH_SHORT).show()
             return
         }
-        loadJob?.cancel()
-        loadJob = viewLifecycleOwner.lifecycleScope.launch {
+        previewAssetsViewModel.clearOrtho()
+        launchDatasetLoad(getString(R.string.ortho_loading_image, fileName)) {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     val decoded = requireContext().contentResolver.openInputStream(uri)?.use { stream ->
                         tiffDecoder.decodePreview(stream, MAX_ORTHO_PREVIEW_DIMENSION_PX)
                     } ?: error("Could not open image file.")
-                    val worldFile = findMatchingWorldFile(uri, fileName)
-                    val bounds = worldFile?.first?.let { worldUri ->
-                        requireContext().contentResolver.openInputStream(worldUri)?.use { stream ->
-                            worldFileParser.parse(stream, decoded.sourceWidth, decoded.sourceHeight)
-                        }
-                    }
-                    Triple(decoded, worldFile, bounds)
+                    decoded
                 }
             }
-            result.onSuccess { (decoded, worldFile, bounds) ->
+            result.onSuccess { decoded ->
                 val updated = activeDataset().copy(
                     orthoImageUri = uri,
                     orthoImageName = fileName,
                     orthoSourceWidth = decoded.sourceWidth,
                     orthoSourceHeight = decoded.sourceHeight,
-                    orthoWorldUri = worldFile?.first,
-                    orthoWorldName = worldFile?.second,
+                    orthoWorldUri = null,
+                    orthoWorldName = null,
                 )
                 datasetStore.upsert(updated)
                 previewAssetsViewModel.setOrthoImage(
@@ -211,19 +205,11 @@ class DatasetsFragment : Fragment() {
                     bitmapUri = uri,
                     sourceWidth = decoded.sourceWidth,
                     sourceHeight = decoded.sourceHeight,
-                    notifyChange = bounds == null
+                    notifyChange = true
                 )
-                if (bounds != null && worldFile != null) {
-                    previewAssetsViewModel.requestMapFocus(PreviewMapFocus.ORTHO)
-                    previewAssetsViewModel.setOrthoBounds(bounds, worldFile.second, worldFile.first)
-                }
                 applySettings(updated)
                 saveLegacyPreviewReferences(updated)
-                Toast.makeText(
-                    requireContext(),
-                    if (worldFile != null) R.string.dataset_loaded else R.string.dataset_matching_world_not_found,
-                    Toast.LENGTH_SHORT
-                ).show()
+                Toast.makeText(requireContext(), R.string.ortho_load_world_next, Toast.LENGTH_SHORT).show()
                 render()
             }.onFailure { showLoadError(it) }
         }
@@ -242,8 +228,7 @@ class DatasetsFragment : Fragment() {
             Toast.makeText(requireContext(), R.string.ortho_load_image_first, Toast.LENGTH_SHORT).show()
             return
         }
-        loadJob?.cancel()
-        loadJob = viewLifecycleOwner.lifecycleScope.launch {
+        launchDatasetLoad(getString(R.string.ortho_loading_world, fileName)) {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     requireContext().contentResolver.openInputStream(uri)?.use { stream ->
@@ -273,8 +258,8 @@ class DatasetsFragment : Fragment() {
             Toast.makeText(requireContext(), R.string.point_cloud_select_ply, Toast.LENGTH_SHORT).show()
             return
         }
-        loadJob?.cancel()
-        loadJob = viewLifecycleOwner.lifecycleScope.launch {
+        previewAssetsViewModel.clearPointCloud()
+        launchDatasetLoad(getString(R.string.point_cloud_loading, fileName)) {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     requireContext().contentResolver.openInputStream(uri)?.use { stream ->
@@ -299,9 +284,8 @@ class DatasetsFragment : Fragment() {
     }
 
     private fun loadDataset(record: PreviewDatasetRecord) {
-        loadJob?.cancel()
-        loadJob = viewLifecycleOwner.lifecycleScope.launch {
-            previewAssetsViewModel.clearAssets()
+        launchDatasetLoad(getString(R.string.dataset_loading, record.name)) {
+            unloadPreviewAssets()
             applySettings(record)
             val result = runCatching {
                 withContext(Dispatchers.IO) {
@@ -358,6 +342,64 @@ class DatasetsFragment : Fragment() {
                 render()
             }.onFailure { showLoadError(it) }
         }
+    }
+
+    private fun launchDatasetLoad(statusText: String, operation: suspend () -> Unit) {
+        loadJob?.cancel()
+        val requestId = ++loadRequestId
+        setDatasetLoading(isLoading = true, statusText = statusText)
+        loadJob = viewLifecycleOwner.lifecycleScope.launch {
+            try {
+                operation()
+            } finally {
+                if (requestId == loadRequestId) {
+                    setDatasetLoading(isLoading = false)
+                }
+            }
+        }
+    }
+
+    private fun setDatasetLoading(isLoading: Boolean, statusText: String = "") {
+        val currentBinding = _binding ?: return
+        currentBinding.datasetLoadingStatus.isVisible = isLoading
+        currentBinding.datasetLoadingProgress.isVisible = isLoading
+        if (isLoading) currentBinding.datasetLoadingStatus.text = statusText
+
+        currentBinding.datasetSelector.isEnabled = !isLoading
+        currentBinding.datasetCreateButton.isEnabled = !isLoading
+        currentBinding.datasetLoadButton.isEnabled = !isLoading
+        currentBinding.datasetUnloadButton.isEnabled = !isLoading
+        currentBinding.datasetDeleteButton.isEnabled = !isLoading
+        currentBinding.datasetLoadTifButton.isEnabled = !isLoading
+        currentBinding.datasetLoadTfwButton.isEnabled = !isLoading
+        currentBinding.datasetLoadPlyButton.isEnabled = !isLoading
+    }
+
+    private fun confirmDeleteActiveDataset() {
+        val record = activeDataset()
+        AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
+            .setTitle(R.string.dataset_delete)
+            .setMessage(getString(R.string.dataset_delete_confirmation, record.name))
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.dataset_delete) { _, _ -> deleteDataset(record) }
+            .show()
+    }
+
+    private fun deleteDataset(record: PreviewDatasetRecord) {
+        loadJob?.cancel()
+        loadRequestId++
+        setDatasetLoading(isLoading = false)
+        unloadPreviewAssets()
+        datasetStore.delete(record.id)
+        val replacement = ensureActiveDataset()
+        applySettings(replacement)
+        Toast.makeText(requireContext(), R.string.dataset_deleted, Toast.LENGTH_SHORT).show()
+        render()
+    }
+
+    private fun unloadPreviewAssets() {
+        previewAssetsViewModel.clearAssets()
+        clearLegacyPreviewReferences()
     }
 
     private fun applySettings(record: PreviewDatasetRecord) {
@@ -429,50 +471,6 @@ class DatasetsFragment : Fragment() {
         return requireContext().contentResolver.query(uri, null, null, null, null)?.use { cursor ->
             val index = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
             if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
-        }
-    }
-
-    private fun findMatchingWorldFile(imageUri: Uri, imageName: String): Pair<Uri, String>? {
-        val baseName = imageName.substringBeforeLast('.', imageName)
-        val candidateNames = listOf("$baseName.tfw", "$baseName.TFW", "$baseName.wld", "$baseName.WLD")
-        if (imageUri.scheme == "file") {
-            val parent = imageUri.path?.let(::File)?.parentFile ?: return null
-            return candidateNames.firstNotNullOfOrNull { name ->
-                File(parent, name).takeIf(File::isFile)?.let { Uri.fromFile(it) to name }
-            }
-        }
-        val authority = imageUri.authority ?: return null
-        if (!DocumentsContract.isDocumentUri(requireContext(), imageUri)) return null
-        val documentId = runCatching { DocumentsContract.getDocumentId(imageUri) }.getOrNull() ?: return null
-        val documentParts = documentId.split(':', limit = 2)
-        if (documentParts.size == 2) {
-            val storageRoot = if (documentParts[0].equals("primary", ignoreCase = true)) {
-                Environment.getExternalStorageDirectory()
-            } else {
-                File("/storage", documentParts[0])
-            }
-            val parent = File(storageRoot, documentParts[1]).parentFile
-            val directMatch = parent?.let { folder ->
-                candidateNames.firstNotNullOfOrNull { name ->
-                    File(folder, name).takeIf(File::isFile)?.let { Uri.fromFile(it) to name }
-                }
-            }
-            if (directMatch != null) return directMatch
-        }
-        val separator = documentId.lastIndexOf('/')
-        val parentId = if (separator >= 0) documentId.substring(0, separator + 1) else {
-            documentId.substringBeforeLast(':', missingDelimiterValue = "") + ":"
-        }
-        return candidateNames.firstNotNullOfOrNull { name ->
-            val candidateUri = runCatching {
-                DocumentsContract.buildDocumentUri(authority, parentId + name)
-            }.getOrNull() ?: return@firstNotNullOfOrNull null
-            val actualName = runCatching { queryDisplayName(candidateUri) }.getOrNull()
-            if (!actualName.equals(name, ignoreCase = true)) return@firstNotNullOfOrNull null
-            val readable = runCatching {
-                requireContext().contentResolver.openInputStream(candidateUri)?.use { true } ?: false
-            }.getOrDefault(false)
-            if (readable) candidateUri to actualName!! else null
         }
     }
 

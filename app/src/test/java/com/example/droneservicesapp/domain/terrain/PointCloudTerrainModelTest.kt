@@ -52,6 +52,31 @@ class PointCloudTerrainModelTest {
         assertEquals(endLon, terrainPath.last().latLon.lon, 0.000001)
     }
 
+    @Test
+    fun compactGridKeepsHighestPointInEachCell() {
+        val gridModel = PointCloudTerrainModel(
+            PointCloudData(
+                positions = floatArrayOf(
+                    0.1f, 0.1f, 5f,
+                    0.9f, 0.8f, 8f,
+                    -0.1f, -0.1f, 12f
+                ),
+                colors = floatArrayOf(),
+                totalPointCount = 3,
+                displayedPointCount = 3,
+                bounds = PointCloudBounds(-0.1f, 0.9f, -0.1f, 0.8f, 5f, 12f),
+                hasRgb = false,
+                coordinateFrame = frame
+            )
+        )
+
+        val summary = gridModel.terrainGridSummary()
+
+        assertEquals(2, summary.cellCount)
+        assertEquals(8.0, summary.minHeightMeters, 0.001)
+        assertEquals(12.0, summary.maxHeightMeters, 0.001)
+    }
+
     private fun localPolygon(minX: Double, minY: Double, maxX: Double, maxY: Double): List<LatLon> {
         return listOf(
             minX to minY,

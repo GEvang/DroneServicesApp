@@ -2,10 +2,13 @@ package com.example.droneservicesapp.data.ortho
 
 import android.graphics.Bitmap
 import android.graphics.Color
-import java.io.ByteArrayOutputStream
+import java.io.File
+import java.io.FileInputStream
 import java.io.InputStream
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
+import java.nio.channels.FileChannel
 import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
@@ -28,27 +31,39 @@ class SimpleTiffDecoder {
     }
 
     private fun decodeBitmap(inputStream: InputStream, maxPreviewDimension: Int?): DecodedTiffBitmap {
-        val bytes = inputStream.use { stream ->
-            ByteArrayOutputStream().use { output ->
-                stream.copyTo(output)
-                output.toByteArray()
+        return inputStream.use { stream ->
+            if (stream is FileInputStream) {
+                val mapped = mapReadOnly(stream.channel)
+                if (mapped != null) return@use decode(mapped, maxPreviewDimension)
+            }
+
+            val temporaryFile = File.createTempFile(TEMP_FILE_PREFIX, TEMP_FILE_SUFFIX)
+            try {
+                temporaryFile.outputStream().buffered().use { output -> stream.copyTo(output) }
+                RandomAccessFile(temporaryFile, "r").use { file ->
+                    val mapped = requireNotNull(mapReadOnly(file.channel)) {
+                        "Could not map the TIFF file for reading."
+                    }
+                    decode(mapped, maxPreviewDimension)
+                }
+            } finally {
+                temporaryFile.delete()
             }
         }
-        return decode(bytes, maxPreviewDimension)
     }
 
     fun decode(bytes: ByteArray): Bitmap {
-        return decode(bytes, maxPreviewDimension = null).bitmap
+        return decode(ByteBuffer.wrap(bytes), maxPreviewDimension = null).bitmap
     }
 
-    private fun decode(bytes: ByteArray, maxPreviewDimension: Int?): DecodedTiffBitmap {
-        require(bytes.size >= TIFF_HEADER_SIZE) { "TIFF file is too short." }
-        val byteOrder = when (String(bytes, 0, 2, Charsets.US_ASCII)) {
-            "II" -> ByteOrder.LITTLE_ENDIAN
-            "MM" -> ByteOrder.BIG_ENDIAN
+    private fun decode(source: ByteBuffer, maxPreviewDimension: Int?): DecodedTiffBitmap {
+        require(source.capacity() >= TIFF_HEADER_SIZE) { "TIFF file is too short." }
+        val byteOrder = when (source.get(0).toInt() to source.get(1).toInt()) {
+            'I'.code to 'I'.code -> ByteOrder.LITTLE_ENDIAN
+            'M'.code to 'M'.code -> ByteOrder.BIG_ENDIAN
             else -> error("Unsupported TIFF byte order.")
         }
-        val buffer = ByteBuffer.wrap(bytes).order(byteOrder)
+        val buffer = source.duplicate().order(byteOrder)
         require(buffer.getUnsignedShort(2) == TIFF_MAGIC) { "Not a classic TIFF file." }
 
         val ifdOffset = buffer.getUnsignedInt(4).toInt()
@@ -84,12 +99,31 @@ class SimpleTiffDecoder {
         val pixels = IntArray(outputWidth * outputHeight)
         val blocks = buildImageBlocks(tags, width, height)
         blocks.forEach { block ->
-            val encoded = readBlock(bytes, block.fileOffset, block.byteCount)
-            val expectedBytes = block.storageWidth * block.storageHeight * samplesPerPixel
-            val decoded = when (compression) {
-                COMPRESSION_NONE -> encoded.also {
-                    require(it.size >= expectedBytes) { "TIFF block contains less image data than expected." }
+            val expectedByteCount = block.storageWidth.toLong() * block.storageHeight * samplesPerPixel
+            require(expectedByteCount <= Int.MAX_VALUE) { "TIFF block is too large to decode." }
+            val expectedBytes = expectedByteCount.toInt()
+            if (compression == COMPRESSION_NONE) {
+                require(block.byteCount >= expectedByteCount) {
+                    "TIFF block contains less image data than expected."
                 }
+                require(
+                    block.fileOffset >= 0 &&
+                        block.fileOffset + expectedByteCount <= source.capacity().toLong()
+                ) { "TIFF block points outside file." }
+                copyUncompressedBlockToPreview(
+                    source = source,
+                    block = block,
+                    samplesPerPixel = samplesPerPixel,
+                    predictor = predictor,
+                    sample = sample,
+                    outputWidth = outputWidth,
+                    pixels = pixels
+                )
+                return@forEach
+            }
+
+            val encoded = readBlock(source, block.fileOffset, block.byteCount)
+            val decoded = when (compression) {
                 COMPRESSION_LZW -> TiffLzwDecoder.decode(encoded, expectedBytes)
                 else -> error("Unsupported TIFF compression $compression.")
             }
@@ -173,12 +207,77 @@ class SimpleTiffDecoder {
         }
     }
 
-    private fun readBlock(bytes: ByteArray, offsetValue: Long, countValue: Long): ByteArray {
-        require(offsetValue >= 0 && countValue >= 0 && offsetValue + countValue <= bytes.size.toLong()) {
+    private fun readBlock(source: ByteBuffer, offsetValue: Long, countValue: Long): ByteArray {
+        require(offsetValue >= 0 && countValue >= 0 && offsetValue + countValue <= source.capacity().toLong()) {
             "TIFF block points outside file."
         }
         require(countValue <= Int.MAX_VALUE) { "TIFF block is too large." }
-        return bytes.copyOfRange(offsetValue.toInt(), (offsetValue + countValue).toInt())
+        return ByteArray(countValue.toInt()).also { block ->
+            source.duplicate().apply {
+                position(offsetValue.toInt())
+                get(block)
+            }
+        }
+    }
+
+    private fun copyUncompressedBlockToPreview(
+        source: ByteBuffer,
+        block: ImageBlock,
+        samplesPerPixel: Int,
+        predictor: Long,
+        sample: Int,
+        outputWidth: Int,
+        pixels: IntArray
+    ) {
+        val firstOutputX = ceil(block.sourceX.toDouble() / sample).toInt()
+        val lastOutputX = (block.sourceX + block.sourceWidth - 1) / sample
+        val firstOutputY = ceil(block.sourceY.toDouble() / sample).toInt()
+        val lastOutputY = (block.sourceY + block.sourceHeight - 1) / sample
+        val rowBytes = block.storageWidth * samplesPerPixel
+        val decodedRow = ByteArray(rowBytes)
+        val reader = source.duplicate()
+
+        for (outY in firstOutputY..lastOutputY) {
+            val localY = outY * sample - block.sourceY
+            val rowOffset = block.fileOffset + localY.toLong() * rowBytes
+            reader.position(rowOffset.toInt())
+            reader.get(decodedRow)
+            if (predictor == PREDICTOR_HORIZONTAL) {
+                undoHorizontalPredictor(decodedRow, block.storageWidth, 1, samplesPerPixel)
+            }
+            for (outX in firstOutputX..lastOutputX) {
+                val localX = outX * sample - block.sourceX
+                val sourceIndex = localX * samplesPerPixel
+                pixels[outY * outputWidth + outX] = decodedRow.toColor(sourceIndex, samplesPerPixel)
+            }
+        }
+    }
+
+    private fun ByteArray.toColor(sourceIndex: Int, samplesPerPixel: Int): Int {
+        val red = this[sourceIndex].toInt() and BYTE_MASK
+        val green = this[sourceIndex + 1].toInt() and BYTE_MASK
+        val blue = this[sourceIndex + 2].toInt() and BYTE_MASK
+        val alpha = if (samplesPerPixel == RGBA_SAMPLES) {
+            this[sourceIndex + 3].toInt() and BYTE_MASK
+        } else {
+            BYTE_MASK
+        }
+        return Color.argb(alpha, red, green, blue)
+    }
+
+    private fun mapReadOnly(channel: FileChannel): ByteBuffer? {
+        val size = try {
+            channel.size()
+        } catch (_: Exception) {
+            return null
+        }
+        if (size <= 0L) return null
+        require(size <= Int.MAX_VALUE) { "TIFF files larger than 2 GB are not supported." }
+        return try {
+            channel.map(FileChannel.MapMode.READ_ONLY, 0L, size)
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun undoHorizontalPredictor(data: ByteArray, width: Int, height: Int, samplesPerPixel: Int) {
@@ -290,6 +389,8 @@ class SimpleTiffDecoder {
 
     companion object {
         private const val TIFF_HEADER_SIZE = 8
+        private const val TEMP_FILE_PREFIX = "drone_tiff_"
+        private const val TEMP_FILE_SUFFIX = ".tmp"
         private const val TIFF_MAGIC = 42
         private const val IFD_ENTRY_SIZE = 12
         private const val INLINE_VALUE_BYTES = 4
