@@ -143,6 +143,16 @@
                     app:icon="@drawable/baseline_load_file_24" />
 
                 <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dataset_load_tfw_button"
+                    style="@style/Widget.DroneServices.Button.MapDark"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/phone_map_panel_button_height_tall"
+                    android:layout_marginStart="@dimen/ds_space_sm"
+                    android:layout_weight="1"
+                    android:text="@string/ortho_load_world"
+                    app:icon="@drawable/ic_menu_map" />
+
+                <com.google.android.material.button.MaterialButton
                     android:id="@+id/dataset_load_ply_button"
                     style="@style/Widget.DroneServices.Button.MapDark"
                     android:layout_width="0dp"

@@ -78,6 +78,7 @@ class DatasetsFragment : Fragment() {
         persistReadPermission(uri, data.flags)
         when (requestCode) {
             REQUEST_OPEN_TIFF -> attachOrthoImage(uri)
+            REQUEST_OPEN_WORLD -> attachOrthoWorld(uri)
             REQUEST_OPEN_POINT_CLOUD -> attachPointCloud(uri)
         }
     }
@@ -107,6 +108,7 @@ class DatasetsFragment : Fragment() {
             render()
         }
         binding.datasetLoadTifButton.setOnClickListener { openFilePicker(REQUEST_OPEN_TIFF) }
+        binding.datasetLoadTfwButton.setOnClickListener { openFilePicker(REQUEST_OPEN_WORLD) }
         binding.datasetLoadPlyButton.setOnClickListener { openFilePicker(REQUEST_OPEN_POINT_CLOUD) }
         binding.datasetOrthoBackgroundSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (suppressOptionCallbacks) return@setOnCheckedChangeListener
@@ -513,6 +515,7 @@ class DatasetsFragment : Fragment() {
 
     companion object {
         private const val REQUEST_OPEN_TIFF = 4301
+        private const val REQUEST_OPEN_WORLD = 4302
         private const val REQUEST_OPEN_POINT_CLOUD = 4303
         private const val MAX_ORTHO_PREVIEW_DIMENSION_PX = 2048
         private const val PREVIEW_PREFS = "preview_assets"
