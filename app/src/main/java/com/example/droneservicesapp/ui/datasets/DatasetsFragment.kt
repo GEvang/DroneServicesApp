@@ -21,7 +21,9 @@ import androidx.lifecycle.lifecycleScope
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.ortho.SimpleTiffDecoder
 import com.example.droneservicesapp.data.ortho.WorldFileParser
-import com.example.droneservicesapp.data.pointcloud.PlyPointCloudParser
+import com.example.droneservicesapp.data.pointcloud.PointCloudDetailLevel
+import com.example.droneservicesapp.data.pointcloud.PointCloudImportCache
+import com.example.droneservicesapp.data.pointcloud.PointCloudLoadProgress
 import com.example.droneservicesapp.data.preview.PreviewDatasetRecord
 import com.example.droneservicesapp.data.preview.PreviewDatasetStore
 import com.example.droneservicesapp.databinding.FragmentDatasetsBinding
@@ -32,6 +34,8 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.Locale
+import java.util.concurrent.CancellationException
+import java.util.concurrent.atomic.AtomicBoolean
 
 class DatasetsFragment : Fragment() {
     private var _binding: FragmentDatasetsBinding? = null
@@ -41,9 +45,10 @@ class DatasetsFragment : Fragment() {
     private lateinit var datasetStore: PreviewDatasetStore
     private val tiffDecoder = SimpleTiffDecoder()
     private val worldFileParser = WorldFileParser()
-    private val pointCloudParser = PlyPointCloudParser()
+    private lateinit var pointCloudImportCache: PointCloudImportCache
     private var loadJob: Job? = null
     private var loadRequestId = 0
+    private val pointCloudCancelRequested = AtomicBoolean(false)
     private var suppressOptionCallbacks = false
     private var suppressDatasetSelection = false
 
@@ -54,6 +59,7 @@ class DatasetsFragment : Fragment() {
     ): View {
         _binding = FragmentDatasetsBinding.inflate(inflater, container, false)
         datasetStore = PreviewDatasetStore(requireContext().applicationContext)
+        pointCloudImportCache = PointCloudImportCache(requireContext().applicationContext)
         ensureActiveDataset()
         return binding.root
     }
@@ -109,6 +115,10 @@ class DatasetsFragment : Fragment() {
         binding.datasetLoadTifButton.setOnClickListener { openFilePicker(REQUEST_OPEN_TIFF) }
         binding.datasetLoadTfwButton.setOnClickListener { openFilePicker(REQUEST_OPEN_WORLD) }
         binding.datasetLoadPlyButton.setOnClickListener { openFilePicker(REQUEST_OPEN_POINT_CLOUD) }
+        binding.datasetLoadingCancelButton.setOnClickListener {
+            pointCloudCancelRequested.set(true)
+            loadJob?.cancel()
+        }
         binding.datasetOrthoBackgroundSwitch.setOnCheckedChangeListener { _, isChecked ->
             if (suppressOptionCallbacks) return@setOnCheckedChangeListener
             updateActiveDataset { copy(orthoBackgroundEnabled = isChecked) }
@@ -134,6 +144,15 @@ class DatasetsFragment : Fragment() {
             if (suppressOptionCallbacks) return@setOnCheckedChangeListener
             updateActiveDataset { copy(heightColorModeEnabled = isChecked) }
             binding.datasetHeightColorsSwitch.jumpDrawablesToCurrentState()
+        }
+        binding.datasetPointDetailSelector.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
+                if (suppressOptionCallbacks) return
+                val detail = POINT_CLOUD_DETAILS.getOrNull(position) ?: return
+                updateActiveDataset { copy(pointCloudDetailLevel = detail.name) }
+            }
+
+            override fun onNothingSelected(parent: AdapterView<*>?) = Unit
         }
         binding.datasetSelector.onItemSelectedListener = object : AdapterView.OnItemSelectedListener {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
@@ -259,12 +278,18 @@ class DatasetsFragment : Fragment() {
             return
         }
         previewAssetsViewModel.clearPointCloud()
+        pointCloudCancelRequested.set(false)
+        val detailLevel = PointCloudDetailLevel.fromStored(activeDataset().pointCloudDetailLevel)
         launchDatasetLoad(getString(R.string.point_cloud_loading, fileName)) {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    requireContext().contentResolver.openInputStream(uri)?.use { stream ->
-                        pointCloudParser.parse(stream, fileName)
-                    } ?: error("Could not open file.")
+                    pointCloudImportCache.load(
+                        uri = uri,
+                        fileName = fileName,
+                        detailLevel = detailLevel,
+                        onProgress = ::renderPointCloudProgress,
+                        isCancelled = pointCloudCancelRequested::get
+                    )
                 }
             }
             result.onSuccess { pointCloud ->
@@ -279,7 +304,7 @@ class DatasetsFragment : Fragment() {
                 saveLegacyPreviewReferences(updated)
                 Toast.makeText(requireContext(), R.string.dataset_loaded, Toast.LENGTH_SHORT).show()
                 render()
-            }.onFailure { showLoadError(it) }
+            }.onFailure { if (it !is CancellationException) showLoadError(it) }
         }
     }
 
@@ -287,6 +312,7 @@ class DatasetsFragment : Fragment() {
         launchDatasetLoad(getString(R.string.dataset_loading, record.name)) {
             unloadPreviewAssets()
             applySettings(record)
+            pointCloudCancelRequested.set(false)
             val result = runCatching {
                 withContext(Dispatchers.IO) {
                     val decoded = record.orthoImageUri?.let { uri ->
@@ -302,9 +328,13 @@ class DatasetsFragment : Fragment() {
                         null
                     }
                     val pointCloud = record.pointCloudUri?.let { uri ->
-                        requireContext().contentResolver.openInputStream(uri)?.use { stream ->
-                            pointCloudParser.parse(stream, record.pointCloudName ?: getString(R.string.point_cloud_unknown_file))
-                        } ?: error("Could not open file.")
+                        pointCloudImportCache.load(
+                            uri = uri,
+                            fileName = record.pointCloudName ?: getString(R.string.point_cloud_unknown_file),
+                            detailLevel = PointCloudDetailLevel.fromStored(record.pointCloudDetailLevel),
+                            onProgress = ::renderPointCloudProgress,
+                            isCancelled = pointCloudCancelRequested::get
+                        )
                     }
                     Triple(decoded, bounds, pointCloud)
                 }
@@ -340,13 +370,14 @@ class DatasetsFragment : Fragment() {
                 saveLegacyPreviewReferences(record)
                 Toast.makeText(requireContext(), R.string.dataset_loaded, Toast.LENGTH_SHORT).show()
                 render()
-            }.onFailure { showLoadError(it) }
+            }.onFailure { if (it !is CancellationException) showLoadError(it) }
         }
     }
 
     private fun launchDatasetLoad(statusText: String, operation: suspend () -> Unit) {
         loadJob?.cancel()
         val requestId = ++loadRequestId
+        binding.datasetLoadingProgress.isIndeterminate = true
         setDatasetLoading(isLoading = true, statusText = statusText)
         loadJob = viewLifecycleOwner.lifecycleScope.launch {
             try {
@@ -363,6 +394,7 @@ class DatasetsFragment : Fragment() {
         val currentBinding = _binding ?: return
         currentBinding.datasetLoadingStatus.isVisible = isLoading
         currentBinding.datasetLoadingProgress.isVisible = isLoading
+        currentBinding.datasetLoadingCancelButton.isVisible = isLoading
         if (isLoading) currentBinding.datasetLoadingStatus.text = statusText
 
         currentBinding.datasetSelector.isEnabled = !isLoading
@@ -373,6 +405,17 @@ class DatasetsFragment : Fragment() {
         currentBinding.datasetLoadTifButton.isEnabled = !isLoading
         currentBinding.datasetLoadTfwButton.isEnabled = !isLoading
         currentBinding.datasetLoadPlyButton.isEnabled = !isLoading
+    }
+
+    private fun renderPointCloudProgress(progress: PointCloudLoadProgress) {
+        _binding?.root?.post {
+            val currentBinding = _binding ?: return@post
+            currentBinding.datasetLoadingStatus.text = progress.message
+            progress.percent?.let { percent ->
+                currentBinding.datasetLoadingProgress.isIndeterminate = false
+                currentBinding.datasetLoadingProgress.progress = percent
+            }
+        }
     }
 
     private fun confirmDeleteActiveDataset() {
@@ -447,6 +490,17 @@ class DatasetsFragment : Fragment() {
         binding.datasetHeightColorsSwitch.isChecked = record.heightColorModeEnabled
         binding.datasetOrthoBackgroundSwitch.jumpDrawablesToCurrentState()
         binding.datasetHeightColorsSwitch.jumpDrawablesToCurrentState()
+        val detailAdapter = ArrayAdapter(
+            requireContext(),
+            R.layout.item_dataset_spinner,
+            POINT_CLOUD_DETAILS.map(::pointCloudDetailLabel)
+        )
+        detailAdapter.setDropDownViewResource(R.layout.item_dataset_spinner)
+        binding.datasetPointDetailSelector.adapter = detailAdapter
+        binding.datasetPointDetailSelector.setSelection(
+            POINT_CLOUD_DETAILS.indexOf(PointCloudDetailLevel.fromStored(record.pointCloudDetailLevel))
+                .coerceAtLeast(0)
+        )
         suppressOptionCallbacks = false
         binding.datasetOrthoOpacityLabel.text = getString(
             R.string.dataset_ortho_opacity_value,
@@ -466,6 +520,14 @@ class DatasetsFragment : Fragment() {
         }
         startActivityForResult(intent, requestCode)
     }
+
+    private fun pointCloudDetailLabel(detail: PointCloudDetailLevel): String = getString(
+        when (detail) {
+            PointCloudDetailLevel.FAST -> R.string.point_cloud_detail_fast
+            PointCloudDetailLevel.BALANCED -> R.string.point_cloud_detail_balanced
+            PointCloudDetailLevel.HIGH -> R.string.point_cloud_detail_high
+        }
+    )
 
     private fun queryDisplayName(uri: Uri): String? {
         return requireContext().contentResolver.query(uri, null, null, null, null)?.use { cursor ->
@@ -524,5 +586,10 @@ class DatasetsFragment : Fragment() {
         private const val KEY_POINT_CLOUD_URI = "point_cloud_uri"
         private const val KEY_POINT_CLOUD_NAME = "point_cloud_name"
         private val SUPPORTED_POINT_CLOUD_EXTENSIONS = listOf(".ply", ".pcd", ".csv", ".txt", ".xyz")
+        private val POINT_CLOUD_DETAILS = listOf(
+            PointCloudDetailLevel.FAST,
+            PointCloudDetailLevel.BALANCED,
+            PointCloudDetailLevel.HIGH
+        )
     }
 }

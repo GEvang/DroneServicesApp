@@ -204,9 +204,13 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     private var pointSizeHandle = 0
     private var alphaHandle = 0
     private var positionBuffer: FloatBuffer? = null
+    private var fullPositionBuffer: FloatBuffer? = null
     private var colorBuffer: FloatBuffer? = null
     private var sourceColorBuffer: FloatBuffer? = null
     private var heightColorBuffer: FloatBuffer? = null
+    private var lodPositionBuffer: FloatBuffer? = null
+    private var lodSourceColorBuffer: FloatBuffer? = null
+    private var lodHeightColorBuffer: FloatBuffer? = null
     private var overlayPositionBuffer: FloatBuffer? = null
     private var overlayColorBuffer: FloatBuffer? = null
     private var overlayPointPositionBuffer: FloatBuffer? = null
@@ -214,6 +218,8 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     private var selectedPointPositionBuffer: FloatBuffer? = null
     private var selectedPointColorBuffer: FloatBuffer? = null
     private var pointCount = 0
+    private var fullPointCount = 0
+    private var activeLodStride = 1
     private var loadedPointCloud: PointCloudData? = null
     private var overlayLineVertexCount = 0
     private var overlayPointVertexCount = 0
@@ -285,11 +291,17 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     fun setPointCloud(pointCloud: PointCloudData) {
         if (loadedPointCloud === pointCloud) return
         loadedPointCloud = pointCloud
-        positionBuffer = pointCloud.positions.toFloatBuffer()
+        fullPositionBuffer = pointCloud.positions.toFloatBuffer()
+        positionBuffer = fullPositionBuffer
         sourceColorBuffer = pointCloud.colors.toFloatBuffer()
         heightColorBuffer = createHeightColors(pointCloud.positions, pointCloud.displayedPointCount).toFloatBuffer()
         colorBuffer = if (heightColorModeEnabled) heightColorBuffer else sourceColorBuffer
         pointCount = pointCloud.displayedPointCount
+        fullPointCount = pointCloud.displayedPointCount
+        activeLodStride = 1
+        lodPositionBuffer = null
+        lodSourceColorBuffer = null
+        lodHeightColorBuffer = null
         cloudSpan = pointCloud.bounds.maxSpan.coerceAtLeast(10f)
         resetCamera()
     }
@@ -297,15 +309,25 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     fun clearPointCloud() {
         loadedPointCloud = null
         positionBuffer = null
+        fullPositionBuffer = null
         sourceColorBuffer = null
         heightColorBuffer = null
+        lodPositionBuffer = null
+        lodSourceColorBuffer = null
+        lodHeightColorBuffer = null
         colorBuffer = null
         pointCount = 0
+        fullPointCount = 0
+        activeLodStride = 1
     }
 
     fun setHeightColorModeEnabled(enabled: Boolean) {
         heightColorModeEnabled = enabled
-        colorBuffer = if (enabled) heightColorBuffer ?: sourceColorBuffer else sourceColorBuffer
+        colorBuffer = if (activeLodStride == 1) {
+            if (enabled) heightColorBuffer ?: sourceColorBuffer else sourceColorBuffer
+        } else {
+            if (enabled) lodHeightColorBuffer ?: lodSourceColorBuffer else lodSourceColorBuffer
+        }
     }
 
     fun setMissionOverlay(overlay: PointCloudMissionOverlay?) {
@@ -450,6 +472,47 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
 
     fun zoom(scale: Float) {
         distance = (distance * scale).coerceIn(cloudSpan * 0.05f, cloudSpan * 20f)
+        updateLevelOfDetail()
+    }
+
+    private fun updateLevelOfDetail() {
+        val targetStride = when {
+            distance > cloudSpan * 5f -> 4
+            distance > cloudSpan * 2.5f -> 2
+            else -> 1
+        }
+        if (targetStride == activeLodStride || loadedPointCloud == null) return
+        activeLodStride = targetStride
+        if (targetStride == 1) {
+            pointCount = fullPointCount
+            positionBuffer = fullPositionBuffer
+            lodPositionBuffer = null
+            lodSourceColorBuffer = null
+            lodHeightColorBuffer = null
+            setHeightColorModeEnabled(heightColorModeEnabled)
+            return
+        }
+
+        val pointCloud = loadedPointCloud ?: return
+        val lodCount = ((fullPointCount - 1) / targetStride) + 1
+        val lodPositions = FloatArray(lodCount * VALUES_PER_POINT)
+        val lodColors = FloatArray(lodCount * VALUES_PER_POINT)
+        repeat(lodCount) { lodIndex ->
+            val sourceOffset = lodIndex * targetStride * VALUES_PER_POINT
+            val targetOffset = lodIndex * VALUES_PER_POINT
+            lodPositions[targetOffset] = pointCloud.positions[sourceOffset]
+            lodPositions[targetOffset + 1] = pointCloud.positions[sourceOffset + 1]
+            lodPositions[targetOffset + 2] = pointCloud.positions[sourceOffset + 2]
+            lodColors[targetOffset] = pointCloud.colors[sourceOffset]
+            lodColors[targetOffset + 1] = pointCloud.colors[sourceOffset + 1]
+            lodColors[targetOffset + 2] = pointCloud.colors[sourceOffset + 2]
+        }
+        lodPositionBuffer = lodPositions.toFloatBuffer()
+        lodSourceColorBuffer = lodColors.toFloatBuffer()
+        lodHeightColorBuffer = createHeightColors(lodPositions, lodCount).toFloatBuffer()
+        positionBuffer = lodPositionBuffer
+        pointCount = lodCount
+        setHeightColorModeEnabled(heightColorModeEnabled)
     }
 
     fun pan(dx: Float, dy: Float) {

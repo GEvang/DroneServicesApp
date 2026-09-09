@@ -42,6 +42,10 @@
     <string name="point_cloud_load">Load 3D</string>
     <string name="point_cloud_reset">Reset</string>
     <string name="point_cloud_point_size">Point size</string>
+    <string name="point_cloud_detail">3D detail</string>
+    <string name="point_cloud_detail_fast">Fast (200k points)</string>
+    <string name="point_cloud_detail_balanced">Balanced (500k points)</string>
+    <string name="point_cloud_detail_high">High detail (1M points)</string>
     <string name="point_cloud_empty_state">Load a point cloud to preview it in 3D.</string>
     <string name="point_cloud_stats_empty">Visible: -- / Total: --</string>
     <string name="point_cloud_loading">Loading %1$s...</string>

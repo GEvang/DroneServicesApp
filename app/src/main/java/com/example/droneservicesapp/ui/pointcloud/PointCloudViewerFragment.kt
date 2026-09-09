@@ -17,7 +17,7 @@ import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.findNavController
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.data.pointcloud.PlyPointCloudParser
+import com.example.droneservicesapp.data.pointcloud.PointCloudImportCache
 import com.example.droneservicesapp.data.pointcloud.PointCloudData
 import com.example.droneservicesapp.databinding.FragmentPointCloudViewerBinding
 import com.example.droneservicesapp.mavserver.DroneViewModel
@@ -44,7 +44,7 @@ class PointCloudViewerFragment : Fragment() {
     private val previewAssetsViewModel: PreviewAssetsViewModel by activityViewModels()
     private val activityViewModel: MainActivityViewModel by activityViewModels()
     private val droneViewModel: DroneViewModel by activityViewModels()
-    private val parser = PlyPointCloudParser()
+    private val pointCloudImportCache by lazy { PointCloudImportCache(requireContext().applicationContext) }
     private var missionOverlayLineCount = 0
     private var missionOverlayPointCount = 0
     private lateinit var missionParamsController: MissionParamsController
@@ -145,9 +145,7 @@ class PointCloudViewerFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    requireContext().contentResolver.openInputStream(uri)?.use { stream ->
-                        parser.parse(stream, fileName)
-                    } ?: error("Could not open file.")
+                    pointCloudImportCache.load(uri, fileName)
                 }
             }
             val currentBinding = _binding ?: return@launch
@@ -192,9 +190,7 @@ class PointCloudViewerFragment : Fragment() {
         viewLifecycleOwner.lifecycleScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    requireContext().contentResolver.openInputStream(uri)?.use { stream ->
-                        parser.parse(stream, fileName)
-                    } ?: error("Could not open file.")
+                    pointCloudImportCache.load(uri, fileName)
                 }
             }
             val currentBinding = _binding ?: return@launch

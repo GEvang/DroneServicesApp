@@ -48,7 +48,7 @@ import com.example.droneservicesapp.data.geoawareness.logging.OperatorFlightEven
 import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import com.example.droneservicesapp.data.ortho.SimpleTiffDecoder
 import com.example.droneservicesapp.data.ortho.WorldFileParser
-import com.example.droneservicesapp.data.pointcloud.PlyPointCloudParser
+import com.example.droneservicesapp.data.pointcloud.PointCloudImportCache
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.data.weather.OpenMeteoWindRepository
@@ -161,7 +161,7 @@ class MissionMapFragment : Fragment() {
     private lateinit var missionFileStore: MissionFileStore
     private val tiffDecoder = SimpleTiffDecoder()
     private val worldFileParser = WorldFileParser()
-    private val pointCloudParser = PlyPointCloudParser()
+    private val pointCloudImportCache by lazy { PointCloudImportCache(requireContext().applicationContext) }
     private val windWeatherRepository = OpenMeteoWindRepository()
     private var geoAwarenessZones: List<GeoZone> = emptyList()
     private var geoZoneDatasetInfo: GeoZoneDatasetInfo? = null
@@ -674,6 +674,7 @@ class MissionMapFragment : Fragment() {
         }
         binding.previewMode3dButton.setOnClickListener {
             activePreviewMode = PreviewMode.POINT_CLOUD
+            restorePointCloudOnDemand()
             renderPreviewMode()
         }
         binding.previewAssetPrimaryButton.setOnClickListener {
@@ -2420,6 +2421,7 @@ class MissionMapFragment : Fragment() {
             PreviewMode.ORTHO -> PreviewMode.POINT_CLOUD
             PreviewMode.POINT_CLOUD -> PreviewMode.MAP
         }
+        if (activePreviewMode == PreviewMode.POINT_CLOUD) restorePointCloudOnDemand()
         renderPreviewMode()
     }
 
@@ -3007,9 +3009,7 @@ class MissionMapFragment : Fragment() {
         previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    requireContext().contentResolver.openInputStream(uri)?.use { stream ->
-                        pointCloudParser.parse(stream, fileName)
-                    } ?: error("Could not open file.")
+                    pointCloudImportCache.load(uri, fileName)
                 }
             }
             result.onSuccess { pointCloud ->
@@ -3038,9 +3038,7 @@ class MissionMapFragment : Fragment() {
         val imageName = preferences.getString(KEY_ORTHO_IMAGE_NAME, null) ?: getString(R.string.ortho_unknown_image)
         val worldUri = preferences.getString(KEY_ORTHO_WORLD_URI, null)?.let(Uri::parse)
         val worldName = preferences.getString(KEY_ORTHO_WORLD_NAME, null)
-        val pointCloudUri = preferences.getString(KEY_POINT_CLOUD_URI, null)?.let(Uri::parse)
-        val pointCloudName = preferences.getString(KEY_POINT_CLOUD_NAME, null) ?: getString(R.string.point_cloud_unknown_file)
-        if (imageUri == null && pointCloudUri == null) return
+        if (imageUri == null) return
 
         previewAssetLoadJob?.cancel()
         previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
@@ -3075,27 +3073,14 @@ class MissionMapFragment : Fragment() {
                         }
                     }
             }
-
-            if (previewAssetsViewModel.pointCloudAsset == null && pointCloudUri != null) {
-                    val result = runCatching {
-                        withContext(Dispatchers.IO) {
-                            requireContext().contentResolver.openInputStream(pointCloudUri)?.use { stream ->
-                                pointCloudParser.parse(stream, pointCloudName)
-                            } ?: error("Could not open file.")
-                        }
-                    }
-                    result.onSuccess { pointCloud ->
-                        previewAssetsViewModel.setPointCloud(pointCloud, pointCloudName, pointCloudUri)
-                        if (activePreviewMode == PreviewMode.POINT_CLOUD) {
-                            binding.homePointCloudGlView.setPointCloud(pointCloud)
-                            binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
-                        }
-                        warmPointCloudTerrainGrid(showToast = false)
-                        generatePointRouteTerrainPath()
-                        updatePointCloudMissionOverlay()
-                    }
-            }
         }
+    }
+
+    private fun restorePointCloudOnDemand() {
+        if (previewAssetsViewModel.pointCloudAsset != null || previewAssetLoadJob?.isActive == true) return
+        val preferences = previewPreferences()
+        val uri = preferences.getString(KEY_POINT_CLOUD_URI, null)?.let(Uri::parse) ?: return
+        loadHomePointCloud(uri)
     }
 
     private fun warmPointCloudTerrainGrid(showToast: Boolean) {

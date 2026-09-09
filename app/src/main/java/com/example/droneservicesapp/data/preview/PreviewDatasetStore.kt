@@ -3,6 +3,7 @@ package com.example.droneservicesapp.data.preview
 import android.content.Context
 import android.net.Uri
 import androidx.core.content.edit
+import com.example.droneservicesapp.data.pointcloud.PointCloudDetailLevel
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -17,6 +18,7 @@ data class PreviewDatasetRecord(
     val orthoWorldName: String? = null,
     val pointCloudUri: Uri? = null,
     val pointCloudName: String? = null,
+    val pointCloudDetailLevel: String = PointCloudDetailLevel.BALANCED.name,
     val orthoOpacity: Float = 0.85f,
     val orthoBackgroundEnabled: Boolean = true,
     val pointCloudPointSize: Float = 2.5f,
@@ -83,6 +85,7 @@ class PreviewDatasetStore(context: Context) {
             orthoWorldName = optStringOrNull("orthoWorldName"),
             pointCloudUri = optUri("pointCloudUri"),
             pointCloudName = optStringOrNull("pointCloudName"),
+            pointCloudDetailLevel = optString("pointCloudDetailLevel", PointCloudDetailLevel.BALANCED.name),
             orthoOpacity = optDouble("orthoOpacity", 0.85).toFloat(),
             orthoBackgroundEnabled = optBoolean("orthoBackgroundEnabled", true),
             pointCloudPointSize = optDouble("pointCloudPointSize", 2.5).toFloat(),
@@ -102,6 +105,7 @@ class PreviewDatasetStore(context: Context) {
             .putNullable("orthoWorldName", orthoWorldName)
             .putNullable("pointCloudUri", pointCloudUri?.toString())
             .putNullable("pointCloudName", pointCloudName)
+            .put("pointCloudDetailLevel", pointCloudDetailLevel)
             .put("orthoOpacity", orthoOpacity.toDouble())
             .put("orthoBackgroundEnabled", orthoBackgroundEnabled)
             .put("pointCloudPointSize", pointCloudPointSize.toDouble())

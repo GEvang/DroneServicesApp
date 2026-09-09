@@ -191,6 +191,15 @@
                 android:indeterminate="true"
                 android:visibility="gone"
                 tools:visibility="visible" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/dataset_loading_cancel_button"
+                style="@style/Widget.DroneServices.Button.MapDark"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_xs"
+                android:text="@string/cancel"
+                android:visibility="gone" />
         </LinearLayout>
 
         <LinearLayout
@@ -238,6 +247,22 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/ds_space_sm"
                 tools:text="3D point size: 2.5" />
+
+            <TextView
+                style="@style/TextAppearance.DroneServices.StatusValue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_md"
+                android:text="@string/point_cloud_detail" />
+
+            <Spinner
+                android:id="@+id/dataset_point_detail_selector"
+                android:layout_width="match_parent"
+                android:layout_height="@dimen/phone_map_panel_button_height_tall"
+                android:layout_marginTop="@dimen/ds_space_xs"
+                android:background="@drawable/bg_ds_panel_pill_inactive"
+                android:paddingStart="@dimen/ds_space_md"
+                android:paddingEnd="@dimen/ds_space_md" />
 
             <com.google.android.material.slider.Slider
                 android:id="@+id/dataset_point_size_slider"
