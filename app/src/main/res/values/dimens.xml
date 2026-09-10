@@ -63,6 +63,21 @@
     <dimen name="phone_map_panel_slider_frame_small">34dp</dimen>
     <dimen name="phone_map_panel_slider_frame_large">40dp</dimen>
 
+    <!-- Map telemetry and planning chrome -->
+    <dimen name="map_status_strip_padding_horizontal">8dp</dimen>
+    <dimen name="map_status_strip_padding_vertical">6dp</dimen>
+    <dimen name="map_status_card_height">54dp</dimen>
+    <dimen name="map_status_card_gap">6dp</dimen>
+    <dimen name="map_status_card_padding_horizontal">8dp</dimen>
+    <dimen name="map_status_icon_size">20dp</dimen>
+    <dimen name="map_status_value_text_size">13sp</dimen>
+    <dimen name="map_status_value_large_text_size">14sp</dimen>
+    <dimen name="map_status_metric_text_size">14sp</dimen>
+    <dimen name="map_status_subvalue_text_size">10sp</dimen>
+    <dimen name="map_panel_padding">12dp</dimen>
+    <dimen name="map_panel_value_column_width">40dp</dimen>
+    <dimen name="preview_mode_segment_radius">8dp</dimen>
+
     <dimen name="phone_map_bottom_dock_icon_size">36dp</dimen>
     <dimen name="phone_map_bottom_dock_icon_padding">8dp</dimen>
     <dimen name="terrain_point_action_size">48dp</dimen>
@@ -71,9 +86,9 @@
     <dimen name="phone_map_bottom_dock_outer_height">54dp</dimen>
     <dimen name="phone_map_bottom_dock_center_size">68dp</dimen>
     <dimen name="phone_map_bottom_dock_center_spacer_width">136dp</dimen>
-    <dimen name="preview_mode_switch_size">44dp</dimen>
+    <dimen name="preview_mode_switch_size">38dp</dimen>
     <dimen name="preview_mode_switch_padding">1dp</dimen>
-    <dimen name="preview_mode_rail_width">380dp</dimen>
+    <dimen name="preview_mode_rail_width">328dp</dimen>
     <dimen name="preview_mode_rail_bottom_margin">84dp</dimen>
     <dimen name="preview_mode_panel_expanded_height">220dp</dimen>
     <dimen name="phone_map_bottom_dock_button_height">40dp</dimen>

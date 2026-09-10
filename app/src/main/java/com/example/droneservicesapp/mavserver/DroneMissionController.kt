@@ -174,6 +174,7 @@ internal class DroneMissionController(
                             MissionUploadResult.Success -> {
                                 Log.i(logTag, "uploadMission result=success")
                                 DiagnosticLog.event("mission", "upload_succeeded", data = mapOf("itemCount" to items.size))
+                                missionItems.postValue(ArrayList(items))
                                 uploadProgressPercent.postValue(100)
                                 activityVm.mapAction.postValue(
                                     Event(MainActivityViewModel.MapAction.UploadMissionSuccess)

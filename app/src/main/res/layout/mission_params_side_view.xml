@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:id="@+id/mission_params_left_panel"
     style="@style/Widget.DroneServices.Panel.MapLeft"
     android:layout_width="@dimen/phone_map_panel_left_width"
@@ -19,13 +20,15 @@
             android:layout_weight="1"
             android:text="@string/home_panel_flight_settings" />
 
-        <TextView
+        <ImageView
             style="@style/TextAppearance.DroneServices.PhoneMapPanelTitle"
-            android:layout_width="32dp"
-            android:layout_height="32dp"
-            android:gravity="center"
-            android:text="^"
-            android:textColor="@color/ds_color_text_primary" />
+            android:layout_width="28dp"
+            android:layout_height="28dp"
+            android:contentDescription="@null"
+            android:padding="6dp"
+            android:rotation="180"
+            android:src="@drawable/ic_chevron_down_24"
+            app:tint="@color/ds_color_text_primary" />
     </LinearLayout>
 
     <LinearLayout
@@ -160,7 +163,7 @@
                 <EditText
                     android:id="@+id/line_angle_value"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                    android:layout_width="44dp"
+                    android:layout_width="@dimen/map_panel_value_column_width"
                     android:layout_height="wrap_content"
                     android:background="@null"
                     android:cursorVisible="false"
@@ -240,7 +243,7 @@
                 <EditText
                     android:id="@+id/line_distance_value"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                    android:layout_width="44dp"
+                    android:layout_width="@dimen/map_panel_value_column_width"
                     android:layout_height="wrap_content"
                     android:background="@null"
                     android:cursorVisible="false"
@@ -320,7 +323,7 @@
                 <EditText
                     android:id="@+id/altitude_value"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                    android:layout_width="44dp"
+                    android:layout_width="@dimen/map_panel_value_column_width"
                     android:layout_height="wrap_content"
                     android:background="@null"
                     android:cursorVisible="false"
@@ -399,7 +402,7 @@
                 <EditText
                     android:id="@+id/sprayer_seekbar_value"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                    android:layout_width="44dp"
+                    android:layout_width="@dimen/map_panel_value_column_width"
                     android:layout_height="wrap_content"
                     android:background="@null"
                     android:cursorVisible="false"
@@ -504,7 +507,7 @@
                 <EditText
                     android:id="@+id/survey_strip_spacing_value"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                    android:layout_width="36dp"
+                    android:layout_width="@dimen/map_panel_value_column_width"
                     android:layout_height="wrap_content"
                     android:background="@null"
                     android:cursorVisible="false"
@@ -584,7 +587,7 @@
                 <EditText
                     android:id="@+id/survey_height_value"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                    android:layout_width="36dp"
+                    android:layout_width="@dimen/map_panel_value_column_width"
                     android:layout_height="wrap_content"
                     android:background="@null"
                     android:cursorVisible="false"
@@ -663,7 +666,7 @@
                 <EditText
                     android:id="@+id/survey_overlap_value"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                    android:layout_width="36dp"
+                    android:layout_width="@dimen/map_panel_value_column_width"
                     android:layout_height="wrap_content"
                     android:background="@null"
                     android:cursorVisible="false"
@@ -742,7 +745,7 @@
                 <EditText
                     android:id="@+id/survey_grid_angle_value"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                    android:layout_width="36dp"
+                    android:layout_width="@dimen/map_panel_value_column_width"
                     android:layout_height="wrap_content"
                     android:background="@null"
                     android:cursorVisible="false"
@@ -821,7 +824,7 @@
                 <EditText
                     android:id="@+id/survey_terrain_segment_value"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                    android:layout_width="36dp"
+                    android:layout_width="@dimen/map_panel_value_column_width"
                     android:layout_height="wrap_content"
                     android:background="@null"
                     android:cursorVisible="false"
@@ -900,7 +903,7 @@
                 <EditText
                     android:id="@+id/survey_canopy_smoothing_value"
                     style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
-                    android:layout_width="36dp"
+                    android:layout_width="@dimen/map_panel_value_column_width"
                     android:layout_height="wrap_content"
                     android:background="@null"
                     android:cursorVisible="false"

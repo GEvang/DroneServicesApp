@@ -219,6 +219,9 @@
     <string name="area">Area</string>
     <string name="points">Points</string>
     <string name="draw_area">Draw Area</string>
+    <string name="redraw_area">Redraw Area</string>
+    <string name="draw_route">Draw Route</string>
+    <string name="redraw_route">Redraw Route</string>
     <string name="clear_area">Clear Area</string>
     <string name="add_forbidden_area">Add Forbidden Area</string>
     <string name="finish_forbidden_polygon">Finish Forbidden Polygon</string>
@@ -258,6 +261,7 @@
     <string name="my_location_button_desc">My Location Button</string>
     <string name="drone_location_button">Drone Location Button</string>
     <string name="add_home">Add Home</string>
+    <string name="set_home">Set Home</string>
     <string name="planned_home_set">Home location set</string>
     <string name="planned_home_requires_disconnected">Add Home is available only when the drone is disconnected</string>
     <string name="tap_map_to_place_home">Tap the map to place the home location</string>
@@ -469,4 +473,33 @@
     <string name="survey_grid_angle">Angle</string>
     <string name="survey_terrain_segment">Terrain segment</string>
     <string name="survey_canopy_smoothing">Canopy smoothing</string>
+    <string name="flight_mode_short_label">Mode</string>
+    <string name="flight_mode_selector_title">Select flight mode</string>
+    <string name="flight_mode_card_description">Flight mode: %1$s. Tap to change.</string>
+    <string name="flight_mode_auto">Auto</string>
+    <string name="flight_mode_guided">Guided</string>
+    <string name="flight_mode_loiter">Loiter</string>
+    <string name="flight_mode_rtl">Return to launch</string>
+    <string name="flight_mode_land">Land</string>
+    <string name="flight_mode_brake">Brake</string>
+    <string name="flight_mode_hold_to_apply">Hold %1$.1f s to apply %2$s</string>
+    <string name="flight_mode_applying">Applying %1$s…</string>
+    <string name="flight_mode_applied">Flight mode changed to %1$s</string>
+    <string name="flight_mode_failed">Could not change to %1$s: %2$s</string>
+    <string name="flight_mode_unavailable">Flight-mode control requires an active aircraft link.</string>
+    <string name="flight_mode_request_pending">Another flight-mode request is still pending.</string>
+    <string name="flight_mode_target_unavailable">The flight controller target is not available yet.</string>
+    <string name="flight_mode_auto_requires_mission">Upload a mission before selecting Auto.</string>
+    <string name="workflow_planning_mode">Planning mode</string>
+    <string name="workflow_geometry">Geometry</string>
+    <string name="workflow_mission">Mission</string>
+    <string name="workflow_tools">Tools</string>
+    <string name="collapse_panel">Collapse panel</string>
+    <string name="top_status_no_gps">No GPS</string>
+    <string name="top_status_rtk_disconnected">RTK Mountpoint: Not connected</string>
+    <string name="top_status_speed_placeholder" translatable="false">0.0 m/s</string>
+    <string name="top_status_altitude_placeholder" translatable="false">-- m</string>
+    <string name="top_status_battery_placeholder" translatable="false">--.-V --%</string>
+    <string name="top_status_live_geo">Live geo</string>
+    <string name="top_status_unknown">Unknown</string>
 </resources>

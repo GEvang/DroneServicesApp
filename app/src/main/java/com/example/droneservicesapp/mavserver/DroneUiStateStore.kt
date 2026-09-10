@@ -36,8 +36,8 @@ internal class DroneUiStateStore(
         MutableLiveData<Double?>().default(null)
     val droneFrontDistance: MutableLiveData<Int> = MutableLiveData()
     val droneBackDistance: MutableLiveData<Int> = MutableLiveData()
-    val droneFlightMode: MutableLiveData<Int> =
-        MutableLiveData<Int>().default(0)
+    val droneFlightMode: MutableLiveData<Int?> =
+        MutableLiveData<Int?>().default(null)
     val rcRSSI: MutableLiveData<Float> =
         MutableLiveData<Float>().default(0.0F)
     val missionItems: MutableLiveData<ArrayList<MissionItemInt>> =

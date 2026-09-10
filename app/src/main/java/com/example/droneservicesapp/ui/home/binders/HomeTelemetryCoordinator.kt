@@ -10,6 +10,8 @@ import com.example.droneservicesapp.data.rtk.RtkMountpoint
 import com.example.droneservicesapp.mavserver.GpsFixQuality
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.mavserver.TelemetryMapping
+import com.example.droneservicesapp.mavserver.ArduCopterFlightMode
+import com.example.droneservicesapp.mavserver.FlightModeCommandState
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryUiState
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import java.util.Locale
@@ -35,6 +37,9 @@ class HomeTelemetryCoordinator(
                 if (connState) {
                     state.copy(
                         isConnected = true,
+                        isFlightModeControlEnabled = true,
+                        flightModeCustomMode = droneViewModel.droneFlightMode.value,
+                        flightModeText = ArduCopterFlightMode.displayName(droneViewModel.droneFlightMode.value),
                         connectionText = activity.getString(R.string.shell_status_connected),
                         gpsStatusText = formatGpsStatus(isConnected = true),
                         gpsFixQuality = formatGpsQuality(isConnected = true),
@@ -133,6 +138,23 @@ class HomeTelemetryCoordinator(
             }
         }
 
+        droneViewModel.droneFlightMode.observe(lifecycleOwner) { customMode ->
+            update { state ->
+                state.copy(
+                    flightModeCustomMode = customMode,
+                    flightModeText = if (state.isConnected) {
+                        ArduCopterFlightMode.displayName(customMode)
+                    } else {
+                        activity.getString(R.string.shell_status_disconnected)
+                    }
+                )
+            }
+        }
+
+        droneViewModel.flightModeCommandState.observe(lifecycleOwner) { commandState ->
+            update { state -> state.copy(flightModeCommandState = commandState) }
+        }
+
         droneViewModel.selectedRtkMountpoint.observe(lifecycleOwner) {
             update { state ->
                 state.copy(rtkMountpointText = formatRtkMountpointText())
@@ -166,6 +188,15 @@ class HomeTelemetryCoordinator(
             sprayerText = formatSprayerText(droneViewModel.liquidLevel.value),
             armedText = activity.getString(if (armed) R.string.armed else R.string.disarmed),
             isArmed = armed,
+            flightModeCustomMode = droneViewModel.droneFlightMode.value,
+            flightModeText = if (isConnected) {
+                ArduCopterFlightMode.displayName(droneViewModel.droneFlightMode.value)
+            } else {
+                activity.getString(R.string.shell_status_disconnected)
+            },
+            flightModeCommandState = droneViewModel.flightModeCommandState.value
+                ?: FlightModeCommandState.Idle,
+            isFlightModeControlEnabled = isConnected,
             uploadProgressText = "Uploading ${uploadProgress}%",
             showUploadProgress = uploadProgress in 1..99,
             frontDistanceMeters = droneViewModel.droneFrontDistance.value,
@@ -193,10 +224,13 @@ class HomeTelemetryCoordinator(
             batteryIconRes = R.drawable.ic_baseline_battery_alert_24,
             batteryColorRes = R.color.ds_color_shell_unselected,
             altitudeText = "--",
-            speedText = "SPD: 0.0",
+            speedText = "SPD: 0.0 m/s",
             sprayerText = "--.-L",
             armedText = activity.getString(R.string.disarmed),
             isArmed = false,
+            flightModeText = activity.getString(R.string.shell_status_disconnected),
+            flightModeCustomMode = null,
+            isFlightModeControlEnabled = false,
             showUploadProgress = false,
             frontDistanceMeters = null,
             backDistanceMeters = null

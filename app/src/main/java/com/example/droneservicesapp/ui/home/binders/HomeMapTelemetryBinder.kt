@@ -9,6 +9,7 @@ import android.widget.TextView
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.mavserver.GpsFixQuality
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryUiState
+import com.example.droneservicesapp.mavserver.FlightModeCommandState
 
 class HomeMapTelemetryBinder(
     private val rootView: View,
@@ -45,11 +46,11 @@ class HomeMapTelemetryBinder(
         rootView.findViewById<ImageView?>(R.id.top_connection_icon)?.setColorFilter(connectionColor)
         val gpsColor = ContextCompat.getColor(context, gpsStatusColor(state.gpsFixQuality))
         rootView.findViewById<TextView?>(R.id.top_gps_text)?.apply {
-            text = "GPS: ${state.gpsStatusText}"
+            text = state.gpsStatusText
             setTextColor(gpsColor)
         }
         rootView.findViewById<ImageView?>(R.id.top_gps_icon)?.setColorFilter(gpsColor)
-        rootView.findViewById<TextView?>(R.id.top_rtk_text)?.text = state.rtkMountpointText
+        rootView.findViewById<TextView?>(R.id.top_rtk_text)?.text = compactRtkText(state.rtkMountpointText)
         val armedColor = ContextCompat.getColor(
             context,
             if (state.isArmed) R.color.ds_color_shell_active else R.color.ds_color_shell_warning
@@ -59,14 +60,39 @@ class HomeMapTelemetryBinder(
             text = state.armedText.uppercase()
             setTextColor(armedColor)
         }
-        rootView.findViewById<TextView?>(R.id.top_speed_text)?.text = formatStatusValue(
-            value = state.speedText.removeSuffix(" m/s"),
-            prefix = "SPD:"
+        val modeColor = ContextCompat.getColor(
+            context,
+            if (state.isFlightModeControlEnabled) R.color.ds_color_shell_active
+            else R.color.ds_color_shell_unselected
         )
-        rootView.findViewById<TextView?>(R.id.top_altitude_text)?.text = formatStatusValue(
-            value = state.altitudeText,
-            prefix = "ALT:"
-        )
+        rootView.findViewById<View?>(R.id.top_flight_mode_card)?.apply {
+            isEnabled = state.isFlightModeControlEnabled
+            alpha = if (state.isFlightModeControlEnabled) 1f else 0.88f
+            contentDescription = if (state.isFlightModeControlEnabled) {
+                context.getString(R.string.flight_mode_card_description, state.flightModeText)
+            } else {
+                context.getString(R.string.flight_mode_unavailable)
+            }
+        }
+        rootView.findViewById<ImageView?>(R.id.top_flight_mode_icon)?.setColorFilter(modeColor)
+        rootView.findViewById<ImageView?>(R.id.top_flight_mode_chevron)?.apply {
+            visibility = if (state.isFlightModeControlEnabled) View.VISIBLE else View.GONE
+            setColorFilter(modeColor)
+        }
+        rootView.findViewById<TextView?>(R.id.top_flight_mode_value)?.apply {
+            text = state.flightModeText
+            setTextColor(modeColor)
+        }
+        rootView.findViewById<View?>(R.id.top_flight_mode_progress)?.visibility =
+            if (state.flightModeCommandState is FlightModeCommandState.Pending) View.VISIBLE else View.GONE
+        rootView.findViewById<TextView?>(R.id.top_speed_text)?.text =
+            state.speedText.removePrefix("SPD:").trim().ifBlank { "-- m/s" }
+        rootView.findViewById<TextView?>(R.id.top_altitude_text)?.text =
+            state.altitudeText
+                .removePrefix("ALT:")
+                .trim()
+                .replace(Regex("(-?\\d+(?:\\.\\d+)?)m$"), "$1 m")
+                .let { value -> if (value == "--") "-- m" else value }
         rootView.findViewById<ImageView?>(R.id.top_battery_icon)?.apply {
             setImageResource(state.batteryIconRes)
             setColorFilter(ContextCompat.getColor(context, state.batteryColorRes))
@@ -75,6 +101,11 @@ class HomeMapTelemetryBinder(
             text = state.batteryText
             setTextColor(ContextCompat.getColor(context, state.batteryColorRes))
         }
+    }
+
+    private fun compactRtkText(text: String): String {
+        val value = text.removePrefix("RTK Mountpoint:").trim()
+        return if (value.isBlank()) "RTK" else "RTK\n$value"
     }
 
     private fun gpsStatusColor(quality: GpsFixQuality): Int {
@@ -87,10 +118,6 @@ class HomeMapTelemetryBinder(
             GpsFixQuality.UNKNOWN -> R.color.gps_unknown_gray
             else -> R.color.ds_color_shell_warning
         }
-    }
-
-    private fun formatStatusValue(value: String, prefix: String): String {
-        return value.removePrefix(prefix).trim().ifBlank { "--" }
     }
 
     private fun renderDistance(

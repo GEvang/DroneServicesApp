@@ -31,6 +31,8 @@ internal class DroneTelemetryProcessor(
     private val onDroneLocationUpdated: () -> Unit,
     private val onGpsDebugMessage: (String, Int, Int, Int, Int) -> Unit,
     private val onArmedStateChanged: (Boolean, Location?, Double?, String?) -> Unit,
+    private val onCommandAck: (CommandAck) -> Unit,
+    private val onFlightModeHeartbeat: (Int) -> Unit,
     private val onFlightModeChanged: (String?, String?) -> Unit,
     private val onGpsFixChanged: (Boolean) -> Unit,
     private val onBatteryLow: (Int) -> Unit,
@@ -57,6 +59,10 @@ internal class DroneTelemetryProcessor(
 
         if (payload is CommandAck) {
             handleCommandAck(payload)
+            val fromLockedAutopilot = runtimeState.autopilotSysId != -1 &&
+                message.originSystemId == runtimeState.autopilotSysId &&
+                message.originComponentId == runtimeState.autopilotCompId
+            if (fromLockedAutopilot) onCommandAck(payload)
             return
         }
 
@@ -232,6 +238,7 @@ internal class DroneTelemetryProcessor(
         stateStore.droneFlightMode.postValue(heartbeat.customMode().toInt())
         val previousMode = runtimeState.lastLoggedFlightMode
         val currentMode = heartbeat.customMode().toInt()
+        onFlightModeHeartbeat(currentMode)
         if (previousMode != currentMode) {
             onFlightModeChanged(previousMode?.toString(), currentMode.toString())
             runtimeState.lastLoggedFlightMode = currentMode

@@ -62,22 +62,29 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/home_top_status_strip" />
 
-        <FrameLayout
+        <androidx.core.widget.NestedScrollView
             android:id="@+id/mission_params_side_view"
             android:layout_width="@dimen/tablet_left_panel_width"
-            android:layout_height="wrap_content"
+            android:layout_height="0dp"
             android:layout_marginStart="@dimen/ds_space_md"
             android:layout_marginTop="@dimen/ds_space_md"
+            android:layout_marginBottom="@dimen/ds_space_sm"
+            android:fillViewport="false"
+            android:overScrollMode="ifContentScrolls"
+            android:scrollbars="vertical"
             android:visibility="gone"
+            app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
+            app:layout_constraintHeight_max="@dimen/phone_map_panel_max_height"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/home_top_status_strip">
+            app:layout_constraintTop_toBottomOf="@id/home_top_status_strip"
+            app:layout_constraintVertical_bias="0">
 
             <include
                 android:id="@+id/home_left_panel"
                 layout="@layout/mission_params_side_view"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
-        </FrameLayout>
+        </androidx.core.widget.NestedScrollView>
 
         <androidx.core.widget.NestedScrollView
             android:id="@+id/planning_panel_container"
@@ -98,7 +105,7 @@
 
             <include
                 android:id="@+id/home_workflow_panel_include"
-                layout="@layout/home_workflow_panel"
+                layout="@layout/home_workflow_panel_v2"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
         </androidx.core.widget.NestedScrollView>

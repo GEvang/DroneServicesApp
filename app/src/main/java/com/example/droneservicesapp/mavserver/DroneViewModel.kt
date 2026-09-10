@@ -75,6 +75,23 @@ class DroneViewModel : ViewModel() {
     @Volatile private var flightSessionStartedMs = 0L
     @Volatile private var lastSnapshotRtkStreaming: Boolean? = null
 
+    private val flightModeController: DroneFlightModeController by lazy {
+        DroneFlightModeController(
+            mavlinkClient = mavlinkClient,
+            scope = viewModelScope,
+            isConnected = {
+                stateStore.conStateLiveData.value == true &&
+                    isAutopilotLinkHealthy(
+                        runtimeState.lastAutopilotHeartbeatMs,
+                        System.currentTimeMillis(),
+                        HEARTBEAT_STALE_MS
+                    )
+            },
+            targetSystemId = { runtimeState.autopilotSysId },
+            targetComponentId = { runtimeState.autopilotCompId }
+        )
+    }
+
     private val missionService: MissionService by lazy { MissionService(mavlinkClient) }
     private val missionController: DroneMissionController by lazy {
         DroneMissionController(
@@ -131,6 +148,8 @@ class DroneViewModel : ViewModel() {
                 }
                 recordFlightSessionBoundary(armed, flightMode)
             },
+            onCommandAck = flightModeController::onCommandAck,
+            onFlightModeHeartbeat = flightModeController::onHeartbeatMode,
             onFlightModeChanged = { previous, current ->
                 operatorEventLogger.logFlightModeChanged(previous, current)
                 if (current == "6") {
@@ -180,7 +199,8 @@ class DroneViewModel : ViewModel() {
     val droneAltitudeAmslMeters: MutableLiveData<Double?> = stateStore.droneAltitudeAmslMeters
     val droneFrontDistance: MutableLiveData<Int> = stateStore.droneFrontDistance
     val droneBackDistance: MutableLiveData<Int> = stateStore.droneBackDistance
-    val droneFlightMode: MutableLiveData<Int> = stateStore.droneFlightMode
+    val droneFlightMode: MutableLiveData<Int?> = stateStore.droneFlightMode
+    val flightModeCommandState: MutableLiveData<FlightModeCommandState> = flightModeController.state
     val rcRSSI: MutableLiveData<Float> = stateStore.rcRSSI
     val missionItems: MutableLiveData<ArrayList<MissionItemInt>> = stateStore.missionItems
     val liquidLevel: MutableLiveData<Float> = stateStore.liquidLevel
@@ -202,6 +222,13 @@ class DroneViewModel : ViewModel() {
     fun getTargetSystemId(): Int = runtimeState.autopilotSysId
 
     fun getTargetComponentId(): Int = runtimeState.autopilotCompId
+
+    fun requestFlightMode(mode: ArduCopterFlightMode): FlightModeRequestResult =
+        flightModeController.requestMode(mode)
+
+    fun clearFlightModeCommandResult() {
+        flightModeController.clearResult()
+    }
 
     fun refreshTerrainFollowingParameters() {
         parameterController.refreshAll()
@@ -492,11 +519,13 @@ class DroneViewModel : ViewModel() {
                         }
 
                         if (!connected) {
+                            flightModeController.onConnectionLost()
                             stateStore.telemetryAliveLiveData.postValue(false)
                             stateStore.armedState.postValue(false)
                             stateStore.gpsFixType.postValue(null)
                             stateStore.droneBatteryPercentage.postValue(-1.0f)
                             stateStore.droneGroundSpeedMetersPerSecond.postValue(0.0f)
+                            stateStore.droneFlightMode.postValue(null)
                             stateStore.liquidLevel.postValue(TelemetryMapping.UNKNOWN_PERCENT.toFloat())
                             if (runtimeState.autopilotSysId != -1) {
                                 runtimeState.clearAutopilotTarget()

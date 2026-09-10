@@ -86,6 +86,7 @@ import com.example.droneservicesapp.ui.home.binders.HomeMapChromeBinder
 import com.example.droneservicesapp.ui.home.binders.HomeMapModeEffectsBinder
 import com.example.droneservicesapp.ui.home.binders.HomeMapPanelsBinder
 import com.example.droneservicesapp.ui.home.binders.HomeMapTelemetryBinder
+import com.example.droneservicesapp.ui.home.binders.FlightModeUiBinder
 import com.example.droneservicesapp.ui.home.binders.MissionLoadController
 import com.example.droneservicesapp.ui.home.binders.MissionParamsController
 import com.example.droneservicesapp.ui.home.binders.MissionSaveController
@@ -154,6 +155,7 @@ class MissionMapFragment : Fragment() {
     private lateinit var homeMapPanelsBinder: HomeMapPanelsBinder
     private lateinit var homeMapModeEffectsBinder: HomeMapModeEffectsBinder
     private lateinit var homeMapTelemetryBinder: HomeMapTelemetryBinder
+    private lateinit var flightModeUiBinder: FlightModeUiBinder
     private lateinit var osmdroidMapController: OsmdroidMapController
     private lateinit var osmdroidObstacleEditor: OsmdroidObstacleEditor
     private lateinit var osmdroidPolygonEditor: OsmdroidPolygonEditor
@@ -414,6 +416,11 @@ class MissionMapFragment : Fragment() {
             loadMissionView = requireView().findViewById(R.id.load_file_selector_layout)
         )
         homeMapTelemetryBinder = HomeMapTelemetryBinder(binding.root)
+        flightModeUiBinder = FlightModeUiBinder(
+            rootView = binding.root,
+            droneViewModel = droneViewModel,
+            telemetryViewModel = homeTelemetryViewModel
+        ).also { it.bind(viewLifecycleOwner) }
         requireView().findViewById<View>(R.id.home_obstacle_panel).apply {
             isClickable = true
             isFocusable = true
@@ -557,6 +564,10 @@ class MissionMapFragment : Fragment() {
 
         requireView().findViewById<TextView>(R.id.right_panel_draw_area_button).setOnClickListener {
             if (activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS) {
+                hideObstaclePanel()
+                mapViewModel.setPlanningPanelVisible(false)
+                clearPointMissionGeometry()
+                activityViewModel.mapState.value = MainActivityViewModel.MapState.Draw
                 Toast.makeText(requireContext(), getString(R.string.tap_map_to_add_points), Toast.LENGTH_SHORT).show()
             } else {
                 startAreaDrawing()
@@ -564,8 +575,7 @@ class MissionMapFragment : Fragment() {
         }
 
         requireView().findViewById<TextView>(R.id.right_panel_clear_area_button).setOnClickListener {
-            clearAreaMissionGeometry()
-            clearPointMissionGeometry()
+            clearActiveMissionGeometry()
             activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
         }
 
@@ -811,7 +821,6 @@ class MissionMapFragment : Fragment() {
     private fun startAreaDrawing() {
         hideObstaclePanel()
         mapViewModel.setPlanningPanelVisible(false)
-        clearPointMissionGeometry()
         activityViewModel.setPlanningWorkflow(PlanningWorkflow.AREA)
         clearAreaMissionGeometry()
         activityViewModel.mapState.value = MainActivityViewModel.MapState.Draw
@@ -849,14 +858,14 @@ class MissionMapFragment : Fragment() {
             button.gravity = android.view.Gravity.CENTER
         }
 
-        areaButton.setOnClickListener { startAreaDrawing() }
+        areaButton.setOnClickListener {
+            activityViewModel.setPlanningWorkflow(PlanningWorkflow.AREA)
+            activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
+        }
 
         pointsButton.setOnClickListener {
-            clearAreaMissionGeometry()
             activityViewModel.setPlanningWorkflow(PlanningWorkflow.POINTS)
-            clearPointMissionGeometry()
-            activityViewModel.mapState.value = MainActivityViewModel.MapState.Draw
-            Toast.makeText(requireContext(), getString(R.string.tap_map_to_add_points), Toast.LENGTH_SHORT).show()
+            activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
         }
 
         activityViewModel.activePlanningWorkflow.observe(viewLifecycleOwner) { workflow ->
@@ -903,7 +912,6 @@ class MissionMapFragment : Fragment() {
         val areaButton = requireView().findViewById<TextView>(R.id.right_panel_area_button)
         val pointsButton = requireView().findViewById<TextView>(R.id.right_panel_points_button)
         val drawButton = requireView().findViewById<TextView>(R.id.right_panel_draw_area_button)
-        val clearButton = requireView().findViewById<TextView>(R.id.right_panel_clear_area_button)
         val obstacleButton = requireView().findViewById<TextView?>(R.id.right_panel_add_obstacle_button)
         val obstacleModeRow = requireView().findViewById<View?>(R.id.right_panel_obstacle_mode_row)
         val obstacleRadiusLabel = requireView().findViewById<View?>(R.id.right_panel_obstacle_radius_label)
@@ -927,23 +935,22 @@ class MissionMapFragment : Fragment() {
                     if (selected) selectedTextColor else R.color.ds_color_text_primary
                 )
             )
-            button.setTypeface(Typeface.DEFAULT, if (selected) Typeface.BOLD else Typeface.NORMAL)
+            button.setTypeface(button.typeface, if (selected) Typeface.BOLD else Typeface.NORMAL)
             button.includeFontPadding = false
             button.gravity = android.view.Gravity.CENTER
         }
 
         val isPoints = workflow == PlanningWorkflow.POINTS
-        val isPlanningActive = isWorkflowSelectionActive()
-        areaButton.setText(R.string.draw_area)
+        areaButton.setText(R.string.area)
         areaButton.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_draw_area_24, 0, 0, 0)
         areaButton.compoundDrawablePadding = resources.getDimensionPixelSize(R.dimen.ds_space_sm)
-        styleWorkflowButton(areaButton, isPlanningActive && !isPoints)
+        styleWorkflowButton(areaButton, !isPoints)
         areaButton.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
         pointsButton.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_points_24, 0, 0, 0)
         pointsButton.compoundDrawablePadding = resources.getDimensionPixelSize(R.dimen.ds_space_sm)
-        styleWorkflowButton(pointsButton, isPlanningActive && isPoints)
+        styleWorkflowButton(pointsButton, isPoints)
         pointsButton.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
-        listOf(areaButton to (isPlanningActive && !isPoints), pointsButton to (isPlanningActive && isPoints)).forEach { (button, selected) ->
+        listOf(areaButton to !isPoints, pointsButton to isPoints).forEach { (button, selected) ->
             val iconColor = ContextCompat.getColor(
                 requireContext(),
                 if (selected) selectedTextColor else R.color.ds_color_text_primary
@@ -952,9 +959,8 @@ class MissionMapFragment : Fragment() {
                 drawable?.mutate()?.setTint(iconColor)
             }
         }
-        drawButton.visibility = View.GONE
-        drawButton.text = getString(if (isPoints) R.string.add_route_points else R.string.draw_area)
-        clearButton.text = getString(if (isPoints) R.string.clear_route else R.string.clear_area)
+        drawButton.visibility = View.VISIBLE
+        updateGeometryActionState()
         obstacleButton?.visibility = View.VISIBLE
         obstacleModeRow?.visibility = View.VISIBLE
         obstacleRadiusLabel?.visibility = View.VISIBLE
@@ -963,6 +969,29 @@ class MissionMapFragment : Fragment() {
         routeSummary?.visibility = if (isPoints) View.VISIBLE else View.GONE
         renderObstacleControls()
         updateRouteSummary()
+    }
+
+    private fun updateGeometryActionState() {
+        val workflow = activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA
+        val hasGeometry = when (workflow) {
+            PlanningWorkflow.AREA ->
+                activityViewModel.missionArea.value?.vertices.orEmpty().isNotEmpty() ||
+                    activityViewModel.surveyPath.value.orEmpty().isNotEmpty()
+            PlanningWorkflow.POINTS ->
+                activityViewModel.routeWaypoints.value.orEmpty().isNotEmpty() ||
+                    activityViewModel.plannedRoutePath.value.orEmpty().isNotEmpty() ||
+                    activityViewModel.terrainRouteWaypoints.value.orEmpty().isNotEmpty()
+        }
+        view?.findViewById<TextView?>(R.id.right_panel_draw_area_button)?.setText(
+            when (workflow) {
+                PlanningWorkflow.AREA -> if (hasGeometry) R.string.redraw_area else R.string.draw_area
+                PlanningWorkflow.POINTS -> if (hasGeometry) R.string.redraw_route else R.string.draw_route
+            }
+        )
+        view?.findViewById<View?>(R.id.right_panel_clear_area_button)?.apply {
+            isEnabled = hasGeometry
+            alpha = if (hasGeometry) 1f else 0.45f
+        }
     }
 
     private fun isWorkflowSelectionActive(): Boolean {
@@ -992,7 +1021,7 @@ class MissionMapFragment : Fragment() {
                     if (selected) R.color.ds_color_shell_selected_content else R.color.ds_color_text_primary
                 )
             )
-            button.setTypeface(Typeface.DEFAULT, if (selected) Typeface.BOLD else Typeface.NORMAL)
+            button.setTypeface(button.typeface, if (selected) Typeface.BOLD else Typeface.NORMAL)
         }
 
         style(circleButton, !isPolygon)
@@ -1068,23 +1097,20 @@ class MissionMapFragment : Fragment() {
 
     private fun updateMissionSummaryCard() {
         val summaryCard = view?.findViewById<TextView?>(R.id.home_mission_summary_card) ?: return
-        if (activityViewModel.mapState.value != MainActivityViewModel.MapState.SetFlightParams) {
-            missionSummaryJob?.cancel()
-            summaryCard.visibility = View.GONE
-            osmdroidMapController.setMissionServiceMarkers(emptyList(), emptyList())
-            updateSimulationButton(false)
-            return
-        }
-        val areaVertices = activityViewModel.missionArea.value?.vertices.orEmpty()
+        updateGeometryActionState()
         val missionPath = currentMissionPath()
-        updateSimulationButton(missionPath.size >= 2)
-        if (missionPath.size < 2) {
+        val canUseMission =
+            activityViewModel.mapState.value != MainActivityViewModel.MapState.Draw && missionPath.size >= 2
+        updateSimulationButton(canUseMission)
+        if (!canUseMission) {
             missionSummaryJob?.cancel()
             summaryCard.visibility = View.GONE
             osmdroidMapController.setMissionServiceMarkers(emptyList(), emptyList())
             stopMissionSimulation()
             return
         }
+
+        val areaVertices = activityViewModel.missionArea.value?.vertices.orEmpty()
 
         val areaMeters = if (areaVertices.size >= 3) SphericalUtil.computeArea(areaVertices) else 0.0
         val passes = when {
@@ -1120,7 +1146,7 @@ class MissionMapFragment : Fragment() {
             }
             if (
                 _binding == null ||
-                activityViewModel.mapState.value != MainActivityViewModel.MapState.SetFlightParams ||
+                activityViewModel.mapState.value == MainActivityViewModel.MapState.Draw ||
                 currentMissionPath() != missionPath
             ) return@launch
             osmdroidMapController.setMissionServiceMarkers(
@@ -2503,7 +2529,7 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun renderPreviewModeButtons() {
-        val activeColor = ContextCompat.getColor(requireContext(), R.color.bg)
+        val activeColor = ContextCompat.getColor(requireContext(), R.color.ds_color_shell_active)
         val inactiveColor = ContextCompat.getColor(requireContext(), R.color.ds_color_text_primary)
         val modes = listOf(
             binding.previewModeMapButton to PreviewMode.MAP,
@@ -2512,13 +2538,13 @@ class MissionMapFragment : Fragment() {
         )
         modes.forEach { (button, mode) ->
             val active = activePreviewMode == mode
-            button.alpha = if (active) 1f else 0.82f
-            button.strokeWidth = 0
-            button.cornerRadius = resources.getDimensionPixelSize(R.dimen.ds_space_md)
+            button.alpha = if (active) 1f else 0.88f
+            button.strokeWidth = if (active) 1 else 0
+            button.cornerRadius = resources.getDimensionPixelSize(R.dimen.preview_mode_segment_radius)
             button.backgroundTintList = android.content.res.ColorStateList.valueOf(
                 ContextCompat.getColor(
                     requireContext(),
-                    if (active) R.color.ds_color_shell_active else android.R.color.transparent
+                    if (active) R.color.ds_color_shell_selected_surface else android.R.color.transparent
                 )
             )
             button.strokeColor = android.content.res.ColorStateList.valueOf(
@@ -3375,6 +3401,7 @@ class MissionMapFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        if (::flightModeUiBinder.isInitialized) flightModeUiBinder.dismiss()
         stopMissionSimulation()
         missionRedrawDebounceJob?.cancel()
         missionRedrawDebounceJob = null
