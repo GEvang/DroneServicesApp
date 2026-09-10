@@ -7,6 +7,7 @@ import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.BatteryStatus
 import io.dronefleet.mavlink.common.CommandAck
 import io.dronefleet.mavlink.common.DistanceSensor
+import io.dronefleet.mavlink.common.ExtendedSysState
 import io.dronefleet.mavlink.common.GlobalPositionInt
 import io.dronefleet.mavlink.common.GpsFixType
 import io.dronefleet.mavlink.common.Gps2Raw
@@ -31,6 +32,7 @@ internal class DroneTelemetryProcessor(
     private val onDroneLocationUpdated: () -> Unit,
     private val onGpsDebugMessage: (String, Int, Int, Int, Int) -> Unit,
     private val onArmedStateChanged: (Boolean, Location?, Double?, String?) -> Unit,
+    private val onArmedHeartbeat: (Boolean) -> Unit,
     private val onCommandAck: (CommandAck) -> Unit,
     private val onFlightModeHeartbeat: (Int) -> Unit,
     private val onFlightModeChanged: (String?, String?) -> Unit,
@@ -186,6 +188,7 @@ internal class DroneTelemetryProcessor(
                     stateStore.droneBackDistance.postValue(meters)
                 }
             }
+            is ExtendedSysState -> stateStore.droneLandedState.postValue(payload.landedState().entry())
         }
     }
 
@@ -245,6 +248,7 @@ internal class DroneTelemetryProcessor(
         }
         val isArmed = (heartbeat.baseMode().value() and 0x80) != 0
         stateStore.armedState.postValue(isArmed)
+        onArmedHeartbeat(isArmed)
         if (runtimeState.lastLoggedArmedState != isArmed) {
             runtimeState.lastLoggedArmedState = isArmed
             onArmedStateChanged(

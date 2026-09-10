@@ -5,6 +5,7 @@ import android.graphics.drawable.ColorDrawable
 import android.view.Menu
 import android.view.Gravity
 import android.view.View
+import android.view.WindowManager
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.Toolbar
@@ -57,6 +58,8 @@ class MainActivity : AppCompatActivity() {
         window.setBackgroundDrawable(ColorDrawable(shellBackground))
         window.decorView.setBackgroundColor(shellBackground)
         binding.root.setBackgroundColor(shellBackground)
+        // Safety: keep live aircraft telemetry visible while this activity is in the foreground.
+        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         configureSystemUi()
 
         droneViewModel = ViewModelProvider(this)[DroneViewModel::class.java]

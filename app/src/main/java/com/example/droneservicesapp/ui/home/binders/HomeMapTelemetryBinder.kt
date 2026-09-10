@@ -10,6 +10,7 @@ import com.example.droneservicesapp.R
 import com.example.droneservicesapp.mavserver.GpsFixQuality
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryUiState
 import com.example.droneservicesapp.mavserver.FlightModeCommandState
+import com.example.droneservicesapp.mavserver.ArmCommandState
 
 class HomeMapTelemetryBinder(
     private val rootView: View,
@@ -56,8 +57,19 @@ class HomeMapTelemetryBinder(
             if (state.isArmed) R.color.ds_color_shell_active else R.color.ds_color_shell_warning
         )
         rootView.findViewById<ImageView?>(R.id.top_armed_icon)?.setColorFilter(armedColor)
+        rootView.findViewById<View?>(R.id.top_armed_card)?.apply {
+            alpha = if (state.isConnected) 1f else 0.88f
+            contentDescription = when {
+                state.armCommandState is ArmCommandState.Pending -> context.getString(R.string.arming)
+                state.isArmed -> context.getString(R.string.armed)
+                state.isConnected -> context.getString(R.string.arm_card_description)
+                else -> context.getString(R.string.arm_unavailable)
+            }
+        }
         rootView.findViewById<TextView?>(R.id.top_armed_text)?.apply {
-            text = state.armedText.uppercase()
+            text = if (state.armCommandState is ArmCommandState.Pending) {
+                context.getString(R.string.arming)
+            } else state.armedText.uppercase()
             setTextColor(armedColor)
         }
         val modeColor = ContextCompat.getColor(

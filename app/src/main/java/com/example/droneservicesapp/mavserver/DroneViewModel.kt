@@ -55,6 +55,7 @@ class DroneViewModel : ViewModel() {
         private const val MAVLINK_SYSTEM_ALL = 0
         private const val MAVLINK_COMPONENT_ALL = 0
         private const val SERVO_OUTPUT_RAW_MESSAGE_ID = 36
+        private const val EXTENDED_SYS_STATE_MESSAGE_ID = 245
         private const val SERVO_OUTPUT_RAW_INTERVAL_US = 200_000f
         private const val NORMAL_HEALTH_SNAPSHOT_INTERVAL_MS = 10_000L
         private const val INCIDENT_HEALTH_SNAPSHOT_INTERVAL_MS = 1_000L
@@ -91,6 +92,19 @@ class DroneViewModel : ViewModel() {
             targetComponentId = { runtimeState.autopilotCompId }
         )
     }
+    private val armController: DroneArmController by lazy {
+        DroneArmController(
+            mavlinkClient = mavlinkClient,
+            scope = viewModelScope,
+            isConnected = {
+                stateStore.conStateLiveData.value == true &&
+                    isAutopilotLinkHealthy(runtimeState.lastAutopilotHeartbeatMs, System.currentTimeMillis(), HEARTBEAT_STALE_MS)
+            },
+            isArmed = { stateStore.armedState.value == true },
+            targetSystemId = { runtimeState.autopilotSysId },
+            targetComponentId = { runtimeState.autopilotCompId },
+        )
+    }
 
     private val missionService: MissionService by lazy { MissionService(mavlinkClient) }
     private val missionController: DroneMissionController by lazy {
@@ -124,6 +138,7 @@ class DroneViewModel : ViewModel() {
             },
             onAutopilotHeartbeatLocked = {
                 requestServoOutputRawStream()
+                requestExtendedSystemStateStream()
                 rtkController.onAutopilotHeartbeatLocked()
                 parameterController.refreshAll()
             },
@@ -148,7 +163,11 @@ class DroneViewModel : ViewModel() {
                 }
                 recordFlightSessionBoundary(armed, flightMode)
             },
-            onCommandAck = flightModeController::onCommandAck,
+            onArmedHeartbeat = armController::onHeartbeatArmed,
+            onCommandAck = { ack ->
+                flightModeController.onCommandAck(ack)
+                armController.onCommandAck(ack)
+            },
             onFlightModeHeartbeat = flightModeController::onHeartbeatMode,
             onFlightModeChanged = { previous, current ->
                 operatorEventLogger.logFlightModeChanged(previous, current)
@@ -185,11 +204,30 @@ class DroneViewModel : ViewModel() {
             targetComponentId = { runtimeState.autopilotCompId }
         )
     }
+    private val parameterCatalogController: VehicleParameterCatalogController by lazy {
+        VehicleParameterCatalogController(
+            mavlinkClient = mavlinkClient,
+            isConnected = { stateStore.conStateLiveData.value == true },
+            targetSystemId = { runtimeState.autopilotSysId },
+            targetComponentId = { runtimeState.autopilotCompId },
+        )
+    }
+    private val logDownloadController: DroneLogDownloadController by lazy {
+        DroneLogDownloadController(
+            context = Application.getInstance().applicationContext,
+            mavlinkClient = mavlinkClient,
+            isConnected = { stateStore.conStateLiveData.value == true },
+            isArmed = { stateStore.armedState.value == true },
+            targetSystemId = { runtimeState.autopilotSysId },
+            targetComponentId = { runtimeState.autopilotCompId },
+        )
+    }
 
     val droneLocationLiveData: MutableLiveData<Location> = stateStore.droneLocationLiveData
     val conStateLiveData: MutableLiveData<Boolean> = stateStore.conStateLiveData
     val telemetryAliveLiveData: MutableLiveData<Boolean> = stateStore.telemetryAliveLiveData
     val armedState: MutableLiveData<Boolean> = stateStore.armedState
+    val droneLandedState = stateStore.droneLandedState
     val droneHeading: MutableLiveData<Double> = stateStore.droneHeading
     val droneBatteryVoltage: MutableLiveData<Float> = stateStore.droneBatteryVoltage
     val droneBatteryPercentage: MutableLiveData<Float> = stateStore.droneBatteryPercentage
@@ -201,6 +239,10 @@ class DroneViewModel : ViewModel() {
     val droneBackDistance: MutableLiveData<Int> = stateStore.droneBackDistance
     val droneFlightMode: MutableLiveData<Int?> = stateStore.droneFlightMode
     val flightModeCommandState: MutableLiveData<FlightModeCommandState> = flightModeController.state
+    val armCommandState: MutableLiveData<ArmCommandState> = armController.state
+    val vehicleParameterCatalog = parameterCatalogController.state
+    val droneLogCatalog = logDownloadController.catalog
+    val droneLogDownloadState = logDownloadController.download
     val rcRSSI: MutableLiveData<Float> = stateStore.rcRSSI
     val missionItems: MutableLiveData<ArrayList<MissionItemInt>> = stateStore.missionItems
     val liquidLevel: MutableLiveData<Float> = stateStore.liquidLevel
@@ -229,6 +271,18 @@ class DroneViewModel : ViewModel() {
     fun clearFlightModeCommandResult() {
         flightModeController.clearResult()
     }
+
+    fun requestArm(): ArmRequestResult = armController.requestArm()
+
+    fun clearArmCommandResult() = armController.clearResult()
+
+    fun refreshVehicleParameterCatalog(): Boolean = parameterCatalogController.refresh()
+
+    fun refreshDroneLogs(): DroneLogRequestResult = logDownloadController.refreshLogs()
+
+    fun downloadDroneLog(logId: Int): DroneLogRequestResult = logDownloadController.download(logId)
+
+    fun clearDroneLogDownloadResult() = logDownloadController.clearDownloadResult()
 
     fun refreshTerrainFollowingParameters() {
         parameterController.refreshAll()
@@ -353,6 +407,26 @@ class DroneViewModel : ViewModel() {
 
         mavlinkClient.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, command)
         Log.i("SprayerDebug", "TX request SERVO_OUTPUT_RAW intervalUs=$SERVO_OUTPUT_RAW_INTERVAL_US")
+        return true
+    }
+
+    private fun requestExtendedSystemStateStream(): Boolean {
+        val targetSystemId = runtimeState.autopilotSysId
+        if (targetSystemId < 0) return false
+        val command = CommandLong.builder()
+            .targetSystem(targetSystemId)
+            .targetComponent(MAVLINK_COMPONENT_ALL)
+            .command(MavCmd.MAV_CMD_SET_MESSAGE_INTERVAL)
+            .confirmation(0)
+            .param1(EXTENDED_SYS_STATE_MESSAGE_ID.toFloat())
+            .param2(1_000_000f)
+            .param3(0f)
+            .param4(0f)
+            .param5(0f)
+            .param6(0f)
+            .param7(0f)
+            .build()
+        mavlinkClient.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, command)
         return true
     }
 
@@ -520,8 +594,10 @@ class DroneViewModel : ViewModel() {
 
                         if (!connected) {
                             flightModeController.onConnectionLost()
+                            armController.onConnectionLost()
                             stateStore.telemetryAliveLiveData.postValue(false)
                             stateStore.armedState.postValue(false)
+                            stateStore.droneLandedState.postValue(null)
                             stateStore.gpsFixType.postValue(null)
                             stateStore.droneBatteryPercentage.postValue(-1.0f)
                             stateStore.droneGroundSpeedMetersPerSecond.postValue(0.0f)
@@ -531,6 +607,8 @@ class DroneViewModel : ViewModel() {
                                 runtimeState.clearAutopilotTarget()
                             }
                             parameterController.onDisconnected()
+                            parameterCatalogController.onDisconnected()
+                            logDownloadController.onDisconnected()
                         }
 
                         rtkController.onConnectionStateEvaluated(connected)
@@ -561,6 +639,8 @@ class DroneViewModel : ViewModel() {
 
     private fun handleMavlinkMessage(message: MavlinkMessage<*>) {
         parameterController.handle(message)
+        parameterCatalogController.handle(message)
+        logDownloadController.handle(message)
         telemetryProcessor.handle(message)
     }
 
@@ -697,6 +777,8 @@ class DroneViewModel : ViewModel() {
         super.onCleared()
         missionController.clear()
         parameterController.clear()
+        parameterCatalogController.clear()
+        logDownloadController.clear()
         repoDisposables.clear()
         Log.i(TAG, "bridge detached: clearing all subscriptions in onCleared")
         rtkController.shutdown()

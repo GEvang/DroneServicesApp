@@ -5,6 +5,7 @@ import androidx.annotation.ColorRes
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.mavserver.GpsFixQuality
 import com.example.droneservicesapp.mavserver.FlightModeCommandState
+import com.example.droneservicesapp.mavserver.ArmCommandState
 
 data class HomeTelemetryUiState(
     val isConnected: Boolean = false,
@@ -20,6 +21,7 @@ data class HomeTelemetryUiState(
     val sprayerText: String = "--.-L",
     val armedText: String = "",
     val isArmed: Boolean = false,
+    val armCommandState: ArmCommandState = ArmCommandState.Idle,
     val flightModeText: String = "NO LINK",
     val flightModeCustomMode: Int? = null,
     val flightModeCommandState: FlightModeCommandState = FlightModeCommandState.Idle,

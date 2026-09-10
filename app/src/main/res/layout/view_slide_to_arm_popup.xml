@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="340dp"
+    android:layout_height="wrap_content"
+    android:background="@drawable/bg_flight_mode_popup"
+    android:elevation="14dp"
+    android:orientation="vertical"
+    android:padding="14dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <ImageView
+            android:layout_width="22dp"
+            android:layout_height="22dp"
+            android:contentDescription="@null"
+            android:src="@drawable/ic_status_shield_24"
+            app:tint="@color/ds_color_shell_warning" />
+
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
+
+            <TextView
+                style="@style/TextAppearance.DroneServices.BodyStrong"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:includeFontPadding="false"
+                android:text="@string/arm_slider_title"
+                android:textAllCaps="true"
+                android:textColor="@color/ds_color_text_primary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/arm_slider_instruction"
+                style="@style/TextAppearance.DroneServices.MapStatusSubvalue"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:includeFontPadding="false"
+                android:text="@string/arm_slider_instruction" />
+        </LinearLayout>
+    </LinearLayout>
+
+    <FrameLayout
+        android:id="@+id/arm_slider_container"
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:layout_marginTop="12dp">
+
+        <SeekBar
+            android:id="@+id/arm_slider"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:max="100"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:progress="0"
+            android:progressDrawable="@drawable/bg_arm_slider_progress"
+            android:splitTrack="false"
+            android:thumb="@drawable/ic_slide_to_arm_thumb"
+            android:thumbOffset="0dp" />
+
+        <TextView
+            style="@style/TextAppearance.DroneServices.CaptionStrong"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="false"
+            android:focusable="false"
+            android:gravity="center"
+            android:paddingStart="44dp"
+            android:paddingEnd="22dp"
+            android:text="@string/arm_slider_track_label"
+            android:textAllCaps="true"
+            android:textColor="@color/ds_color_shell_unselected"
+            android:textSize="11sp" />
+    </FrameLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="8dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            style="@style/TextAppearance.DroneServices.MapStatusSubvalue"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="@string/arm_slider_warning"
+            android:textColor="@color/ds_color_shell_warning" />
+
+        <ProgressBar
+            android:id="@+id/arm_slider_progress"
+            style="?android:attr/progressBarStyleSmall"
+            android:layout_width="20dp"
+            android:layout_height="20dp"
+            android:indeterminateTint="@color/ds_color_shell_active"
+            android:visibility="gone" />
+    </LinearLayout>
+</LinearLayout>

@@ -29,6 +29,7 @@ class MissionParamsActionHandler(
     private val droneLocationProvider: (() -> Location?)? = null,
     private val preferencesBridge: MissionParamsPreferencesBridge,
     private val beforeUploadGuard: (((onAllowed: () -> Unit) -> Unit))? = null,
+    private val beforeMissionUpload: () -> Unit = {},
 ) {
     private data class MissionBuild(
         val items: ArrayList<MissionItemInt>,
@@ -167,6 +168,7 @@ class MissionParamsActionHandler(
         if (!terrainReady(build.altitudeReferenceMode)) return
 
         val proceedWithUpload = {
+            beforeMissionUpload()
             if (serviceLegs.size > 1) {
                 activityViewModel.beginServiceMission(serviceLegs)
                 if (activityViewModel.plannedHomePosition.value == null) {
@@ -235,6 +237,7 @@ class MissionParamsActionHandler(
         }
 
         logUpload(PlanningWorkflow.AREA, build, altitude)
+        beforeMissionUpload()
         droneViewModel.uploadMissionNew(build.items, activityViewModel)
         preferencesBridge.saveFromViewModel()
     }

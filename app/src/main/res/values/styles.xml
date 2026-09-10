@@ -337,6 +337,17 @@
         <item name="android:minHeight">0dp</item>
     </style>
 
+    <style name="Widget.DroneServices.Button.FlightModeTile" parent="Widget.DroneServices.Button.MapDark">
+        <item name="android:layout_height">48dp</item>
+        <item name="android:textSize">13sp</item>
+        <item name="android:gravity">start|center_vertical</item>
+        <item name="android:paddingStart">12dp</item>
+        <item name="android:paddingEnd">10dp</item>
+        <item name="iconGravity">textStart</item>
+        <item name="iconPadding">8dp</item>
+        <item name="iconSize">19dp</item>
+    </style>
+
     <style name="Widget.DroneServices.Button.MapLight" parent="Widget.MaterialComponents.Button">
         <item name="android:textAllCaps">false</item>
         <item name="android:fontFamily">@font/inter</item>

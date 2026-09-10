@@ -8,6 +8,7 @@ import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.rtk.RtkMountpoint
 import io.dronefleet.mavlink.common.GpsFixType
 import io.dronefleet.mavlink.common.MissionItemInt
+import io.dronefleet.mavlink.common.MavLandedState
 
 internal class DroneUiStateStore(
     context: Context
@@ -20,6 +21,8 @@ internal class DroneUiStateStore(
         MutableLiveData<Boolean>().default(false)
     val armedState: MutableLiveData<Boolean> =
         MutableLiveData<Boolean>().default(false)
+    val droneLandedState: MutableLiveData<MavLandedState?> =
+        MutableLiveData<MavLandedState?>().default(null)
     val droneHeading: MutableLiveData<Double> =
         MutableLiveData<Double>().default(0.0)
     val droneBatteryVoltage: MutableLiveData<Float> =

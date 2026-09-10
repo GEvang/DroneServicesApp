@@ -15,6 +15,7 @@ class MissionParamsController(
     droneViewModel: DroneViewModel,
     droneLocationProvider: (() -> Location?)? = null,
     beforeUploadGuard: (((onAllowed: () -> Unit) -> Unit))? = null,
+    beforeMissionUpload: () -> Unit = {},
     private val loadPreferencesOnShow: Boolean = true,
 ) {
     private var isBound = false
@@ -40,7 +41,8 @@ class MissionParamsController(
         droneViewModel = droneViewModel,
         droneLocationProvider = droneLocationProvider,
         preferencesBridge = preferencesBridge,
-        beforeUploadGuard = beforeUploadGuard
+        beforeUploadGuard = beforeUploadGuard,
+        beforeMissionUpload = beforeMissionUpload,
     )
 
     fun show() {

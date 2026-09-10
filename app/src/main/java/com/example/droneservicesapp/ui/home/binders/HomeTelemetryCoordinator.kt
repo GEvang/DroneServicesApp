@@ -12,6 +12,7 @@ import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.mavserver.TelemetryMapping
 import com.example.droneservicesapp.mavserver.ArduCopterFlightMode
 import com.example.droneservicesapp.mavserver.FlightModeCommandState
+import com.example.droneservicesapp.mavserver.ArmCommandState
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryUiState
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import java.util.Locale
@@ -138,6 +139,10 @@ class HomeTelemetryCoordinator(
             }
         }
 
+        droneViewModel.armCommandState.observe(lifecycleOwner) { commandState ->
+            update { state -> state.copy(armCommandState = commandState) }
+        }
+
         droneViewModel.droneFlightMode.observe(lifecycleOwner) { customMode ->
             update { state ->
                 state.copy(
@@ -188,6 +193,7 @@ class HomeTelemetryCoordinator(
             sprayerText = formatSprayerText(droneViewModel.liquidLevel.value),
             armedText = activity.getString(if (armed) R.string.armed else R.string.disarmed),
             isArmed = armed,
+            armCommandState = droneViewModel.armCommandState.value ?: ArmCommandState.Idle,
             flightModeCustomMode = droneViewModel.droneFlightMode.value,
             flightModeText = if (isConnected) {
                 ArduCopterFlightMode.displayName(droneViewModel.droneFlightMode.value)

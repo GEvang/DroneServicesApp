@@ -10,6 +10,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupWindow
+import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.LifecycleOwner
@@ -60,7 +61,7 @@ class FlightModeUiBinder(
         }
         val content = LayoutInflater.from(rootView.context)
             .inflate(R.layout.view_flight_mode_popup, rootView as? ViewGroup, false)
-        val popupWidth = (280 * rootView.resources.displayMetrics.density).toInt()
+        val popupWidth = (340 * rootView.resources.displayMetrics.density).toInt()
         popup = PopupWindow(
             content,
             popupWidth,
@@ -153,6 +154,8 @@ class FlightModeUiBinder(
         val telemetry = telemetryViewModel.homeTelemetryUiState.value ?: return
         val commandState = telemetry.flightModeCommandState
         val pendingMode = (commandState as? FlightModeCommandState.Pending)?.requestedMode
+        content.findViewById<TextView>(R.id.flight_mode_current_value).text =
+            rootView.context.getString(R.string.flight_mode_current_format, telemetry.flightModeText)
         modeButtons(content).forEach { (mode, button) ->
             val selected = telemetry.flightModeCustomMode == mode.customMode
             val pending = pendingMode == mode
@@ -161,11 +164,16 @@ class FlightModeUiBinder(
             button.backgroundTintList = ColorStateList.valueOf(
                 ContextCompat.getColor(
                     rootView.context,
-                    if (selected) R.color.ds_color_shell_selected_surface else android.R.color.transparent
+                    if (selected) R.color.ds_color_shell_selected_surface else R.color.ds_color_shell_overlay_strong
                 )
             )
-            button.strokeWidth = if (selected) 1 else 0
-            button.strokeColor = ColorStateList.valueOf(activeColor)
+            button.strokeWidth = 1
+            button.strokeColor = ColorStateList.valueOf(
+                ContextCompat.getColor(
+                    rootView.context,
+                    if (selected) R.color.ds_color_shell_active else R.color.ds_color_shell_stroke
+                )
+            )
             if (mode != ArduCopterFlightMode.RTL &&
                 mode != ArduCopterFlightMode.LAND &&
                 mode != ArduCopterFlightMode.BRAKE
