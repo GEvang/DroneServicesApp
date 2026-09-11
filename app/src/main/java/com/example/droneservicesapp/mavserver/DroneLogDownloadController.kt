@@ -54,7 +54,6 @@ internal class DroneLogDownloadController(
     private val handler: Handler = Handler(Looper.getMainLooper()),
 ) {
     companion object {
-        private const val GCS_SYSTEM_ID = 255
         private const val GCS_COMPONENT_ID = 190
         private const val LIST_TIMEOUT_MS = 5_000L
         private const val LIST_SETTLE_MS = 1_200L
@@ -90,7 +89,7 @@ internal class DroneLogDownloadController(
         logsById.clear()
         mutableCatalog.value = DroneLogCatalogState(loading = true)
         mavlinkClient.send2(
-            GCS_SYSTEM_ID,
+            mavlinkClient.gcsSystemId,
             GCS_COMPONENT_ID,
             LogRequestList.builder()
                 .targetSystem(targetSystemId())
@@ -256,7 +255,7 @@ internal class DroneLogDownloadController(
 
     private fun requestRange(logId: Int, offset: Long, count: Long) {
         mavlinkClient.send2(
-            GCS_SYSTEM_ID,
+            mavlinkClient.gcsSystemId,
             GCS_COMPONENT_ID,
             LogRequestData.builder()
                 .targetSystem(targetSystemId())
@@ -309,7 +308,7 @@ internal class DroneLogDownloadController(
     private fun sendRequestEnd() {
         if (targetSystemId() < 0 || targetComponentId() < 0) return
         mavlinkClient.send2(
-            GCS_SYSTEM_ID,
+            mavlinkClient.gcsSystemId,
             GCS_COMPONENT_ID,
             LogRequestEnd.builder()
                 .targetSystem(targetSystemId())

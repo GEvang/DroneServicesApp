@@ -28,12 +28,12 @@ import java.util.concurrent.atomic.AtomicInteger
 class MavlinkSession(
     input: InputStream,
     output: OutputStream,
-    private val clock: Clock = SystemClock
+    private val clock: Clock = SystemClock,
+    private val gcsSystemId: Int = 254,
 ) {
     private companion object {
         private const val TAG = "MavlinkSession"
         private const val RTCM_TAG = "MavlinkRtcm"
-        private const val GCS_SYSTEM_ID = 255
         private const val GCS_COMPONENT_ID = 190
         private const val RTCM_FRAGMENT_SIZE = 180
         private const val MAX_RTCM_MESSAGE_SIZE = RTCM_FRAGMENT_SIZE * 4
@@ -236,7 +236,7 @@ class MavlinkSession(
         )
         Log.i(
             RTCM_TAG,
-            "mavlink: sender sys=$GCS_SYSTEM_ID comp=$GCS_COMPONENT_ID for GPS_RTCM_DATA"
+            "mavlink: sender sys=$gcsSystemId comp=$GCS_COMPONENT_ID for GPS_RTCM_DATA"
         )
 
         synchronized(sendLock) {
@@ -269,7 +269,7 @@ class MavlinkSession(
                         RTCM_TAG,
                         "mavlink: packet frame=${queuedFrame.frameId} type=${queuedFrame.messageType} chunk=${queuedFrame.chunkId} packet=${index + 1}/${fragments.size} seq=$seq flags=$flags len=${fragment.len()} fragmentIndex=$fragmentIndex actualInterFragmentDelayMs=$actualDelayMs queueDepth=$queueDepth backlogMode=$backlogMode"
                     )
-                    mavCon.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, fragment)
+                    mavCon.send2(gcsSystemId, GCS_COMPONENT_ID, fragment)
                     previousFragmentSentNs = AndroidSystemClock.elapsedRealtimeNanos()
                 }
                 val totalPackets = totalRtcmMessagesSent.addAndGet(fragments.size)

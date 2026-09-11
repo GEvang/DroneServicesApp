@@ -19,6 +19,10 @@ class MavlinkConnectionManager(
 
     private var transport: MavTransport? = null
     private var session: MavlinkSession? = null
+    @Volatile private var activeGcsSystemId = 254
+
+    override val gcsSystemId: Int
+        get() = activeGcsSystemId
 
     private val running = AtomicBoolean(false)
 
@@ -36,11 +40,12 @@ class MavlinkConnectionManager(
             }
 
             try {
+                activeGcsSystemId = config.gcsSystemId
                 transport = transportFactory.create(config).also { it.start() }
 
                 val t = transport!!
                 Log.i(TAG, "session recreated via start transport=${t.javaClass.simpleName}")
-                session = MavlinkSession(t.input, t.output)
+                session = MavlinkSession(t.input, t.output, gcsSystemId = config.gcsSystemId)
                 session?.start()
 
                 Log.i(TAG, "Started with $config")
@@ -97,11 +102,12 @@ class MavlinkConnectionManager(
             }
 
             try {
+                activeGcsSystemId = config.gcsSystemId
                 transport = transportFactory.create(config).also { it.start() }
 
                 val t = transport!!
                 Log.i(TAG, "session recreated via restart transport=${t.javaClass.simpleName}")
-                session = MavlinkSession(t.input, t.output)
+                session = MavlinkSession(t.input, t.output, gcsSystemId = config.gcsSystemId)
                 session?.start()
 
                 Log.i(TAG, "Started with $config")

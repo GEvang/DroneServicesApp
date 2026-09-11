@@ -7,6 +7,10 @@ data class MavlinkConfig(
     val port: Int = 14550,
     val targetHost: String? = null,
     val targetPort: Int = 14550,
+    val gcsSystemId: Int = 254,
+    val qgcBridgeEnabled: Boolean = false,
+    val qgcBridgeHost: String? = null,
+    val qgcBridgePort: Int = 14550,
     val network: Network? = null
 ) {
     enum class InterfaceType { UDP, TCP, SERIAL }

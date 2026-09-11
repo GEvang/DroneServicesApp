@@ -2,11 +2,9 @@ package com.example.droneservicesapp.ui.settings
 
 import android.content.SharedPreferences
 import android.os.Bundle
-import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
@@ -39,10 +37,6 @@ import java.util.TimeZone
 class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeListener {
 
     private lateinit var sharedPreferences: SharedPreferences
-    private lateinit var interfaceSummary: TextView
-    private lateinit var portSummary: TextView
-    private lateinit var targetIpSummary: TextView
-    private lateinit var targetPortSummary: TextView
     private lateinit var operationModeSummary: TextView
     private lateinit var languageSummary: TextView
     private lateinit var geoDatasetSourceSummary: TextView
@@ -83,7 +77,6 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
         )
 
         content.addView(createMissionOperationPanel())
-        content.addView(createDroneConnectionPanel())
         content.addView(createLocalizationPanel())
         content.addView(createGeoAwarenessPanel())
         content.addView(createOfflineMapsPanel())
@@ -112,49 +105,6 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
                 )
             }
         ).also { operationModeSummary = it.findViewWithTag(SUMMARY_TAG) })
-        return panel
-    }
-
-    private fun createDroneConnectionPanel(): View {
-        val panel = createPanel(getString(R.string.drone_con_props_title_pref))
-        panel.addView(createSettingRow(
-            title = getString(R.string.drone_conn_interface_pref),
-            onClick = { showChoiceDialog(
-                title = getString(R.string.drone_conn_interface_pref),
-                entries = resources.getStringArray(R.array.drone_connection_interfaces),
-                values = resources.getStringArray(R.array.drone_connection_interfaces),
-                key = getString(R.string.mavlink_interface_pref),
-                defaultValue = "UDP"
-            ) }
-        ).also { interfaceSummary = it.findViewWithTag(SUMMARY_TAG) })
-
-        panel.addView(createSettingRow(
-            title = getString(R.string.drone_tcpudp_port_pref),
-            onClick = { showChoiceDialog(
-                title = getString(R.string.drone_tcpudp_port_pref),
-                entries = resources.getStringArray(R.array.drone_tcp_udp_ports),
-                values = resources.getStringArray(R.array.drone_tcp_udp_ports),
-                key = getString(R.string.mavlink_lan_port_pref),
-                defaultValue = "14550"
-            ) }
-        ).also { portSummary = it.findViewWithTag(SUMMARY_TAG) })
-
-        panel.addView(createSettingRow(
-            title = getString(R.string.mavlink_target_host_title),
-            onClick = { showMavTargetHostDialog() }
-        ).also { targetIpSummary = it.findViewWithTag(SUMMARY_TAG) })
-
-        panel.addView(createSettingRow(
-            title = getString(R.string.mavlink_target_port_title),
-            onClick = { showChoiceDialog(
-                title = getString(R.string.mavlink_target_port_title),
-                entries = resources.getStringArray(R.array.drone_tcp_udp_ports),
-                values = resources.getStringArray(R.array.drone_tcp_udp_ports),
-                key = getString(R.string.mavlink_target_port_pref),
-                defaultValue = "14550"
-            ) }
-        ).also { targetPortSummary = it.findViewWithTag(SUMMARY_TAG) })
-
         return panel
     }
 
@@ -301,31 +251,6 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
             .show()
     }
 
-    private fun showMavTargetHostDialog() {
-        val key = getString(R.string.mavlink_target_host_pref)
-        val current = sharedPreferences.getString(key, "") ?: ""
-
-        val input = EditText(requireContext()).apply {
-            inputType = InputType.TYPE_CLASS_PHONE
-            setSingleLine(true)
-            hint = "blank = auto"
-            setText(current)
-            selectAll()
-        }
-
-        AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle(getString(R.string.mavlink_target_host_title))
-            .setView(input)
-            .setPositiveButton(android.R.string.ok) { _, _ ->
-                sharedPreferences.edit {
-                    putString(key, input.text.toString().trim())
-                }
-                refreshSummaries()
-            }
-            .setNegativeButton(android.R.string.cancel, null)
-            .show()
-    }
-
     private fun clearOfflineMapCache() {
         val cacheDir = getOsmdroidTileCacheDir()
         if (cacheDir == null) {
@@ -349,14 +274,6 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
             operationModeSummary.text = operationModeLabel(operationMode)
             activityViewModel.setPlanningOperationMode(operationMode)
         }
-        interfaceSummary.text = sharedPreferences.getString(getString(R.string.mavlink_interface_pref), "UDP") ?: "UDP"
-        portSummary.text = sharedPreferences.getString(getString(R.string.mavlink_lan_port_pref), "14550") ?: "14550"
-        targetIpSummary.text = sharedPreferences
-            .getString(getString(R.string.mavlink_target_host_pref), "")
-            ?.trim()
-            ?.takeIf { it.isNotEmpty() }
-            ?: "Auto"
-        targetPortSummary.text = sharedPreferences.getString(getString(R.string.mavlink_target_port_pref), "14550") ?: "14550"
         languageSummary.text = languageLabel(
             sharedPreferences.getString(getString(R.string.language_pref), LocaleUtils.ENGLISH) ?: LocaleUtils.ENGLISH
         )

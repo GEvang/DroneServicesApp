@@ -76,7 +76,6 @@ internal class DroneParameterController(
         const val AVOID_ENABLE = "AVOID_ENABLE"
 
         private const val TAG = "DroneParameters"
-        private const val GCS_SYSTEM_ID = 255
         private const val GCS_COMPONENT_ID = 190
         private const val READ_RETRY_MS = 1_000L
         private const val READ_TIMEOUT_MS = 3_500L
@@ -155,7 +154,7 @@ internal class DroneParameterController(
                 else paramType(MavParamType.MAV_PARAM_TYPE_REAL32)
             }
             .build()
-        mavlinkClient.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, request)
+        mavlinkClient.send2(mavlinkClient.gcsSystemId, GCS_COMPONENT_ID, request)
         Log.i(TAG, "PARAM_SET sent name=$parameterName requested=$value")
         DiagnosticLog.event("mavlink", "parameter_write_requested", data = mapOf(
             "parameter" to parameterName,
@@ -299,7 +298,7 @@ internal class DroneParameterController(
             .paramId(parameterName)
             .paramIndex(-1)
             .build()
-        mavlinkClient.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, request)
+        mavlinkClient.send2(mavlinkClient.gcsSystemId, GCS_COMPONENT_ID, request)
         Log.d(TAG, "PARAM_REQUEST_READ sent name=$parameterName")
         DiagnosticLog.event("mavlink", "parameter_read_requested", data = mapOf(
             "parameter" to parameterName,

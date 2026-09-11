@@ -16,6 +16,11 @@
         android:label="@string/menu_settings" />
 
     <fragment
+        android:id="@+id/nav_mavlink_network"
+        android:name="com.example.droneservicesapp.ui.mavlink.MavlinkNetworkFragment"
+        android:label="@string/menu_mavlink_network" />
+
+    <fragment
         android:id="@+id/nav_datasets"
         android:name="com.example.droneservicesapp.ui.datasets.DatasetsFragment"
         android:label="@string/menu_datasets"

@@ -4,6 +4,9 @@ import io.dronefleet.mavlink.MavlinkMessage
 import io.reactivex.Observable
 
 interface MavlinkClient {
+    val gcsSystemId: Int
+        get() = 254
+
     fun start(config: MavlinkConfig)
     fun stop()
     fun restart(config: MavlinkConfig) {

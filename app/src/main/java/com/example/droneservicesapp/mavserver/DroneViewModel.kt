@@ -50,7 +50,6 @@ class DroneViewModel : ViewModel() {
         private const val TELEMETRY_STALE_MS = 2500L
         private const val MISSION_DEBOUNCE_MS = 1500L
         private const val UPLOAD_TIMEOUT_MS = 8000L
-        private const val GCS_SYSTEM_ID = 255
         private const val GCS_COMPONENT_ID = 190
         private const val MAVLINK_SYSTEM_ALL = 0
         private const val MAVLINK_COMPONENT_ALL = 0
@@ -348,10 +347,10 @@ class DroneViewModel : ViewModel() {
             .param7(0.0f)
             .build()
 
-        mavlinkClient.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, command)
+        mavlinkClient.send2(mavlinkClient.gcsSystemId, GCS_COMPONENT_ID, command)
         Log.i(
             "SprayerDebug",
-            "TX COMMAND_LONG DO_SET_SERVO targetSys=$targetSystemId targetComp=$targetComponentId senderSys=$GCS_SYSTEM_ID senderComp=$GCS_COMPONENT_ID channel=5 pwm=${command.param2()}"
+            "TX COMMAND_LONG DO_SET_SERVO targetSys=$targetSystemId targetComp=$targetComponentId senderSys=${mavlinkClient.gcsSystemId} senderComp=$GCS_COMPONENT_ID channel=5 pwm=${command.param2()}"
         )
         return true
     }
@@ -379,8 +378,8 @@ class DroneViewModel : ViewModel() {
             .mavlinkVersion(3)
             .build()
 
-        mavlinkClient.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, heartbeat)
-        Log.i("SprayerDebug", "TX GCS HEARTBEAT senderSys=$GCS_SYSTEM_ID senderComp=$GCS_COMPONENT_ID")
+        mavlinkClient.send2(mavlinkClient.gcsSystemId, GCS_COMPONENT_ID, heartbeat)
+        Log.i("SprayerDebug", "TX GCS HEARTBEAT senderSys=${mavlinkClient.gcsSystemId} senderComp=$GCS_COMPONENT_ID")
     }
 
     fun requestServoOutputRawStream(): Boolean {
@@ -405,7 +404,7 @@ class DroneViewModel : ViewModel() {
             .param7(0.0f)
             .build()
 
-        mavlinkClient.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, command)
+        mavlinkClient.send2(mavlinkClient.gcsSystemId, GCS_COMPONENT_ID, command)
         Log.i("SprayerDebug", "TX request SERVO_OUTPUT_RAW intervalUs=$SERVO_OUTPUT_RAW_INTERVAL_US")
         return true
     }
@@ -426,7 +425,7 @@ class DroneViewModel : ViewModel() {
             .param6(0f)
             .param7(0f)
             .build()
-        mavlinkClient.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, command)
+        mavlinkClient.send2(mavlinkClient.gcsSystemId, GCS_COMPONENT_ID, command)
         return true
     }
 
@@ -436,7 +435,11 @@ class DroneViewModel : ViewModel() {
             "interface" to config.interfaceType.name,
             "port" to config.port,
             "targetHostConfigured" to !config.targetHost.isNullOrBlank(),
-            "targetPort" to config.targetPort
+            "targetPort" to config.targetPort,
+            "gcsSystemId" to config.gcsSystemId,
+            "qgcBridgeEnabled" to config.qgcBridgeEnabled,
+            "qgcHostConfigured" to !config.qgcBridgeHost.isNullOrBlank(),
+            "qgcPort" to config.qgcBridgePort,
         ))
         runtimeState.clearAutopilotTarget()
         mavlinkClient.restart(config)
@@ -492,7 +495,7 @@ class DroneViewModel : ViewModel() {
     }
 
     private fun MavlinkConfig.toConnectionKey(): String {
-        return "${interfaceType.name}|$port|${targetHost.orEmpty()}|$targetPort|${network?.networkHandle ?: "default"}"
+        return "${interfaceType.name}|$port|${targetHost.orEmpty()}|$targetPort|$gcsSystemId|$qgcBridgeEnabled|${qgcBridgeHost.orEmpty()}|$qgcBridgePort|${network?.networkHandle ?: "default"}"
     }
 
     fun onRtkConfigurationChanged(forceStart: Boolean = false) {

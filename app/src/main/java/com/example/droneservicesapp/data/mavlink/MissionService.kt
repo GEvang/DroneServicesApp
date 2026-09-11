@@ -39,9 +39,12 @@ sealed class MissionUploadResult {
  */
 class MissionService(
     private val client: MavlinkClient,
-    private val gcsSystemId: Int = 254,
+    private val gcsSystemIdOverride: Int? = null,
     private val gcsComponentId: Int = 99
 ) {
+    private val gcsSystemId: Int
+        get() = gcsSystemIdOverride ?: client.gcsSystemId
+
     @Volatile var targetSystemId: Int = 1
     @Volatile var targetComponentId: Int = 1
 

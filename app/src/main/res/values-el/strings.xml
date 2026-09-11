@@ -2,6 +2,7 @@
 <resources>
   <string name="menu_maps_home">Χάρτης</string>
   <string name="menu_settings">Ρυθμίσεις</string>
+  <string name="menu_mavlink_network">Δίκτυο MAVLink</string>
   <string name="menu_rtk">RTK</string>
   <string name="menu_parameters">Παράμετροι</string>
   <string name="parameters_title">Παράμετροι</string>
@@ -90,6 +91,24 @@
   <string name="mission_angle">Γωνία</string>
   <string name="mavlink_target_host_title">MAVLink Target IP (blank for auto)</string>
   <string name="mavlink_target_port_title">MAVLink Target Port</string>
+  <string name="mavlink_local_port_title">Τοπική θύρα ακρόασης UDP</string>
+  <string name="mavlink_aircraft_host_title">IP αεροσκάφους / πομποδέκτη</string>
+  <string name="mavlink_aircraft_port_title">Θύρα UDP αεροσκάφους</string>
+  <string name="mavlink_gcs_system_id_title">Αναγνωριστικό συστήματος σταθμού εδάφους</string>
+  <string name="mavlink_bridge_section_title">Γέφυρα QGroundControl</string>
+  <string name="mavlink_bridge_description">Προωθεί αμφίδρομα το MAVLink μεταξύ του ασυρμάτου του αεροσκάφους και του QGroundControl, ενώ η εφαρμογή παραμένει συνδεδεμένη. Το αεροσκάφος και το QGC πρέπει να έχουν διαφορετικές διευθύνσεις IP.</string>
+  <string name="mavlink_bridge_enabled_title">Ενεργοποίηση γέφυρας QGC</string>
+  <string name="mavlink_qgc_host_title">Διεύθυνση IP QGroundControl</string>
+  <string name="mavlink_qgc_port_title">Θύρα UDP QGroundControl</string>
+  <string name="mavlink_blank_auto_hint">κενό = αυτόματα</string>
+  <string name="mavlink_auto_value">Αυτόματα</string>
+  <string name="mavlink_invalid_port">Εισαγάγετε θύρα UDP από 1 έως 65535</string>
+  <string name="mavlink_invalid_ip">Εισαγάγετε έγκυρη διεύθυνση IPv4</string>
+  <string name="mavlink_invalid_system_id">Εισαγάγετε αναγνωριστικό συστήματος MAVLink από 1 έως 255</string>
+  <string name="mavlink_bridge_status_off">Η γέφυρα είναι ανενεργή. Η εφαρμογή χρησιμοποιεί την κανονική απευθείας σύνδεση MAVLink.</string>
+  <string name="mavlink_bridge_status_incomplete">Η γέφυρα χρειάζεται την IP του αεροσκάφους/πομποδέκτη και την IP του QGroundControl.</string>
+  <string name="mavlink_bridge_status_same_host">Οι διευθύνσεις IP του αεροσκάφους και του QGroundControl πρέπει να είναι διαφορετικές.</string>
+  <string name="mavlink_bridge_status_ready">Έτοιμο: αεροσκάφος %1$s ↔ εφαρμογή ↔ QGroundControl %2$s</string>
   <string name="no_conn_msg">Αδυναμία σύνδεσης με drone!</string>
   <string name="wrong_schema_msg">Η περιοχή πτήσης πρέπει να αποτελείται από τουλάχιστον 3 σημεία!</string>
   <string name="invalid_location_permissions">Δεν ήταν δυνατή η λήψη τοποθεσίας λόγω ανεπαρκών δικαιωμάτων.</string>

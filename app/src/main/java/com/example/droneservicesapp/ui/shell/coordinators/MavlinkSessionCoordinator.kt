@@ -1,6 +1,7 @@
 package com.example.droneservicesapp.ui.shell.coordinators
 
 import android.content.Context
+import android.content.SharedPreferences
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
@@ -13,24 +14,51 @@ import com.example.droneservicesapp.mavserver.DroneViewModel
 class MavlinkSessionCoordinator(
     private val context: Context,
     private val droneViewModel: DroneViewModel,
-) {
+) : SharedPreferences.OnSharedPreferenceChangeListener {
     private companion object {
         private const val TAG = "MavlinkSessionCoordinator"
     }
 
     private val connectivityManager: ConnectivityManager? =
         context.applicationContext.getSystemService(ConnectivityManager::class.java)
+    private val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
+    private val mavlinkPreferenceKeys by lazy {
+        setOf(
+            R.string.mavlink_interface_pref,
+            R.string.mavlink_lan_port_pref,
+            R.string.mavlink_target_host_pref,
+            R.string.mavlink_target_port_pref,
+            R.string.mavlink_gcs_system_id_pref,
+            R.string.mavlink_bridge_enabled_pref,
+            R.string.mavlink_bridge_host_pref,
+            R.string.mavlink_bridge_port_pref,
+        ).map(context::getString).toSet()
+    }
+    private var listeningForChanges = false
 
     fun onResume() {
+        if (!listeningForChanges) {
+            sharedPreferences.registerOnSharedPreferenceChangeListener(this)
+            listeningForChanges = true
+        }
         droneViewModel.onAppForegrounded(readMavlinkConfig())
     }
 
     fun onPause() {
+        if (listeningForChanges) {
+            sharedPreferences.unregisterOnSharedPreferenceChangeListener(this)
+            listeningForChanges = false
+        }
         droneViewModel.onAppBackgrounded()
     }
 
+    override fun onSharedPreferenceChanged(preferences: SharedPreferences?, key: String?) {
+        if (key == null || key !in mavlinkPreferenceKeys) return
+        Log.i(TAG, "MAVLink preference changed key=$key; applying connection configuration")
+        droneViewModel.onAppForegrounded(readMavlinkConfig())
+    }
+
     private fun readMavlinkConfig(): MavlinkConfig {
-        val sharedPreferences = PreferenceManager.getDefaultSharedPreferences(context)
         val ifaceStr = sharedPreferences.getString(
             context.getString(R.string.mavlink_interface_pref),
             "UDP"
@@ -51,19 +79,43 @@ class MavlinkSessionCoordinator(
             "14550"
         )?.toIntOrNull() ?: 14550
 
+        val gcsSystemId = sharedPreferences.getString(
+            context.getString(R.string.mavlink_gcs_system_id_pref),
+            "254"
+        )?.toIntOrNull()?.takeIf { it in 1..255 } ?: 254
+
+        val qgcBridgeEnabled = sharedPreferences.getBoolean(
+            context.getString(R.string.mavlink_bridge_enabled_pref),
+            false
+        )
+
+        val qgcBridgeHost = sharedPreferences.getString(
+            context.getString(R.string.mavlink_bridge_host_pref),
+            ""
+        )?.trim()?.takeIf { it.isNotEmpty() }
+
+        val qgcBridgePort = sharedPreferences.getString(
+            context.getString(R.string.mavlink_bridge_port_pref),
+            "14550"
+        )?.toIntOrNull() ?: 14550
+
         val iface = runCatching { MavlinkConfig.InterfaceType.valueOf(ifaceStr.uppercase()) }
             .getOrDefault(MavlinkConfig.InterfaceType.UDP)
 
         val network = selectMavlinkNetwork(targetHost)
         Log.i(
             TAG,
-            "MAVLink config iface=$iface localPort=$port targetHost=${targetHost ?: "<auto>"} targetPort=$targetPort network=${network?.networkHandle ?: "<default>"}"
+            "MAVLink config iface=$iface localPort=$port targetHost=${targetHost ?: "<auto>"} targetPort=$targetPort gcsSystemId=$gcsSystemId qgcBridge=$qgcBridgeEnabled qgcHost=${qgcBridgeHost ?: "<unset>"} qgcPort=$qgcBridgePort network=${network?.networkHandle ?: "<default>"}"
         )
         return MavlinkConfig(
             interfaceType = iface,
             port = port,
             targetHost = targetHost,
             targetPort = targetPort,
+            gcsSystemId = gcsSystemId,
+            qgcBridgeEnabled = qgcBridgeEnabled,
+            qgcBridgeHost = qgcBridgeHost,
+            qgcBridgePort = qgcBridgePort,
             network = network
         )
     }

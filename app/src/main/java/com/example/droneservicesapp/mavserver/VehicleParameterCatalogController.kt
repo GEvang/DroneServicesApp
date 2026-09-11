@@ -36,7 +36,6 @@ internal class VehicleParameterCatalogController(
     private val handler: Handler = Handler(Looper.getMainLooper()),
 ) {
     companion object {
-        private const val GCS_SYSTEM_ID = 255
         private const val GCS_COMPONENT_ID = 190
         private const val INACTIVITY_MS = 2_500L
         private const val FINAL_TIMEOUT_MS = 30_000L
@@ -68,7 +67,7 @@ internal class VehicleParameterCatalogController(
         publishQueued = false
         mutableState.value = VehicleParameterCatalogState(loading = true)
         mavlinkClient.send2(
-            GCS_SYSTEM_ID,
+            mavlinkClient.gcsSystemId,
             GCS_COMPONENT_ID,
             ParamRequestList.builder()
                 .targetSystem(targetSystemId())
@@ -147,7 +146,7 @@ internal class VehicleParameterCatalogController(
 
     private fun requestByIndex(index: Int) {
         mavlinkClient.send2(
-            GCS_SYSTEM_ID,
+            mavlinkClient.gcsSystemId,
             GCS_COMPONENT_ID,
             ParamRequestRead.builder()
                 .targetSystem(targetSystemId())

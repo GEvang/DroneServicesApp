@@ -13,6 +13,9 @@ class DefaultMavTransportFactory : MavTransportFactory {
                 listenPort = config.port,
                 targetHost = config.targetHost,
                 targetPort = config.targetPort,
+                qgcBridgeEnabled = config.qgcBridgeEnabled,
+                qgcBridgeHost = config.qgcBridgeHost,
+                qgcBridgePort = config.qgcBridgePort,
                 network = config.network
             )
             else -> throw IllegalArgumentException("Not implemented yet: ${config.interfaceType}")

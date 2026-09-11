@@ -8,6 +8,7 @@ import java.io.PipedOutputStream
 import java.net.DatagramPacket
 import java.net.DatagramSocket
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.net.SocketException
 import java.net.SocketTimeoutException
 import java.util.concurrent.atomic.AtomicBoolean
@@ -16,12 +17,16 @@ class UdpTransport(
     private val listenPort: Int,
     targetHost: String? = null,
     private val targetPort: Int = 14550,
+    qgcBridgeEnabled: Boolean = false,
+    qgcBridgeHost: String? = null,
+    private val qgcBridgePort: Int = 14550,
     private val network: Network? = null
 ) : MavTransport {
     private companion object {
         private const val TAG = "UdpTransport"
         private const val OUTBOUND_READ_BUFFER_SIZE = 4096
         private const val MAX_UDP_MAVLINK_DATAGRAM_BYTES = 1200
+        private const val STOP_JOIN_TIMEOUT_MS = 1_000L
     }
 
     // MAVLink will read from this
@@ -36,6 +41,7 @@ class UdpTransport(
     override val output = sndPOS
 
     private var socket: DatagramSocket? = null
+    @Volatile private var workerThread: Thread? = null
     private val running = AtomicBoolean(false)
 
     private var remoteIP: InetAddress? = null
@@ -44,6 +50,21 @@ class UdpTransport(
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
         ?.let { InetAddress.getByName(it) }
+    private val configuredQgcIP: InetAddress? = if (qgcBridgeEnabled) {
+        qgcBridgeHost
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
+            ?.let { InetAddress.getByName(it) }
+    } else {
+        null
+    }
+    private val bridgeRouter = MavlinkUdpBridgeRouter(
+        aircraftAddress = configuredTargetIP,
+        aircraftPort = targetPort,
+        qgcAddress = configuredQgcIP,
+        qgcPort = qgcBridgePort,
+        enabled = qgcBridgeEnabled,
+    )
     private var lastLoggedRemoteEndpoint: String? = null
 
     override fun start() {
@@ -58,15 +79,20 @@ class UdpTransport(
                 TAG,
                 "creating/binding UDP socket listenPort=$listenPort network=${network?.networkHandle ?: "<default>"}"
             )
-            socket = DatagramSocket(listenPort).also { udpSocket ->
+            socket = DatagramSocket(null).also { udpSocket ->
+                udpSocket.reuseAddress = true
+                udpSocket.bind(InetSocketAddress(listenPort))
                 bindSocketToNetwork(udpSocket)
             }
             socket?.soTimeout = 200  // 200ms timeout to periodically wake up and flush
             Log.i(
                 TAG,
-                "UDP socket created/bound local=${socket?.localAddress?.hostAddress}:${socket?.localPort} configuredTarget=${configuredTargetIP?.hostAddress ?: "<auto>"}:$targetPort network=${network?.networkHandle ?: "<default>"}"
+                "UDP socket created/bound local=${socket?.localAddress?.hostAddress}:${socket?.localPort} configuredTarget=${configuredTargetIP?.hostAddress ?: "<auto>"}:$targetPort qgcBridge=${if (bridgeRouter.isActive) "${configuredQgcIP?.hostAddress}:$qgcBridgePort" else "off"} network=${network?.networkHandle ?: "<default>"}"
             )
-            Thread({ runLoop() }, "UdpTransport-$listenPort").apply { isDaemon = true }.start()
+            workerThread = Thread({ runLoop() }, "UdpTransport-$listenPort").apply {
+                isDaemon = true
+                start()
+            }
             Log.i(TAG, "Started UDP listen on $listenPort")
         } catch (e: Exception) {
             running.set(false)
@@ -78,11 +104,22 @@ class UdpTransport(
     override fun stop() {
         Log.i(TAG, "stop requested running=${running.get()} remote=${remoteIP?.hostAddress}:${remotePort}")
         running.set(false)
+        val stoppingSocket = socket
+        socket = null
         try {
-            socket?.close() // this will break receive() with SocketException
+            stoppingSocket?.close() // this will break receive() with SocketException
         } catch (_: Exception) {
         }
-        socket = null
+
+        val stoppingThread = workerThread
+        workerThread = null
+        if (stoppingThread != null && stoppingThread !== Thread.currentThread()) {
+            try {
+                stoppingThread.join(STOP_JOIN_TIMEOUT_MS)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
 
         try {
             rcvPOS.close()
@@ -117,12 +154,16 @@ class UdpTransport(
                 val receivePacket = DatagramPacket(receiveData, receiveData.size)
                 udpSocket.receive(receivePacket)
 
-                remoteIP = receivePacket.address
-                remotePort = receivePacket.port
-                logRemoteEndpointIfChanged(receivePacket.address, receivePacket.port)
-
-                rcvPOS.write(receivePacket.data, 0, receivePacket.length)
-                rcvPOS.flush()
+                when (val route = bridgeRouter.routeIncoming(receivePacket.address)) {
+                    IncomingRoute.DeliverToApp -> deliverToMavlinkSession(receivePacket)
+                    is IncomingRoute.ForwardOnly -> {
+                        forwardRawDatagram(udpSocket, receivePacket, route.address, route.port, "QGC->aircraft")
+                    }
+                    is IncomingRoute.DeliverAndForward -> {
+                        deliverToMavlinkSession(receivePacket)
+                        forwardRawDatagram(udpSocket, receivePacket, route.address, route.port, "aircraft->QGC")
+                    }
+                }
 
                 pendingOutbound = flushOutboundMavlinkFrames(udpSocket, outBuffer, pendingOutbound)
             } catch (e: SocketTimeoutException) {
@@ -134,6 +175,33 @@ class UdpTransport(
                 Log.e(TAG, "UDP loop error: ${e.message}", e)
             }
         }
+    }
+
+    private fun deliverToMavlinkSession(receivePacket: DatagramPacket) {
+        remoteIP = receivePacket.address
+        remotePort = receivePacket.port
+        logRemoteEndpointIfChanged(receivePacket.address, receivePacket.port)
+        rcvPOS.write(receivePacket.data, receivePacket.offset, receivePacket.length)
+        rcvPOS.flush()
+    }
+
+    private fun forwardRawDatagram(
+        udpSocket: DatagramSocket,
+        source: DatagramPacket,
+        destinationAddress: InetAddress,
+        destinationPort: Int,
+        direction: String,
+    ) {
+        udpSocket.send(
+            DatagramPacket(
+                source.data,
+                source.offset,
+                source.length,
+                destinationAddress,
+                destinationPort,
+            )
+        )
+        Log.d(TAG, "BRIDGE $direction ${source.length} bytes -> ${destinationAddress.hostAddress}:$destinationPort")
     }
 
     private fun bindSocketToNetwork(udpSocket: DatagramSocket) {

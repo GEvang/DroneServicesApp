@@ -21,7 +21,6 @@ internal class DroneFlightModeController(
     private val commandTimeoutMs: Long = 4_000L,
 ) {
     companion object {
-        private const val GCS_SYSTEM_ID = 255
         private const val GCS_COMPONENT_ID = 190
         private const val MAVLINK_COMPONENT_ALL = 0
     }
@@ -58,7 +57,7 @@ internal class DroneFlightModeController(
             .param7(0f)
             .build()
 
-        mavlinkClient.send2(GCS_SYSTEM_ID, GCS_COMPONENT_ID, command)
+        mavlinkClient.send2(mavlinkClient.gcsSystemId, GCS_COMPONENT_ID, command)
         DiagnosticLog.event(
             module = "flight",
             message = "flight_mode_requested",
