@@ -17,6 +17,7 @@ class ShellToolbarBinder(
 ) {
     private val toolbar by lazy { binding.appBarMain.customToolbar }
     private val telemetryBinder by lazy { HomeMapTelemetryBinder(toolbar) }
+    private var latestState: HomeTelemetryUiState? = null
 
     fun bind(lifecycleOwner: LifecycleOwner) {
         activity.setSupportActionBar(toolbar)
@@ -26,7 +27,15 @@ class ShellToolbarBinder(
             armedText = activity.getString(R.string.disarmed),
         )
         render(initial)
-        homeTelemetryViewModel.homeTelemetryUiState.observe(lifecycleOwner, ::render)
+        homeTelemetryViewModel.homeTelemetryUiState.observe(lifecycleOwner) { state ->
+            latestState = state
+            if (toolbar.visibility == View.VISIBLE) render(state)
+        }
+    }
+
+    fun renderLatest() {
+        if (toolbar.visibility != View.VISIBLE) return
+        render(latestState ?: homeTelemetryViewModel.homeTelemetryUiState.value ?: return)
     }
 
     private fun render(state: HomeTelemetryUiState) {

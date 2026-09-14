@@ -19,6 +19,7 @@
         android:paddingBottom="@dimen/ds_space_xl">
 
         <LinearLayout
+            android:id="@+id/dataset_management_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:background="@drawable/bg_ds_overlay_card"
@@ -45,6 +46,16 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/ds_space_lg"
                 tools:text="Active: Dataset 1" />
+
+            <TextView
+                android:id="@+id/dataset_empty_state"
+                style="@style/TextAppearance.DroneServices.MapPanelSubtitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_md"
+                android:text="@string/dataset_empty_state"
+                android:visibility="gone"
+                tools:visibility="visible" />
 
             <Spinner
                 android:id="@+id/dataset_selector"
@@ -88,17 +99,43 @@
                     android:text="@string/dataset_unload" />
             </LinearLayout>
 
-            <com.google.android.material.button.MaterialButton
-                android:id="@+id/dataset_delete_button"
-                style="@style/Widget.DroneServices.Button.MapDark"
+            <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/phone_map_panel_button_height_tall"
+                android:layout_height="wrap_content"
                 android:layout_marginTop="@dimen/ds_space_sm"
-                android:text="@string/dataset_delete"
-                app:icon="@drawable/ic_delete_24" />
+                android:orientation="horizontal">
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dataset_rename_button"
+                    style="@style/Widget.DroneServices.Button.MapDark"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/phone_map_panel_button_height_tall"
+                    android:layout_weight="1"
+                    android:text="@string/dataset_rename" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dataset_delete_button"
+                    style="@style/Widget.DroneServices.Button.MapDark"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/phone_map_panel_button_height_tall"
+                    android:layout_marginStart="@dimen/ds_space_sm"
+                    android:layout_weight="1"
+                    android:text="@string/dataset_delete"
+                    app:icon="@drawable/ic_delete_24" />
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/dataset_delete_all_button"
+                    style="@style/Widget.DroneServices.Button.MapDark"
+                    android:layout_width="0dp"
+                    android:layout_height="@dimen/phone_map_panel_button_height_tall"
+                    android:layout_marginStart="@dimen/ds_space_sm"
+                    android:layout_weight="1"
+                    android:text="@string/dataset_delete_all" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/dataset_assets_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/ds_space_lg"
@@ -203,6 +240,7 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/dataset_display_options_card"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/ds_space_lg"

@@ -53,9 +53,16 @@ class RtkKeepAliveForegroundService : Service() {
         }
 
         fun setWakeActive(context: Context, active: Boolean) {
+            if (!active) {
+                // Never create a foreground service merely to tell it to become inactive.
+                // Besides wasting work, Android can kill a background app if that newly
+                // created service does not reach startForeground() before its deadline.
+                context.stopService(Intent(context, RtkKeepAliveForegroundService::class.java))
+                return
+            }
             val intent = Intent(context, RtkKeepAliveForegroundService::class.java).apply {
                 action = ACTION_SET_WAKE_ACTIVE
-                putExtra(EXTRA_WAKE_ACTIVE, active)
+                putExtra(EXTRA_WAKE_ACTIVE, true)
             }
             ContextCompat.startForegroundService(context, intent)
         }

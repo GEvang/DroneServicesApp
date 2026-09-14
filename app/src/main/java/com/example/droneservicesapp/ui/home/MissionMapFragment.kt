@@ -9,6 +9,7 @@ import android.content.res.ColorStateList
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.SystemClock
 import android.graphics.Color
 import android.graphics.Typeface
 import android.provider.OpenableColumns
@@ -169,6 +170,7 @@ class MissionMapFragment : Fragment() {
     private val pointCloudImportCache by lazy { PointCloudImportCache(requireContext().applicationContext) }
     private val windWeatherRepository = OpenMeteoWindRepository()
     private var geoAwarenessZones: List<GeoZone> = emptyList()
+    private var geoAwarenessDatasetLoadAttempted = false
     private var geoZoneDatasetInfo: GeoZoneDatasetInfo? = null
     private var geoAwarenessHealth: GeoAwarenessHealth? = null
     private var geoAwarenessLoadError: Throwable? = null
@@ -220,6 +222,9 @@ class MissionMapFragment : Fragment() {
     private var missionRedrawDebounceJob: Job? = null
     private var geoPlanningJob: Job? = null
     private var missionSummaryJob: Job? = null
+    private var liveGeoUpdateJob: Job? = null
+    private var lastLiveGeoUpdateUptimeMs = 0L
+    private var lastTopLiveGeoStatusSignature: String? = null
     private var missionPlanningGeneration: Long = 0L
     private var previewAssetLoadJob: Job? = null
     private var activePreviewMode: PreviewMode = PreviewMode.MAP
@@ -284,6 +289,7 @@ class MissionMapFragment : Fragment() {
         private const val MAX_PREVIEW_MAP_ZOOM = 21.0
         private const val MAX_ORTHO_PREVIEW_DIMENSION_PX = 2048
         private const val MISSION_EDIT_DEBOUNCE_MS = 140L
+        private const val LIVE_GEO_UPDATE_INTERVAL_MS = 500L
         private const val REQUEST_HOME_OPEN_TIFF = 3301
         private const val REQUEST_HOME_OPEN_WORLD = 3302
         private const val REQUEST_HOME_OPEN_PLY = 3303
@@ -344,7 +350,7 @@ class MissionMapFragment : Fragment() {
         observeGeoAwarenessSharedState()
         observePreviewSettings()
 
-        mapViewModel.updateFromMapState(activityViewModel.mapState.value ?: MainActivityViewModel.MapState.Idle)
+        mapViewModel.restoreFromMapState(activityViewModel.mapState.value ?: MainActivityViewModel.MapState.Idle)
         activePreviewMode = PreviewMode.MAP
         renderPreviewMode()
         binding.root.post {
@@ -3482,6 +3488,8 @@ class MissionMapFragment : Fragment() {
         geoPlanningJob = null
         missionSummaryJob?.cancel()
         missionSummaryJob = null
+        liveGeoUpdateJob?.cancel()
+        liveGeoUpdateJob = null
         terrainSurveyJob?.cancel()
         terrainSurveyJob = null
         previewAssetLoadJob?.cancel()
@@ -3846,6 +3854,10 @@ class MissionMapFragment : Fragment() {
             }
             return true
         }
+        if (geoAwarenessDatasetLoadAttempted) {
+            return geoAwarenessLoadError == null
+        }
+        geoAwarenessDatasetLoadAttempted = true
 
         try {
             val repository = buildGeoZoneRepository()
@@ -3907,6 +3919,7 @@ class MissionMapFragment : Fragment() {
                 }
                 val (loadResult, importedActive) = reloadResult
                 if (_binding == null) return@launch
+                geoAwarenessDatasetLoadAttempted = true
                 applyGeoZoneLoadResult(loadResult, importedActive)
                 logMultiDatasetLoadedIfNeeded(loadResult)
                 renderGeoAwarenessLayerIfVisible()
@@ -3914,6 +3927,7 @@ class MissionMapFragment : Fragment() {
                 updateLiveGeoAwarenessFromActiveSource()
                 geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
             } catch (error: Exception) {
+                geoAwarenessDatasetLoadAttempted = true
                 Log.e(GEO_ZONE_TOGGLE_TAG, "Failed to reload geo-awareness dataset", error)
                 geoAwarenessLoadError = error
                 geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
@@ -5022,6 +5036,9 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun updateTopLiveGeoStatus(label: String, colorHex: String) {
+        val signature = "$label|$colorHex"
+        if (lastTopLiveGeoStatusSignature == signature) return
+        lastTopLiveGeoStatusSignature = signature
         val statusView = view?.findViewById<TextView?>(R.id.top_live_geo_status_text) ?: return
         val color = android.graphics.Color.parseColor(colorHex)
         statusView.text = label
@@ -5129,7 +5146,21 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun updateLiveGeoAwarenessFromActiveSource() {
-        updateLiveGeoAwarenessStatus(latestRealDronePosition, latestRealDroneAltitudeMeters)
+        if (_binding == null) return
+        val elapsed = SystemClock.uptimeMillis() - lastLiveGeoUpdateUptimeMs
+        if (elapsed >= LIVE_GEO_UPDATE_INTERVAL_MS && liveGeoUpdateJob == null) {
+            lastLiveGeoUpdateUptimeMs = SystemClock.uptimeMillis()
+            updateLiveGeoAwarenessStatus(latestRealDronePosition, latestRealDroneAltitudeMeters)
+            return
+        }
+        if (liveGeoUpdateJob != null) return
+        liveGeoUpdateJob = viewLifecycleOwner.lifecycleScope.launch {
+            delay((LIVE_GEO_UPDATE_INTERVAL_MS - elapsed).coerceAtLeast(0L))
+            liveGeoUpdateJob = null
+            if (_binding == null) return@launch
+            lastLiveGeoUpdateUptimeMs = SystemClock.uptimeMillis()
+            updateLiveGeoAwarenessStatus(latestRealDronePosition, latestRealDroneAltitudeMeters)
+        }
     }
 
     private fun liveGeoAwarenessDegradedReason(): String? {

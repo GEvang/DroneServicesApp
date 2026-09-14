@@ -2,6 +2,8 @@ package com.example.droneservicesapp.ui.home.binders
 
 import androidx.appcompat.app.AppCompatActivity
 import android.location.Location
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.lifecycle.LifecycleOwner
 import com.example.droneservicesapp.R
@@ -25,10 +27,19 @@ class HomeTelemetryCoordinator(
 ) {
     companion object {
         private const val TAG = "RtkTelemetryUi"
+        private const val UI_UPDATE_INTERVAL_MS = 100L
     }
 
     private var lastLoggedGpsQuality: GpsFixQuality? = null
     private var lastLoggedMountpointSummary: String? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var pendingState: HomeTelemetryUiState? = null
+    private var statePublishScheduled = false
+    private val publishPendingState = Runnable {
+        statePublishScheduled = false
+        pendingState?.let { homeTelemetryViewModel.homeTelemetryUiState.value = it }
+        pendingState = null
+    }
 
     fun bind(lifecycleOwner: LifecycleOwner) {
         renderCurrent()
@@ -93,8 +104,6 @@ class HomeTelemetryCoordinator(
         droneViewModel.gpsSatellitesVisible.observe(lifecycleOwner) { updateGpsDetails() }
         droneViewModel.gpsHdop.observe(lifecycleOwner) { updateGpsDetails() }
         droneViewModel.gpsVdop.observe(lifecycleOwner) { updateGpsDetails() }
-        droneViewModel.droneHeading.observe(lifecycleOwner) { update { it } }
-
         droneViewModel.liquidLevel.observe(lifecycleOwner) { liquidLevel ->
             update { state ->
                 state.copy(sprayerText = formatSprayerText(liquidLevel))
@@ -219,16 +228,22 @@ class HomeTelemetryCoordinator(
     }
 
     private fun update(transform: (HomeTelemetryUiState) -> HomeTelemetryUiState) {
-        val current = homeTelemetryViewModel.homeTelemetryUiState.value
+        val current = pendingState ?: homeTelemetryViewModel.homeTelemetryUiState.value
             ?: HomeTelemetryUiState(
                 connectionText = activity.getString(R.string.shell_status_disconnected),
                 armedText = activity.getString(R.string.disarmed)
             )
         val next = transform(current)
-        homeTelemetryViewModel.homeTelemetryUiState.value = next.copy(
+        val finalState = next.copy(
             gpsDialogText = formatGpsDialogDetails(next.isConnected),
             rtkDialogText = formatRtkDialogDetails(),
         )
+        if (finalState == current) return
+        pendingState = finalState
+        if (!statePublishScheduled) {
+            statePublishScheduled = true
+            mainHandler.postDelayed(publishPendingState, UI_UPDATE_INTERVAL_MS)
+        }
     }
 
     private fun disconnectedState(current: HomeTelemetryUiState): HomeTelemetryUiState {

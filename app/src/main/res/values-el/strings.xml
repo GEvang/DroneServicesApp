@@ -428,6 +428,16 @@
   <string name="debug_sprayer_drone_value_unknown">Servo 5 drone: --</string>
   <string name="dataset_delete">Διαγραφή συνόλου δεδομένων</string>
   <string name="dataset_delete_confirmation">Να διαγραφεί το %1$s; Οι αναφορές αρχείων και οι ρυθμίσεις εμφάνισής του θα αφαιρεθούν.</string>
+  <string name="dataset_delete_all">Διαγραφή όλων</string>
+  <string name="dataset_delete_all_confirmation">Να διαγραφούν όλα τα σύνολα δεδομένων; Όλες οι αναφορές αρχείων και οι ρυθμίσεις εμφάνισης θα αφαιρεθούν.</string>
+  <string name="dataset_all_deleted">Όλα τα σύνολα δεδομένων διαγράφηκαν</string>
+  <string name="dataset_rename">Μετονομασία</string>
+  <string name="dataset_rename_title">Μετονομασία συνόλου δεδομένων</string>
+  <string name="dataset_name_hint">Όνομα συνόλου δεδομένων</string>
+  <string name="dataset_name_required">Εισαγάγετε όνομα συνόλου δεδομένων</string>
+  <string name="dataset_renamed">Το σύνολο δεδομένων μετονομάστηκε</string>
+  <string name="dataset_empty_state">Δεν υπάρχουν σύνολα δεδομένων. Δημιουργήστε ένα νέο για να προσθέσετε αρχεία.</string>
+  <string name="dataset_default_name">Σύνολο δεδομένων %1$d</string>
   <string name="dataset_loading">Φόρτωση συνόλου δεδομένων %1$s...</string>
   <string name="dataset_deleted">Το σύνολο δεδομένων διαγράφηκε</string>
   <string name="flight_mode_short_label">Λειτουργία</string>

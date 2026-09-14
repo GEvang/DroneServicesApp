@@ -23,7 +23,10 @@ data class PreviewDatasetRecord(
     val orthoBackgroundEnabled: Boolean = true,
     val pointCloudPointSize: Float = 2.5f,
     val heightColorModeEnabled: Boolean = true,
-)
+) {
+    fun hasAttachedFiles(): Boolean =
+        orthoImageUri != null || orthoWorldUri != null || pointCloudUri != null
+}
 
 class PreviewDatasetStore(context: Context) {
     private val preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
@@ -71,6 +74,11 @@ class PreviewDatasetStore(context: Context) {
     fun delete(id: String) {
         saveDatasets(loadDatasets().filterNot { it.id == id })
         if (activeDatasetId() == id) setActiveDatasetId(null)
+    }
+
+    fun deleteAll() {
+        saveDatasets(emptyList())
+        setActiveDatasetId(null)
     }
 
     private fun JSONObject.toRecord(): PreviewDatasetRecord {

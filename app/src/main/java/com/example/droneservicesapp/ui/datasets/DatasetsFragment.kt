@@ -6,11 +6,15 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.provider.OpenableColumns
+import android.text.InputType
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
+import android.view.inputmethod.InputMethodManager
 import android.widget.AdapterView
 import android.widget.ArrayAdapter
+import android.widget.EditText
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.edit
@@ -60,7 +64,7 @@ class DatasetsFragment : Fragment() {
         _binding = FragmentDatasetsBinding.inflate(inflater, container, false)
         datasetStore = PreviewDatasetStore(requireContext().applicationContext)
         pointCloudImportCache = PointCloudImportCache(requireContext().applicationContext)
-        ensureActiveDataset()
+        normalizeActiveDataset()
         return binding.root
     }
 
@@ -72,6 +76,7 @@ class DatasetsFragment : Fragment() {
 
     override fun onDestroyView() {
         loadJob?.cancel()
+        cleanupEmptyActiveDataset()
         _binding = null
         super.onDestroyView()
     }
@@ -91,11 +96,12 @@ class DatasetsFragment : Fragment() {
 
     private fun bindActions() {
         binding.datasetCreateButton.setOnClickListener {
+            cleanupEmptyActiveDataset()
             unloadPreviewAssets()
             val index = datasetStore.loadDatasets().size + 1
             val record = PreviewDatasetRecord(
                 id = System.currentTimeMillis().toString(),
-                name = "Dataset $index"
+                name = getString(R.string.dataset_default_name, index)
             )
             datasetStore.upsert(record)
             datasetStore.setActiveDatasetId(record.id)
@@ -112,6 +118,8 @@ class DatasetsFragment : Fragment() {
             render()
         }
         binding.datasetDeleteButton.setOnClickListener { confirmDeleteActiveDataset() }
+        binding.datasetRenameButton.setOnClickListener { showRenameActiveDatasetDialog() }
+        binding.datasetDeleteAllButton.setOnClickListener { confirmDeleteAllDatasets() }
         binding.datasetLoadTifButton.setOnClickListener { openFilePicker(REQUEST_OPEN_TIFF) }
         binding.datasetLoadTfwButton.setOnClickListener { openFilePicker(REQUEST_OPEN_WORLD) }
         binding.datasetLoadPlyButton.setOnClickListener { openFilePicker(REQUEST_OPEN_POINT_CLOUD) }
@@ -158,7 +166,10 @@ class DatasetsFragment : Fragment() {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 if (suppressDatasetSelection) return
                 val record = datasetStore.loadDatasets().getOrNull(position) ?: return
-                if (datasetStore.activeDatasetId() != record.id) unloadPreviewAssets()
+                if (datasetStore.activeDatasetId() != record.id) {
+                    cleanupEmptyActiveDataset()
+                    unloadPreviewAssets()
+                }
                 datasetStore.setActiveDatasetId(record.id)
                 applySettings(record)
                 render()
@@ -168,23 +179,27 @@ class DatasetsFragment : Fragment() {
         }
     }
 
-    private fun ensureActiveDataset(): PreviewDatasetRecord {
+    private fun normalizeActiveDataset(): PreviewDatasetRecord? {
         datasetStore.activeDataset()?.let { return it }
         val existing = datasetStore.loadDatasets().firstOrNull()
         if (existing != null) {
             datasetStore.setActiveDatasetId(existing.id)
             return existing
         }
-        val created = PreviewDatasetRecord(
-            id = System.currentTimeMillis().toString(),
-            name = "Dataset 1"
-        )
-        datasetStore.upsert(created)
-        datasetStore.setActiveDatasetId(created.id)
-        return created
+        datasetStore.setActiveDatasetId(null)
+        return null
     }
 
-    private fun activeDataset(): PreviewDatasetRecord = ensureActiveDataset()
+    private fun activeDataset(): PreviewDatasetRecord =
+        checkNotNull(normalizeActiveDataset()) { "No active preview dataset" }
+
+    private fun cleanupEmptyActiveDataset() {
+        val record = datasetStore.activeDataset() ?: return
+        if (!record.hasAttachedFiles()) {
+            datasetStore.delete(record.id)
+            normalizeActiveDataset()
+        }
+    }
 
     private fun updateActiveDataset(update: PreviewDatasetRecord.() -> PreviewDatasetRecord) {
         val updated = activeDataset().update()
@@ -401,7 +416,9 @@ class DatasetsFragment : Fragment() {
         currentBinding.datasetCreateButton.isEnabled = !isLoading
         currentBinding.datasetLoadButton.isEnabled = !isLoading
         currentBinding.datasetUnloadButton.isEnabled = !isLoading
+        currentBinding.datasetRenameButton.isEnabled = !isLoading
         currentBinding.datasetDeleteButton.isEnabled = !isLoading
+        currentBinding.datasetDeleteAllButton.isEnabled = !isLoading
         currentBinding.datasetLoadTifButton.isEnabled = !isLoading
         currentBinding.datasetLoadTfwButton.isEnabled = !isLoading
         currentBinding.datasetLoadPlyButton.isEnabled = !isLoading
@@ -419,7 +436,7 @@ class DatasetsFragment : Fragment() {
     }
 
     private fun confirmDeleteActiveDataset() {
-        val record = activeDataset()
+        val record = datasetStore.activeDataset() ?: return
         AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
             .setTitle(R.string.dataset_delete)
             .setMessage(getString(R.string.dataset_delete_confirmation, record.name))
@@ -434,9 +451,66 @@ class DatasetsFragment : Fragment() {
         setDatasetLoading(isLoading = false)
         unloadPreviewAssets()
         datasetStore.delete(record.id)
-        val replacement = ensureActiveDataset()
-        applySettings(replacement)
+        normalizeActiveDataset()?.let(::applySettings)
         Toast.makeText(requireContext(), R.string.dataset_deleted, Toast.LENGTH_SHORT).show()
+        render()
+    }
+
+    private fun showRenameActiveDatasetDialog() {
+        val record = datasetStore.activeDataset() ?: return
+        val input = EditText(requireContext()).apply {
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_CAP_SENTENCES
+            setSingleLine(true)
+            hint = getString(R.string.dataset_name_hint)
+            setText(record.name)
+            selectAll()
+            setPadding(48, 12, 48, 12)
+        }
+        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
+            .setTitle(R.string.dataset_rename_title)
+            .setView(input)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.dataset_rename, null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val name = input.text?.toString()?.trim().orEmpty()
+                if (name.isBlank()) {
+                    input.error = getString(R.string.dataset_name_required)
+                    return@setOnClickListener
+                }
+                datasetStore.upsert(record.copy(name = name))
+                Toast.makeText(requireContext(), R.string.dataset_renamed, Toast.LENGTH_SHORT).show()
+                dialog.dismiss()
+                render()
+            }
+            input.requestFocus()
+            dialog.window?.setSoftInputMode(WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
+            input.post {
+                requireContext().getSystemService(InputMethodManager::class.java)
+                    ?.showSoftInput(input, InputMethodManager.SHOW_IMPLICIT)
+            }
+        }
+        dialog.show()
+    }
+
+    private fun confirmDeleteAllDatasets() {
+        if (datasetStore.loadDatasets().isEmpty()) return
+        AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
+            .setTitle(R.string.dataset_delete_all)
+            .setMessage(R.string.dataset_delete_all_confirmation)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.dataset_delete_all) { _, _ -> deleteAllDatasets() }
+            .show()
+    }
+
+    private fun deleteAllDatasets() {
+        loadJob?.cancel()
+        loadRequestId++
+        setDatasetLoading(isLoading = false)
+        unloadPreviewAssets()
+        datasetStore.deleteAll()
+        Toast.makeText(requireContext(), R.string.dataset_all_deleted, Toast.LENGTH_SHORT).show()
         render()
     }
 
@@ -457,9 +531,23 @@ class DatasetsFragment : Fragment() {
     }
 
     private fun render() {
-        val record = activeDataset()
         val datasets = datasetStore.loadDatasets()
-        binding.datasetActiveName.text = getString(R.string.dataset_active_name, record.name)
+        val record = normalizeActiveDataset()
+        val hasDatasets = record != null
+        binding.datasetActiveName.text = if (record == null) {
+            getString(R.string.dataset_none)
+        } else {
+            getString(R.string.dataset_active_name, record.name)
+        }
+        binding.datasetEmptyState.isVisible = !hasDatasets
+        binding.datasetSelector.isVisible = hasDatasets
+        binding.datasetLoadButton.isVisible = hasDatasets
+        binding.datasetUnloadButton.isVisible = hasDatasets
+        binding.datasetRenameButton.isVisible = hasDatasets
+        binding.datasetDeleteButton.isVisible = hasDatasets
+        binding.datasetDeleteAllButton.isVisible = hasDatasets
+        binding.datasetAssetsCard.isVisible = hasDatasets
+        binding.datasetDisplayOptionsCard.isVisible = hasDatasets
         suppressDatasetSelection = true
         val adapter = ArrayAdapter(
             requireContext(),
@@ -468,9 +556,12 @@ class DatasetsFragment : Fragment() {
         )
         adapter.setDropDownViewResource(R.layout.item_dataset_spinner)
         binding.datasetSelector.adapter = adapter
-        val selectedIndex = datasets.indexOfFirst { it.id == record.id }.coerceAtLeast(0)
-        binding.datasetSelector.setSelection(selectedIndex)
+        if (record != null) {
+            val selectedIndex = datasets.indexOfFirst { it.id == record.id }.coerceAtLeast(0)
+            binding.datasetSelector.setSelection(selectedIndex)
+        }
         suppressDatasetSelection = false
+        if (record == null) return
         binding.datasetOrthoImageStatus.text = getString(
             R.string.dataset_ortho_image_status,
             record.orthoImageName ?: getString(R.string.dataset_none)

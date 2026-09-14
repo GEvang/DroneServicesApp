@@ -35,6 +35,20 @@ class MissionMapViewModel : ViewModel() {
         publishState()
     }
 
+    /** Restores map mode after navigation without reopening stale side panels. */
+    fun restoreFromMapState(mapState: MainActivityViewModel.MapState) {
+        isPlanningPanelVisible = false
+        arePanelsDismissed = true
+        currentScreenMode = when (mapState) {
+            MainActivityViewModel.MapState.Idle -> HomeMapScreenMode.Idle
+            MainActivityViewModel.MapState.Draw -> HomeMapScreenMode.Drawing
+            MainActivityViewModel.MapState.SetFlightParams -> HomeMapScreenMode.EditingParams
+            MainActivityViewModel.MapState.SaveMissionToFile -> HomeMapScreenMode.SavingMission
+            MainActivityViewModel.MapState.LoadMissionFromFile -> HomeMapScreenMode.LoadingMission
+        }
+        publishState()
+    }
+
     fun setPlanningPanelVisible(isVisible: Boolean) {
         isPlanningPanelVisible = isVisible
         if (isVisible) {

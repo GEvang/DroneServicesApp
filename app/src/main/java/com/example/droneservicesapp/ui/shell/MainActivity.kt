@@ -97,7 +97,10 @@ class MainActivity : AppCompatActivity() {
         )
         setupActionBarWithNavController(navController, appBarConfiguration)
         centerToolbarNavigationButton()
-        navController.addOnDestinationChangedListener { _, _, _ -> centerToolbarNavigationButton() }
+        navController.addOnDestinationChangedListener { _, _, _ ->
+            centerToolbarNavigationButton()
+            binding.appBarMain.customToolbar.post { toolbarBinder.renderLatest() }
+        }
         navView.setupWithNavController(navController)
         bottomNavBinder = ShellBottomNavBinder(
             activity = this,

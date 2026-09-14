@@ -14,7 +14,23 @@ import com.example.droneservicesapp.mavserver.ArmCommandState
 class HomeMapTelemetryBinder(
     private val rootView: View,
 ) {
+    private var latestState: HomeTelemetryUiState? = null
+
+    init {
+        rootView.findViewById<View?>(R.id.top_gps_card)?.setOnClickListener {
+            latestState?.let { state ->
+                showDetailsDialog(R.string.telemetry_gps_details_title, state.gpsDialogText)
+            }
+        }
+        rootView.findViewById<View?>(R.id.top_rtk_card)?.setOnClickListener {
+            latestState?.let { state ->
+                showDetailsDialog(R.string.telemetry_rtk_details_title, state.rtkDialogText)
+            }
+        }
+    }
+
     fun render(state: HomeTelemetryUiState) {
+        latestState = state
         renderTopStatusStrip(state)
     }
 
@@ -39,13 +55,7 @@ class HomeMapTelemetryBinder(
             setTextColor(gpsColor)
         }
         rootView.findViewById<ImageView?>(R.id.top_gps_icon)?.setColorFilter(gpsColor)
-        rootView.findViewById<View?>(R.id.top_gps_card)?.setOnClickListener {
-            showDetailsDialog(R.string.telemetry_gps_details_title, state.gpsDialogText)
-        }
         rootView.findViewById<TextView?>(R.id.top_rtk_text)?.text = compactRtkText(state.rtkMountpointText)
-        rootView.findViewById<View?>(R.id.top_rtk_card)?.setOnClickListener {
-            showDetailsDialog(R.string.telemetry_rtk_details_title, state.rtkDialogText)
-        }
         val armedColor = ContextCompat.getColor(
             context,
             if (state.isArmed) R.color.ds_color_shell_active else R.color.ds_color_shell_warning

@@ -80,6 +80,16 @@
     <string name="dataset_unload">Unload Dataset</string>
     <string name="dataset_delete">Delete Dataset</string>
     <string name="dataset_delete_confirmation">Delete %1$s? Its file references and display settings will be removed.</string>
+    <string name="dataset_delete_all">Delete All</string>
+    <string name="dataset_delete_all_confirmation">Delete all datasets? All dataset file references and display settings will be removed.</string>
+    <string name="dataset_all_deleted">All datasets deleted</string>
+    <string name="dataset_rename">Rename</string>
+    <string name="dataset_rename_title">Rename dataset</string>
+    <string name="dataset_name_hint">Dataset name</string>
+    <string name="dataset_name_required">Enter a dataset name</string>
+    <string name="dataset_renamed">Dataset renamed</string>
+    <string name="dataset_empty_state">No datasets. Create a new dataset to attach files.</string>
+    <string name="dataset_default_name">Dataset %1$d</string>
     <string name="dataset_assets">Dataset Assets</string>
     <string name="dataset_display_options">Display Options</string>
     <string name="dataset_active_name">Active: %1$s</string>

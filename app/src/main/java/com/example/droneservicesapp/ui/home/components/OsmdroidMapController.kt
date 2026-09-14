@@ -10,6 +10,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.Rect
 import android.graphics.drawable.BitmapDrawable
+import android.os.SystemClock
 import android.util.Log
 import android.view.MotionEvent
 import android.widget.Toast
@@ -50,6 +51,7 @@ class OsmdroidMapController(
         private const val MIN_VALID_ABS_COORDINATE = 1e-4
         private const val MAX_FLIGHT_TRACE_POINTS = 5000
         private const val MAX_SURVEY_DIRECTION_MARKERS = 80
+        private const val MIN_REDRAW_INTERVAL_MS = 200L
     }
 
     private var myLocationOverlay: MyLocationNewOverlay? = null
@@ -80,6 +82,13 @@ class OsmdroidMapController(
     private var homeMarker: Marker? = null
     private var flightTracePolyline: Polyline? = null
     private val flightTracePoints = mutableListOf<GeoPoint>()
+    private var lastRedrawUptimeMs = 0L
+    private var redrawScheduled = false
+    private val redrawRunnable = Runnable {
+        redrawScheduled = false
+        lastRedrawUptimeMs = SystemClock.uptimeMillis()
+        mapView.postInvalidateOnAnimation()
+    }
 
     fun initOverlays() {
         // Defensive final guard: osmdroid gives every OverlayWithIW a stock speech bubble.
@@ -138,13 +147,14 @@ class OsmdroidMapController(
     }
 
     fun onResume() {
-        mapView.onResume()
         myLocationOverlay?.enableMyLocation()
+        requestMapRedraw()
     }
 
     fun onPause() {
         myLocationOverlay?.disableMyLocation()
-        mapView.onPause()
+        mapView.removeCallbacks(redrawRunnable)
+        redrawScheduled = false
     }
 
     fun centerOnUserIfPermitted(showErrors: Boolean = true): Boolean {
@@ -505,7 +515,16 @@ class OsmdroidMapController(
     }
 
     private fun requestMapRedraw() {
-        mapView.postInvalidateOnAnimation()
+        val now = SystemClock.uptimeMillis()
+        val elapsed = now - lastRedrawUptimeMs
+        if (elapsed >= MIN_REDRAW_INTERVAL_MS && !redrawScheduled) {
+            lastRedrawUptimeMs = now
+            mapView.postInvalidateOnAnimation()
+            return
+        }
+        if (redrawScheduled) return
+        redrawScheduled = true
+        mapView.postDelayed(redrawRunnable, (MIN_REDRAW_INTERVAL_MS - elapsed).coerceAtLeast(0L))
     }
 
     private fun ensureFlightTracePolyline() {
