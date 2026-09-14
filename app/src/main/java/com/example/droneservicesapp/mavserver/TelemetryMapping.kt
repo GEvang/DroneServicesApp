@@ -48,6 +48,21 @@ internal object TelemetryMapping {
         return if (rawPercent in 0..100) rawPercent / 100.0f else -1.0f
     }
 
+    /**
+     * BATTERY_STATUS contains per-cell millivolts on standard vehicles, while some
+     * sprayer firmware reports the total pack voltage in the first slot. Sum only
+     * voltage-looking entries so custom low-valued auxiliary fields are ignored.
+     */
+    fun batteryVoltageFromStatusMillivolts(voltages: List<Int>): Float? {
+        val valid = voltages.filter { it in 1_000 until UINT16_MAX }
+        if (valid.isEmpty()) return null
+        val millivolts = if (valid.first() >= 10_000) valid.first().toLong() else valid.sumOf(Int::toLong)
+        return (millivolts / 1_000f).takeIf { it in 5f..80f }
+    }
+
+    fun batteryVoltageFromSystemMillivolts(millivolts: Int): Float? =
+        millivolts.takeIf { it in 5_000 until UINT16_MAX }?.div(1_000f)
+
     fun batteryFractionFromVoltage(voltage: Float?): Float {
         val safeVoltage = voltage?.takeIf { it.isFinite() && it > 0f } ?: return -1f
         return if (safeVoltage > SPRAYER_PROFILE_THRESHOLD_VOLTS) {

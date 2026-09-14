@@ -53,7 +53,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="@dimen/ds_space_sm"
-        android:text="Radius: 5 m" />
+        android:text="@string/obstacle_radius_default" />
 
     <SeekBar
         android:id="@+id/right_panel_obstacle_radius_seekbar"

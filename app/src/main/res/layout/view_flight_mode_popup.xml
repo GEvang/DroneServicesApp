@@ -68,26 +68,6 @@
             app:icon="@drawable/ic_workflow_24" />
     </LinearLayout>
 
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:orientation="horizontal">
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/flight_mode_guided_button"
-            style="@style/Widget.DroneServices.Button.FlightModeTile"
-            android:layout_width="0dp"
-            android:layout_weight="1"
-            android:text="@string/flight_mode_guided"
-            app:icon="@drawable/ic_baseline_my_location_48" />
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/flight_mode_brake_button"
-            style="@style/Widget.DroneServices.Button.FlightModeTile"
-            android:layout_width="0dp"
-            android:layout_marginStart="8dp"
-            android:layout_weight="1"
-            android:text="@string/flight_mode_brake"
-            android:textColor="@color/ds_color_shell_warning"
-            app:icon="@drawable/ic_action_bolt_24"
-            app:iconTint="@color/ds_color_shell_warning" />
-    </LinearLayout>
-
     <TextView
         style="@style/TextAppearance.DroneServices.MapStatusSubvalue"
         android:layout_width="match_parent"
@@ -130,4 +110,39 @@
         app:icon="@drawable/ic_status_shield_24"
         app:iconGravity="textStart"
         app:iconSize="18dp" />
+
+    <FrameLayout
+        android:id="@+id/flight_mode_auto_slider_container"
+        android:layout_width="match_parent"
+        android:layout_height="54dp"
+        android:layout_marginTop="10dp"
+        android:visibility="gone">
+
+        <SeekBar
+            android:id="@+id/flight_mode_auto_slider"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:max="100"
+            android:paddingStart="6dp"
+            android:paddingEnd="6dp"
+            android:progress="0"
+            android:progressDrawable="@drawable/bg_arm_slider_progress"
+            android:splitTrack="false"
+            android:thumb="@drawable/ic_slide_to_arm_thumb"
+            android:thumbOffset="0dp" />
+
+        <TextView
+            style="@style/TextAppearance.DroneServices.CaptionStrong"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:clickable="false"
+            android:focusable="false"
+            android:gravity="center"
+            android:paddingStart="44dp"
+            android:paddingEnd="22dp"
+            android:text="@string/flight_mode_auto_slider_label"
+            android:textAllCaps="true"
+            android:textColor="@color/ds_color_shell_unselected"
+            android:textSize="11sp" />
+    </FrameLayout>
 </LinearLayout>

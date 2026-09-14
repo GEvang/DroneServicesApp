@@ -11,7 +11,7 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:fontFamily="@font/inter"
-        android:text="LIVE GEO"
+        android:text="@string/live_geo_title"
         android:textColor="#F3F7FF"
         android:textSize="15sp"
         android:textStyle="bold"
@@ -30,7 +30,7 @@
         android:paddingTop="6dp"
         android:paddingEnd="12dp"
         android:paddingBottom="6dp"
-        android:text="CLEAR"
+        android:text="@string/live_geo_clear"
         android:textColor="#48D26D"
         android:textSize="12sp"
         android:textStyle="bold"
@@ -74,7 +74,7 @@
             android:layout_gravity="top|center_horizontal"
             android:layout_marginTop="4dp"
             android:fontFamily="@font/inter"
-            android:text="N"
+            android:text="@string/compass_north_short"
             android:textColor="#D7E0EF"
             android:textSize="12sp"
             android:textStyle="bold" />
@@ -85,7 +85,7 @@
             android:layout_gravity="center_vertical|end"
             android:layout_marginEnd="6dp"
             android:fontFamily="@font/inter"
-            android:text="E"
+            android:text="@string/compass_east_short"
             android:textColor="#D7E0EF"
             android:textSize="12sp"
             android:textStyle="bold" />
@@ -96,7 +96,7 @@
             android:layout_gravity="bottom|center_horizontal"
             android:layout_marginBottom="4dp"
             android:fontFamily="@font/inter"
-            android:text="S"
+            android:text="@string/compass_south_short"
             android:textColor="#D7E0EF"
             android:textSize="12sp"
             android:textStyle="bold" />
@@ -107,7 +107,7 @@
             android:layout_gravity="center_vertical|start"
             android:layout_marginStart="6dp"
             android:fontFamily="@font/inter"
-            android:text="W"
+            android:text="@string/compass_west_short"
             android:textColor="#D7E0EF"
             android:textSize="12sp"
             android:textStyle="bold" />
@@ -220,7 +220,7 @@
                     android:ellipsize="end"
                     android:maxLines="1"
                     android:fontFamily="@font/inter"
-                    android:text="CLEAR"
+                    android:text="@string/live_geo_clear"
                     android:textColor="#D7E0EF"
                     android:textSize="12sp"
                     android:textStyle="bold" />
@@ -248,7 +248,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
                         android:fontFamily="@font/inter"
-                        android:text="H: --"
+                        android:text="@string/live_geo_horizontal_unknown"
                         android:textColor="#D7E0EF"
                         android:textSize="11sp" />
 
@@ -258,7 +258,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
                         android:fontFamily="@font/inter"
-                        android:text="V: --"
+                        android:text="@string/live_geo_vertical_unknown"
                         android:textColor="#D7E0EF"
                         android:textSize="11sp" />
 
@@ -344,7 +344,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
                         android:fontFamily="@font/inter"
-                        android:text="H: --"
+                        android:text="@string/live_geo_horizontal_unknown"
                         android:textColor="#D7E0EF"
                         android:textSize="11sp" />
 
@@ -354,7 +354,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
                         android:fontFamily="@font/inter"
-                        android:text="V: --"
+                        android:text="@string/live_geo_vertical_unknown"
                         android:textColor="#D7E0EF"
                         android:textSize="11sp" />
 
@@ -440,7 +440,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
                         android:fontFamily="@font/inter"
-                        android:text="H: --"
+                        android:text="@string/live_geo_horizontal_unknown"
                         android:textColor="#D7E0EF"
                         android:textSize="11sp" />
 
@@ -450,7 +450,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="10dp"
                         android:fontFamily="@font/inter"
-                        android:text="V: --"
+                        android:text="@string/live_geo_vertical_unknown"
                         android:textColor="#D7E0EF"
                         android:textSize="11sp" />
 
@@ -475,7 +475,7 @@
             android:layout_marginTop="10dp"
             android:layout_marginStart="12dp"
             android:fontFamily="@font/inter"
-            android:text="+0 more"
+            android:text="@string/live_geo_more_placeholder"
             android:textColor="#AEBAD0"
             android:textSize="12sp"
             android:visibility="gone" />

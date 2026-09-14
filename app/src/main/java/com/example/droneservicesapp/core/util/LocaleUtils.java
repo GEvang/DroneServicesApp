@@ -2,10 +2,9 @@ package com.example.droneservicesapp.core.util;
 
 import android.content.Context;
 import android.content.SharedPreferences;
-import android.content.res.Configuration;
-import android.content.res.Resources;
-
 import androidx.annotation.StringDef;
+import androidx.appcompat.app.AppCompatDelegate;
+import androidx.core.os.LocaleListCompat;
 import androidx.preference.PreferenceManager;
 
 import com.example.droneservicesapp.Application;
@@ -20,6 +19,7 @@ public class LocaleUtils {
 
     public static final String ENGLISH = "default";
     public static final String GREEK = "el";
+    public static final String PREFERENCE_KEY = "language_pref";
 
 
     public static void initialize(Context context, @LocaleDef String defaultLanguage) {
@@ -33,12 +33,7 @@ public class LocaleUtils {
     private static void updateResources(Context context, String language) {
         Locale locale = ENGLISH.equals(language) ? Locale.ENGLISH : new Locale(language);
         Locale.setDefault(locale);
-        Resources resources = context.getResources();
-        Configuration configuration = resources.getConfiguration();
-        context.createConfigurationContext(configuration);
-        configuration.locale = locale;
-        resources.updateConfiguration(configuration, resources.getDisplayMetrics());
-
+        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(locale.toLanguageTag()));
     }
 
     private static SharedPreferences getDefaultSharedPreference() {
@@ -49,15 +44,22 @@ public class LocaleUtils {
     }
 
     public static String getSelectedLanguageId() {
-        return Objects.requireNonNull(getDefaultSharedPreference())
-                .getString(Application.getInstance().getApplicationContext().getString(R.string.language_pref), ENGLISH);
+        SharedPreferences prefs = Objects.requireNonNull(getDefaultSharedPreference());
+        String selected = prefs.getString(PREFERENCE_KEY, null);
+        if (selected != null) return selected;
+
+        // Migrate builds that accidentally used a localized resource value as the key.
+        selected = prefs.getString("language", null);
+        if (selected == null) selected = prefs.getString("γλώσσα", null);
+        if (selected != null) prefs.edit().putString(PREFERENCE_KEY, selected).apply();
+        return selected != null ? selected : ENGLISH;
     }
 
     public static void setSelectedLanguageId(String id) {
         final SharedPreferences prefs = getDefaultSharedPreference();
         assert prefs != null;
         SharedPreferences.Editor editor = prefs.edit();
-        editor.putString(Application.getInstance().getApplicationContext().getString(R.string.language_pref), id);
+        editor.putString(PREFERENCE_KEY, id);
         editor.apply();
     }
 

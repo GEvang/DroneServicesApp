@@ -9,7 +9,11 @@ import com.example.droneservicesapp.data.mavlink.MavlinkClient
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.ParamRequestList
 import io.dronefleet.mavlink.common.ParamRequestRead
+import io.dronefleet.mavlink.common.ParamSet
 import io.dronefleet.mavlink.common.ParamValue
+import io.dronefleet.mavlink.common.MavParamType
+import io.dronefleet.mavlink.util.EnumValue
+import kotlin.math.abs
 
 data class VehicleParameter(
     val name: String,
@@ -41,11 +45,15 @@ internal class VehicleParameterCatalogController(
         private const val FINAL_TIMEOUT_MS = 30_000L
         private const val MAX_MISSING_REQUESTS = 120
         private const val UI_UPDATE_INTERVAL_MS = 200L
+        private const val WRITE_TIMEOUT_MS = 4_000L
+        private const val VALUE_TOLERANCE = 0.0001f
     }
 
     private val mutableState = MutableLiveData(VehicleParameterCatalogState())
     val state: LiveData<VehicleParameterCatalogState> = mutableState
     private val parametersByIndex = linkedMapOf<Int, VehicleParameter>()
+    private val parameterTypesByName = mutableMapOf<String, EnumValue<MavParamType>>()
+    private val pendingWrites = mutableMapOf<String, Float>()
     private var generation = 0
     private var expectedCount: Int? = null
     private var recoveryAttempted = false
@@ -80,6 +88,39 @@ internal class VehicleParameterCatalogController(
         return true
     }
 
+    fun setValue(name: String, value: Float): Boolean {
+        if (!value.isFinite() || !isConnected() || targetSystemId() < 0 || targetComponentId() < 0) return false
+        if (parametersByIndex.values.none { it.name == name }) return false
+        val type = parameterTypesByName[name] ?: return false
+        pendingWrites[name] = value
+        mavlinkClient.send2(
+            mavlinkClient.gcsSystemId,
+            GCS_COMPONENT_ID,
+            ParamSet.builder()
+                .targetSystem(targetSystemId())
+                .targetComponent(targetComponentId())
+                .paramId(name)
+                .paramValue(value)
+                .paramType(type)
+                .build()
+        )
+        mutableState.value = (mutableState.value ?: VehicleParameterCatalogState()).copy(
+            error = null
+        )
+        handler.postDelayed({
+            if (pendingWrites.remove(name) != null) {
+                mutableState.value = (mutableState.value ?: VehicleParameterCatalogState()).copy(
+                    error = "Vehicle did not confirm the change to $name"
+                )
+            }
+        }, WRITE_TIMEOUT_MS)
+        DiagnosticLog.event("mavlink", "parameter_catalog_write_requested", data = mapOf(
+            "parameter" to name,
+            "value" to value,
+        ))
+        return true
+    }
+
     fun handle(message: MavlinkMessage<*>) {
         val payload = message.payload as? ParamValue ?: return
         if (message.originSystemId != targetSystemId() ||
@@ -92,6 +133,7 @@ internal class VehicleParameterCatalogController(
         val index = payload.paramIndex()
         if (name.isBlank() || index < 0) return
         expectedCount = payload.paramCount().takeIf { it > 0 } ?: expectedCount
+        parameterTypesByName[name] = payload.paramType()
         parametersByIndex[index] = VehicleParameter(
             name = name,
             value = payload.paramValue(),
@@ -99,6 +141,15 @@ internal class VehicleParameterCatalogController(
                 ?: payload.paramType().value().toString(),
             index = index,
         )
+        pendingWrites[name]?.let { requested ->
+            if (abs(payload.paramValue() - requested) <= VALUE_TOLERANCE) {
+                pendingWrites.remove(name)
+                DiagnosticLog.event("mavlink", "parameter_catalog_write_confirmed", data = mapOf(
+                    "parameter" to name,
+                    "value" to payload.paramValue(),
+                ))
+            }
+        }
         if (!currentState.loading) {
             publish(loading = false, partial = currentState.partial)
             return
@@ -118,6 +169,8 @@ internal class VehicleParameterCatalogController(
         generation += 1
         handler.removeCallbacksAndMessages(null)
         parametersByIndex.clear()
+        parameterTypesByName.clear()
+        pendingWrites.clear()
         expectedCount = null
         publishQueued = false
         mutableState.value = VehicleParameterCatalogState(error = "No active aircraft link")

@@ -64,6 +64,14 @@ class TelemetryMappingTest {
     }
 
     @Test
+    fun buildsBatteryPackVoltageFromCellsOrTotalVoltageFirmware() {
+        assertEquals(49.8f, TelemetryMapping.batteryVoltageFromStatusMillivolts(List(12) { 4150 })!!, 0.001f)
+        assertEquals(50.0f, TelemetryMapping.batteryVoltageFromStatusMillivolts(listOf(50_000, 73, 65_535))!!, 0.001f)
+        assertNull(TelemetryMapping.batteryVoltageFromStatusMillivolts(listOf(1, 73, 65_535)))
+        assertEquals(25.2f, TelemetryMapping.batteryVoltageFromSystemMillivolts(25_200)!!, 0.001f)
+    }
+
+    @Test
     fun calculatesGlobalHorizontalSpeed() {
         assertEquals(
             5.0f,

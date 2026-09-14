@@ -22,10 +22,11 @@ public class Application extends android.app.Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        applicationInstance = this;
+        LocaleUtils.initialize(this, LocaleUtils.getSelectedLanguageId());
         DiagnosticLog.initialize(this);
         DiagnosticLog.installCrashHandler();
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
-        applicationInstance = this;
 
         // osmdroid init (required)
         Configuration.getInstance().load(

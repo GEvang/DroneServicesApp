@@ -50,11 +50,16 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/top_gps_card"
             android:layout_width="0dp"
             android:layout_height="@dimen/map_status_card_height"
             android:layout_marginStart="@dimen/map_status_card_gap"
             android:layout_weight="1.08"
             android:background="@drawable/bg_map_status_card"
+            android:clickable="true"
+            android:contentDescription="@string/telemetry_gps_details_title"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             android:gravity="center"
             android:orientation="horizontal"
             android:paddingStart="@dimen/map_status_card_padding_horizontal"
@@ -68,25 +73,46 @@
                 android:src="@drawable/ic_status_gps_pin_24"
                 app:tint="@color/ds_color_shell_danger" />
 
-            <TextView
-                android:id="@+id/top_gps_text"
-                style="@style/TextAppearance.DroneServices.MapStatusValue"
+            <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginStart="@dimen/map_status_card_gap"
                 android:layout_weight="1"
-                android:ellipsize="end"
-                android:maxLines="1"
-                android:text="@string/top_status_no_gps"
-                android:textColor="@color/ds_color_shell_danger" />
+                android:orientation="vertical">
+
+                <TextView
+                    android:id="@+id/top_gps_text"
+                    style="@style/TextAppearance.DroneServices.MapStatusValue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="@string/top_status_no_gps"
+                    android:textColor="@color/ds_color_shell_danger" />
+
+                <TextView
+                    android:id="@+id/top_gps_detail_text"
+                    style="@style/TextAppearance.DroneServices.MapStatusSubvalue"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:ellipsize="end"
+                    android:maxLines="1"
+                    android:text="@string/top_status_gps_details_unknown"
+                    android:textColor="@color/ds_color_shell_danger" />
+            </LinearLayout>
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/top_rtk_card"
             android:layout_width="0dp"
             android:layout_height="@dimen/map_status_card_height"
             android:layout_marginStart="@dimen/map_status_card_gap"
             android:layout_weight="1.48"
             android:background="@drawable/bg_map_status_card"
+            android:clickable="true"
+            android:contentDescription="@string/telemetry_rtk_details_title"
+            android:focusable="true"
+            android:foreground="?attr/selectableItemBackground"
             android:gravity="center"
             android:orientation="horizontal"
             android:paddingStart="@dimen/map_status_card_padding_horizontal"
@@ -308,6 +334,7 @@
         </LinearLayout>
 
         <LinearLayout
+            android:id="@+id/top_live_geo_card"
             android:layout_width="0dp"
             android:layout_height="@dimen/map_status_card_height"
             android:layout_marginStart="@dimen/map_status_card_gap"

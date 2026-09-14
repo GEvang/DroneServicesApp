@@ -45,6 +45,25 @@ class TelemetryStabilityTest {
     }
 
     @Test
+    fun batteryVoltageRejectsOneOffCorruptSamples() {
+        val stabilizer = BatteryVoltageStabilizer()
+        assertEquals(49.8f, stabilizer.update(49.8f)!!, 0.001f)
+        assertEquals(49.8f, stabilizer.update(6.0f)!!, 0.001f)
+        assertEquals(49.8f, stabilizer.update(50.1f)!!, 0.001f)
+        assertEquals(50.1f, stabilizer.update(50.1f)!!, 0.001f)
+    }
+
+    @Test
+    fun alternatingVoltageSourcesDoNotFlicker() {
+        val stabilizer = BatteryVoltageStabilizer()
+        assertEquals(49.8f, stabilizer.update(49.8f)!!, 0.001f)
+        repeat(6) {
+            assertEquals(49.8f, stabilizer.update(50.2f)!!, 0.001f)
+            assertEquals(49.8f, stabilizer.update(49.8f)!!, 0.001f)
+        }
+    }
+
+    @Test
     fun autopilotLinkRequiresARecentKnownHeartbeat() {
         assertFalse(isAutopilotLinkHealthy(0L, nowMs = 10_000L, staleAfterMs = 2_500L))
         assertTrue(isAutopilotLinkHealthy(8_000L, nowMs = 10_000L, staleAfterMs = 2_500L))

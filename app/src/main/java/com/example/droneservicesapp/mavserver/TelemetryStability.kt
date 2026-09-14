@@ -54,6 +54,61 @@ internal class BatteryPercentageStabilizer(
     }
 }
 
+/** Rejects corrupt one-off voltage samples without hiding a genuine pack change. */
+internal class BatteryVoltageStabilizer(
+    private val maximumImmediateJumpVolts: Float = 8f,
+    private val minorChangeVolts: Float = 0.15f,
+    private val confirmationSamples: Int = 2,
+    private val largeJumpConfirmationSamples: Int = 4,
+) {
+    private var displayedVoltage: Float? = null
+    private var pendingVoltage: Float? = null
+    private var pendingSamples = 0
+
+    @Synchronized
+    fun update(voltage: Float?): Float? {
+        val candidate = voltage?.takeIf { it.isFinite() && it in 5f..80f } ?: return displayedVoltage
+        val current = displayedVoltage
+        if (current == null) {
+            displayedVoltage = candidate
+            pendingVoltage = null
+            pendingSamples = 0
+            return candidate
+        }
+        val difference = kotlin.math.abs(candidate - current)
+        if (difference <= minorChangeVolts) {
+            pendingVoltage = null
+            pendingSamples = 0
+            return current
+        }
+
+        val requiredSamples = if (difference > maximumImmediateJumpVolts) {
+            largeJumpConfirmationSamples
+        } else {
+            confirmationSamples
+        }
+        if (pendingVoltage != null && kotlin.math.abs(candidate - pendingVoltage!!) <= minorChangeVolts) {
+            pendingSamples++
+        } else {
+            pendingVoltage = candidate
+            pendingSamples = 1
+        }
+        if (pendingSamples >= requiredSamples) {
+            displayedVoltage = candidate
+            pendingVoltage = null
+            pendingSamples = 0
+        }
+        return displayedVoltage
+    }
+
+    @Synchronized
+    fun reset() {
+        displayedVoltage = null
+        pendingVoltage = null
+        pendingSamples = 0
+    }
+}
+
 internal fun isAutopilotLinkHealthy(
     lastAutopilotHeartbeatMs: Long,
     nowMs: Long,

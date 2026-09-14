@@ -31,6 +31,9 @@ internal class DroneUiStateStore(
         MutableLiveData<Float>().default(-1.0F)
     val gpsFixType: MutableLiveData<GpsFixType?> =
         MutableLiveData<GpsFixType?>().default(null)
+    val gpsSatellitesVisible: MutableLiveData<Int?> = MutableLiveData<Int?>().default(null)
+    val gpsHdop: MutableLiveData<Float?> = MutableLiveData<Float?>().default(null)
+    val gpsVdop: MutableLiveData<Float?> = MutableLiveData<Float?>().default(null)
     val droneGroundSpeedMetersPerSecond: MutableLiveData<Float> =
         MutableLiveData<Float>().default(0.0F)
     val droneVerticalSpeedMetersPerSecond: MutableLiveData<Float?> =

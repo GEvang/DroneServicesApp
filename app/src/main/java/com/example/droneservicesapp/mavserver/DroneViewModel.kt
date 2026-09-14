@@ -7,6 +7,8 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.os.BatteryManager
 import android.os.PowerManager
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
@@ -29,6 +31,9 @@ import io.dronefleet.mavlink.common.CommandLong
 import io.dronefleet.mavlink.common.GpsFixType
 import io.dronefleet.mavlink.common.MavCmd
 import io.dronefleet.mavlink.common.MissionItemInt
+import io.dronefleet.mavlink.common.ParamValue
+import io.dronefleet.mavlink.common.LogEntry
+import io.dronefleet.mavlink.common.LogData
 import io.dronefleet.mavlink.minimal.Heartbeat
 import io.dronefleet.mavlink.minimal.MavAutopilot
 import io.dronefleet.mavlink.minimal.MavModeFlag
@@ -38,6 +43,7 @@ import io.reactivex.Observable
 import io.reactivex.android.schedulers.AndroidSchedulers
 import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
+import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 
 class DroneViewModel : ViewModel() {
@@ -62,6 +68,8 @@ class DroneViewModel : ViewModel() {
     }
 
     private val repoDisposables = CompositeDisposable()
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val logDataExecutor = Executors.newSingleThreadExecutor()
     private val runtimeState = DroneRuntimeState()
     private val stateStore = DroneUiStateStore(Application.getInstance().applicationContext)
     private val eventLogger = GeoAwarenessEventLogger(Application.getInstance().applicationContext)
@@ -136,10 +144,12 @@ class DroneViewModel : ViewModel() {
                 missionController.updateTargetIds(systemId, componentId)
             },
             onAutopilotHeartbeatLocked = {
-                requestServoOutputRawStream()
-                requestExtendedSystemStateStream()
-                rtkController.onAutopilotHeartbeatLocked()
-                parameterController.refreshAll()
+                mainHandler.post {
+                    requestServoOutputRawStream()
+                    requestExtendedSystemStateStream()
+                    rtkController.onAutopilotHeartbeatLocked()
+                    parameterController.refreshAll()
+                }
             },
             onDroneLocationUpdated = {
                 rtkController.onDroneLocationUpdated()
@@ -162,12 +172,14 @@ class DroneViewModel : ViewModel() {
                 }
                 recordFlightSessionBoundary(armed, flightMode)
             },
-            onArmedHeartbeat = armController::onHeartbeatArmed,
+            onArmedHeartbeat = { armed -> mainHandler.post { armController.onHeartbeatArmed(armed) } },
             onCommandAck = { ack ->
-                flightModeController.onCommandAck(ack)
-                armController.onCommandAck(ack)
+                mainHandler.post {
+                    flightModeController.onCommandAck(ack)
+                    armController.onCommandAck(ack)
+                }
             },
-            onFlightModeHeartbeat = flightModeController::onHeartbeatMode,
+            onFlightModeHeartbeat = { mode -> mainHandler.post { flightModeController.onHeartbeatMode(mode) } },
             onFlightModeChanged = { previous, current ->
                 operatorEventLogger.logFlightModeChanged(previous, current)
                 if (current == "6") {
@@ -231,6 +243,9 @@ class DroneViewModel : ViewModel() {
     val droneBatteryVoltage: MutableLiveData<Float> = stateStore.droneBatteryVoltage
     val droneBatteryPercentage: MutableLiveData<Float> = stateStore.droneBatteryPercentage
     val gpsFixType: MutableLiveData<GpsFixType?> = stateStore.gpsFixType
+    val gpsSatellitesVisible: MutableLiveData<Int?> = stateStore.gpsSatellitesVisible
+    val gpsHdop: MutableLiveData<Float?> = stateStore.gpsHdop
+    val gpsVdop: MutableLiveData<Float?> = stateStore.gpsVdop
     val droneGroundSpeedMetersPerSecond: MutableLiveData<Float> = stateStore.droneGroundSpeedMetersPerSecond
     val droneVerticalSpeedMetersPerSecond: MutableLiveData<Float?> = stateStore.droneVerticalSpeedMetersPerSecond
     val droneAltitudeAmslMeters: MutableLiveData<Double?> = stateStore.droneAltitudeAmslMeters
@@ -276,6 +291,9 @@ class DroneViewModel : ViewModel() {
     fun clearArmCommandResult() = armController.clearResult()
 
     fun refreshVehicleParameterCatalog(): Boolean = parameterCatalogController.refresh()
+
+    fun setVehicleParameter(name: String, value: Float): Boolean =
+        parameterCatalogController.setValue(name, value)
 
     fun refreshDroneLogs(): DroneLogRequestResult = logDownloadController.refreshLogs()
 
@@ -551,7 +569,8 @@ class DroneViewModel : ViewModel() {
             repoDisposables.add(
                 Observable.interval(0, CONNECTION_TICK_MS, TimeUnit.MILLISECONDS)
                     .subscribeOn(Schedulers.io())
-                    .subscribe {
+                    .observeOn(AndroidSchedulers.mainThread())
+                    .subscribe({
                         val now = System.currentTimeMillis()
                         val connected = isAutopilotLinkHealthy(
                             runtimeState.lastAutopilotHeartbeatMs,
@@ -602,6 +621,9 @@ class DroneViewModel : ViewModel() {
                             stateStore.armedState.postValue(false)
                             stateStore.droneLandedState.postValue(null)
                             stateStore.gpsFixType.postValue(null)
+                            stateStore.gpsSatellitesVisible.postValue(null)
+                            stateStore.gpsHdop.postValue(null)
+                            stateStore.gpsVdop.postValue(null)
                             stateStore.droneBatteryPercentage.postValue(-1.0f)
                             stateStore.droneGroundSpeedMetersPerSecond.postValue(0.0f)
                             stateStore.droneFlightMode.postValue(null)
@@ -616,7 +638,7 @@ class DroneViewModel : ViewModel() {
 
                         rtkController.onConnectionStateEvaluated(connected)
                         maybeRecordFlightHealthSnapshot(connected)
-                    }
+                    }, { error -> Log.e(TAG, "Connection health ticker failed", error) })
             )
         } else {
             Log.i(TAG, "bridge attach skipped: connection ticker already active")
@@ -631,7 +653,7 @@ class DroneViewModel : ViewModel() {
         runtimeState.mavlinkMessagesDisposable =
             mavlinkClient.messages()
                 .subscribeOn(Schedulers.io())
-                .observeOn(AndroidSchedulers.mainThread())
+                .observeOn(Schedulers.computation())
                 .subscribe(
                     { msg -> handleMavlinkMessage(msg) },
                     { err -> Log.e(TAG, "MAVLink stream error: ${err.message}", err) }
@@ -641,10 +663,15 @@ class DroneViewModel : ViewModel() {
     }
 
     private fun handleMavlinkMessage(message: MavlinkMessage<*>) {
-        parameterController.handle(message)
-        parameterCatalogController.handle(message)
-        logDownloadController.handle(message)
         telemetryProcessor.handle(message)
+        when (message.payload) {
+            is ParamValue -> mainHandler.post {
+                parameterController.handle(message)
+                parameterCatalogController.handle(message)
+            }
+            is LogEntry -> mainHandler.post { logDownloadController.handle(message) }
+            is LogData -> logDataExecutor.execute { logDownloadController.handle(message) }
+        }
     }
 
     private fun maybeRecordFlightHealthSnapshot(connected: Boolean) {
@@ -781,8 +808,10 @@ class DroneViewModel : ViewModel() {
         missionController.clear()
         parameterController.clear()
         parameterCatalogController.clear()
-        logDownloadController.clear()
         repoDisposables.clear()
+        logDataExecutor.shutdownNow()
+        logDownloadController.clear()
+        mainHandler.removeCallbacksAndMessages(null)
         Log.i(TAG, "bridge detached: clearing all subscriptions in onCleared")
         rtkController.shutdown()
         mavlinkClient.stop()

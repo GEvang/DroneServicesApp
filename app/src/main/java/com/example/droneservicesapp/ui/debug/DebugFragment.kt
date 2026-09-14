@@ -5,10 +5,17 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputMethodManager
+import android.view.MotionEvent
+import android.text.InputType
 import android.widget.ArrayAdapter
 import android.widget.Button
+import android.widget.EditText
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
 import androidx.core.view.isVisible
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.widget.doAfterTextChanged
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -32,13 +39,16 @@ import kotlin.math.roundToInt
 class DebugFragment : Fragment() {
     companion object {
         // Temporary access code requested for the field build. Replace with managed auth before release.
-        private const val DEBUG_PIN = "123"
+        private const val DEFAULT_DEBUG_PIN = "123"
+        private const val DEBUG_PREFS = "debug_access"
+        private const val KEY_ACCESS_ENABLED = "access_enabled"
+        private const val KEY_ACCESS_CODE = "access_code"
     }
 
     private var _binding: FragmentDebugBinding? = null
     private val binding get() = _binding!!
     private lateinit var droneViewModel: DroneViewModel
-    private val parameterAdapter = VehicleParameterAdapter()
+    private lateinit var parameterAdapter: VehicleParameterAdapter
     private var displayedLogs: List<DroneLogFile> = emptyList()
 
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?, savedInstanceState: Bundle?): View {
@@ -50,8 +60,10 @@ class DebugFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
         droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
+        parameterAdapter = VehicleParameterAdapter(::showParameterEditor)
         bindUnlockGate()
         bindDebugControls()
+        bindDebugAccessSettings()
         bindParameterCatalog()
         bindLogTransfer()
     }
@@ -62,8 +74,14 @@ class DebugFragment : Fragment() {
     }
 
     private fun bindUnlockGate() {
+        if (!debugPreferences().getBoolean(KEY_ACCESS_ENABLED, true)) {
+            binding.debugUnlockContainer.isVisible = false
+            binding.debugContentScroll.isVisible = true
+            return
+        }
         fun unlock() {
-            if (binding.debugPinInput.text?.toString() == DEBUG_PIN) {
+            val savedCode = debugPreferences().getString(KEY_ACCESS_CODE, DEFAULT_DEBUG_PIN) ?: DEFAULT_DEBUG_PIN
+            if (binding.debugPinInput.text?.toString() == savedCode) {
                 binding.debugPinError.isVisible = false
                 binding.debugUnlockContainer.isVisible = false
                 binding.debugContentScroll.isVisible = true
@@ -74,9 +92,61 @@ class DebugFragment : Fragment() {
             }
         }
         binding.debugUnlockButton.setOnClickListener { unlock() }
+        bindKeyboardInput(binding.debugPinInput)
         binding.debugPinInput.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == EditorInfo.IME_ACTION_DONE) { unlock(); true } else false
         }
+    }
+
+    private fun bindDebugAccessSettings() {
+        val preferences = debugPreferences()
+        binding.debugAccessEnabledSwitch.isChecked = preferences.getBoolean(KEY_ACCESS_ENABLED, true)
+        binding.debugAccessEnabledSwitch.setOnCheckedChangeListener { _, enabled ->
+            preferences.edit().putBoolean(KEY_ACCESS_ENABLED, enabled).apply()
+            toast(if (enabled) R.string.debug_access_enabled_notice else R.string.debug_access_disabled_notice)
+        }
+        binding.debugSaveAccessCodeButton.setOnClickListener {
+            val code = binding.debugAccessCodeInput.text?.toString().orEmpty()
+            if (code.isBlank()) {
+                binding.debugAccessCodeInput.error = getString(R.string.debug_access_code_required)
+                showKeyboard(binding.debugAccessCodeInput)
+            } else {
+                preferences.edit().putString(KEY_ACCESS_CODE, code).apply()
+                binding.debugAccessCodeInput.text?.clear()
+                toast(R.string.debug_access_code_saved)
+            }
+        }
+        bindKeyboardInput(binding.debugAccessCodeInput)
+    }
+
+    private fun debugPreferences() = requireContext().getSharedPreferences(DEBUG_PREFS, 0)
+
+    private fun bindKeyboardInput(input: EditText) {
+        input.showSoftInputOnFocus = true
+        input.isFocusableInTouchMode = true
+        input.setOnClickListener { showKeyboard(input) }
+        input.setOnTouchListener { _, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) showKeyboard(input)
+            false
+        }
+        input.setOnFocusChangeListener { _, hasFocus -> if (hasFocus) showKeyboard(input) }
+    }
+
+    private fun showKeyboard(view: View) {
+        view.isFocusableInTouchMode = true
+        view.requestFocusFromTouch()
+        requireActivity().window.setSoftInputMode(
+            android.view.WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        )
+        val show: () -> Unit = {
+            val keyboard = requireContext().getSystemService(InputMethodManager::class.java)
+            keyboard?.restartInput(view)
+            keyboard?.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
+            ViewCompat.getWindowInsetsController(view)?.show(WindowInsetsCompat.Type.ime())
+            Unit
+        }
+        view.post(show)
+        view.postDelayed(show, 180L)
     }
 
     private fun bindDebugControls() {
@@ -101,6 +171,7 @@ class DebugFragment : Fragment() {
     private fun bindParameterCatalog() {
         binding.debugParameterList.layoutManager = LinearLayoutManager(requireContext())
         binding.debugParameterList.adapter = parameterAdapter
+        bindKeyboardInput(binding.debugParameterSearch)
         binding.debugParameterSearch.doAfterTextChanged { parameterAdapter.filter(it?.toString().orEmpty()) }
         binding.debugParameterRefreshButton.setOnClickListener {
             if (!droneViewModel.refreshVehicleParameterCatalog()) toast(R.string.debug_requires_connection)
@@ -109,6 +180,38 @@ class DebugFragment : Fragment() {
             parameterAdapter.submit(state.parameters)
             renderParameterState(state)
         }
+    }
+
+    private fun showParameterEditor(parameter: com.example.droneservicesapp.mavserver.VehicleParameter) {
+        val input = EditText(requireContext()).apply {
+            inputType = InputType.TYPE_CLASS_NUMBER or InputType.TYPE_NUMBER_FLAG_DECIMAL or
+                InputType.TYPE_NUMBER_FLAG_SIGNED
+            setText(parameter.value.toString())
+            selectAll()
+            imeOptions = EditorInfo.IME_ACTION_DONE
+        }
+        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
+            .setTitle(getString(R.string.debug_parameter_edit_title, parameter.name))
+            .setView(input)
+            .setNegativeButton(android.R.string.cancel, null)
+            .setPositiveButton(R.string.debug_parameter_save, null)
+            .create()
+        dialog.setOnShowListener {
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
+                val value = input.text?.toString()?.toFloatOrNull()
+                when {
+                    value == null || !value.isFinite() -> input.error = getString(R.string.debug_parameter_invalid_value)
+                    !droneViewModel.setVehicleParameter(parameter.name, value) -> toast(R.string.debug_requires_connection)
+                    else -> {
+                        toast(R.string.debug_parameter_write_sent)
+                        dialog.dismiss()
+                    }
+                }
+            }
+            showKeyboard(input)
+        }
+        dialog.window?.setSoftInputMode(android.view.WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_VISIBLE)
+        dialog.show()
     }
 
     private fun renderParameterState(state: VehicleParameterCatalogState) {

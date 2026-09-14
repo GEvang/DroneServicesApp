@@ -404,7 +404,7 @@ class MissionMapFragment : Fragment() {
         liveGeoAwarenessStatusBinder = null
         loadGeoAwarenessZonesIfNeeded()
         renderGeoAwarenessLayerIfVisible()
-        updateTopLiveGeoStatus("UNKNOWN", "#AAB5C6")
+        updateTopLiveGeoStatus(getString(R.string.live_geo_unknown_status), "#AAB5C6")
         updateGeoAwarenessPlanningStatus()
     }
 
@@ -595,13 +595,17 @@ class MissionMapFragment : Fragment() {
                     renderObstacleControls()
                 }
             } else {
+                if (activePreviewMode == PreviewMode.POINT_CLOUD) {
+                    activePreviewMode = PreviewMode.MAP
+                    renderPreviewMode()
+                }
                 obstaclePlacementMode = true
                 if (selectedObstacleMode == OsmdroidObstacleEditor.Mode.CIRCLE) {
                     osmdroidObstacleEditor.startCirclePlacement(activityViewModel.obstacleRadiusMeters.value ?: 5.0)
-                    Toast.makeText(requireContext(), "Tap the map to place a forbidden circle.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), R.string.obstacle_place_circle_prompt, Toast.LENGTH_SHORT).show()
                 } else {
                     osmdroidObstacleEditor.startPolygonPlacement()
-                    Toast.makeText(requireContext(), "Tap the map to place polygon points, then finish it.", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), R.string.obstacle_place_polygon_prompt, Toast.LENGTH_SHORT).show()
                 }
                 osmdroidPolygonEditor.setEnabled(false)
                 renderObstacleControls()
@@ -1109,7 +1113,7 @@ class MissionMapFragment : Fragment() {
         updateGeometryActionState()
         val missionPath = currentMissionPath()
         val canUseMission =
-            activityViewModel.mapState.value != MainActivityViewModel.MapState.Draw && missionPath.size >= 2
+            activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams && missionPath.size >= 2
         updateSimulationButton(canUseMission)
         if (!canUseMission) {
             missionSummaryJob?.cancel()
@@ -1155,7 +1159,7 @@ class MissionMapFragment : Fragment() {
             }
             if (
                 _binding == null ||
-                activityViewModel.mapState.value == MainActivityViewModel.MapState.Draw ||
+                activityViewModel.mapState.value != MainActivityViewModel.MapState.SetFlightParams ||
                 currentMissionPath() != missionPath
             ) return@launch
             osmdroidMapController.setMissionServiceMarkers(
@@ -3422,26 +3426,28 @@ class MissionMapFragment : Fragment() {
         val speedMetersPerSecond = activityViewModel.flightSpeed.value ?: 5.0
         val mode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
         val resourcePlan = buildMissionResourcePlan(missionPath)
+        val modeLabel = getString(if (mode == PlanningOperationMode.SPRAY) R.string.spray else R.string.survey)
+        val workflowLabel = getString(if (workflow == PlanningWorkflow.AREA) R.string.area else R.string.points)
 
         val message = buildString {
-            appendLine("Mode: ${mode.name.lowercase().replaceFirstChar { it.uppercase() }}")
-            appendLine("Workflow: ${workflow.name.lowercase().replaceFirstChar { it.uppercase() }}")
-            if (areaMeters > 0.0) appendLine("Area: ${formatMissionArea(areaMeters)}")
-            appendLine("Path length: ${formatMissionDistance(totalDistanceMeters)}")
-            appendLine("Lines: $lineCount")
-            appendLine("Altitude: ${altitudeMeters.toInt()} m")
-            appendLine("Speed: ${String.format(Locale.US, "%.1f", speedMetersPerSecond)} m/s")
-            appendLine("Estimated time: ${formatEstimatedTime(resourcePlan.estimatedFlightSeconds.toInt())}")
-            appendLine("Batteries required: ${resourcePlan.batteryCount}")
+            appendLine(getString(R.string.mission_summary_mode, modeLabel))
+            appendLine(getString(R.string.mission_summary_workflow, workflowLabel))
+            if (areaMeters > 0.0) appendLine(getString(R.string.mission_summary_area, formatMissionArea(areaMeters)))
+            appendLine(getString(R.string.mission_summary_path_length, formatMissionDistance(totalDistanceMeters)))
+            appendLine(getString(R.string.mission_summary_lines, lineCount))
+            appendLine(getString(R.string.mission_summary_altitude, altitudeMeters.toInt()))
+            appendLine(getString(R.string.mission_summary_speed, String.format(Locale.US, "%.1f", speedMetersPerSecond)))
+            appendLine(getString(R.string.mission_summary_estimated_time, formatEstimatedTime(resourcePlan.estimatedFlightSeconds.toInt())))
+            appendLine(getString(R.string.mission_summary_batteries, resourcePlan.batteryCount))
             if (mode == PlanningOperationMode.SPRAY) {
-                appendLine("Spray flow: ${formatSprayFlow(activityViewModel.sprayFlowLitersPerMinute())} Lt/min")
-                appendLine("Liquid required: ${formatSprayLiters(resourcePlan.totalSprayLiters)} Lt")
-                appendLine("Tank refills: ${resourcePlan.tankRefillCount}")
+                appendLine(getString(R.string.mission_summary_spray_flow, formatSprayFlow(activityViewModel.sprayFlowLitersPerMinute())))
+                appendLine(getString(R.string.mission_summary_liquid, formatSprayLiters(resourcePlan.totalSprayLiters)))
+                appendLine(getString(R.string.mission_summary_refills, resourcePlan.tankRefillCount))
             }
         }
 
         val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle("Mission summary")
+            .setTitle(R.string.mission_summary_title)
             .setMessage(message)
             .setNegativeButton(R.string.decline, null)
             .setPositiveButton(R.string.confirm) { _, _ -> onConfirmed() }
@@ -4350,14 +4356,12 @@ class MissionMapFragment : Fragment() {
 
     private fun showGeoAwarenessBlockedDialog(result: GeoAwarenessResult) {
         val message = buildString {
-            appendLine("This mission intersects a prohibited geo-zone.")
-            appendLine("Upload is blocked by the geo-awareness guard.")
-            appendLine("Verify official restrictions in DAGR before flight.")
+            appendLine(getString(R.string.geo_dialog_blocked_body))
             appendLine()
             append(buildGeoConflictSummary(result))
         }
         showGeoAwarenessDialog(
-            title = "Geo-awareness upload blocked",
+            title = getString(R.string.geo_dialog_upload_blocked),
             message = message
         )
     }
@@ -4372,27 +4376,26 @@ class MissionMapFragment : Fragment() {
             .filter { it.restriction == GeoZoneRestriction.PROHIBITED }
             .distinctBy { it.id }
         val message = buildString {
-            appendLine("This mission intersects prohibited UAS geographical zone(s).")
-            appendLine("Geo-awareness is advisory in this application. Upload can continue only after the remote pilot acknowledges this warning and verifies official restrictions.")
+            appendLine(getString(R.string.geo_dialog_prohibited_body))
             appendLine()
             prohibitedZones.forEach { zone ->
                 appendLine("- ${zone.name}")
-                appendLine("  UGZ ID: ${zone.id}")
+                appendLine("  ${getString(R.string.geo_dialog_zone_id, zone.id)}")
                 zone.authorities.firstOrNull()?.let { authority ->
-                    appendLine("  Authority: ${authority.name ?: "Not specified"}")
-                    appendLine("  Purpose: ${authority.purpose ?: "Not specified"}")
+                    appendLine("  ${getString(R.string.geo_dialog_authority, authority.name ?: getString(R.string.geo_dialog_not_specified))}")
+                    appendLine("  ${getString(R.string.geo_dialog_purpose, authority.purpose ?: getString(R.string.geo_dialog_not_specified))}")
                 }
             }
             appendLine()
             append(buildGeoConflictSummary(result))
         }
         val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle("Prohibited geo-zone warning")
+            .setTitle(R.string.geo_dialog_prohibited_title)
             .setMessage(message)
-            .setPositiveButton("Acknowledge and upload") { _, _ ->
+            .setPositiveButton(R.string.geo_dialog_acknowledge_upload) { _, _ ->
                 onAcknowledged()
             }
-            .setNegativeButton("Cancel") { _, _ ->
+            .setNegativeButton(R.string.cancel) { _, _ ->
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled prohibited zone warning")
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.UPLOAD_CANCELLED,
@@ -4415,28 +4418,26 @@ class MissionMapFragment : Fragment() {
     ) {
         val authorizationZones = authorizationRequiredZones(result).distinctBy { it.id }
         val message = buildString {
-            appendLine("This mission intersects authorization-required UAS geographical zone(s).")
-            appendLine("Confirm only if notification or authorization has been completed with the relevant authority for each listed UGZ.")
-            appendLine("This confirmation is valid for the current flight only and resets when the drone disarms.")
+            appendLine(getString(R.string.geo_dialog_authorization_body))
             appendLine()
             authorizationZones.forEach { zone ->
                 appendLine("- ${zone.name}")
-                appendLine("  UGZ ID: ${zone.id}")
+                appendLine("  ${getString(R.string.geo_dialog_zone_id, zone.id)}")
                 zone.authorities.firstOrNull()?.let { authority ->
-                    appendLine("  Authority: ${authority.name ?: "Not specified"}")
-                    appendLine("  Purpose: ${authority.purpose ?: "Not specified"}")
+                    appendLine("  ${getString(R.string.geo_dialog_authority, authority.name ?: getString(R.string.geo_dialog_not_specified))}")
+                    appendLine("  ${getString(R.string.geo_dialog_purpose, authority.purpose ?: getString(R.string.geo_dialog_not_specified))}")
                 }
             }
             appendLine()
             append(buildGeoConflictSummary(result))
         }
         val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle("Confirm UGZ authorization")
+            .setTitle(R.string.geo_dialog_authorization_title)
             .setMessage(message)
-            .setPositiveButton("Confirm authorization") { _, _ ->
+            .setPositiveButton(R.string.geo_dialog_confirm_authorization) { _, _ ->
                 onAcknowledged()
             }
-            .setNegativeButton("Cancel") { _, _ ->
+            .setNegativeButton(R.string.cancel) { _, _ ->
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled")
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.UPLOAD_CANCELLED,
@@ -4465,14 +4466,14 @@ class MissionMapFragment : Fragment() {
         onContinue: () -> Unit
     ) {
         val message = buildString {
-            appendLine("This mission intersects conditional/information geo-zones.")
+            appendLine(getString(R.string.geo_dialog_notice_body))
             appendLine()
             append(buildGeoConflictSummary(result))
         }
         val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle("Geo-awareness notice")
+            .setTitle(R.string.geo_dialog_notice_title)
             .setMessage(message)
-            .setPositiveButton("Continue") { _, _ ->
+            .setPositiveButton(R.string.continue_action) { _, _ ->
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
                     severity = "INFO",
@@ -4483,7 +4484,7 @@ class MissionMapFragment : Fragment() {
                 )
                 onContinue()
             }
-            .setNegativeButton("Cancel") { _, _ ->
+            .setNegativeButton(R.string.cancel) { _, _ ->
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled")
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.UPLOAD_CANCELLED,
@@ -4504,15 +4505,15 @@ class MissionMapFragment : Fragment() {
         onContinue: () -> Unit
     ) {
         val message = buildString {
-            appendLine("Current geo-awareness state: ${health.state}")
+            appendLine(getString(R.string.geo_dialog_current_state, health.state))
             appendLine(health.message)
             appendLine(buildGeoHealthNotice(health))
-            appendLine("Verify official restrictions in DAGR before flight.")
+            appendLine(getString(R.string.geo_dialog_verify_dagr))
         }
         val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle("Geo-awareness health warning")
+            .setTitle(R.string.geo_dialog_health_title)
             .setMessage(message)
-            .setPositiveButton("Continue") { _, _ ->
+            .setPositiveButton(R.string.continue_action) { _, _ ->
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
                     severity = "INFO",
@@ -4523,7 +4524,7 @@ class MissionMapFragment : Fragment() {
                 )
                 onContinue()
             }
-            .setNegativeButton("Cancel") { _, _ ->
+            .setNegativeButton(R.string.cancel) { _, _ ->
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled")
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.UPLOAD_CANCELLED,
@@ -4552,28 +4553,28 @@ class MissionMapFragment : Fragment() {
         val remainingCount = orderedConflicts.size - visibleConflicts.size
 
         return buildString {
-            appendLine("Highest restriction: ${result.highestRestriction}")
-            appendLine("Upload allowed: ${if (result.canUpload) "Yes" else "No"}")
-            appendLine("Acknowledgement required: ${if (result.requiresAcknowledgement) "Yes" else "No"}")
+            appendLine(getString(R.string.geo_summary_highest_restriction, result.highestRestriction))
+            appendLine(getString(R.string.geo_summary_upload_allowed, getString(if (result.canUpload) R.string.answer_yes else R.string.answer_no)))
+            appendLine(getString(R.string.geo_summary_ack_required, getString(if (result.requiresAcknowledgement) R.string.answer_yes else R.string.answer_no)))
             appendLine()
             visibleConflicts.forEach { conflict ->
                 appendLine("- ${conflict.zone.name}")
-                appendLine("  Restriction: ${conflict.restriction}")
-                appendLine("  Type: ${formatConflictType(conflict.conflictType)}")
-                appendLine("  Message: ${conflict.message ?: "No message"}")
+                appendLine("  ${getString(R.string.geo_summary_restriction, conflict.restriction)}")
+                appendLine("  ${getString(R.string.geo_summary_type, formatConflictType(conflict.conflictType))}")
+                appendLine("  ${getString(R.string.geo_summary_message, conflict.message ?: getString(R.string.geo_summary_no_message))}")
             }
             if (remainingCount > 0) {
-                append("...and $remainingCount more")
+                append(getString(R.string.geo_summary_more, remainingCount))
             }
         }
     }
 
     private fun buildGeoHealthNotice(health: GeoAwarenessHealth): String {
         return when (health.state) {
-            GeoAwarenessHealthState.STALE -> "Geo-awareness data may be stale."
-            GeoAwarenessHealthState.DEGRADED -> "Geo-awareness data has validation warnings."
-            GeoAwarenessHealthState.UNAVAILABLE -> "Geo-awareness data is unavailable. Continuing will bypass geo-awareness protection."
-            GeoAwarenessHealthState.AVAILABLE -> "Geo-awareness data is available."
+            GeoAwarenessHealthState.STALE -> getString(R.string.geo_health_stale)
+            GeoAwarenessHealthState.DEGRADED -> getString(R.string.geo_health_degraded)
+            GeoAwarenessHealthState.UNAVAILABLE -> getString(R.string.geo_health_unavailable)
+            GeoAwarenessHealthState.AVAILABLE -> getString(R.string.geo_health_available)
         }
     }
 
@@ -4908,7 +4909,7 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindDegraded(reason)
-            updateTopLiveGeoStatus("DEGRADED", "#FFB26B")
+            updateTopLiveGeoStatus(getString(R.string.live_geo_degraded), "#FFB26B")
             return
         }
 
@@ -4918,7 +4919,7 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("No drone position")
-            updateTopLiveGeoStatus("UNKNOWN", "#AAB5C6")
+            updateTopLiveGeoStatus(getString(R.string.live_geo_unknown_status), "#AAB5C6")
             return
         }
 
@@ -4928,7 +4929,7 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
-            updateTopLiveGeoStatus("UNKNOWN", "#AAB5C6")
+            updateTopLiveGeoStatus(getString(R.string.live_geo_unknown_status), "#AAB5C6")
             return
         }
         if (geoAwarenessZones.isEmpty()) {
@@ -4937,7 +4938,7 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
-            updateTopLiveGeoStatus("UNKNOWN", "#AAB5C6")
+            updateTopLiveGeoStatus(getString(R.string.live_geo_unknown_status), "#AAB5C6")
             return
         }
 
@@ -4976,7 +4977,7 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoThreats = emptyList()
             lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindClear()
-            updateTopLiveGeoStatus("CLEAR", "#48D26D")
+            updateTopLiveGeoStatus(getString(R.string.live_geo_clear_status), "#48D26D")
         } else {
             nearestZone?.let { proximity ->
                 logLiveProximityIfNeeded(
@@ -4997,10 +4998,10 @@ class MissionMapFragment : Fragment() {
             val highestInside = insideZones.maxByOrNull { restrictionPriority(it.restriction) }
             val statusRestriction = highestInside?.restriction ?: nearestZone?.restriction
             val statusLabel = when {
-                highestInside != null -> "IN ${restrictionShortLabel(highestInside.restriction)}"
-                threatRows.size > 1 -> "MULTIPLE"
+                highestInside != null -> getString(R.string.live_geo_inside_status, restrictionShortLabel(highestInside.restriction))
+                threatRows.size > 1 -> getString(R.string.live_geo_multiple)
                 statusRestriction != null -> nearRestrictionBadgeLabel(statusRestriction)
-                else -> "CLEAR"
+                else -> getString(R.string.live_geo_clear_status)
             }
             val statusColor = statusRestriction?.let(::restrictionColorHex) ?: "#48D26D"
             liveGeoAwarenessStatusBinder?.bindThreatSummary(
@@ -5027,7 +5028,7 @@ class MissionMapFragment : Fragment() {
         statusView.setTextColor(color)
         view?.findViewById<ImageView?>(R.id.top_live_geo_icon)?.apply {
             setImageResource(
-                if (label.equals("CLEAR", ignoreCase = true)) {
+                if (label == getString(R.string.live_geo_clear_status)) {
                     R.drawable.ic_baseline_check_circle_outline_24
                 } else {
                     R.drawable.ic_status_warning_24
@@ -5043,71 +5044,71 @@ class MissionMapFragment : Fragment() {
 
         when {
             latestLiveDronePosition == null -> {
-                title = "Live geo-awareness"
-                message = "No drone position available yet."
+                title = getString(R.string.live_geo_details_title)
+                message = getString(R.string.live_geo_no_position)
             }
             latestLiveGeoZones.isNotEmpty() -> {
                 val visibleZones = latestLiveGeoZones.take(5)
                 val remainingCount = latestLiveGeoZones.size - visibleZones.size
-                title = "Live geo-awareness warning"
+                title = getString(R.string.live_geo_warning_title)
                 message = buildString {
-                    appendLine("Drone is inside loaded geo-zone(s):")
+                    appendLine(getString(R.string.live_geo_inside_loaded))
                     appendLine()
                     visibleZones.forEach { zone ->
                         appendLine("- ${zone.name}")
-                        appendLine("  Restriction: ${zone.restriction}")
-                        appendLine("  Message: ${zone.message ?: "No message"}")
+                        appendLine("  ${getString(R.string.live_geo_restriction, zone.restriction)}")
+                        appendLine("  ${getString(R.string.live_geo_message, zone.message ?: getString(R.string.geo_summary_no_message))}")
                     }
                     if (remainingCount > 0) {
-                        appendLine("...and $remainingCount more.")
+                        appendLine(getString(R.string.geo_summary_more, remainingCount))
                     }
-                    append("Verify restrictions with the responsible authority before flight.")
+                    append(getString(R.string.live_geo_verify_authority))
                 }
             }
             latestLiveGeoProximity != null -> {
                 val proximity = latestLiveGeoProximity!!
-                title = "Nearby geo-zone"
+                title = getString(R.string.live_geo_nearby_title)
                 message = buildString {
-                    appendLine("Nearest zone: ${proximity.nearestZone.name}")
-                    appendLine("Restriction: ${proximity.restriction}")
-                    appendLine("Distance: ${proximity.distanceMeters.toInt().coerceAtLeast(0)} m")
-                    appendLine("Configured threshold: ${proximity.configuredThresholdMeters.toInt()} m")
-                    appendLine("Effective threshold: ${proximity.effectiveThresholdMeters.toInt()} m")
-                    appendLine("Required warning time: ${proximity.requiredWarningSeconds} s")
+                    appendLine(getString(R.string.live_geo_nearest_zone, proximity.nearestZone.name))
+                    appendLine(getString(R.string.live_geo_restriction, proximity.restriction))
+                    appendLine(getString(R.string.live_geo_distance, proximity.distanceMeters.toInt().coerceAtLeast(0)))
+                    appendLine(getString(R.string.live_geo_configured_threshold, proximity.configuredThresholdMeters.toInt()))
+                    appendLine(getString(R.string.live_geo_effective_threshold, proximity.effectiveThresholdMeters.toInt()))
+                    appendLine(getString(R.string.live_geo_warning_time, proximity.requiredWarningSeconds))
                     proximity.groundSpeedMetersPerSecond?.let { speed ->
-                        appendLine("Ground speed: ${"%.2f".format(Locale.US, speed)} m/s")
+                        appendLine(getString(R.string.live_geo_ground_speed, "%.2f".format(Locale.US, speed)))
                     }
                     proximity.closingSpeedMetersPerSecond?.let { speed ->
-                        appendLine("Closing speed: ${"%.2f".format(Locale.US, speed)} m/s")
+                        appendLine(getString(R.string.live_geo_closing_speed, "%.2f".format(Locale.US, speed)))
                     }
                     proximity.timeToBoundarySeconds?.let { seconds ->
-                        appendLine("Time to boundary: ${"%.2f".format(Locale.US, seconds)} s")
+                        appendLine(getString(R.string.live_geo_boundary_time, "%.2f".format(Locale.US, seconds)))
                     }
                     proximity.verticalDistanceMeters?.let { distance ->
-                        appendLine("Vertical distance to limit: ${"%.2f".format(Locale.US, distance)} m")
+                        appendLine(getString(R.string.live_geo_vertical_distance, "%.2f".format(Locale.US, distance)))
                     }
                     proximity.verticalClosingSpeedMetersPerSecond?.let { speed ->
-                        appendLine("Vertical closing speed: ${"%.2f".format(Locale.US, speed)} m/s")
+                        appendLine(getString(R.string.live_geo_vertical_speed, "%.2f".format(Locale.US, speed)))
                     }
                     proximity.verticalTimeToBoundarySeconds?.let { seconds ->
-                        appendLine("Vertical time to limit: ${"%.2f".format(Locale.US, seconds)} s")
+                        appendLine(getString(R.string.live_geo_vertical_time, "%.2f".format(Locale.US, seconds)))
                     }
-                    appendLine("Warning mode: ${proximity.warningMode}")
+                    appendLine(getString(R.string.live_geo_warning_mode, proximity.warningMode))
                     if (!geoZoneDatasetInfo?.title.isNullOrBlank()) {
-                        appendLine("Dataset: ${geoZoneDatasetInfo?.title} (${geoZoneDatasetInfo?.version ?: "N/A"})")
+                        appendLine(getString(R.string.live_geo_dataset, geoZoneDatasetInfo?.title, geoZoneDatasetInfo?.version ?: getString(R.string.settings_unavailable)))
                     }
                     if (!proximity.nearestZone.message.isNullOrBlank()) {
-                        appendLine("Message: ${proximity.nearestZone.message}")
+                        appendLine(getString(R.string.live_geo_message, proximity.nearestZone.message))
                     }
                     appendLine()
-                    append("The drone is outside this zone but within the near-zone warning threshold.")
+                    append(getString(R.string.live_geo_outside_near))
                 }
             }
             latestLiveGeoZones.isEmpty() -> {
-                title = "Live geo-awareness"
+                title = getString(R.string.live_geo_details_title)
                 message = buildString {
-                    appendLine("Drone is not inside any loaded geo-zone.")
-                    append("Verify dataset validity and operational restrictions before flight.")
+                    appendLine(getString(R.string.live_geo_outside_all))
+                    append(getString(R.string.live_geo_verify_before_flight))
                 }
             }
             else -> error("Unhandled live geo-awareness detail state")
@@ -5133,12 +5134,12 @@ class MissionMapFragment : Fragment() {
 
     private fun liveGeoAwarenessDegradedReason(): String? {
         if (droneViewModel.conStateLiveData.value != true) {
-            return "Geo-awareness degraded: no drone link"
+            return getString(R.string.live_geo_degraded_no_link)
         }
         return when (TelemetryMapping.gpsFixQuality(droneViewModel.gpsFixType.value, isConnected = true)) {
             GpsFixQuality.DISCONNECTED,
             GpsFixQuality.NO_GPS,
-            GpsFixQuality.UNKNOWN -> "Geo-awareness degraded: GPS position is not reliable"
+            GpsFixQuality.UNKNOWN -> getString(R.string.live_geo_degraded_gps)
             GpsFixQuality.FIX_2D,
             GpsFixQuality.FIX_3D,
             GpsFixQuality.DGPS,
@@ -5248,9 +5249,9 @@ class MissionMapFragment : Fragment() {
         return LiveGeoThreatUiModel(
             label = restrictionShortLabel(restriction),
             colorHex = restrictionColorHex(restriction),
-            directionText = horizontalDirectionLabel(dronePosition, this) ?: "IN",
-            distanceText = "H: IN",
-            altitudeText = "V: IN",
+            directionText = horizontalDirectionLabel(dronePosition, this) ?: getString(R.string.live_geo_inside_short),
+            distanceText = getString(R.string.live_geo_horizontal_inside),
+            altitudeText = getString(R.string.live_geo_vertical_inside),
             radialDistanceRatio = 0.18f,
             bearingDegrees = null,
             showCompassMarker = false,
@@ -5260,31 +5261,31 @@ class MissionMapFragment : Fragment() {
 
     private fun restrictionShortLabel(restriction: GeoZoneRestriction): String {
         return when (restriction) {
-            GeoZoneRestriction.PROHIBITED -> "PROHIBITED"
-            GeoZoneRestriction.REQ_AUTHORISATION -> "AUTH REQUIRED"
-            GeoZoneRestriction.CONDITIONAL -> "CONDITIONAL"
-            GeoZoneRestriction.INFORMATION -> "INFO"
-            GeoZoneRestriction.UNKNOWN -> "UNKNOWN"
+            GeoZoneRestriction.PROHIBITED -> getString(R.string.geo_restriction_prohibited)
+            GeoZoneRestriction.REQ_AUTHORISATION -> getString(R.string.geo_restriction_authorization)
+            GeoZoneRestriction.CONDITIONAL -> getString(R.string.geo_restriction_conditional)
+            GeoZoneRestriction.INFORMATION -> getString(R.string.geo_restriction_information)
+            GeoZoneRestriction.UNKNOWN -> getString(R.string.geo_restriction_unknown)
         }
     }
 
     private fun restrictionBadgeLabel(restriction: GeoZoneRestriction): String {
         return when (restriction) {
-            GeoZoneRestriction.PROHIBITED -> "PROHIBITED"
-            GeoZoneRestriction.REQ_AUTHORISATION -> "AUTH REQUIRED"
-            GeoZoneRestriction.CONDITIONAL -> "CONDITIONAL"
-            GeoZoneRestriction.INFORMATION -> "INFO"
-            GeoZoneRestriction.UNKNOWN -> "UNKNOWN"
+            GeoZoneRestriction.PROHIBITED -> getString(R.string.geo_restriction_prohibited)
+            GeoZoneRestriction.REQ_AUTHORISATION -> getString(R.string.geo_restriction_authorization)
+            GeoZoneRestriction.CONDITIONAL -> getString(R.string.geo_restriction_conditional)
+            GeoZoneRestriction.INFORMATION -> getString(R.string.geo_restriction_information)
+            GeoZoneRestriction.UNKNOWN -> getString(R.string.geo_restriction_unknown)
         }
     }
 
     private fun nearRestrictionBadgeLabel(restriction: GeoZoneRestriction): String {
         return when (restriction) {
-            GeoZoneRestriction.PROHIBITED -> "NEAR PROHIBITED"
-            GeoZoneRestriction.REQ_AUTHORISATION -> "NEAR AUTH REQUIRED"
-            GeoZoneRestriction.CONDITIONAL -> "NEAR CONDITIONAL"
-            GeoZoneRestriction.INFORMATION -> "INFO"
-            GeoZoneRestriction.UNKNOWN -> "NEAR UNKNOWN"
+            GeoZoneRestriction.PROHIBITED -> getString(R.string.geo_restriction_near_prohibited)
+            GeoZoneRestriction.REQ_AUTHORISATION -> getString(R.string.geo_restriction_near_authorization)
+            GeoZoneRestriction.CONDITIONAL -> getString(R.string.geo_restriction_near_conditional)
+            GeoZoneRestriction.INFORMATION -> getString(R.string.geo_restriction_information)
+            GeoZoneRestriction.UNKNOWN -> getString(R.string.geo_restriction_near_unknown)
         }
     }
 

@@ -82,7 +82,7 @@ class LiveGeoAwarenessPanelBinder(
     fun bindClear() {
         setThreatContentVisible(false)
         bindThreatSummary(
-            statusLabel = "CLEAR",
+            statusLabel = rootView.context.getString(R.string.live_geo_clear_status),
             statusColor = "#48D26D",
             threats = emptyList(),
             headingDegrees = null,
@@ -97,9 +97,9 @@ class LiveGeoAwarenessPanelBinder(
             LiveGeoThreatUiModel(
                 label = restrictionShortLabel(zone.restriction),
                 colorHex = restrictionColor(zone.restriction),
-                directionText = "IN",
-                distanceText = "H: IN",
-                altitudeText = "V: --",
+                directionText = rootView.context.getString(R.string.live_geo_inside_short),
+                distanceText = rootView.context.getString(R.string.live_geo_horizontal_inside),
+                altitudeText = rootView.context.getString(R.string.live_geo_vertical_placeholder),
                 radialDistanceRatio = 0.18f,
                 showCompassMarker = false,
                 isInsideZone = true
@@ -145,7 +145,7 @@ class LiveGeoAwarenessPanelBinder(
         val hiddenCount = remainingCount + (threats.size - visibleThreats.size).coerceAtLeast(0)
         if (hiddenCount > 0) {
             moreLabel.visibility = View.VISIBLE
-            moreLabel.text = "+$hiddenCount more"
+            moreLabel.text = rootView.context.getString(R.string.live_geo_more, hiddenCount)
         } else {
             moreLabel.visibility = View.GONE
         }
@@ -156,7 +156,7 @@ class LiveGeoAwarenessPanelBinder(
 
     fun bindDegraded(@Suppress("UNUSED_PARAMETER") message: String) {
         bindThreatSummary(
-            statusLabel = "DEGRADED",
+            statusLabel = rootView.context.getString(R.string.live_geo_degraded),
             statusColor = "#FFB26B",
             threats = emptyList(),
             headingDegrees = null,
@@ -166,7 +166,7 @@ class LiveGeoAwarenessPanelBinder(
 
     fun bindUnknown(@Suppress("UNUSED_PARAMETER") message: String) {
         bindThreatSummary(
-            statusLabel = "UNKNOWN",
+            statusLabel = rootView.context.getString(R.string.live_geo_unknown_status),
             statusColor = "#AAB5C6",
             threats = emptyList(),
             headingDegrees = null,
@@ -254,21 +254,21 @@ class LiveGeoAwarenessPanelBinder(
 
     private fun restrictionShortLabel(restriction: GeoZoneRestriction): String {
         return when (restriction) {
-            GeoZoneRestriction.PROHIBITED -> "PROHIBITED"
-            GeoZoneRestriction.REQ_AUTHORISATION -> "AUTH REQUIRED"
-            GeoZoneRestriction.CONDITIONAL -> "CONDITIONAL"
-            GeoZoneRestriction.INFORMATION -> "INFO"
-            GeoZoneRestriction.UNKNOWN -> "UNKNOWN"
+            GeoZoneRestriction.PROHIBITED -> rootView.context.getString(R.string.geo_restriction_prohibited)
+            GeoZoneRestriction.REQ_AUTHORISATION -> rootView.context.getString(R.string.geo_restriction_authorization)
+            GeoZoneRestriction.CONDITIONAL -> rootView.context.getString(R.string.geo_restriction_conditional)
+            GeoZoneRestriction.INFORMATION -> rootView.context.getString(R.string.geo_restriction_information)
+            GeoZoneRestriction.UNKNOWN -> rootView.context.getString(R.string.geo_restriction_unknown)
         }
     }
 
     private fun restrictionBadgeLabel(restriction: GeoZoneRestriction): String {
         return when (restriction) {
-            GeoZoneRestriction.PROHIBITED -> "PROHIBITED"
-            GeoZoneRestriction.REQ_AUTHORISATION -> "AUTH REQUIRED"
-            GeoZoneRestriction.CONDITIONAL -> "CONDITIONAL"
-            GeoZoneRestriction.INFORMATION -> "INFO"
-            GeoZoneRestriction.UNKNOWN -> "UNKNOWN"
+            GeoZoneRestriction.PROHIBITED -> rootView.context.getString(R.string.geo_restriction_prohibited)
+            GeoZoneRestriction.REQ_AUTHORISATION -> rootView.context.getString(R.string.geo_restriction_authorization)
+            GeoZoneRestriction.CONDITIONAL -> rootView.context.getString(R.string.geo_restriction_conditional)
+            GeoZoneRestriction.INFORMATION -> rootView.context.getString(R.string.geo_restriction_information)
+            GeoZoneRestriction.UNKNOWN -> rootView.context.getString(R.string.geo_restriction_unknown)
         }
     }
 
@@ -349,11 +349,11 @@ class LiveGeoAwarenessPanelBinder(
             divider?.visibility = if (keepVisible) View.VISIBLE else View.GONE
             container.background = null
             if (keepVisible) {
-                label.text = "CLEAR"
+                label.text = label.context.getString(R.string.live_geo_clear_status)
                 label.setTextColor("#48D26D".toColorInt())
                 direction.text = "--"
-                distance.text = "H: --"
-                altitude.text = "V: --"
+                distance.text = distance.context.getString(R.string.live_geo_horizontal_placeholder)
+                altitude.text = altitude.context.getString(R.string.live_geo_vertical_placeholder)
                 verticalArrow.text = ""
                 (dot.background as? GradientDrawable)?.setColor("#48D26D".toColorInt())
             }

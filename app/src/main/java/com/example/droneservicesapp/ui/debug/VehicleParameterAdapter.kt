@@ -11,7 +11,9 @@ import com.example.droneservicesapp.R
 import com.example.droneservicesapp.mavserver.VehicleParameter
 import java.util.Locale
 
-internal class VehicleParameterAdapter : ListAdapter<VehicleParameter, VehicleParameterAdapter.Holder>(DiffCallback) {
+internal class VehicleParameterAdapter(
+    private val onEdit: (VehicleParameter) -> Unit,
+) : ListAdapter<VehicleParameter, VehicleParameterAdapter.Holder>(DiffCallback) {
     private var allParameters: List<VehicleParameter> = emptyList()
     private var query: String = ""
 
@@ -35,7 +37,7 @@ internal class VehicleParameterAdapter : ListAdapter<VehicleParameter, VehiclePa
         LayoutInflater.from(parent.context).inflate(R.layout.item_vehicle_parameter, parent, false)
     )
 
-    override fun onBindViewHolder(holder: Holder, position: Int) = holder.bind(getItem(position))
+    override fun onBindViewHolder(holder: Holder, position: Int) = holder.bind(getItem(position), onEdit)
 
     private object DiffCallback : DiffUtil.ItemCallback<VehicleParameter>() {
         override fun areItemsTheSame(oldItem: VehicleParameter, newItem: VehicleParameter): Boolean =
@@ -50,10 +52,11 @@ internal class VehicleParameterAdapter : ListAdapter<VehicleParameter, VehiclePa
         private val value: TextView = view.findViewById(R.id.parameter_value)
         private val type: TextView = view.findViewById(R.id.parameter_type)
 
-        fun bind(parameter: VehicleParameter) {
+        fun bind(parameter: VehicleParameter, onEdit: (VehicleParameter) -> Unit) {
             name.text = parameter.name
             value.text = formatValue(parameter.value)
             type.text = parameter.type
+            itemView.setOnClickListener { onEdit(parameter) }
         }
 
         private fun formatValue(value: Float): String {

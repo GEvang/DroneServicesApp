@@ -66,7 +66,7 @@
                         android:paddingTop="8dp"
                         android:paddingRight="14dp"
                         android:paddingBottom="8dp"
-                        android:text="Geo-awareness status: UNKNOWN"
+                        android:text="@string/geo_status_unknown_placeholder"
                         android:textColor="@android:color/white"
                         android:textSize="13sp"
                         android:textStyle="bold" />
@@ -96,7 +96,7 @@
                     android:paddingTop="8dp"
                     android:paddingRight="14dp"
                     android:paddingBottom="8dp"
-                    android:text="LIVE GEO: NO POS"
+                    android:text="@string/live_geo_no_position_short"
                     android:textColor="@android:color/white"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -149,7 +149,7 @@
                         android:id="@+id/geo_awareness_current_source"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Current source: No dataset loaded"
+                        android:text="@string/geo_current_source_placeholder"
                         style="@style/TextAppearance.DroneServices.StatusValue" />
 
                     <TextView
@@ -157,7 +157,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/ds_space_xs"
-                        android:text="Loaded datasets: 0"
+                        android:text="@string/geo_loaded_datasets_placeholder"
                         style="@style/TextAppearance.DroneServices.PanelLabel" />
 
                     <TextView
@@ -165,7 +165,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/ds_space_xs"
-                        android:text="Total zones: 0"
+                        android:text="@string/geo_total_zones_placeholder"
                         style="@style/TextAppearance.DroneServices.PanelLabel" />
 
                     <TextView
@@ -173,7 +173,7 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:layout_marginTop="@dimen/ds_space_xs"
-                        android:text="Total validation: Errors 0 | Warnings 0"
+                        android:text="@string/geo_total_validation_placeholder"
                         style="@style/TextAppearance.DroneServices.PanelLabel" />
 
                     <LinearLayout
@@ -257,7 +257,7 @@
                     android:paddingTop="8dp"
                     android:paddingRight="14dp"
                     android:paddingBottom="8dp"
-                    android:text="Validation: OK"
+                    android:text="@string/geo_validation_ok_placeholder"
                     android:textColor="@android:color/white"
                     android:textSize="13sp"
                     android:textStyle="bold" />
@@ -349,7 +349,7 @@
                     android:id="@+id/geo_awareness_log_count"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:text="Geo-awareness events recorded: 0"
+                    android:text="@string/geo_events_placeholder"
                     style="@style/TextAppearance.DroneServices.PanelLabel" />
 
                 <LinearLayout
@@ -435,7 +435,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="@dimen/ds_space_md"
-            android:text="Loading geo-zone dataset..."
+            android:text="@string/geo_loading_dataset"
             android:textColor="@android:color/white"
             android:textSize="15sp"
             android:textStyle="bold" />

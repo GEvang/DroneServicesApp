@@ -1,11 +1,10 @@
 package com.example.droneservicesapp.ui.home.binders
 
-import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.view.View
 import androidx.core.content.ContextCompat
 import android.widget.ImageView
 import android.widget.TextView
+import androidx.appcompat.app.AlertDialog
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.mavserver.GpsFixQuality
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryUiState
@@ -15,23 +14,8 @@ import com.example.droneservicesapp.mavserver.ArmCommandState
 class HomeMapTelemetryBinder(
     private val rootView: View,
 ) {
-    companion object {
-        private const val MIN_DISTANCE_VALUE = 5
-        private const val MAX_DISTANCE_VALUE = 15
-    }
-
     fun render(state: HomeTelemetryUiState) {
         renderTopStatusStrip(state)
-        renderDistance(
-            distance = state.frontDistanceMeters,
-            textViewId = R.id.front_dist,
-            colorIndex = 0
-        )
-        renderDistance(
-            distance = state.backDistanceMeters,
-            textViewId = R.id.back_dist,
-            colorIndex = 2
-        )
     }
 
     private fun renderTopStatusStrip(state: HomeTelemetryUiState) {
@@ -50,8 +34,18 @@ class HomeMapTelemetryBinder(
             text = state.gpsStatusText
             setTextColor(gpsColor)
         }
+        rootView.findViewById<TextView?>(R.id.top_gps_detail_text)?.apply {
+            text = state.gpsDetailText
+            setTextColor(gpsColor)
+        }
         rootView.findViewById<ImageView?>(R.id.top_gps_icon)?.setColorFilter(gpsColor)
+        rootView.findViewById<View?>(R.id.top_gps_card)?.setOnClickListener {
+            showDetailsDialog(R.string.telemetry_gps_details_title, state.gpsDialogText)
+        }
         rootView.findViewById<TextView?>(R.id.top_rtk_text)?.text = compactRtkText(state.rtkMountpointText)
+        rootView.findViewById<View?>(R.id.top_rtk_card)?.setOnClickListener {
+            showDetailsDialog(R.string.telemetry_rtk_details_title, state.rtkDialogText)
+        }
         val armedColor = ContextCompat.getColor(
             context,
             if (state.isArmed) R.color.ds_color_shell_active else R.color.ds_color_shell_warning
@@ -116,8 +110,19 @@ class HomeMapTelemetryBinder(
     }
 
     private fun compactRtkText(text: String): String {
-        val value = text.removePrefix("RTK Mountpoint:").trim()
+        val value = text.trim()
         return if (value.isBlank()) "RTK" else "RTK\n$value"
+    }
+
+    private fun showDetailsDialog(titleRes: Int, message: String) {
+        val dialog = AlertDialog.Builder(rootView.context, R.style.Theme_DroneServicesApp_AlertDialog)
+            .setTitle(titleRes)
+            .setMessage(message)
+            .setPositiveButton(android.R.string.ok, null)
+            .show()
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(
+            ContextCompat.getColor(rootView.context, R.color.ds_color_text_primary)
+        )
     }
 
     private fun gpsStatusColor(quality: GpsFixQuality): Int {
@@ -132,51 +137,4 @@ class HomeMapTelemetryBinder(
         }
     }
 
-    private fun renderDistance(
-        distance: Int?,
-        textViewId: Int,
-        colorIndex: Int,
-    ) {
-        if (distance == null) {
-            rootView.findViewById<TextView>(textViewId)?.text =
-                rootView.context.getString(R.string.home_avoidance_unknown)
-            resetCompassSegment(colorIndex)
-            return
-        }
-
-        val color = getColor(distance)
-        rootView.findViewById<TextView>(textViewId)?.text = "$distance m"
-
-        val compassImageView = rootView.findViewById<ImageView>(R.id.avoidance_compass)
-        val drawable = compassImageView?.drawable as? GradientDrawable
-        drawable?.colors?.let { colors ->
-            val newColors = colors.copyOf()
-            newColors[colorIndex] = color
-            drawable.colors = newColors
-        }
-    }
-
-    private fun resetCompassSegment(colorIndex: Int) {
-        val compassImageView = rootView.findViewById<ImageView>(R.id.avoidance_compass)
-        val drawable = compassImageView?.drawable as? GradientDrawable
-        val neutralColor = ContextCompat.getColor(rootView.context, R.color.ds_color_shell_stroke)
-        drawable?.colors?.let { colors ->
-            val newColors = colors.copyOf()
-            newColors[colorIndex] = neutralColor
-            drawable.colors = newColors
-        }
-    }
-
-    private fun getColor(inValue: Int): Int {
-        var value = when {
-            inValue < MIN_DISTANCE_VALUE -> MIN_DISTANCE_VALUE
-            inValue > MAX_DISTANCE_VALUE -> MAX_DISTANCE_VALUE
-            else -> inValue
-        }
-        value = MAX_DISTANCE_VALUE + MIN_DISTANCE_VALUE - value
-
-        val hue =
-            ((120 * (MAX_DISTANCE_VALUE - value)) / (MAX_DISTANCE_VALUE - MIN_DISTANCE_VALUE)).toFloat()
-        return Color.HSVToColor(floatArrayOf(hue, 1f, 1f))
-    }
 }

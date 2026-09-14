@@ -10,6 +10,7 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.widget.PopupWindow
+import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.core.content.ContextCompat
@@ -31,6 +32,7 @@ class FlightModeUiBinder(
     private var popup: PopupWindow? = null
     private var confirmationRunnable: Runnable? = null
     private var lastPresentedResult: FlightModeCommandState? = null
+    private var autoDragStartX = 0f
 
     fun bind(lifecycleOwner: LifecycleOwner) {
         rootView.findViewById<View>(R.id.top_flight_mode_card).setOnClickListener {
@@ -88,10 +90,17 @@ class FlightModeUiBinder(
     }
 
     private fun selectMode(content: View, mode: ArduCopterFlightMode) {
+        content.findViewById<View>(R.id.flight_mode_auto_slider_container).visibility = View.GONE
+        content.findViewById<SeekBar>(R.id.flight_mode_auto_slider).progress = 0
+        content.findViewById<View>(R.id.flight_mode_confirm_button).visibility = View.GONE
         val currentMode = telemetryViewModel.homeTelemetryUiState.value?.flightModeCustomMode
         if (currentMode == mode.customMode) return
         if (mode.requiresUploadedMission && droneViewModel.missionItems.value.isNullOrEmpty()) {
             toast(R.string.flight_mode_auto_requires_mission)
+            return
+        }
+        if (mode == ArduCopterFlightMode.AUTO) {
+            showAutoSlider(content)
             return
         }
         if (mode.holdDurationMs == 0L) {
@@ -114,6 +123,35 @@ class FlightModeUiBinder(
             )
         )
         bindHoldConfirmation(confirmButton, mode)
+    }
+
+    private fun showAutoSlider(content: View) {
+        cancelConfirmation()
+        content.findViewById<View>(R.id.flight_mode_confirm_button).visibility = View.GONE
+        val container = content.findViewById<View>(R.id.flight_mode_auto_slider_container)
+        val slider = content.findViewById<SeekBar>(R.id.flight_mode_auto_slider)
+        container.visibility = View.VISIBLE
+        slider.progress = 0
+        slider.setOnTouchListener { _, event ->
+            if (event.actionMasked == MotionEvent.ACTION_DOWN) autoDragStartX = event.x
+            if (event.actionMasked == MotionEvent.ACTION_UP) slider.performClick()
+            false
+        }
+        slider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
+            override fun onProgressChanged(seekBar: SeekBar, progress: Int, fromUser: Boolean) = Unit
+            override fun onStartTrackingTouch(seekBar: SeekBar) = Unit
+            override fun onStopTrackingTouch(seekBar: SeekBar) {
+                val deliberateDistance = seekBar.width * 0.65f
+                val lastTouchX = seekBar.width * (seekBar.progress / seekBar.max.toFloat())
+                if (seekBar.width > 0 && seekBar.progress >= seekBar.max &&
+                    lastTouchX - autoDragStartX >= deliberateDistance
+                ) {
+                    submit(ArduCopterFlightMode.AUTO)
+                } else {
+                    seekBar.progress = 0
+                }
+            }
+        })
     }
 
     private fun bindHoldConfirmation(button: MaterialButton, mode: ArduCopterFlightMode) {
@@ -189,6 +227,8 @@ class FlightModeUiBinder(
             button.isEnabled = commandState !is FlightModeCommandState.Pending
             button.alpha = if (button.isEnabled) 1f else 0.62f
         }
+        content.findViewById<SeekBar>(R.id.flight_mode_auto_slider).isEnabled =
+            commandState !is FlightModeCommandState.Pending
     }
 
     private fun presentCommandResult(state: FlightModeCommandState) {
@@ -222,8 +262,6 @@ class FlightModeUiBinder(
     private fun modeButtons(content: View): List<Pair<ArduCopterFlightMode, MaterialButton>> = listOf(
         ArduCopterFlightMode.LOITER to content.findViewById(R.id.flight_mode_loiter_button),
         ArduCopterFlightMode.AUTO to content.findViewById(R.id.flight_mode_auto_button),
-        ArduCopterFlightMode.BRAKE to content.findViewById(R.id.flight_mode_brake_button),
-        ArduCopterFlightMode.GUIDED to content.findViewById(R.id.flight_mode_guided_button),
         ArduCopterFlightMode.RTL to content.findViewById(R.id.flight_mode_rtl_button),
         ArduCopterFlightMode.LAND to content.findViewById(R.id.flight_mode_land_button),
     )

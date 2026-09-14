@@ -20,9 +20,14 @@ internal class DroneRuntimeState {
     @Volatile var lastInferredFlightState: String = "UNKNOWN"
     @Volatile var lastSpeedSourceRank: Int = Int.MAX_VALUE
     @Volatile var lastSpeedSourceUpdatedMs: Long = 0L
+    @Volatile var lastUiPositionPublishMs: Long = 0L
+    @Volatile var lastUiSpeedPublishMs: Long = 0L
+    @Volatile var lastBatteryVoltageSourceRank: Int = Int.MAX_VALUE
+    @Volatile var lastBatteryVoltageSourceUpdatedMs: Long = 0L
     @Volatile var rtkGroundAltitudeOffsetMeters: Double? = null
     val lastTelemetryMappingSummaries: ConcurrentHashMap<String, String> = ConcurrentHashMap()
     val batteryPercentageStabilizer = BatteryPercentageStabilizer()
+    val batteryVoltageStabilizer = BatteryVoltageStabilizer()
     @Volatile var mavlinkMessagesDisposable: Disposable? = null
 
     fun clearAutopilotTarget() {
@@ -32,6 +37,11 @@ internal class DroneRuntimeState {
         lastNonHeartbeatMs = 0L
         lastSpeedSourceRank = Int.MAX_VALUE
         lastSpeedSourceUpdatedMs = 0L
+        lastUiPositionPublishMs = 0L
+        lastUiSpeedPublishMs = 0L
+        lastBatteryVoltageSourceRank = Int.MAX_VALUE
+        lastBatteryVoltageSourceUpdatedMs = 0L
         batteryPercentageStabilizer.reset()
+        batteryVoltageStabilizer.reset()
     }
 }

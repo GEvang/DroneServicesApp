@@ -57,10 +57,10 @@ internal class DroneLogDownloadController(
         private const val GCS_COMPONENT_ID = 190
         private const val LIST_TIMEOUT_MS = 5_000L
         private const val LIST_SETTLE_MS = 1_200L
-        private const val DATA_TIMEOUT_MS = 2_500L
+        private const val DATA_TIMEOUT_MS = 1_500L
         private const val DATA_BYTES = 90
-        private const val BLOCK_BYTES = DATA_BYTES * 256
-        private const val MAX_BLOCK_RETRIES = 4
+        private const val BLOCK_BYTES = DATA_BYTES * 96
+        private const val MAX_BLOCK_RETRIES = 5
     }
 
     private val appContext = context.applicationContext
@@ -71,12 +71,12 @@ internal class DroneLogDownloadController(
     val download: LiveData<DroneLogDownloadState> = mutableDownload
     private val logsById = linkedMapOf<Int, DroneLogFile>()
     private var listGeneration = 0
-    private var downloadGeneration = 0
-    private var activeLog: DroneLogFile? = null
+    @Volatile private var downloadGeneration = 0
+    @Volatile private var activeLog: DroneLogFile? = null
     private var tempFile: File? = null
     private var output: FileOutputStream? = null
     private var nextOffset = 0L
-    private var block: DownloadBlock? = null
+    @Volatile private var block: DownloadBlock? = null
     private var blockRetries = 0
     private var disconnected = true
 

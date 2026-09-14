@@ -473,10 +473,10 @@ class GeoAwarenessFragment : Fragment() {
             })
             addView(createValidationPill(record.validationResult, validationLabel))
         })
-        wrapper.addView(createPanelText("Source: " + when (record.sourceType) {
+        wrapper.addView(createPanelText(getString(R.string.geo_source, when (record.sourceType) {
             GeoZoneDatasetSourceType.BUNDLED_ASSET -> getString(R.string.geo_awareness_dataset_source_bundled_row)
             GeoZoneDatasetSourceType.IMPORTED_FILE -> getString(R.string.geo_awareness_dataset_source_imported_row)
-        }).apply {
+        })).apply {
             setPadding(0, (10 * resources.displayMetrics.density).toInt(), 0, 0)
         })
         wrapper.addView(createDatasetMetaGrid(record))
@@ -489,7 +489,7 @@ class GeoAwarenessFragment : Fragment() {
             ))
         }
         if (record.sourceType == GeoZoneDatasetSourceType.IMPORTED_FILE && record.storageFileName != null) {
-            wrapper.addView(createPanelText("Actions").apply {
+            wrapper.addView(createPanelText(getString(R.string.geo_actions)).apply {
                 setPadding(0, (12 * resources.displayMetrics.density).toInt(), 0, 0)
             })
             val actionsRow = LinearLayout(requireContext()).apply {
@@ -824,8 +824,8 @@ class GeoAwarenessFragment : Fragment() {
         resetButton.setOnClickListener {
             val resetDialog = AlertDialog.Builder(context, R.style.Theme_DroneServicesApp_AlertDialog)
                 .setTitle(getString(R.string.geo_awareness_verification_checklist))
-                .setMessage("Reset all verification checklist statuses to Not Run?")
-                .setPositiveButton("Reset") { _, _ ->
+                .setMessage(R.string.geo_reset_checklist_question)
+                .setPositiveButton(R.string.geo_reset) { _, _ ->
                     verificationStatusStore.resetAll()
                     geoEventLogger.logSimple(
                         type = GeoAwarenessEventType.VERIFICATION_CHECKLIST_RESET,
@@ -835,7 +835,7 @@ class GeoAwarenessFragment : Fragment() {
                     refreshEventLogCount()
                     renderChecklist()
                 }
-                .setNegativeButton("Cancel", null)
+                .setNegativeButton(R.string.cancel, null)
                 .show()
             resetDialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(Color.parseColor("#212121"))
             resetDialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(Color.parseColor("#212121"))
@@ -880,7 +880,7 @@ class GeoAwarenessFragment : Fragment() {
             setTextColor(Color.parseColor("#21304A"))
         })
         wrapper.addView(createVerificationStatusChip(status))
-        wrapper.addView(createPanelText("Current status: ${verificationStatusLabel(status)}", Color.parseColor("#42536F")))
+        wrapper.addView(createPanelText(getString(R.string.geo_current_status, verificationStatusLabel(status)), Color.parseColor("#42536F")))
         wrapper.addView(com.google.android.material.button.MaterialButton(requireContext(), null, R.attr.materialButtonOutlinedStyle).apply {
             text = getString(R.string.geo_awareness_verification_details)
             layoutParams = LinearLayout.LayoutParams(
@@ -1002,25 +1002,25 @@ class GeoAwarenessFragment : Fragment() {
         status: GeoAwarenessVerificationStatus
     ) {
         val message = buildString {
-            appendLine("Status: ${verificationStatusLabel(status)}")
+            appendLine(getString(R.string.geo_verification_status, verificationStatusLabel(status)))
             appendLine()
-            appendLine("Purpose")
+            appendLine(getString(R.string.geo_verification_purpose))
             appendLine(verificationCase.purpose)
             appendLine()
-            appendLine("Preconditions")
+            appendLine(getString(R.string.geo_verification_preconditions))
             if (verificationCase.preconditions.isEmpty()) {
-                appendLine("- None")
+                appendLine("- ${getString(R.string.geo_none)}")
             } else {
                 verificationCase.preconditions.forEach { appendLine("- $it") }
             }
             appendLine()
-            appendLine("Steps")
+            appendLine(getString(R.string.geo_verification_steps))
             verificationCase.steps.forEach { appendLine("- $it") }
             appendLine()
-            appendLine("Expected result")
+            appendLine(getString(R.string.geo_verification_expected))
             appendLine(verificationCase.expectedResult)
             appendLine()
-            appendLine("Evidence to capture")
+            appendLine(getString(R.string.geo_verification_evidence))
             verificationCase.evidenceToCapture.forEach { appendLine("- $it") }
         }
         showReadableDialog("${verificationCase.id} ${verificationCase.title}", message.trim())
@@ -1095,15 +1095,19 @@ class GeoAwarenessFragment : Fragment() {
             resolved.hasWarnings -> getString(R.string.geo_awareness_validation_warnings) to Color.parseColor("#EF6C00")
             else -> getString(R.string.geo_awareness_validation_ok) to Color.parseColor("#2E7D32")
         }
-        binding.geoAwarenessValidationChip.text = "Validation: $label"
+        binding.geoAwarenessValidationChip.text = getString(R.string.geo_validation_status, label)
         binding.geoAwarenessValidationChip.background = GradientDrawable().apply {
             shape = GradientDrawable.RECTANGLE
             cornerRadius = (18 * resources.displayMetrics.density)
             setColor(backgroundColor)
             setStroke((1 * resources.displayMetrics.density).toInt(), Color.parseColor("#33FFFFFF"))
         }
-        binding.geoAwarenessValidationCounts.text =
-            "Errors: ${resolved.errorCount}  Warnings: ${resolved.warningCount}  Info: ${resolved.infoCount}"
+        binding.geoAwarenessValidationCounts.text = getString(
+            R.string.geo_validation_counts,
+            resolved.errorCount,
+            resolved.warningCount,
+            resolved.infoCount,
+        )
     }
 
     private fun refreshEventLogCount() {
@@ -1580,7 +1584,7 @@ class GeoAwarenessFragment : Fragment() {
                     )
                 )
                 refreshEventLogCount()
-                Toast.makeText(requireContext(), "Dataset updated successfully", Toast.LENGTH_SHORT).show()
+                Toast.makeText(requireContext(), R.string.geo_dataset_updated, Toast.LENGTH_SHORT).show()
             } catch (error: GeoZoneDatasetValidationException) {
                 if (_binding != null) {
                     showDatasetUpdateFailure(storageFileName, error, error.validationResult)
@@ -1602,12 +1606,12 @@ class GeoAwarenessFragment : Fragment() {
 
     private fun confirmRemoveAllImportedDatasets() {
         val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle("Remove imported datasets?")
-            .setMessage("This will remove all imported geo-zone datasets. Geo-awareness will be unavailable until a JSON dataset is imported.")
-            .setPositiveButton("Remove all") { _, _ ->
+            .setTitle(R.string.geo_remove_all_title)
+            .setMessage(R.string.geo_remove_all_message)
+            .setPositiveButton(R.string.geo_remove_all) { _, _ ->
                 removeAllImportedDatasets()
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.cancel, null)
             .show()
         dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
@@ -1629,23 +1633,23 @@ class GeoAwarenessFragment : Fragment() {
                 )
             }
             refreshEventLogCount()
-            Toast.makeText(requireContext(), "Imported geo-zone datasets removed", Toast.LENGTH_SHORT).show()
+            Toast.makeText(requireContext(), R.string.geo_imported_removed, Toast.LENGTH_SHORT).show()
         } catch (error: Exception) {
             showReadableDialog(
-                title = "Remove failed",
-                message = error.message ?: "Failed to remove imported datasets."
+                title = getString(R.string.geo_remove_failed),
+                message = error.message ?: getString(R.string.geo_remove_all_failed)
             )
         }
     }
 
     private fun confirmRemoveDataset(record: GeoZoneDatasetRecord) {
         val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle("Remove geo-zone dataset?")
-            .setMessage("Remove ${record.displayName} from active geo-awareness datasets?")
-            .setPositiveButton("Remove") { _, _ ->
+            .setTitle(R.string.geo_remove_one_title)
+            .setMessage(getString(R.string.geo_remove_one_message, record.displayName))
+            .setPositiveButton(R.string.geo_awareness_remove_dataset) { _, _ ->
                 removeDataset(record)
             }
-            .setNegativeButton("Cancel", null)
+            .setNegativeButton(R.string.cancel, null)
             .show()
         dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
         dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
@@ -1674,14 +1678,14 @@ class GeoAwarenessFragment : Fragment() {
             )
             refreshEventLogCount()
         } catch (error: Exception) {
-            showReadableDialog("Remove failed", error.message ?: "Failed to remove imported dataset.")
+            showReadableDialog(getString(R.string.geo_remove_failed), error.message ?: getString(R.string.geo_remove_one_failed))
         }
     }
 
     private fun refreshGeoAwarenessStatus(manual: Boolean) {
         if (datasetLoadInProgress) return
         datasetLoadInProgress = true
-        setDatasetBusyState(true, "Refreshing geo-zone status...")
+        setDatasetBusyState(true, getString(R.string.geo_refreshing))
         val appContext = requireContext().applicationContext
         lifecycleScope.launch {
             try {
@@ -1716,11 +1720,11 @@ class GeoAwarenessFragment : Fragment() {
                             originalFileName = null
                         )
                     )
-                    Toast.makeText(requireContext(), "Geo-awareness status refreshed", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(requireContext(), R.string.geo_status_refreshed, Toast.LENGTH_SHORT).show()
                 }
             } catch (error: Exception) {
                 if (_binding != null) {
-                    showReadableDialog("Refresh failed", error.message ?: "Failed to refresh dataset status.")
+                    showReadableDialog(getString(R.string.geo_refresh_failed), error.message ?: getString(R.string.geo_refresh_failed_message))
                 }
             } finally {
                 datasetLoadInProgress = false
@@ -1741,7 +1745,7 @@ class GeoAwarenessFragment : Fragment() {
                 if (read <= 0) break
                 output.write(buffer, 0, read)
                 if (output.size().toLong() > MAX_IMPORT_BYTES) {
-                    throw IllegalStateException("Selected file exceeds the 5 MB import limit.")
+                    throw IllegalStateException(getString(R.string.geo_import_size_limit))
                 }
             }
             val rawJson = output.toString(Charsets.UTF_8.name())
@@ -1892,17 +1896,17 @@ class GeoAwarenessFragment : Fragment() {
             ?.joinToString("\n") { "- [${it.code}] ${it.message}" }
             .orEmpty()
         val summary = buildString {
-            appendLine(error.message ?: "The selected geo-zone file could not be imported.")
+            appendLine(error.message ?: getString(R.string.geo_import_failed_message))
             result?.let {
                 appendLine()
-                appendLine("Errors: ${it.errorCount}  Warnings: ${it.warningCount}  Info: ${it.infoCount}")
+                appendLine(getString(R.string.geo_validation_counts, it.errorCount, it.warningCount, it.infoCount))
             }
             if (issueLines.isNotBlank()) {
                 appendLine()
                 append(issueLines)
             }
         }
-        showReadableDialog("Import failed", summary.trim())
+        showReadableDialog(getString(R.string.geo_import_failed), summary.trim())
     }
 
     private fun showDatasetUpdateFailure(
@@ -1932,17 +1936,17 @@ class GeoAwarenessFragment : Fragment() {
             ?.joinToString("\n") { "- [${it.code}] ${it.message}" }
             .orEmpty()
         val summary = buildString {
-            appendLine(error.message ?: "The selected geo-zone file could not replace the existing dataset.")
+            appendLine(error.message ?: getString(R.string.geo_update_failed_message))
             result?.let {
                 appendLine()
-                appendLine("Errors: ${it.errorCount}  Warnings: ${it.warningCount}  Info: ${it.infoCount}")
+                appendLine(getString(R.string.geo_validation_counts, it.errorCount, it.warningCount, it.infoCount))
             }
             if (issueLines.isNotBlank()) {
                 appendLine()
                 append(issueLines)
             }
         }
-        showReadableDialog("Dataset update failed", summary.trim())
+        showReadableDialog(getString(R.string.geo_update_failed), summary.trim())
     }
 
     private fun logStaleDatasetsIfNeeded(
@@ -1985,7 +1989,7 @@ class GeoAwarenessFragment : Fragment() {
         )
     }
 
-    private fun setDatasetBusyState(isBusy: Boolean, message: String = "Loading geo-zone dataset...") {
+    private fun setDatasetBusyState(isBusy: Boolean, message: String = getString(R.string.geo_loading_dataset)) {
         if (_binding == null) return
         binding.geoAwarenessLoadingOverlay.visibility = if (isBusy) View.VISIBLE else View.GONE
         binding.geoAwarenessLoadingText.text = message
@@ -1999,19 +2003,19 @@ class GeoAwarenessFragment : Fragment() {
 
     private fun showValidationDetails() {
         val result = validationResult ?: GeoZoneValidationResult.ok()
-        showReadableDialog("Geo-zone dataset validation", formatValidationDetails(result))
+        showReadableDialog(getString(R.string.geo_dataset_validation), formatValidationDetails(result))
     }
 
     private fun showValidationDetails(record: GeoZoneDatasetRecord) {
         showReadableDialog(
-            title = "Validation: ${record.displayName}",
+            title = getString(R.string.geo_dataset_validation_named, record.displayName),
             message = formatValidationDetails(record.validationResult)
         )
     }
 
     private fun formatValidationDetails(result: GeoZoneValidationResult): String {
         val message = if (result.issues.isEmpty()) {
-            "Dataset validation passed."
+            getString(R.string.geo_dataset_validation_passed)
         } else {
             val visibleIssues = result.issues.take(30)
             val remaining = result.issues.size - visibleIssues.size

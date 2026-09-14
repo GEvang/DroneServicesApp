@@ -16,7 +16,6 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
-import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.core.util.LocaleUtils
 import com.example.droneservicesapp.data.geoawareness.GeoZoneImportedFileDataSource
@@ -25,7 +24,6 @@ import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetStalenessPolicy
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
-import com.jakewharton.processphoenix.ProcessPhoenix
 import org.osmdroid.config.Configuration
 import java.io.File
 import java.text.SimpleDateFormat
@@ -117,7 +115,7 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
                     title = getString(R.string.language),
                     entries = arrayOf("English", "Ελληνικά"),
                     values = arrayOf(LocaleUtils.ENGLISH, LocaleUtils.GREEK),
-                    key = getString(R.string.language_pref),
+                    key = LocaleUtils.PREFERENCE_KEY,
                     defaultValue = LocaleUtils.ENGLISH,
                     restartOnChange = true
                 )
@@ -127,36 +125,36 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
     }
 
     private fun createGeoAwarenessPanel(): View {
-        val panel = createPanel("Geo-awareness data")
+        val panel = createPanel(getString(R.string.settings_geo_data))
         panel.addView(createSettingRow(
-            title = "Dataset source",
+            title = getString(R.string.settings_dataset_source),
             onClick = null
         ).also { geoDatasetSourceSummary = it.findViewWithTag(SUMMARY_TAG) })
         panel.addView(createSettingRow(
-            title = "Last data update",
+            title = getString(R.string.settings_last_data_update),
             onClick = null
         ).also { geoDatasetUpdatedSummary = it.findViewWithTag(SUMMARY_TAG) })
         panel.addView(createSettingRow(
-            title = "Update status",
+            title = getString(R.string.settings_update_status),
             onClick = null
         ).also { geoDatasetStatusSummary = it.findViewWithTag(SUMMARY_TAG) })
         panel.addView(createSettingRow(
-            title = "Active scope",
+            title = getString(R.string.settings_active_scope),
             onClick = null
         ).also { geoDatasetScopeSummary = it.findViewWithTag(SUMMARY_TAG) })
         return panel
     }
 
     private fun createOfflineMapsPanel(): View {
-        val panel = createPanel("Offline Maps")
+        val panel = createPanel(getString(R.string.settings_offline_maps))
         panel.addView(createSettingRow(
-            title = "Cached offline maps",
+            title = getString(R.string.settings_cached_offline_maps),
             onClick = null
         ).also { cacheSizeSummary = it.findViewWithTag(SUMMARY_TAG) })
 
         panel.addView(createSettingRow(
-            title = "Clear offline map cache",
-            summary = "Deletes downloaded tiles from this device",
+            title = getString(R.string.settings_clear_offline_cache),
+            summary = getString(R.string.settings_clear_offline_cache_description),
             onClick = { clearOfflineMapCache() }
         ))
         return panel
@@ -244,7 +242,7 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
                 refreshSummaries()
                 if (restartOnChange) {
                     LocaleUtils.setSelectedLanguageId(newValue)
-                    ProcessPhoenix.triggerRebirth(Application.getInstance().applicationContext)
+                    LocaleUtils.setLocale(requireContext(), newValue)
                 }
             }
             .setNegativeButton(android.R.string.cancel, null)
@@ -275,7 +273,7 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
             activityViewModel.setPlanningOperationMode(operationMode)
         }
         languageSummary.text = languageLabel(
-            sharedPreferences.getString(getString(R.string.language_pref), LocaleUtils.ENGLISH) ?: LocaleUtils.ENGLISH
+            sharedPreferences.getString(LocaleUtils.PREFERENCE_KEY, LocaleUtils.ENGLISH) ?: LocaleUtils.ENGLISH
         )
         updateGeoAwarenessDataSummary()
         updateCacheSizeSummary()
@@ -290,10 +288,10 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
         }.getOrNull()
 
         if (result == null || result.datasetRecords.isEmpty()) {
-            geoDatasetSourceSummary.text = "No dataset loaded"
-            geoDatasetUpdatedSummary.text = "No update recorded"
-            geoDatasetStatusSummary.text = "Unavailable"
-            geoDatasetScopeSummary.text = "Import or update a geo-zone dataset"
+            geoDatasetSourceSummary.setText(R.string.settings_no_dataset_loaded)
+            geoDatasetUpdatedSummary.setText(R.string.settings_no_update_recorded)
+            geoDatasetStatusSummary.setText(R.string.settings_unavailable)
+            geoDatasetScopeSummary.setText(R.string.settings_import_dataset_prompt)
             return
         }
 
@@ -301,17 +299,17 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
         val newestUpdate = records.mapNotNull { it.updatedAtMillis }.maxOrNull()
         val staleCount = records.count { it.isStale }
         geoDatasetSourceSummary.text = buildString {
-            append(result.datasetInfo.source ?: "Unknown source")
+            append(result.datasetInfo.source ?: getString(R.string.settings_unknown_source))
             append(" | ")
             append(records.size)
-            append(if (records.size == 1) " dataset" else " datasets")
+            append(resources.getQuantityString(R.plurals.settings_dataset_count, records.size))
         }
-        geoDatasetUpdatedSummary.text = newestUpdate?.let(::formatDateTime) ?: "Update time unknown"
+        geoDatasetUpdatedSummary.text = newestUpdate?.let(::formatDateTime) ?: getString(R.string.settings_update_time_unknown)
         geoDatasetStatusSummary.text = when {
-            staleCount > 0 -> "Stale: $staleCount dataset(s) older than ${GeoZoneDatasetStalenessPolicy.DEFAULT_STALE_AFTER_MILLIS / DAY_MILLIS} days"
-            result.validationResult.hasErrors -> "Validation errors"
-            result.validationResult.warningCount > 0 -> "Valid with ${result.validationResult.warningCount} warning(s)"
-            else -> "Valid and current"
+            staleCount > 0 -> getString(R.string.settings_stale_datasets, staleCount, GeoZoneDatasetStalenessPolicy.DEFAULT_STALE_AFTER_MILLIS / DAY_MILLIS)
+            result.validationResult.hasErrors -> getString(R.string.settings_validation_errors)
+            result.validationResult.warningCount > 0 -> getString(R.string.settings_valid_with_warnings, result.validationResult.warningCount)
+            else -> getString(R.string.settings_valid_current)
         }
         geoDatasetScopeSummary.text = formatGeoScope(records)
     }
@@ -322,13 +320,12 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
         val names = records.take(3).joinToString(", ") { it.displayName }
         val suffix = if (records.size > 3) " +" + (records.size - 3) else ""
         return buildString {
-            append("Countries: ")
-            append(countries.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: "not specified")
-            append(" | Zones: ")
-            append(zones)
-            append(" | ")
-            append(names)
-            append(suffix)
+            append(getString(R.string.settings_scope_format,
+                countries.takeIf { it.isNotEmpty() }?.joinToString(", ") ?: getString(R.string.settings_not_specified),
+                zones,
+                names,
+                suffix
+            ))
         }
     }
 

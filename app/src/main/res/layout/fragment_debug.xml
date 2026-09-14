@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -15,7 +16,26 @@
         android:padding="24dp">
         <TextView style="@style/TextAppearance.DroneServices.SectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:text="@string/debug_locked_title" />
         <TextView style="@style/TextAppearance.DroneServices.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:gravity="center" android:text="@string/debug_locked_description" />
-        <EditText android:id="@+id/debug_pin_input" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="16dp" android:gravity="center" android:hint="@string/debug_pin_hint" android:importantForAutofill="no" android:inputType="numberPassword" android:maxLength="8" android:singleLine="true" />
+        <com.google.android.material.textfield.TextInputLayout
+            style="@style/Widget.DroneServices.TextInputLayout"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:hint="@string/debug_pin_hint"
+            app:startIconDrawable="@drawable/ic_lock_24"
+            app:startIconTint="@color/ds_color_text_secondary">
+            <com.google.android.material.textfield.TextInputEditText
+                android:id="@+id/debug_pin_input"
+                style="@style/Widget.DroneServices.TextInputEditText"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:gravity="center_vertical"
+                android:importantForAutofill="no"
+                android:imeOptions="actionDone"
+                android:inputType="numberPassword"
+                android:maxLength="8"
+                android:singleLine="true" />
+        </com.google.android.material.textfield.TextInputLayout>
         <com.google.android.material.button.MaterialButton android:id="@+id/debug_unlock_button" style="@style/Widget.DroneServices.Button.Primary" android:layout_width="match_parent" android:layout_height="48dp" android:layout_marginTop="12dp" android:text="@string/debug_unlock" />
         <TextView android:id="@+id/debug_pin_error" style="@style/TextAppearance.DroneServices.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:gravity="center" android:text="@string/debug_pin_incorrect" android:textColor="@color/ds_color_shell_danger" android:visibility="gone" />
     </LinearLayout>
@@ -29,10 +49,70 @@
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:padding="@dimen/ds_space_lg">
             <TextView style="@style/TextAppearance.DroneServices.SectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:text="@string/debug_title" />
 
+            <LinearLayout
+                style="@style/Widget.DroneServices.Panel.Card"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="@dimen/ds_space_lg"
+                android:orientation="vertical">
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/debug_access_enabled_switch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="@string/debug_access_enabled"
+                    android:textColor="@color/ds_color_text_primary" />
+
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.DroneServices.TextInputLayout"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_sm"
+                    android:hint="@string/debug_new_access_code"
+                    app:startIconDrawable="@drawable/ic_lock_24"
+                    app:startIconTint="@color/ds_color_text_secondary">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/debug_access_code_input"
+                        style="@style/Widget.DroneServices.TextInputEditText"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:importantForAutofill="no"
+                        android:imeOptions="actionDone"
+                        android:inputType="numberPassword"
+                        android:maxLength="8"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/debug_save_access_code_button"
+                    style="@style/Widget.DroneServices.Button.Primary"
+                    android:layout_width="wrap_content"
+                    android:layout_height="48dp"
+                    android:layout_marginTop="@dimen/ds_space_sm"
+                    android:text="@string/debug_save_access_code" />
+            </LinearLayout>
+
             <TextView style="@style/TextAppearance.DroneServices.SectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/ds_space_xl" android:text="@string/debug_parameters_title" />
             <TextView style="@style/TextAppearance.DroneServices.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/ds_space_sm" android:text="@string/debug_parameters_description" />
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/ds_space_md" android:gravity="center_vertical" android:orientation="horizontal">
-                <EditText android:id="@+id/debug_parameter_search" android:layout_width="0dp" android:layout_height="48dp" android:layout_weight="1" android:hint="@string/debug_parameters_search" android:importantForAutofill="no" android:inputType="textCapCharacters" android:singleLine="true" />
+                <com.google.android.material.textfield.TextInputLayout
+                    style="@style/Widget.DroneServices.TextInputLayout"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:hint="@string/debug_parameters_search"
+                    app:startIconDrawable="@drawable/ic_search_24"
+                    app:startIconTint="@color/ds_color_shell_active">
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/debug_parameter_search"
+                        style="@style/Widget.DroneServices.TextInputEditText"
+                        android:layout_width="match_parent"
+                        android:layout_height="48dp"
+                        android:importantForAutofill="no"
+                        android:imeOptions="actionDone"
+                        android:inputType="text"
+                        android:singleLine="true" />
+                </com.google.android.material.textfield.TextInputLayout>
                 <com.google.android.material.button.MaterialButton android:id="@+id/debug_parameter_refresh_button" style="@style/Widget.DroneServices.Button.Primary" android:layout_width="wrap_content" android:layout_height="48dp" android:layout_marginStart="@dimen/ds_space_sm" android:text="@string/debug_refresh" />
             </LinearLayout>
             <TextView android:id="@+id/debug_parameter_status" style="@style/TextAppearance.DroneServices.Body" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/ds_space_sm" android:text="@string/debug_parameters_not_loaded" />

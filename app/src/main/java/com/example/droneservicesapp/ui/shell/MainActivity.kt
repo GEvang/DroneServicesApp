@@ -2,14 +2,17 @@ package com.example.droneservicesapp.ui.shell
 
 import android.os.Bundle
 import android.graphics.drawable.ColorDrawable
+import android.content.res.ColorStateList
 import android.view.Menu
 import android.view.Gravity
 import android.view.View
 import android.view.WindowManager
 import android.widget.ImageButton
 import androidx.appcompat.app.AppCompatActivity
+import androidx.appcompat.graphics.drawable.DrawerArrowDrawable
 import androidx.appcompat.widget.Toolbar
 import androidx.core.content.ContextCompat
+import androidx.core.graphics.drawable.DrawableCompat
 import androidx.drawerlayout.widget.DrawerLayout
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.findNavController
@@ -49,8 +52,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         setTheme(R.style.Theme_DroneServicesApp_NoActionBar)
         super.onCreate(savedInstanceState)
-
-        Application.getInstance().initAppLanguage(this)
 
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
@@ -96,6 +97,7 @@ class MainActivity : AppCompatActivity() {
         )
         setupActionBarWithNavController(navController, appBarConfiguration)
         centerToolbarNavigationButton()
+        navController.addOnDestinationChangedListener { _, _, _ -> centerToolbarNavigationButton() }
         navView.setupWithNavController(navController)
         bottomNavBinder = ShellBottomNavBinder(
             activity = this,
@@ -128,15 +130,34 @@ class MainActivity : AppCompatActivity() {
 
     private fun centerToolbarNavigationButton() {
         val toolbar = binding.appBarMain.customToolbar
-        toolbar.post {
+        fun applyNavigationAppearance() {
+            val navigationColor = ContextCompat.getColor(this, R.color.ds_color_shell_active)
+            toolbar.navigationIcon?.let { icon ->
+                if (icon is DrawerArrowDrawable) icon.color = navigationColor
+                val tintedIcon = DrawableCompat.wrap(icon.mutate())
+                DrawableCompat.setTintList(tintedIcon, ColorStateList.valueOf(navigationColor))
+                toolbar.navigationIcon = tintedIcon
+            }
             for (index in 0 until toolbar.childCount) {
                 val child = toolbar.getChildAt(index)
                 if (child is ImageButton) {
                     val params = child.layoutParams as? Toolbar.LayoutParams ?: continue
                     params.gravity = Gravity.CENTER_VERTICAL or Gravity.START
+                    params.height = toolbar.height.coerceAtLeast(
+                        resources.getDimensionPixelSize(R.dimen.ds_toolbar_height)
+                    )
                     child.layoutParams = params
+                    child.foregroundGravity = Gravity.CENTER
+                    child.imageTintList = ColorStateList.valueOf(navigationColor)
+                    child.alpha = 1f
                 }
             }
+        }
+        toolbar.post {
+            applyNavigationAppearance()
+            // NavigationUI may install its DrawerArrowDrawable after the first layout pass.
+            toolbar.postDelayed(::applyNavigationAppearance, 250L)
+            toolbar.postDelayed(::applyNavigationAppearance, 1_000L)
         }
     }
 

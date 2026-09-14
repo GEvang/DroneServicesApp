@@ -57,18 +57,11 @@ class RtkKeepAliveForegroundService : Service() {
                 action = ACTION_SET_WAKE_ACTIVE
                 putExtra(EXTRA_WAKE_ACTIVE, active)
             }
-            if (active) {
-                ContextCompat.startForegroundService(context, intent)
-            } else {
-                context.startService(intent)
-            }
+            ContextCompat.startForegroundService(context, intent)
         }
 
         fun stopSession(context: Context) {
-            val intent = Intent(context, RtkKeepAliveForegroundService::class.java).apply {
-                action = ACTION_STOP_SESSION
-            }
-            context.startService(intent)
+            context.stopService(Intent(context, RtkKeepAliveForegroundService::class.java))
         }
     }
 

@@ -1,5 +1,7 @@
 package com.example.droneservicesapp.ui.home.components
 
+import com.example.droneservicesapp.R
+
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
@@ -62,7 +64,7 @@ class OsmdroidObstacleEditor(
                             radiusMeters = defaultRadiusMeters
                         )
                         mode = Mode.IDLE
-                        Toast.makeText(context, "Forbidden circle added", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, R.string.obstacle_circle_added, Toast.LENGTH_SHORT).show()
                         true
                     }
                     Mode.POLYGON -> {
@@ -98,7 +100,7 @@ class OsmdroidObstacleEditor(
 
     fun finishPolygon(): Boolean {
         if (draftPoints.size < 3) {
-            Toast.makeText(context, "Place at least 3 forbidden-area points.", Toast.LENGTH_SHORT).show()
+            Toast.makeText(context, R.string.obstacle_polygon_requires_points, Toast.LENGTH_SHORT).show()
             return false
         }
         activityViewModel.addPolygonMissionObstacle(
@@ -106,7 +108,7 @@ class OsmdroidObstacleEditor(
         )
         mode = Mode.IDLE
         clearDraft()
-        Toast.makeText(context, "Forbidden polygon added", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, R.string.obstacle_polygon_added, Toast.LENGTH_SHORT).show()
         return true
     }
 

@@ -221,7 +221,7 @@ class GeoZoneOverlayController(
         }
 
         dialog = AlertDialog.Builder(context, R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle("Geo-zones at this location")
+            .setTitle(R.string.geo_zones_at_location)
             .setView(root)
             .setNegativeButton(android.R.string.cancel, null)
             .show()

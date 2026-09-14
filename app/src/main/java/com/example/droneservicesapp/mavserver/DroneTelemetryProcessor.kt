@@ -17,6 +17,7 @@ import io.dronefleet.mavlink.common.MavSensorOrientation
 import io.dronefleet.mavlink.common.RcChannels
 import io.dronefleet.mavlink.common.ServoOutputRaw
 import io.dronefleet.mavlink.common.Statustext
+import io.dronefleet.mavlink.common.SysStatus
 import io.dronefleet.mavlink.common.VfrHud
 import io.dronefleet.mavlink.minimal.Heartbeat
 import io.dronefleet.mavlink.minimal.MavAutopilot
@@ -50,6 +51,11 @@ internal class DroneTelemetryProcessor(
         private const val SPEED_SOURCE_GLOBAL_POSITION = 2
         private const val SPEED_SOURCE_GPS_RAW = 3
         private const val SPEED_SOURCE_LOCAL_POSITION = 4
+        private const val UI_POSITION_INTERVAL_MS = 100L
+        private const val UI_SPEED_INTERVAL_MS = 100L
+        private const val BATTERY_SOURCE_SYS_STATUS = 1
+        private const val BATTERY_SOURCE_BATTERY_STATUS = 2
+        private const val BATTERY_SOURCE_STALE_MS = 3_000L
     }
 
     fun handle(message: MavlinkMessage<*>) {
@@ -94,6 +100,11 @@ internal class DroneTelemetryProcessor(
             )
             is GpsRawInt -> {
                 handleGpsFix(payload.fixType().entry(), payload.fixType().value())
+                stateStore.gpsSatellitesVisible.postValue(
+                    payload.satellitesVisible().toInt().takeUnless { it == 255 }
+                )
+                stateStore.gpsHdop.postValue(dopFromRaw(payload.eph().toInt()))
+                stateStore.gpsVdop.postValue(dopFromRaw(payload.epv().toInt()))
                 updateGroundSpeed(
                     source = "GPS_RAW_INT.vel",
                     sourceRank = SPEED_SOURCE_GPS_RAW,
@@ -108,7 +119,6 @@ internal class DroneTelemetryProcessor(
                 )
             }
             is Gps2Raw -> {
-                handleGpsFix(payload.fixType().entry(), payload.fixType().value())
                 onGpsDebugMessage(
                     "GPS2_RAW",
                     payload.fixType().value().toInt(),
@@ -135,31 +145,22 @@ internal class DroneTelemetryProcessor(
             }
             is BatteryStatus -> {
                 val voltages = payload.voltages()
-                val batteryVoltage = voltages.getOrNull(0)
-                    ?.takeIf { it in 0 until TelemetryMapping.UINT16_MAX }
-                    ?.toFloat()
-                    ?.times(10.0f.pow(-3))
-                    ?: 0.0f
-                val reportedBatteryFraction = TelemetryMapping.batteryFractionFromRaw(payload.batteryRemaining())
-                val voltageBatteryFraction = TelemetryMapping.batteryFractionFromVoltage(batteryVoltage)
-                val batteryFraction = voltageBatteryFraction.takeIf { it >= 0f } ?: reportedBatteryFraction
-                val stableBatteryPercent = runtimeState.batteryPercentageStabilizer.update(batteryFraction)
-                val stableBatteryFraction = stableBatteryPercent?.div(100.0f) ?: -1.0f
                 val sprayerPercent = TelemetryMapping.displayPercentFromRaw(voltages.getOrNull(1)?.toFloat())
                     ?: TelemetryMapping.UNKNOWN_PERCENT
-                stateStore.droneBatteryVoltage.postValue(batteryVoltage)
-                stateStore.droneBatteryPercentage.postValue(stableBatteryFraction)
                 stateStore.liquidLevel.postValue(sprayerPercent.toFloat())
-                logMappingSummary(
-                    key = "battery-sprayer",
-                    "batteryVoltage=${String.format(java.util.Locale.US, "%.1f", batteryVoltage)}V " +
-                        "batteryReportedPercent=${payload.batteryRemaining()} " +
-                        "batteryRawPercent=${TelemetryMapping.displayPercentFromFraction(batteryFraction)} " +
-                        "batteryDisplay=${TelemetryMapping.formatBatteryText(batteryVoltage, stableBatteryFraction)} " +
-                        "sprayerRaw=${voltages.getOrNull(1)} sprayerDisplay=${TelemetryMapping.displayPercentFromRaw(voltages.getOrNull(1)?.toFloat())?.let { "$it%" } ?: "--%"}"
+                updateBattery(
+                    voltage = TelemetryMapping.batteryVoltageFromStatusMillivolts(voltages),
+                    reportedPercent = payload.batteryRemaining(),
+                    logKey = "BATTERY_STATUS",
+                    sourceRank = BATTERY_SOURCE_BATTERY_STATUS,
                 )
-                handleBatteryLevel(stableBatteryPercent ?: -1)
             }
+            is SysStatus -> updateBattery(
+                voltage = TelemetryMapping.batteryVoltageFromSystemMillivolts(payload.voltageBattery()),
+                reportedPercent = payload.batteryRemaining(),
+                logKey = "SYS_STATUS",
+                sourceRank = BATTERY_SOURCE_SYS_STATUS,
+            )
             is RcChannels -> {
                 stateStore.rcRSSI.postValue(payload.rssi() * 100.0F / 255.0F)
             }
@@ -190,6 +191,34 @@ internal class DroneTelemetryProcessor(
             }
             is ExtendedSysState -> stateStore.droneLandedState.postValue(payload.landedState().entry())
         }
+    }
+
+    private fun dopFromRaw(raw: Int): Float? =
+        raw.takeIf { it in 0 until TelemetryMapping.UINT16_MAX }?.div(100f)
+
+    private fun updateBattery(voltage: Float?, reportedPercent: Int, logKey: String, sourceRank: Int) {
+        val now = System.currentTimeMillis()
+        val sourceStale = now - runtimeState.lastBatteryVoltageSourceUpdatedMs >= BATTERY_SOURCE_STALE_MS
+        val acceptedVoltage = voltage?.takeIf {
+            sourceRank <= runtimeState.lastBatteryVoltageSourceRank || sourceStale
+        }
+        if (acceptedVoltage != null) {
+            runtimeState.lastBatteryVoltageSourceRank = sourceRank
+            runtimeState.lastBatteryVoltageSourceUpdatedMs = now
+        }
+        val stableVoltage = runtimeState.batteryVoltageStabilizer.update(acceptedVoltage)
+        val reportedFraction = TelemetryMapping.batteryFractionFromRaw(reportedPercent)
+        val voltageFraction = TelemetryMapping.batteryFractionFromVoltage(stableVoltage)
+        val batteryFraction = voltageFraction.takeIf { it >= 0f } ?: reportedFraction
+        val stablePercent = runtimeState.batteryPercentageStabilizer.update(batteryFraction)
+        val stableFraction = stablePercent?.div(100f) ?: -1f
+        stableVoltage?.let(stateStore.droneBatteryVoltage::postValue)
+        stateStore.droneBatteryPercentage.postValue(stableFraction)
+        logMappingSummary(
+            "battery",
+            "source=$logKey voltage=$stableVoltage reportedPercent=$reportedPercent display=${TelemetryMapping.formatBatteryText(stableVoltage, stableFraction)}"
+        )
+        handleBatteryLevel(stablePercent ?: -1)
     }
 
     private fun handleCommandAck(payload: CommandAck) {
@@ -283,11 +312,15 @@ internal class DroneTelemetryProcessor(
             longitude = position.lon().toDouble() * 10.0.pow(-7.0)
             altitude = adjustedAltitudeMeters
         }
-        stateStore.droneAltitudeAmslMeters.postValue(altitudeAmslMeters)
-        stateStore.droneVerticalSpeedMetersPerSecond.postValue(position.vz().toFloat() / 100.0f)
         runtimeState.lastDroneLocation = Location(location)
-        stateStore.droneHeading.postValue(position.hdg().toDouble() / 100.0)
-        stateStore.droneLocationLiveData.postValue(location)
+        val now = System.currentTimeMillis()
+        if (now - runtimeState.lastUiPositionPublishMs >= UI_POSITION_INTERVAL_MS) {
+            runtimeState.lastUiPositionPublishMs = now
+            stateStore.droneAltitudeAmslMeters.postValue(altitudeAmslMeters)
+            stateStore.droneVerticalSpeedMetersPerSecond.postValue(position.vz().toFloat() / 100.0f)
+            stateStore.droneHeading.postValue(position.hdg().toDouble() / 100.0)
+            stateStore.droneLocationLiveData.postValue(location)
+        }
         updateGroundSpeed(
             source = "GLOBAL_POSITION_INT.vx/vy",
             sourceRank = SPEED_SOURCE_GLOBAL_POSITION,
@@ -315,7 +348,10 @@ internal class DroneTelemetryProcessor(
         if (sourceRank <= runtimeState.lastSpeedSourceRank || currentStale) {
             runtimeState.lastSpeedSourceRank = sourceRank
             runtimeState.lastSpeedSourceUpdatedMs = now
-            stateStore.droneGroundSpeedMetersPerSecond.postValue(speed)
+            if (now - runtimeState.lastUiSpeedPublishMs >= UI_SPEED_INTERVAL_MS) {
+                runtimeState.lastUiSpeedPublishMs = now
+                stateStore.droneGroundSpeedMetersPerSecond.postValue(speed)
+            }
             logMappingSummary("speed", "speedSource=$source speedDisplay=${"%.1f".format(speed)}")
         }
     }

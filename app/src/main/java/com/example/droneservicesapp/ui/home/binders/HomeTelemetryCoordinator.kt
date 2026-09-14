@@ -40,7 +40,7 @@ class HomeTelemetryCoordinator(
                         isConnected = true,
                         isFlightModeControlEnabled = true,
                         flightModeCustomMode = droneViewModel.droneFlightMode.value,
-                        flightModeText = ArduCopterFlightMode.displayName(droneViewModel.droneFlightMode.value),
+                        flightModeText = formatFlightMode(droneViewModel.droneFlightMode.value),
                         connectionText = activity.getString(R.string.shell_status_connected),
                         gpsStatusText = formatGpsStatus(isConnected = true),
                         gpsFixQuality = formatGpsQuality(isConnected = true),
@@ -90,6 +90,11 @@ class HomeTelemetryCoordinator(
             }
         }
 
+        droneViewModel.gpsSatellitesVisible.observe(lifecycleOwner) { updateGpsDetails() }
+        droneViewModel.gpsHdop.observe(lifecycleOwner) { updateGpsDetails() }
+        droneViewModel.gpsVdop.observe(lifecycleOwner) { updateGpsDetails() }
+        droneViewModel.droneHeading.observe(lifecycleOwner) { update { it } }
+
         droneViewModel.liquidLevel.observe(lifecycleOwner) { liquidLevel ->
             update { state ->
                 state.copy(sprayerText = formatSprayerText(liquidLevel))
@@ -110,7 +115,7 @@ class HomeTelemetryCoordinator(
                 when {
                     percent in 1..99 -> state.copy(
                         showUploadProgress = true,
-                        uploadProgressText = "Uploading ${percent}%"
+                        uploadProgressText = activity.getString(R.string.telemetry_uploading, percent)
                     )
                     else -> state.copy(showUploadProgress = false)
                 }
@@ -148,7 +153,7 @@ class HomeTelemetryCoordinator(
                 state.copy(
                     flightModeCustomMode = customMode,
                     flightModeText = if (state.isConnected) {
-                        ArduCopterFlightMode.displayName(customMode)
+                        formatFlightMode(customMode)
                     } else {
                         activity.getString(R.string.shell_status_disconnected)
                     }
@@ -184,7 +189,10 @@ class HomeTelemetryCoordinator(
             ),
             gpsStatusText = formatGpsStatus(isConnected = isConnected),
             gpsFixQuality = formatGpsQuality(isConnected = isConnected),
+            gpsDetailText = formatGpsDetails(isConnected),
+            gpsDialogText = formatGpsDialogDetails(isConnected),
             rtkMountpointText = formatRtkMountpointText(),
+            rtkDialogText = formatRtkDialogDetails(),
             batteryText = batteryText,
             batteryIconRes = batteryIconRes,
             batteryColorRes = batteryColorRes,
@@ -196,14 +204,14 @@ class HomeTelemetryCoordinator(
             armCommandState = droneViewModel.armCommandState.value ?: ArmCommandState.Idle,
             flightModeCustomMode = droneViewModel.droneFlightMode.value,
             flightModeText = if (isConnected) {
-                ArduCopterFlightMode.displayName(droneViewModel.droneFlightMode.value)
+                formatFlightMode(droneViewModel.droneFlightMode.value)
             } else {
                 activity.getString(R.string.shell_status_disconnected)
             },
             flightModeCommandState = droneViewModel.flightModeCommandState.value
                 ?: FlightModeCommandState.Idle,
             isFlightModeControlEnabled = isConnected,
-            uploadProgressText = "Uploading ${uploadProgress}%",
+            uploadProgressText = activity.getString(R.string.telemetry_uploading, uploadProgress),
             showUploadProgress = uploadProgress in 1..99,
             frontDistanceMeters = droneViewModel.droneFrontDistance.value,
             backDistanceMeters = droneViewModel.droneBackDistance.value
@@ -216,21 +224,28 @@ class HomeTelemetryCoordinator(
                 connectionText = activity.getString(R.string.shell_status_disconnected),
                 armedText = activity.getString(R.string.disarmed)
             )
-        homeTelemetryViewModel.homeTelemetryUiState.value = transform(current)
+        val next = transform(current)
+        homeTelemetryViewModel.homeTelemetryUiState.value = next.copy(
+            gpsDialogText = formatGpsDialogDetails(next.isConnected),
+            rtkDialogText = formatRtkDialogDetails(),
+        )
     }
 
     private fun disconnectedState(current: HomeTelemetryUiState): HomeTelemetryUiState {
         return current.copy(
             isConnected = false,
             connectionText = activity.getString(R.string.shell_status_disconnected),
-            gpsStatusText = "No GPS",
+            gpsStatusText = activity.getString(R.string.top_status_no_gps),
             gpsFixQuality = GpsFixQuality.DISCONNECTED,
-            rtkMountpointText = "RTK Mountpoint: Not connected",
+            gpsDetailText = activity.getString(R.string.top_status_gps_details_unknown),
+            gpsDialogText = formatGpsDialogDetails(false),
+            rtkMountpointText = activity.getString(R.string.top_status_rtk_not_connected),
+            rtkDialogText = formatRtkDialogDetails(),
             batteryText = "--.-V --%",
             batteryIconRes = R.drawable.ic_baseline_battery_alert_24,
             batteryColorRes = R.color.ds_color_shell_unselected,
             altitudeText = "--",
-            speedText = "SPD: 0.0 m/s",
+            speedText = "0.0 m/s",
             sprayerText = "--.-L",
             armedText = activity.getString(R.string.disarmed),
             isArmed = false,
@@ -255,8 +270,15 @@ class HomeTelemetryCoordinator(
     }
 
     private fun formatGpsStatus(isConnected: Boolean): String {
-        if (!isConnected) return "No GPS"
-        return TelemetryMapping.gpsFixLabel(droneViewModel.gpsFixType.value)
+        if (!isConnected) return activity.getString(R.string.top_status_no_gps)
+        return when (TelemetryMapping.gpsFixQuality(droneViewModel.gpsFixType.value, true)) {
+            GpsFixQuality.FIX_2D -> activity.getString(R.string.gps_fix_2d)
+            GpsFixQuality.FIX_3D -> activity.getString(R.string.gps_fix_3d)
+            GpsFixQuality.DGPS -> activity.getString(R.string.gps_fix_dgps)
+            GpsFixQuality.RTK_FLOAT -> activity.getString(R.string.gps_fix_rtk_float)
+            GpsFixQuality.RTK_FIXED -> activity.getString(R.string.gps_fix_rtk_fixed)
+            else -> activity.getString(R.string.top_status_no_gps)
+        }
     }
 
     private fun formatGpsQuality(isConnected: Boolean): GpsFixQuality {
@@ -268,22 +290,91 @@ class HomeTelemetryCoordinator(
         return quality
     }
 
+    private fun updateGpsDetails() {
+        update { state -> state.copy(gpsDetailText = formatGpsDetails(state.isConnected)) }
+    }
+
+    private fun formatGpsDetails(isConnected: Boolean): String {
+        if (!isConnected) return activity.getString(R.string.top_status_gps_details_unknown)
+        val satellites = droneViewModel.gpsSatellitesVisible.value?.toString() ?: "--"
+        val hdop = droneViewModel.gpsHdop.value?.let { String.format(Locale.US, "%.2f", it) } ?: "--"
+        val vdop = droneViewModel.gpsVdop.value?.let { String.format(Locale.US, "%.2f", it) } ?: "--"
+        return activity.getString(R.string.top_status_gps_details, satellites, hdop, vdop)
+    }
+
+    private fun formatGpsDialogDetails(isConnected: Boolean): String {
+        val location = if (isConnected) {
+            droneViewModel.droneLocationLiveData.value?.takeIf(::isUsableLocation)
+        } else {
+            null
+        }
+        val unknown = "--"
+        return activity.getString(
+            R.string.telemetry_gps_dialog_body,
+            activity.getString(if (isConnected) R.string.shell_status_connected else R.string.shell_status_disconnected),
+            formatGpsStatus(isConnected),
+            droneViewModel.gpsSatellitesVisible.value?.toString() ?: unknown,
+            droneViewModel.gpsHdop.value?.let { String.format(Locale.US, "%.2f", it) } ?: unknown,
+            droneViewModel.gpsVdop.value?.let { String.format(Locale.US, "%.2f", it) } ?: unknown,
+            location?.let { String.format(Locale.US, "%.7f", it.latitude) } ?: unknown,
+            location?.let { String.format(Locale.US, "%.7f", it.longitude) } ?: unknown,
+            location?.let { String.format(Locale.US, "%.1f m", it.altitude) } ?: unknown,
+            droneViewModel.droneGroundSpeedMetersPerSecond.value?.takeIf { isConnected }
+                ?.let { String.format(Locale.US, "%.1f m/s", it) } ?: unknown,
+            droneViewModel.droneHeading.value?.takeIf { isConnected }
+                ?.let { String.format(Locale.US, "%.1f°", it) } ?: unknown,
+        )
+    }
+
+    private fun formatRtkDialogDetails(): String {
+        val mountpoint = droneViewModel.selectedRtkMountpoint.value
+        val unknown = "--"
+        val distance = mountpoint?.takeIf { it.hasCoordinates }
+            ?.let(::currentDistanceToMountpoint)
+            ?.let(::formatDistance)
+            ?: unknown
+        return activity.getString(
+            R.string.telemetry_rtk_dialog_body,
+            formatRtkState(droneViewModel.rtkForwardingState.value),
+            mountpoint?.name ?: unknown,
+            mountpoint?.latitude?.let { String.format(Locale.US, "%.7f", it) } ?: unknown,
+            mountpoint?.longitude?.let { String.format(Locale.US, "%.7f", it) } ?: unknown,
+            distance,
+        )
+    }
+
+    private fun formatRtkState(state: RtkForwardingState?): String = when (state) {
+        null, RtkForwardingState.Idle, RtkForwardingState.Stopped -> activity.getString(R.string.rtk_status_idle)
+        RtkForwardingState.WaitingForMountpoint -> activity.getString(R.string.telemetry_rtk_wait_mountpoint)
+        RtkForwardingState.WaitingForInternet -> activity.getString(R.string.telemetry_rtk_wait_internet)
+        RtkForwardingState.WaitingForDrone -> activity.getString(R.string.telemetry_rtk_wait_drone)
+        RtkForwardingState.WaitingForGps -> activity.getString(R.string.telemetry_rtk_wait_gps)
+        RtkForwardingState.ConnectingToCaster -> activity.getString(R.string.telemetry_rtk_connecting)
+        RtkForwardingState.Streaming -> activity.getString(R.string.telemetry_rtk_streaming)
+        is RtkForwardingState.Reconnecting -> activity.getString(R.string.telemetry_rtk_reconnecting, state.message)
+        is RtkForwardingState.InvalidConfig -> activity.getString(R.string.rtk_status_invalid_config, state.message)
+        is RtkForwardingState.AuthFailed -> activity.getString(R.string.rtk_status_auth_failed)
+        is RtkForwardingState.MountpointInvalid -> activity.getString(R.string.rtk_status_mountpoint_not_found)
+        is RtkForwardingState.NetworkError -> activity.getString(R.string.rtk_status_network_failed, state.message)
+        is RtkForwardingState.ProtocolError -> activity.getString(R.string.telemetry_rtk_protocol_error, state.message)
+    }
+
     private fun formatRtkMountpointText(): String {
         val rtkState = droneViewModel.rtkForwardingState.value
         val mountpoint = droneViewModel.selectedRtkMountpoint.value
         val text = when {
             rtkState !is RtkForwardingState.Streaming || mountpoint == null -> {
-                "RTK Mountpoint: Not connected"
+                activity.getString(R.string.top_status_rtk_not_connected)
             }
             !mountpoint.hasCoordinates -> {
-                "RTK Mountpoint: Distance: N/A"
+                activity.getString(R.string.top_status_rtk_distance_unknown)
             }
             else -> {
                 val distanceMeters = currentDistanceToMountpoint(mountpoint)
                 if (distanceMeters == null) {
-                    "RTK Mountpoint: Distance: N/A"
+                    activity.getString(R.string.top_status_rtk_distance_unknown)
                 } else {
-                    "RTK Mountpoint: Distance: ${formatDistance(distanceMeters)}"
+                    activity.getString(R.string.top_status_rtk_distance, formatDistance(distanceMeters))
                 }
             }
         }
@@ -362,6 +453,16 @@ class HomeTelemetryCoordinator(
         val speed = speedMetersPerSecond
             ?.takeIf { TelemetryMapping.isValidGroundSpeedMetersPerSecond(it) }
             ?: 0f
-        return "SPD: ${String.format(Locale.US, "%.1f", speed)} m/s"
+        return "${String.format(Locale.US, "%.1f", speed)} m/s"
+    }
+
+    private fun formatFlightMode(customMode: Int?): String = when (customMode) {
+        ArduCopterFlightMode.AUTO.customMode -> activity.getString(R.string.flight_mode_auto)
+        ArduCopterFlightMode.GUIDED.customMode -> activity.getString(R.string.flight_mode_guided)
+        ArduCopterFlightMode.LOITER.customMode -> activity.getString(R.string.flight_mode_loiter)
+        ArduCopterFlightMode.RTL.customMode -> activity.getString(R.string.flight_mode_rtl)
+        ArduCopterFlightMode.LAND.customMode -> activity.getString(R.string.flight_mode_land)
+        ArduCopterFlightMode.BRAKE.customMode -> activity.getString(R.string.flight_mode_brake)
+        else -> ArduCopterFlightMode.displayName(customMode)
     }
 }
