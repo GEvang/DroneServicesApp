@@ -553,6 +553,9 @@
   <string name="settings_update_status">Κατάσταση ενημέρωσης</string>
   <string name="settings_active_scope">Ενεργό πεδίο</string>
   <string name="settings_offline_maps">Χάρτες εκτός σύνδεσης</string>
+  <string name="settings_map_display">Εμφάνιση χάρτη</string>
+  <string name="settings_map_labels">Ετικέτες χάρτη</string>
+  <string name="settings_map_labels_description">Εμφάνιση ονομάτων πόλεων, χωριών και ορίων πάνω στον χάρτη</string>
   <string name="settings_cached_offline_maps">Αποθηκευμένοι χάρτες εκτός σύνδεσης</string>
   <string name="settings_clear_offline_cache">Εκκαθάριση προσωρινής μνήμης χαρτών</string>
   <string name="settings_clear_offline_cache_description">Διαγράφει τα ληφθέντα πλακίδια από αυτήν τη συσκευή</string>

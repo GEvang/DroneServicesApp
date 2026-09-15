@@ -93,7 +93,7 @@ import com.example.droneservicesapp.ui.home.binders.MissionLoadController
 import com.example.droneservicesapp.ui.home.binders.MissionParamsController
 import com.example.droneservicesapp.ui.home.binders.MissionSaveController
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel.ServiceMissionState
-import com.example.droneservicesapp.ui.home.components.EsriWorldImageryTileSource
+import com.example.droneservicesapp.ui.home.components.EsriMapLayers
 import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
 import com.example.droneservicesapp.ui.home.components.OsmdroidObstacleEditor
 import com.example.droneservicesapp.ui.home.components.OsmdroidPolygonEditor
@@ -121,6 +121,7 @@ import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import java.util.Locale
+import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -161,6 +162,7 @@ class MissionMapFragment : Fragment() {
     private lateinit var flightModeUiBinder: FlightModeUiBinder
     private lateinit var armUiBinder: ArmUiBinder
     private lateinit var osmdroidMapController: OsmdroidMapController
+    private lateinit var esriMapLayers: EsriMapLayers
     private lateinit var osmdroidObstacleEditor: OsmdroidObstacleEditor
     private lateinit var osmdroidPolygonEditor: OsmdroidPolygonEditor
     private lateinit var osmdroidRouteWaypointEditor: OsmdroidRouteWaypointEditor
@@ -364,7 +366,7 @@ class MissionMapFragment : Fragment() {
         mapView = view.findViewById(R.id.osmMap)
         mapView.setBuiltInZoomControls(false)
         mapView.setMultiTouchControls(true)
-        mapView.setTileSource(EsriWorldImageryTileSource)
+        esriMapLayers = EsriMapLayers.install(requireContext(), mapView)
         mapView.isTilesScaledToDpi = true
         mapView.maxZoomLevel = 20.0
         mapView.controller.setZoom(DEFAULT_MAP_ZOOM)
@@ -385,6 +387,7 @@ class MissionMapFragment : Fragment() {
         osmdroidRouteWaypointEditor.setTerrainWaypointSelectionCallback { index ->
             onTerrainWaypointSelected(PlanningWorkflow.POINTS, index)
         }
+        esriMapLayers.bringAttributionToFront()
         binding.homePointCloudGlView.setOnMissionPointClickListener { index, x, y ->
             val workflow = activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA
             val selectedIndex = if (
@@ -2324,35 +2327,53 @@ class MissionMapFragment : Fragment() {
 
     private fun downloadCurrentViewOffline(minZoom: Int, maxZoom: Int) {
         val bbox = mapView.boundingBox
-        val cacheManager = CacheManager(mapView)
+        val cacheManagers = mutableListOf(CacheManager(mapView))
+        if (esriMapLayers.labelsEnabled) {
+            val labelsProvider = esriMapLayers.labelsTileProvider
+            cacheManagers += CacheManager(
+                labelsProvider,
+                labelsProvider.tileWriter,
+                minZoom,
+                maxZoom
+            )
+        }
+        val pendingDownloads = AtomicInteger(cacheManagers.size)
+        val totalErrors = AtomicInteger(0)
 
-        cacheManager.downloadAreaAsync(
-            requireContext(),
-            bbox,
-            minZoom,
-            maxZoom,
-            object : CacheManager.CacheManagerCallback {
-                override fun downloadStarted() {
-                    Toast.makeText(requireContext(), getString(R.string.offline_download_started), Toast.LENGTH_SHORT)
-                        .show()
-                }
+        Toast.makeText(requireContext(), getString(R.string.offline_download_started), Toast.LENGTH_SHORT).show()
 
-                override fun setPossibleTilesInArea(total: Int) {}
-                override fun updateProgress(progress: Int, currentZoomLevel: Int, zoomMin: Int, zoomMax: Int) {}
-                override fun onTaskComplete() {
-                    Toast.makeText(requireContext(), getString(R.string.offline_download_complete), Toast.LENGTH_LONG)
-                        .show()
-                }
+        fun callback() = object : CacheManager.CacheManagerCallback {
+            override fun downloadStarted() = Unit
+            override fun setPossibleTilesInArea(total: Int) = Unit
+            override fun updateProgress(progress: Int, currentZoomLevel: Int, zoomMin: Int, zoomMax: Int) = Unit
 
-                override fun onTaskFailed(errors: Int) {
-                    Toast.makeText(
-                        requireContext(),
-                        getString(R.string.offline_download_failed, errors),
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
+            override fun onTaskComplete() {
+                finishDownload()
             }
-        )
+
+            override fun onTaskFailed(errors: Int) {
+                totalErrors.addAndGet(errors.coerceAtLeast(1))
+                finishDownload()
+            }
+
+            private fun finishDownload() {
+                if (pendingDownloads.decrementAndGet() != 0 || !isAdded) return
+                val errors = totalErrors.get()
+                Toast.makeText(
+                    requireContext(),
+                    if (errors == 0) {
+                        getString(R.string.offline_download_complete)
+                    } else {
+                        getString(R.string.offline_download_failed, errors)
+                    },
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+
+        cacheManagers.forEach { cacheManager ->
+            cacheManager.downloadAreaAsync(requireContext(), bbox, minZoom, maxZoom, callback())
+        }
     }
 
     private fun redrawAreaMissionOnMap() {
@@ -3505,6 +3526,7 @@ class MissionMapFragment : Fragment() {
         liveGeoAwarenessStatusBinder = null
         liveGeoAwarenessChecker = null
         clearFlightTrace()
+        if (::mapView.isInitialized) mapView.onDetach()
         super.onDestroyView()
         _binding = null
     }
@@ -3512,6 +3534,7 @@ class MissionMapFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         hideShellToolbar()
+        esriMapLayers.refreshLabelsEnabled()
         mapView.onResume()
         osmdroidMapController.onResume()
         if (activePreviewMode == PreviewMode.POINT_CLOUD) {

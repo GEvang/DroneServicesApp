@@ -30,7 +30,7 @@ import com.example.droneservicesapp.data.ortho.WorldFileParser
 import com.example.droneservicesapp.databinding.FragmentOrthoPreviewBinding
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.ui.home.binders.MissionParamsController
-import com.example.droneservicesapp.ui.home.components.EsriWorldImageryTileSource
+import com.example.droneservicesapp.ui.home.components.EsriMapLayers
 import com.example.droneservicesapp.ui.preview.MissionPreviewPathSynchronizer
 import com.example.droneservicesapp.ui.preview.PreviewMapFocus
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
@@ -84,6 +84,7 @@ class OrthoPreviewFragment : Fragment() {
     private var isOpeningFilePicker = false
     private lateinit var missionParamsController: MissionParamsController
     private var missionPathSynchronizer: MissionPreviewPathSynchronizer? = null
+    private lateinit var esriMapLayers: EsriMapLayers
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -98,7 +99,7 @@ class OrthoPreviewFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
         binding.orthoMap.setBuiltInZoomControls(false)
         binding.orthoMap.setMultiTouchControls(true)
-        binding.orthoMap.setTileSource(EsriWorldImageryTileSource)
+        esriMapLayers = EsriMapLayers.install(requireContext(), binding.orthoMap)
         binding.orthoMap.isTilesScaledToDpi = true
         binding.orthoMap.maxZoomLevel = 22.0
         binding.orthoMap.controller.setZoom(DEFAULT_ZOOM)
@@ -135,6 +136,7 @@ class OrthoPreviewFragment : Fragment() {
             binding.orthoMap.invalidate()
         }
         setupMissionOverlayObservers()
+        esriMapLayers.bringAttributionToFront()
         if (restorePreviewAsset()) {
             renderStatus()
         } else if (!restorePersistedPreviewAsset()) {
@@ -145,6 +147,7 @@ class OrthoPreviewFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         isOpeningFilePicker = false
+        esriMapLayers.refreshLabelsEnabled()
         binding.orthoMap.onResume()
     }
 

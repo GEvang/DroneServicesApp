@@ -607,6 +607,9 @@
     <string name="settings_update_status">Update status</string>
     <string name="settings_active_scope">Active scope</string>
     <string name="settings_offline_maps">Offline maps</string>
+    <string name="settings_map_display">Map display</string>
+    <string name="settings_map_labels">Map labels</string>
+    <string name="settings_map_labels_description">Show city, village, and boundary names over map imagery</string>
     <string name="settings_cached_offline_maps">Cached offline maps</string>
     <string name="settings_clear_offline_cache">Clear offline map cache</string>
     <string name="settings_clear_offline_cache_description">Deletes downloaded tiles from this device</string>

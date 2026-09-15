@@ -2,6 +2,7 @@ package com.example.droneservicesapp.ui.settings
 
 import android.content.SharedPreferences
 import android.os.Bundle
+import android.view.Gravity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -24,6 +25,8 @@ import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetStalenessPolicy
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
+import com.example.droneservicesapp.ui.home.components.MapDisplayPreferences
+import com.google.android.material.switchmaterial.SwitchMaterial
 import org.osmdroid.config.Configuration
 import java.io.File
 import java.text.SimpleDateFormat
@@ -76,6 +79,7 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
 
         content.addView(createMissionOperationPanel())
         content.addView(createLocalizationPanel())
+        content.addView(createMapDisplayPanel())
         content.addView(createGeoAwarenessPanel())
         content.addView(createOfflineMapsPanel())
 
@@ -142,6 +146,24 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
             title = getString(R.string.settings_active_scope),
             onClick = null
         ).also { geoDatasetScopeSummary = it.findViewWithTag(SUMMARY_TAG) })
+        return panel
+    }
+
+    private fun createMapDisplayPanel(): View {
+        val panel = createPanel(getString(R.string.settings_map_display))
+        panel.addView(createToggleSettingRow(
+            title = getString(R.string.settings_map_labels),
+            summary = getString(R.string.settings_map_labels_description),
+            checked = sharedPreferences.getBoolean(
+                MapDisplayPreferences.LABELS_ENABLED_KEY,
+                MapDisplayPreferences.LABELS_ENABLED_DEFAULT
+            ),
+            onCheckedChanged = { enabled ->
+                sharedPreferences.edit {
+                    putBoolean(MapDisplayPreferences.LABELS_ENABLED_KEY, enabled)
+                }
+            }
+        ))
         return panel
     }
 
@@ -219,6 +241,50 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
                 setPadding(0, resources.getDimensionPixelSize(R.dimen.ds_space_xs), 0, 0)
             })
         }
+    }
+
+    private fun createToggleSettingRow(
+        title: String,
+        summary: String,
+        checked: Boolean,
+        onCheckedChanged: (Boolean) -> Unit
+    ): LinearLayout {
+        val verticalPadding = resources.getDimensionPixelSize(R.dimen.ds_space_md)
+        val row = LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding(0, verticalPadding, 0, verticalPadding)
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply {
+                topMargin = resources.getDimensionPixelSize(R.dimen.ds_space_sm)
+            }
+        }
+
+        row.addView(LinearLayout(requireContext()).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(TextView(requireContext()).apply {
+                text = title
+                setTextAppearance(R.style.TextAppearance_DroneServices_StatusLabel)
+            })
+            addView(TextView(requireContext()).apply {
+                text = summary
+                setTextAppearance(R.style.TextAppearance_DroneServices_StatusValue)
+                setPadding(0, resources.getDimensionPixelSize(R.dimen.ds_space_xs), 0, 0)
+            })
+        }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+
+        val toggle = SwitchMaterial(requireContext()).apply {
+            isChecked = checked
+            contentDescription = title
+            setOnCheckedChangeListener { _, enabled -> onCheckedChanged(enabled) }
+        }
+        row.addView(toggle)
+        row.isClickable = true
+        row.isFocusable = true
+        row.setOnClickListener { toggle.isChecked = !toggle.isChecked }
+        return row
     }
 
     private fun showChoiceDialog(
