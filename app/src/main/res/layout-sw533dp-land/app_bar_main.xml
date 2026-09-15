@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:background="@color/ds_color_background">
+    <com.google.android.material.appbar.AppBarLayout android:id="@+id/appBarMain" android:layout_width="match_parent" android:layout_height="wrap_content" android:background="@color/ds_color_background" android:elevation="0dp">
+        <androidx.appcompat.widget.Toolbar android:id="@+id/customToolbar" android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center_vertical" android:minHeight="@dimen/ds_toolbar_height" android:contentInsetStart="0dp" android:contentInsetStartWithNavigation="0dp" android:contentInsetEnd="0dp" app:buttonGravity="center_vertical" app:navigationIconTint="@color/ds_color_shell_active">
+            <include android:id="@+id/hudBar" layout="@layout/home_top_status_strip" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginStart="64dp" android:layout_marginEnd="12dp" />
+        </androidx.appcompat.widget.Toolbar>
+    </com.google.android.material.appbar.AppBarLayout>
+    <FrameLayout android:layout_width="match_parent" android:layout_height="match_parent" android:layout_below="@id/appBarMain" android:fitsSystemWindows="true"><include layout="@layout/content_main" /></FrameLayout>
+</RelativeLayout>

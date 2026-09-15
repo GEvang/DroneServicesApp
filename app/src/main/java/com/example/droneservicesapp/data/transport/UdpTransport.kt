@@ -1,8 +1,10 @@
 package com.example.droneservicesapp.data.transport
 
 import android.net.Network
+import android.os.SystemClock
 import android.util.Log
 import java.io.ByteArrayOutputStream
+import java.io.InterruptedIOException
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.net.DatagramPacket
@@ -42,10 +44,9 @@ class UdpTransport(
 
     private var socket: DatagramSocket? = null
     @Volatile private var workerThread: Thread? = null
+    @Volatile private var outboundThread: Thread? = null
     private val running = AtomicBoolean(false)
 
-    private var remoteIP: InetAddress? = null
-    private var remotePort: Int = -1
     private val configuredTargetIP: InetAddress? = targetHost
         ?.trim()
         ?.takeIf { it.isNotEmpty() }
@@ -65,7 +66,9 @@ class UdpTransport(
         qgcPort = qgcBridgePort,
         enabled = qgcBridgeEnabled,
     )
+    private val peerTracker = MavlinkUdpPeerTracker()
     private var lastLoggedRemoteEndpoint: String? = null
+    private var lastLoggedRejectedEndpoint: String? = null
 
     override fun start() {
         Log.i(TAG, "connect requested on UDP transport listenPort=$listenPort running=${running.get()}")
@@ -93,6 +96,10 @@ class UdpTransport(
                 isDaemon = true
                 start()
             }
+            outboundThread = Thread({ runOutboundLoop() }, "UdpTransportOutbound-$listenPort").apply {
+                isDaemon = true
+                start()
+            }
             Log.i(TAG, "Started UDP listen on $listenPort")
         } catch (e: Exception) {
             running.set(false)
@@ -102,7 +109,7 @@ class UdpTransport(
     }
 
     override fun stop() {
-        Log.i(TAG, "stop requested running=${running.get()} remote=${remoteIP?.hostAddress}:${remotePort}")
+        Log.i(TAG, "stop requested running=${running.get()} peer=${peerTracker.currentEndpoint(SystemClock.elapsedRealtime())}")
         running.set(false)
         val stoppingSocket = socket
         socket = null
@@ -113,9 +120,19 @@ class UdpTransport(
 
         val stoppingThread = workerThread
         workerThread = null
+        val stoppingOutboundThread = outboundThread
+        outboundThread = null
         if (stoppingThread != null && stoppingThread !== Thread.currentThread()) {
             try {
                 stoppingThread.join(STOP_JOIN_TIMEOUT_MS)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
+        stoppingOutboundThread?.interrupt()
+        if (stoppingOutboundThread != null && stoppingOutboundThread !== Thread.currentThread()) {
+            try {
+                stoppingOutboundThread.join(STOP_JOIN_TIMEOUT_MS)
             } catch (_: InterruptedException) {
                 Thread.currentThread().interrupt()
             }
@@ -145,8 +162,6 @@ class UdpTransport(
     private fun runLoop() {
         val udpSocket = socket ?: return
         val receiveData = ByteArray(4096)
-        val outBuffer = ByteArray(OUTBOUND_READ_BUFFER_SIZE)
-        var pendingOutbound = ByteArray(0)
 
         while (running.get()) {
             try {
@@ -155,19 +170,17 @@ class UdpTransport(
                 udpSocket.receive(receivePacket)
 
                 when (val route = bridgeRouter.routeIncoming(receivePacket.address)) {
-                    IncomingRoute.DeliverToApp -> deliverToMavlinkSession(receivePacket)
+                    IncomingRoute.DeliverToApp -> maybeDeliverToMavlinkSession(receivePacket)
                     is IncomingRoute.ForwardOnly -> {
                         forwardRawDatagram(udpSocket, receivePacket, route.address, route.port, "QGC->aircraft")
                     }
                     is IncomingRoute.DeliverAndForward -> {
-                        deliverToMavlinkSession(receivePacket)
+                        maybeDeliverToMavlinkSession(receivePacket)
                         forwardRawDatagram(udpSocket, receivePacket, route.address, route.port, "aircraft->QGC")
                     }
                 }
-
-                pendingOutbound = flushOutboundMavlinkFrames(udpSocket, outBuffer, pendingOutbound)
             } catch (e: SocketTimeoutException) {
-                pendingOutbound = flushOutboundMavlinkFrames(udpSocket, outBuffer, pendingOutbound)
+                // Periodically wake so stop() can terminate the worker promptly.
             } catch (e: SocketException) {
                 // Happens on stop() because close() breaks receive()
                 break
@@ -177,12 +190,52 @@ class UdpTransport(
         }
     }
 
-    private fun deliverToMavlinkSession(receivePacket: DatagramPacket) {
-        remoteIP = receivePacket.address
-        remotePort = receivePacket.port
-        logRemoteEndpointIfChanged(receivePacket.address, receivePacket.port)
+    private fun maybeDeliverToMavlinkSession(receivePacket: DatagramPacket) {
+        if (!bridgeRouter.isActive && configuredTargetIP != null && receivePacket.address != configuredTargetIP) {
+            return
+        }
+        val endpoint = UdpEndpoint(receivePacket.address, receivePacket.port)
+        val hasAutopilotHeartbeat = MavlinkDatagramInspector.containsAutopilotHeartbeat(
+            receivePacket.data,
+            receivePacket.offset,
+            receivePacket.length,
+        )
+        val accepted = peerTracker.shouldAccept(endpoint, hasAutopilotHeartbeat, SystemClock.elapsedRealtime())
+        if (!accepted) {
+            logRejectedEndpointIfChanged(endpoint)
+            return
+        }
+        logRemoteEndpointIfChanged(endpoint.address, endpoint.port)
         rcvPOS.write(receivePacket.data, receivePacket.offset, receivePacket.length)
         rcvPOS.flush()
+    }
+
+    private fun runOutboundLoop() {
+        val udpSocket = socket ?: return
+        val outBuffer = ByteArray(OUTBOUND_READ_BUFFER_SIZE)
+        var pending = ByteArray(0)
+        while (running.get()) {
+            try {
+                if (!hasOutboundTarget()) {
+                    Thread.sleep(20L)
+                    continue
+                }
+                val bytesRead = sndPIS.read(outBuffer)
+                if (bytesRead < 0) break
+                if (bytesRead == 0) continue
+                pending += outBuffer.copyOf(bytesRead)
+                pending = sendCompleteMavlinkFrames(udpSocket, pending)
+            } catch (_: InterruptedException) {
+                break
+            } catch (_: InterruptedIOException) {
+                break
+            } catch (e: SocketException) {
+                if (running.get()) Log.e(TAG, "UDP outbound socket error: ${e.message}", e)
+                break
+            } catch (e: Exception) {
+                Log.e(TAG, "UDP outbound loop error: ${e.message}", e)
+            }
+        }
     }
 
     private fun forwardRawDatagram(
@@ -215,24 +268,6 @@ class UdpTransport(
                 "failed to bind UDP socket to network=${selectedNetwork.networkHandle} type=${error.javaClass.simpleName} message=${error.message}"
             )
         }
-    }
-
-    private fun flushOutboundMavlinkFrames(
-        udpSocket: DatagramSocket,
-        outBuffer: ByteArray,
-        pendingOutbound: ByteArray
-    ): ByteArray {
-        if (!hasOutboundTarget()) return pendingOutbound
-
-        var pending = pendingOutbound
-        while (sndPIS.available() > 0) {
-            val bytesRead = sndPIS.read(outBuffer, 0, minOf(outBuffer.size, sndPIS.available().coerceAtLeast(1)))
-            if (bytesRead <= 0) break
-            pending = pending + outBuffer.copyOf(bytesRead)
-        }
-
-        if (pending.isEmpty()) return pending
-        return sendCompleteMavlinkFrames(udpSocket, pending)
     }
 
     private fun sendCompleteMavlinkFrames(
@@ -282,7 +317,7 @@ class UdpTransport(
     }
 
     private fun hasOutboundTarget(): Boolean {
-        return configuredTargetIP != null || (remoteIP != null && remotePort > 0)
+        return configuredTargetIP != null || peerTracker.currentEndpoint(SystemClock.elapsedRealtime()) != null
     }
 
     private fun sendToRemoteCandidates(
@@ -290,22 +325,13 @@ class UdpTransport(
         outBuffer: ByteArray,
         bytesRead: Int
     ) {
-        val remoteAddress = remoteIP ?: configuredTargetIP ?: return
+        val endpoint = configuredTargetIP?.let { UdpEndpoint(it, targetPort) }
+            ?: peerTracker.currentEndpoint(SystemClock.elapsedRealtime())
+            ?: return
         logMavlinkPacketVersion(outBuffer, bytesRead)
-        val candidateEndpoints = buildList {
-            configuredTargetIP?.let { targetAddress ->
-                add(targetAddress to targetPort)
-            } ?: run {
-                add(remoteAddress to remotePort)
-                add(remoteAddress to listenPort)
-            }
-        }.filter { (_, port) -> port > 0 }.distinct()
-
-        candidateEndpoints.forEach { (address, port) ->
-            val outputPacket = DatagramPacket(outBuffer, bytesRead, address, port)
-            udpSocket.send(outputPacket)
-            Log.i(TAG, "SENT $bytesRead bytes -> ${address.hostAddress}:$port")
-        }
+        val outputPacket = DatagramPacket(outBuffer, bytesRead, endpoint.address, endpoint.port)
+        udpSocket.send(outputPacket)
+        Log.i(TAG, "SENT $bytesRead bytes -> ${endpoint.address.hostAddress}:${endpoint.port}")
     }
 
     private fun logMavlinkPacketVersion(outBuffer: ByteArray, bytesRead: Int) {
@@ -358,5 +384,12 @@ class UdpTransport(
         if (endpoint == lastLoggedRemoteEndpoint) return
         lastLoggedRemoteEndpoint = endpoint
         Log.i(TAG, "RX remote endpoint changed -> $endpoint")
+    }
+
+    private fun logRejectedEndpointIfChanged(endpoint: UdpEndpoint) {
+        val value = "${endpoint.address.hostAddress}:${endpoint.port}"
+        if (value == lastLoggedRejectedEndpoint) return
+        lastLoggedRejectedEndpoint = value
+        Log.w(TAG, "Ignoring MAVLink datagrams from non-selected endpoint $value")
     }
 }

@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compact-tablet profile for 533dp-class landscape displays. -->
+    <dimen name="ds_space_xs">3dp</dimen>
+    <dimen name="ds_space_sm">6dp</dimen>
+    <dimen name="ds_space_md">9dp</dimen>
+    <dimen name="ds_space_lg">12dp</dimen>
+    <dimen name="ds_space_xl">16dp</dimen>
+
+    <dimen name="tablet_screen_margin">12dp</dimen>
+    <dimen name="tablet_side_panel_width">252dp</dimen>
+    <dimen name="tablet_left_panel_width">260dp</dimen>
+    <dimen name="tablet_right_panel_width">244dp</dimen>
+    <dimen name="tablet_side_panel_min_height">320dp</dimen>
+    <dimen name="tablet_right_panel_compact_top_margin">56dp</dimen>
+    <dimen name="tablet_right_panel_compact_bottom_margin">92dp</dimen>
+
+    <dimen name="tablet_bottom_dock_width">960dp</dimen>
+    <dimen name="tablet_bottom_dock_outer_height">68dp</dimen>
+    <dimen name="tablet_bottom_dock_height">68dp</dimen>
+    <dimen name="tablet_bottom_dock_margin_bottom">6dp</dimen>
+    <dimen name="tablet_bottom_dock_padding_horizontal">14dp</dimen>
+    <dimen name="tablet_bottom_dock_padding_vertical">4dp</dimen>
+    <dimen name="tablet_bottom_dock_icon_size">24dp</dimen>
+    <dimen name="tablet_bottom_center_tab_size">62dp</dimen>
+    <dimen name="tablet_bottom_center_tab_width">156dp</dimen>
+    <dimen name="tablet_bottom_center_spacer_width">188dp</dimen>
+    <dimen name="tablet_bottom_dock_label_text_size">10sp</dimen>
+    <dimen name="tablet_bottom_center_label_text_size">12sp</dimen>
+
+    <dimen name="phone_map_panel_left_width">260dp</dimen>
+    <dimen name="phone_map_panel_right_width">244dp</dimen>
+    <dimen name="phone_map_panel_max_height">320dp</dimen>
+    <dimen name="phone_map_panel_label_text_size">10sp</dimen>
+    <dimen name="phone_map_panel_value_text_size">10sp</dimen>
+    <dimen name="phone_map_panel_title_text_size">12sp</dimen>
+    <dimen name="phone_map_panel_tab_height">30dp</dimen>
+    <dimen name="phone_map_panel_button_height">30dp</dimen>
+    <dimen name="phone_map_panel_button_height_tall">34dp</dimen>
+    <dimen name="preview_mode_rail_width">270dp</dimen>
+    <dimen name="phone_map_panel_slider_row_height">30dp</dimen>
+    <dimen name="phone_map_panel_slider_frame_small">26dp</dimen>
+    <dimen name="phone_map_panel_slider_frame_large">30dp</dimen>
+    <dimen name="preview_mode_panel_expanded_height">170dp</dimen>
+    <dimen name="preview_mode_switch_size">36dp</dimen>
+    <dimen name="map_panel_padding">8dp</dimen>
+
+    <dimen name="phone_map_bottom_dock_padding_horizontal">10dp</dimen>
+    <dimen name="phone_map_bottom_dock_padding_vertical">4dp</dimen>
+    <dimen name="phone_map_bottom_dock_item_spacing">4dp</dimen>
+    <dimen name="phone_map_bottom_dock_text_size">11sp</dimen>
+</resources>
