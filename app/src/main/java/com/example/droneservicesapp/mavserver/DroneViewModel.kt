@@ -78,6 +78,7 @@ class DroneViewModel : ViewModel() {
     private val repo = MavlinkConnectionManager()
     val mavlinkClient: MavlinkClient = repo
     private var activeMavlinkConfigKey: String? = null
+    @Volatile private var activeMavlinkInterfaceType: MavlinkConfig.InterfaceType? = null
     @Volatile private var lastHealthSnapshotMs = 0L
     @Volatile private var highFrequencySnapshotsUntilMs = 0L
     @Volatile private var flightSessionStartedMs = 0L
@@ -145,6 +146,7 @@ class DroneViewModel : ViewModel() {
             },
             onAutopilotHeartbeatLocked = {
                 mainHandler.post {
+                    requestAdditionalTelemetryStreamsForActiveTransport()
                     requestServoOutputRawStream()
                     requestExtendedSystemStateStream()
                     rtkController.onAutopilotHeartbeatLocked()
@@ -447,6 +449,45 @@ class DroneViewModel : ViewModel() {
         return true
     }
 
+    private fun requestAdditionalTelemetryStreamsForActiveTransport() {
+        MavlinkTelemetryPolicy.additionalRequests(activeMavlinkInterfaceType).forEach { request ->
+            requestMessageInterval(
+                messageName = request.messageName,
+                messageId = request.messageId,
+                intervalUs = request.intervalUs,
+            )
+        }
+    }
+
+    private fun requestMessageInterval(
+        messageName: String,
+        messageId: Int,
+        intervalUs: Float,
+    ): Boolean {
+        val targetSystemId = runtimeState.autopilotSysId
+        val targetComponentId = runtimeState.autopilotCompId
+        if (targetSystemId < 0 || targetComponentId < 0) {
+            Log.w(TAG, "$messageName stream request skipped: no active MAVLink target")
+            return false
+        }
+        val command = CommandLong.builder()
+            .targetSystem(targetSystemId)
+            .targetComponent(MAVLINK_COMPONENT_ALL)
+            .command(MavCmd.MAV_CMD_SET_MESSAGE_INTERVAL)
+            .confirmation(0)
+            .param1(messageId.toFloat())
+            .param2(intervalUs)
+            .param3(0f)
+            .param4(0f)
+            .param5(0f)
+            .param6(0f)
+            .param7(0f)
+            .build()
+        mavlinkClient.send2(mavlinkClient.gcsSystemId, GCS_COMPONENT_ID, command)
+        Log.i(TAG, "TX request $messageName messageId=$messageId intervalUs=$intervalUs")
+        return true
+    }
+
     fun startMavlink(config: MavlinkConfig) {
         Log.i(TAG, "connect requested via startMavlink config=$config")
         DiagnosticLog.event("mavlink", "connection_requested", data = mapOf(
@@ -460,6 +501,7 @@ class DroneViewModel : ViewModel() {
             "qgcPort" to config.qgcBridgePort,
         ))
         runtimeState.clearAutopilotTarget()
+        activeMavlinkInterfaceType = config.interfaceType
         mavlinkClient.restart(config)
         activeMavlinkConfigKey = config.toConnectionKey()
         attachRepositoryBridge()
@@ -485,6 +527,7 @@ class DroneViewModel : ViewModel() {
                 rtkController.stopStreamingForMavlinkRestart()
             }
             runtimeState.clearAutopilotTarget()
+            activeMavlinkInterfaceType = config.interfaceType
             mavlinkClient.restart(config)
             activeMavlinkConfigKey = newConfigKey
             attachRepositoryBridge()
@@ -510,6 +553,7 @@ class DroneViewModel : ViewModel() {
         mavlinkClient.stop()
         runtimeState.clearAutopilotTarget()
         activeMavlinkConfigKey = null
+        activeMavlinkInterfaceType = null
     }
 
     private fun MavlinkConfig.toConnectionKey(): String {
