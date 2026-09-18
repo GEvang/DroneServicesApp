@@ -307,8 +307,8 @@
     <string name="mavlink_target_host_title">MAVLink Target IP (blank for auto)</string>
     <string name="mavlink_target_port_title">MAVLink Target Port</string>
     <string name="mavlink_local_port_title">Local UDP listening port</string>
-    <string name="mavlink_aircraft_host_title">Aircraft / transceiver IP</string>
-    <string name="mavlink_aircraft_port_title">Aircraft UDP port</string>
+    <string name="mavlink_aircraft_host_title">MAVLink target IP address</string>
+    <string name="mavlink_aircraft_port_title">MAVLink target port</string>
     <string name="mavlink_gcs_system_id_title">Ground station system ID</string>
     <string name="mavlink_bridge_section_title">QGroundControl Bridge</string>
     <string name="mavlink_bridge_description">Bidirectionally forwards MAVLink between the aircraft radio and QGroundControl while keeping this app connected. The aircraft and QGC must use different IP addresses.</string>
@@ -317,6 +317,7 @@
     <string name="mavlink_qgc_port_title">QGroundControl UDP port</string>
     <string name="mavlink_blank_auto_hint">blank = auto</string>
     <string name="mavlink_auto_value">Auto</string>
+    <string name="mavlink_required_value">Required for TCP</string>
     <string name="mavlink_invalid_port">Enter a UDP port from 1 to 65535</string>
     <string name="mavlink_invalid_ip">Enter a valid IPv4 address</string>
     <string name="mavlink_invalid_system_id">Enter a MAVLink system ID from 1 to 255</string>

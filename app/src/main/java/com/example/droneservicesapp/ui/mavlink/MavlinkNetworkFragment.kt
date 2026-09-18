@@ -24,6 +24,7 @@ class MavlinkNetworkFragment : Fragment(), SharedPreferences.OnSharedPreferenceC
     private lateinit var preferences: SharedPreferences
     private lateinit var interfaceSummary: TextView
     private lateinit var localPortSummary: TextView
+    private lateinit var localPortRow: View
     private lateinit var targetHostSummary: TextView
     private lateinit var targetPortSummary: TextView
     private lateinit var gcsSystemIdSummary: TextView
@@ -31,6 +32,7 @@ class MavlinkNetworkFragment : Fragment(), SharedPreferences.OnSharedPreferenceC
     private lateinit var qgcHostSummary: TextView
     private lateinit var qgcPortSummary: TextView
     private lateinit var bridgeStatus: TextView
+    private lateinit var bridgePanel: View
 
     override fun onCreateView(
         inflater: LayoutInflater,
@@ -46,7 +48,7 @@ class MavlinkNetworkFragment : Fragment(), SharedPreferences.OnSharedPreferenceC
             setPadding(padding, padding, padding, resources.getDimensionPixelSize(R.dimen.ds_space_xl))
         }
         content.addView(createConnectionPanel())
-        content.addView(createBridgePanel())
+        content.addView(createBridgePanel().also { bridgePanel = it })
 
         refreshSummaries()
         return ScrollView(requireContext()).apply {
@@ -63,7 +65,10 @@ class MavlinkNetworkFragment : Fragment(), SharedPreferences.OnSharedPreferenceC
         }.also { interfaceSummary = it.findViewWithTag(SUMMARY_TAG) })
         addView(createSettingRow(getString(R.string.mavlink_local_port_title)) {
             showTextDialog(R.string.mavlink_local_port_title, R.string.mavlink_lan_port_pref, "14550", true)
-        }.also { localPortSummary = it.findViewWithTag(SUMMARY_TAG) })
+        }.also {
+            localPortRow = it
+            localPortSummary = it.findViewWithTag(SUMMARY_TAG)
+        })
         addView(createSettingRow(getString(R.string.mavlink_aircraft_host_title)) {
             showTextDialog(R.string.mavlink_aircraft_host_title, R.string.mavlink_target_host_pref, "", false)
         }.also { targetHostSummary = it.findViewWithTag(SUMMARY_TAG) })
@@ -201,9 +206,16 @@ class MavlinkNetworkFragment : Fragment(), SharedPreferences.OnSharedPreferenceC
 
     private fun refreshSummaries() {
         if (!::interfaceSummary.isInitialized) return
-        interfaceSummary.text = preferences.getString(getString(R.string.mavlink_interface_pref), "UDP") ?: "UDP"
+        val interfaceType = preferences.getString(getString(R.string.mavlink_interface_pref), "UDP") ?: "UDP"
+        interfaceSummary.text = interfaceType
+        val isTcp = interfaceType.equals("TCP", ignoreCase = true)
+        localPortRow.isVisible = !isTcp
+        bridgePanel.isVisible = !isTcp
         localPortSummary.text = preferences.getString(getString(R.string.mavlink_lan_port_pref), "14550") ?: "14550"
-        targetHostSummary.text = preferenceHost(R.string.mavlink_target_host_pref)
+        targetHostSummary.text = preferenceHost(
+            R.string.mavlink_target_host_pref,
+            if (isTcp) R.string.mavlink_required_value else R.string.mavlink_auto_value,
+        )
         targetPortSummary.text = preferences.getString(getString(R.string.mavlink_target_port_pref), "14550") ?: "14550"
         gcsSystemIdSummary.text = preferences.getString(getString(R.string.mavlink_gcs_system_id_pref), "254") ?: "254"
         qgcHostSummary.text = preferenceHost(R.string.mavlink_bridge_host_pref)
@@ -226,8 +238,11 @@ class MavlinkNetworkFragment : Fragment(), SharedPreferences.OnSharedPreferenceC
         }
     }
 
-    private fun preferenceHost(keyRes: Int): String = preferences.getString(getString(keyRes), "")
-        ?.trim()?.takeIf(String::isNotEmpty) ?: getString(R.string.mavlink_auto_value)
+    private fun preferenceHost(
+        keyRes: Int,
+        emptyValueRes: Int = R.string.mavlink_auto_value,
+    ): String = preferences.getString(getString(keyRes), "")
+        ?.trim()?.takeIf(String::isNotEmpty) ?: getString(emptyValueRes)
 
     private fun isValidIpv4(value: String): Boolean {
         val parts = value.split('.')

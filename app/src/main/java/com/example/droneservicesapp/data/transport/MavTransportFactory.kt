@@ -18,7 +18,16 @@ class DefaultMavTransportFactory : MavTransportFactory {
                 qgcBridgePort = config.qgcBridgePort,
                 network = config.network
             )
-            else -> throw IllegalArgumentException("Not implemented yet: ${config.interfaceType}")
+            MavlinkConfig.InterfaceType.TCP -> TcpTransport(
+                host = config.targetHost
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+                    ?: throw IllegalArgumentException("A target IP address is required for TCP"),
+                port = config.targetPort,
+                network = config.network,
+            )
+            MavlinkConfig.InterfaceType.SERIAL ->
+                throw IllegalArgumentException("Not implemented yet: ${config.interfaceType}")
         }
     }
 }
