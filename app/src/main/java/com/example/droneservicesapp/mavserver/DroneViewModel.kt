@@ -120,7 +120,8 @@ class DroneViewModel : ViewModel() {
             missionService = missionService,
             missionItems = stateStore.missionItems,
             uploadProgressPercent = stateStore.uploadProgressPercent,
-            repoDisposables = repoDisposables
+            repoDisposables = repoDisposables,
+            onUploadSucceeded = { downloadMissionNew(force = true) },
         )
     }
     private val rtkController: DroneRtkController by lazy {
@@ -151,6 +152,7 @@ class DroneViewModel : ViewModel() {
                     requestExtendedSystemStateStream()
                     rtkController.onAutopilotHeartbeatLocked()
                     parameterController.refreshAll()
+                    downloadMissionNew()
                 }
             },
             onDroneLocationUpdated = {
@@ -580,10 +582,11 @@ class DroneViewModel : ViewModel() {
         return rtkController.shouldKeepRtkAliveInBackground()
     }
 
-    fun downloadMissionNew() {
+    fun downloadMissionNew(force: Boolean = false) {
         missionController.downloadMission(
             debounceMs = MISSION_DEBOUNCE_MS,
-            logTag = TAG
+            logTag = TAG,
+            force = force,
         )
     }
 

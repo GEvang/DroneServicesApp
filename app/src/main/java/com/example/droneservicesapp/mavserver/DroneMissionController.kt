@@ -20,6 +20,7 @@ internal class DroneMissionController(
     private val missionItems: MutableLiveData<ArrayList<MissionItemInt>>,
     private val uploadProgressPercent: MutableLiveData<Int>,
     private val repoDisposables: CompositeDisposable,
+    private val onUploadSucceeded: () -> Unit,
 ) {
     private val uploadLock = Any()
     @Volatile private var missionDownloadInProgress = false
@@ -39,10 +40,11 @@ internal class DroneMissionController(
     fun downloadMission(
         debounceMs: Long,
         logTag: String,
+        force: Boolean = false,
     ) {
         synchronized(uploadLock) {
             val now = System.currentTimeMillis()
-            if (now - lastDownloadAttemptMs < debounceMs) return
+            if (!force && now - lastDownloadAttemptMs < debounceMs) return
             lastDownloadAttemptMs = now
 
             if (uploadInProgress) {
@@ -141,6 +143,7 @@ internal class DroneMissionController(
 
         val token = AtomicBoolean(false)
         currentUploadCancelToken = token
+        val refreshMissionAfterUpload = AtomicBoolean(false)
 
         val disposable =
             Single.fromCallable {
@@ -167,6 +170,9 @@ internal class DroneMissionController(
                         uploadInProgress = false
                         lastUploadFinishedMs = System.currentTimeMillis()
                     }
+                    if (refreshMissionAfterUpload.get()) {
+                        onUploadSucceeded()
+                    }
                 }
                 .subscribe(
                     { result ->
@@ -179,6 +185,7 @@ internal class DroneMissionController(
                                 activityVm.mapAction.postValue(
                                     Event(MainActivityViewModel.MapAction.UploadMissionSuccess)
                                 )
+                                refreshMissionAfterUpload.set(true)
                             }
                             is MissionUploadResult.Failure -> {
                                 Log.i(logTag, "uploadMission result=false reason=${result.reason}")

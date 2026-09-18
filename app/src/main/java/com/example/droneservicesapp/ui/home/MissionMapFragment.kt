@@ -1911,7 +1911,7 @@ class MissionMapFragment : Fragment() {
         }
 
         droneViewModel.missionItems.observe(viewLifecycleOwner) { missionItems ->
-            if (droneViewModel.conStateLiveData.value == true && missionItems.isNotEmpty()) {
+            if (missionItems.isNotEmpty()) {
                 osmdroidMapController.clearSurveyPath()
 
                 val surveyPath = ArrayList<LatLng>()
