@@ -1,6 +1,6 @@
 package com.example.droneservicesapp.domain.terrain
 
-/** How the loaded point cloud relates to the complete planned flight. */
+/** How the loaded point cloud relates to the generated spraying path. */
 enum class PointCloudCoverage {
     CHECKING,
     NONE,
@@ -12,9 +12,9 @@ enum class PointCloudCoverage {
     companion object {
         fun classify(
             hasPointCloudOverlap: Boolean,
-            allRequiredFlightPathsCovered: Boolean,
+            allSprayingPathPointsCovered: Boolean,
         ): PointCloudCoverage = when {
-            hasPointCloudOverlap && allRequiredFlightPathsCovered -> COMPLETE
+            hasPointCloudOverlap && allSprayingPathPointsCovered -> COMPLETE
             hasPointCloudOverlap -> PARTIAL
             else -> NONE
         }

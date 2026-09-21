@@ -27,7 +27,7 @@
     <string name="point_cloud_service_route_not_validated">Point-cloud mission blocked: a refill corridor no longer matches the validated terrain profile. Regenerate the mission before uploading.</string>
     <string name="mission_summary_point_cloud_clearance">Point-cloud clearance: %1$d m</string>
     <string name="mission_summary_relative_altitude_range">Relative altitude range: %1$.1f–%2$.1f m</string>
-    <string name="mission_summary_point_cloud_validated">Point-cloud coverage: complete (work, outbound and return)</string>
+    <string name="mission_summary_point_cloud_validated">Point-cloud coverage: complete (spraying path)</string>
     <string name="flight_speed_label">Speed</string>
     <string name="terrain_source_not_confirmed">Waiting for the vehicle to confirm the required terrain source. Try upload again shortly.</string>
     <string name="terrain_database_enabling">Terrain mission selected. Enabling the vehicle terrain database and waiting for confirmation. Upload again once confirmed.</string>

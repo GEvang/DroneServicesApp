@@ -187,7 +187,7 @@ class MainActivityViewModel : ViewModel() {
         WAITING_FOR_SERVICE,
     }
 
-    /** True only when home and every sampled work/transit point have local cloud coverage. */
+    /** True only when every sampled point of the spraying path has local cloud coverage. */
     val pointCloudCoversMissionArea: MutableLiveData<Boolean> by lazy {
         MutableLiveData(false)
     }

@@ -6,12 +6,12 @@ import org.junit.Test
 class PointCloudCoverageTest {
 
     @Test
-    fun completeCoverageRequiresOverlapAndEveryRequiredFlightPath() {
+    fun completeCoverageRequiresOverlapAndEverySprayingPathPoint() {
         assertEquals(
             PointCloudCoverage.COMPLETE,
             PointCloudCoverage.classify(
                 hasPointCloudOverlap = true,
-                allRequiredFlightPathsCovered = true,
+                allSprayingPathPointsCovered = true,
             ),
         )
     }
@@ -22,7 +22,7 @@ class PointCloudCoverageTest {
             PointCloudCoverage.PARTIAL,
             PointCloudCoverage.classify(
                 hasPointCloudOverlap = true,
-                allRequiredFlightPathsCovered = false,
+                allSprayingPathPointsCovered = false,
             ),
         )
     }
@@ -33,7 +33,7 @@ class PointCloudCoverageTest {
             PointCloudCoverage.NONE,
             PointCloudCoverage.classify(
                 hasPointCloudOverlap = false,
-                allRequiredFlightPathsCovered = false,
+                allSprayingPathPointsCovered = false,
             ),
         )
     }

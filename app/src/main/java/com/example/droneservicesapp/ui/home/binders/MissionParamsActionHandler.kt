@@ -87,22 +87,6 @@ class MissionParamsActionHandler(
             if (pointCloudFailure != TerrainPathFailure.NONE) {
                 return showPointCloudValidationFailure(pointCloudFailure)
             }
-            if (pointCloudFailure == TerrainPathFailure.NONE) {
-                val profileHome = activityViewModel.pointCloudProfileHome.value
-                    ?: return showMessage(context.getString(R.string.point_cloud_mission_not_ready))
-                val homeOffsetMeters = SphericalUtil.computeDistanceBetween(
-                    LatLng(profileHome.lat, profileHome.lon),
-                    LatLng(validatedDroneLoc.latitude, validatedDroneLoc.longitude),
-                )
-                if (homeOffsetMeters > MAX_POINT_CLOUD_HOME_OFFSET_METERS) {
-                    return showMessage(
-                        context.getString(
-                            R.string.point_cloud_home_position_changed,
-                            homeOffsetMeters,
-                        )
-                    )
-                }
-            }
         }
         val fullPath = path.orEmpty().map { LatLon(it.latitude, it.longitude) }
         val terrainPointRoute = activityViewModel.terrainRouteWaypoints.value.orEmpty()
@@ -322,41 +306,6 @@ class MissionParamsActionHandler(
             } else {
                 AltitudeReferenceMode.TERRAIN
             }
-            val serviceCorridors = activityViewModel.terrainServiceCorridors.value.orEmpty()
-            val startServiceCorridor = serviceLeg
-                ?.takeIf { it.startPathDistanceMeters > 0.5 }
-                ?.let { leg ->
-                    serviceCorridors.minByOrNull {
-                        kotlin.math.abs(it.pathDistanceMeters - leg.startPathDistanceMeters)
-                    }?.takeIf {
-                        kotlin.math.abs(it.pathDistanceMeters - leg.startPathDistanceMeters) <= 1.0
-                    }
-                }
-            val endServiceCorridor = serviceLeg?.serviceAfter?.let { stop ->
-                serviceCorridors.minByOrNull {
-                    kotlin.math.abs(it.pathDistanceMeters - stop.pathDistanceMeters)
-                }?.takeIf {
-                    kotlin.math.abs(it.pathDistanceMeters - stop.pathDistanceMeters) <= 1.0
-                }
-            }
-            val outboundTerrain = when {
-                legAltitudes == null -> null
-                startServiceCorridor != null -> startServiceCorridor.outboundWaypoints
-                else -> activityViewModel.terrainOutboundWaypoints.value.orEmpty()
-            }?.takeIf { it.size >= 2 }
-            val returnTerrain = when {
-                legAltitudes == null -> null
-                endServiceCorridor != null -> endServiceCorridor.returnWaypoints
-                serviceLeg?.serviceAfter == null -> activityViewModel.terrainReturnWaypoints.value.orEmpty()
-                else -> emptyList()
-            }?.takeIf { it.size >= 2 }
-            if (legAltitudes != null && (outboundTerrain == null || returnTerrain == null)) {
-                return MissionBuild(
-                    items = arrayListOf(),
-                    altitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
-                    usesTerrainAltitudes = false,
-                )
-            }
             return MissionBuild(
                 items = MissionBuilder.buildSprayAreaMission(
                     waypoints = mapPath,
@@ -371,16 +320,7 @@ class MissionParamsActionHandler(
                     waypointAltitudes = legAltitudes,
                     startClosestToHome = true,
                     preserveWaypointOrder = serviceLeg != null,
-                    outboundPath = outboundTerrain.orEmpty().map {
-                        LatLng(it.latLon.lat, it.latLon.lon)
-                    },
-                    outboundAltitudes = outboundTerrain?.map { it.missionAltitudeMeters.toFloat() },
-                    returnPathToHome = if (returnTerrain != null) {
-                        returnTerrain.map { LatLng(it.latLon.lat, it.latLon.lon) }
-                    } else {
-                        returnPathToHome
-                    },
-                    returnAltitudes = returnTerrain?.map { it.missionAltitudeMeters.toFloat() },
+                    returnPathToHome = returnPathToHome,
                 ),
                 altitudeReferenceMode = reference,
                 usesTerrainAltitudes = legAltitudes != null,
@@ -492,7 +432,4 @@ class MissionParamsActionHandler(
         showMessage(message)
     }
 
-    companion object {
-        private const val MAX_POINT_CLOUD_HOME_OFFSET_METERS = 2.0
-    }
 }

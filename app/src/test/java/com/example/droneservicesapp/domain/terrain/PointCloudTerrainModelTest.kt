@@ -161,6 +161,25 @@ class PointCloudTerrainModelTest {
         assertEquals(TerrainPathFailure.HOME_UNCOVERED, result.failure)
     }
 
+    @Test
+    fun sprayingPathCoverageDoesNotRequireHomeInsidePointCloud() = runBlocking {
+        val (startLat, startLon) = frame.localToLatLon(0.0, 0.0)
+        val (endLat, endLon) = frame.localToLatLon(5.0, 0.0)
+        val (homeLat, homeLon) = frame.localToLatLon(100.0, 100.0)
+
+        val result = model.buildValidatedTerrainPath(
+            path = listOf(LatLon(startLat, startLon), LatLon(endLat, endLon)),
+            home = LatLon(homeLat, homeLon),
+            heightAboveTerrainMeters = 5.0,
+            segmentMeters = 1.0,
+            canopySmoothingMeters = 0.0,
+            requireHomeCoverage = false,
+        )
+
+        assertTrue(result.isValid)
+        assertEquals(TerrainPathFailure.NONE, result.failure)
+    }
+
     private fun localPolygon(minX: Double, minY: Double, maxX: Double, maxY: Double): List<LatLon> {
         return listOf(
             minX to minY,

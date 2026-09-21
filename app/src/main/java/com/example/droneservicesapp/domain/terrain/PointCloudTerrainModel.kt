@@ -230,6 +230,8 @@ class PointCloudTerrainModel(
         heightAboveTerrainMeters: Double,
         segmentMeters: Double,
         canopySmoothingMeters: Double,
+        requireHomeCoverage: Boolean = true,
+        homeAltitudeAmslMeters: Double? = null,
     ): TerrainPathResult {
         val frame = coordinateFrame ?: return TerrainPathResult(
             failure = TerrainPathFailure.NO_GEOREFERENCE
@@ -237,13 +239,10 @@ class PointCloudTerrainModel(
         if (path.size < 2) return TerrainPathResult(failure = TerrainPathFailure.PATH_TOO_SHORT)
 
         val (homeX, homeY) = frame.latLonToLocal(home.lat, home.lon)
-        val homeTerrainZ = nearestTerrainWithinRadius(
+        val coveredHomeTerrainZ = nearestTerrainWithinRadius(
             xMeters = homeX,
             yMeters = homeY,
             radiusMeters = HOME_REFERENCE_RADIUS_METERS,
-        ) ?: return TerrainPathResult(
-            failure = TerrainPathFailure.HOME_UNCOVERED,
-            firstUncoveredPoint = home,
         )
 
         val localPath = path.map { point ->
@@ -254,6 +253,25 @@ class PointCloudTerrainModel(
         val validationSpacing = missionSpacing.coerceAtMost(MAX_VALIDATED_SEGMENT_METERS)
         val validationSamples = samplePath(localPath, validationSpacing)
         val canopyRadius = canopySmoothingMeters.coerceAtLeast(0.0)
+
+        val homeTerrainZ = coveredHomeTerrainZ
+            ?: homeAltitudeAmslMeters
+                ?.takeIf { it.isFinite() }
+                ?.minus(frame.originAltMeters)
+            ?: if (!requireHomeCoverage) {
+                val first = validationSamples.first()
+                highestTerrainWithinRadius(
+                    xMeters = first.x,
+                    yMeters = first.y,
+                    radiusMeters = COVERAGE_RADIUS_METERS,
+                )
+            } else {
+                null
+            }
+            ?: return TerrainPathResult(
+                failure = TerrainPathFailure.HOME_UNCOVERED,
+                firstUncoveredPoint = home,
+            )
 
         validationSamples.forEachIndexed { index, point ->
             if (index % CANCELLATION_CHECK_INTERVAL == 0) coroutineContext.ensureActive()
