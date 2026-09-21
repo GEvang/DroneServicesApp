@@ -30,6 +30,8 @@ sealed class MissionUploadResult {
     data class Failure(val reason: String) : MissionUploadResult()
 }
 
+class MissionDownloadException(message: String) : Exception(message)
+
 /**
  * Robust mission protocol implementation.
  *
@@ -137,28 +139,23 @@ class MissionService(
             .missionType(MavMissionType.MAV_MISSION_TYPE_MISSION)
             .build()
 
-        var countMsg: MavlinkMessage<MissionCount>? = null
+        var missionCount: MissionCount? = null
         repeat(5) {
             if (cancelled(cancel)) return ArrayList()
-            client.send2(gcsSystemId, gcsComponentId, reqList)
-
-            countMsg = client.waitFor(MissionCount::class.java, timeoutMs) { m ->
-                val p = m.payload as MissionCount
-                m.originSystemId == targetSystemId &&
-                        m.originComponentId == targetComponentId &&
-                        p.missionType().entry() == MavMissionType.MAV_MISSION_TYPE_MISSION
+            missionCount = waitForDownloadedMissionCount(timeoutMs, cancel) {
+                client.send2(gcsSystemId, gcsComponentId, reqList)
             }
-            if (countMsg != null) return@repeat
+            if (missionCount != null) return@repeat
         }
 
-        if (countMsg == null) {
+        if (missionCount == null) {
             Log.e("MissionService", "No MissionCount received after retries")
-            return ArrayList()
+            throw MissionDownloadException("The vehicle did not respond with its mission count.")
         }
 
         if (cancelled(cancel)) return ArrayList()
 
-        val count = countMsg!!.payload.count()
+        val count = missionCount!!.count()
         if (count <= 0) return ArrayList()
 
         val items = ArrayList<MissionItemInt>(count)
@@ -179,8 +176,9 @@ class MissionService(
                     .seq(seq)
                     .build()
 
-                client.send2(gcsSystemId, gcsComponentId, reqInt)
-                item = waitForDownloadedMissionItem(seq, timeoutMs, cancel)
+                item = waitForDownloadedMissionItem(seq, timeoutMs, cancel) {
+                    client.send2(gcsSystemId, gcsComponentId, reqInt)
+                }
                 if (item != null) return@repeat
 
                 val reqLegacy = MissionRequest.builder()
@@ -194,8 +192,9 @@ class MissionService(
                     "MissionService",
                     "Missing MissionItemInt seq=$seq after request-int attempt=${attempt + 1}; trying legacy MissionRequest"
                 )
-                client.send2(gcsSystemId, gcsComponentId, reqLegacy)
-                item = waitForDownloadedMissionItem(seq, timeoutMs, cancel)
+                item = waitForDownloadedMissionItem(seq, timeoutMs, cancel) {
+                    client.send2(gcsSystemId, gcsComponentId, reqLegacy)
+                }
                 if (item != null) return@repeat
             }
 
@@ -203,7 +202,7 @@ class MissionService(
 
             if (item == null) {
                 Log.e("MissionService", "Missing mission item seq=$seq after INT and legacy retries")
-                return ArrayList()
+                throw MissionDownloadException("The vehicle did not return mission item $seq of $count.")
             }
 
             items.add(item!!)
@@ -772,7 +771,51 @@ class MissionService(
     }
 
 
-    private fun waitForDownloadedMissionItem(seq: Int, timeoutMs: Long, cancel: AtomicBoolean?): MissionItemInt? {
+    private fun waitForDownloadedMissionCount(
+        timeoutMs: Long,
+        cancel: AtomicBoolean?,
+        request: () -> Unit,
+    ): MissionCount? {
+        if (cancelled(cancel)) return null
+        val ref = AtomicReference<MissionCount?>(null)
+        val latch = CountDownLatch(1)
+        val disposable = client.messages()
+            .filter { msg ->
+                val payload = msg.payload
+                payload is MissionCount &&
+                    msg.originSystemId == targetSystemId &&
+                    msg.originComponentId == targetComponentId &&
+                    payload.missionType().entry() == MavMissionType.MAV_MISSION_TYPE_MISSION
+            }
+            .subscribe({ msg ->
+                val payload = msg.payload as MissionCount
+                if (ref.compareAndSet(null, payload)) latch.countDown()
+            }, { err ->
+                Log.e("MissionService", "Mission count listener failed: ${err.message}", err)
+                latch.countDown()
+            })
+
+        try {
+            // Subscribe before transmitting: SITL and local links can answer synchronously.
+            request()
+            latch.await(timeoutMs, TimeUnit.MILLISECONDS)
+            if (cancelled(cancel)) return null
+            return ref.get()
+        } catch (interrupted: InterruptedException) {
+            Log.d("MissionService", "Mission count wait interrupted; returning cancelled result")
+            Thread.currentThread().interrupt()
+            return null
+        } finally {
+            disposable.dispose()
+        }
+    }
+
+    private fun waitForDownloadedMissionItem(
+        seq: Int,
+        timeoutMs: Long,
+        cancel: AtomicBoolean?,
+        request: () -> Unit,
+    ): MissionItemInt? {
         if (cancelled(cancel)) return null
         val ref = AtomicReference<MissionItemInt?>(null)
         val latch = CountDownLatch(1)
@@ -809,6 +852,8 @@ class MissionService(
             })
 
         try {
+            // Subscribe before transmitting so an immediate response cannot be lost.
+            request()
             latch.await(timeoutMs, TimeUnit.MILLISECONDS)
             if (cancelled(cancel)) return null
             return ref.get()

@@ -27,4 +27,14 @@ class MissionMapViewModelTest {
         assertFalse(restoredState.shellState.isLeftPanelVisible)
         assertFalse(restoredState.shellState.isRightPanelVisible)
     }
+
+    @Test
+    fun idleMapNeverOpensFlightSettingsForAnExistingMission() {
+        val viewModel = MissionMapViewModel()
+
+        viewModel.setMissionAreaAvailable(true)
+        viewModel.updateFromMapState(MainActivityViewModel.MapState.Idle)
+
+        assertFalse(viewModel.homeMapUiState.value!!.shellState.isLeftPanelVisible)
+    }
 }

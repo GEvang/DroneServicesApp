@@ -79,6 +79,7 @@ import com.example.droneservicesapp.domain.planning.MissionServiceStop
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
 import com.example.droneservicesapp.domain.survey.SurveyGridPlanner
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
+import com.example.droneservicesapp.domain.terrain.PointCloudCoverage
 import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
 import com.example.droneservicesapp.domain.terrain.TerrainPathResult
 import com.example.droneservicesapp.domain.terrain.TerrainServiceCorridor
@@ -119,6 +120,7 @@ import com.google.android.material.snackbar.Snackbar
 import com.google.maps.android.SphericalUtil
 import io.dronefleet.mavlink.common.MavCmd
 import io.dronefleet.mavlink.common.MavLandedState
+import io.dronefleet.mavlink.common.MissionItemInt
 import org.osmdroid.tileprovider.cachemanager.CacheManager
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -223,6 +225,7 @@ class MissionMapFragment : Fragment() {
     private var obstaclePlacementMode: Boolean = false
     private var selectedObstacleMode: OsmdroidObstacleEditor.Mode = OsmdroidObstacleEditor.Mode.CIRCLE
     private var terrainSurveyJob: Job? = null
+    private var lastRenderedDownloadedMissionSignature: String? = null
     private var terrainRouteJob: Job? = null
     private var missionRedrawDebounceJob: Job? = null
     private var geoPlanningJob: Job? = null
@@ -477,7 +480,10 @@ class MissionMapFragment : Fragment() {
             missionParamsController = missionParamsController,
             missionSaveController = missionSaveController,
             missionLoadController = missionLoadController,
-            onEnterIdle = { droneViewModel.downloadMissionNew() }
+            onEnterIdle = {
+                renderDownloadedMission(droneViewModel.missionItems.value.orEmpty(), force = true)
+                droneViewModel.downloadMissionNew(force = true)
+            }
         )
     }
 
@@ -1913,29 +1919,7 @@ class MissionMapFragment : Fragment() {
         }
 
         droneViewModel.missionItems.observe(viewLifecycleOwner) { missionItems ->
-            if (missionItems.isNotEmpty()) {
-                osmdroidMapController.clearSurveyPath()
-
-                val surveyPath = ArrayList<LatLng>()
-                for (item in missionItems) {
-                    if (item.seq() > 0 && item.command().entry() == MavCmd.MAV_CMD_NAV_WAYPOINT) {
-                        surveyPath.add(
-                            LatLng(
-                                item.x() * 10e-8,
-                                item.y() * 10e-8
-                            )
-                        )
-                    }
-                }
-
-                // Keep the validated planning profile intact: service-leg resume depends on its
-                // work-only path and altitude alignment. Uploaded NAV items also contain transit
-                // corridors, so replacing surveyPath here would corrupt those boundaries.
-                if (activityViewModel.pointCloudMissionFailure.value != TerrainPathFailure.NONE) {
-                    activityViewModel.surveyPath.postValue(surveyPath)
-                    activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
-                }
-            }
+            renderDownloadedMission(missionItems.orEmpty())
         }
 
         droneViewModel.rtkForwardingState.observe(viewLifecycleOwner) { state ->
@@ -1960,6 +1944,50 @@ class MissionMapFragment : Fragment() {
                 details = mapOf("state" to (state?.javaClass?.simpleName ?: "Unknown"))
             )
         }
+    }
+
+    private fun renderDownloadedMission(
+        missionItems: List<MissionItemInt>,
+        force: Boolean = false,
+    ) {
+        if (activityViewModel.mapState.value != MainActivityViewModel.MapState.Idle) return
+
+        val drawableItems = missionItems
+            .sortedBy { it.seq() }
+            .filter { item ->
+                item.command().entry() in setOf(
+                    MavCmd.MAV_CMD_NAV_WAYPOINT,
+                    MavCmd.MAV_CMD_NAV_SPLINE_WAYPOINT,
+                )
+            }
+            .filter { item ->
+                val latitude = item.x().toDouble() * 1e-7
+                val longitude = item.y().toDouble() * 1e-7
+                latitude in -90.0..90.0 && longitude in -180.0..180.0
+            }
+
+        val signature = drawableItems.joinToString(separator = "|") { item ->
+            "${item.seq()}:${item.command().value()}:${item.x()}:${item.y()}"
+        }
+        if (!force && signature == lastRenderedDownloadedMissionSignature) return
+        lastRenderedDownloadedMissionSignature = signature
+
+        val downloadedPath = drawableItems.map { item ->
+            LatLng(item.x().toDouble() * 1e-7, item.y().toDouble() * 1e-7)
+        }
+        if (downloadedPath.isEmpty()) {
+            osmdroidMapController.clearSurveyPath()
+        } else {
+            osmdroidMapController.setSurveyPath(downloadedPath)
+        }
+        DiagnosticLog.event(
+            module = "mission",
+            message = "download_rendered",
+            data = mapOf(
+                "downloadedItemCount" to missionItems.size,
+                "drawnWaypointCount" to downloadedPath.size,
+            ),
+        )
     }
 
     private fun observeMapState() {
@@ -3301,6 +3329,7 @@ class MissionMapFragment : Fragment() {
     private fun drawSprayMissionOnMap(distance: Double, angle: Int, generation: Long) {
         terrainSurveyJob?.cancel()
         activityViewModel.pointCloudCoversMissionArea.value = false
+        activityViewModel.pointCloudCoverage.value = PointCloudCoverage.CHECKING
         activityViewModel.pointCloudMissionFailure.value = TerrainPathFailure.VALIDATION_PENDING
         activityViewModel.pointCloudMissionFirstUncoveredPoint.value = null
         activityViewModel.pointCloudProfileHome.value = null
@@ -3327,6 +3356,7 @@ class MissionMapFragment : Fragment() {
                 val work: TerrainPathResult,
                 val outbound: TerrainPathResult,
                 val returnHome: TerrainPathResult,
+                val hasPointCloudOverlap: Boolean,
                 val serviceCorridors: List<TerrainServiceCorridor> = emptyList(),
                 val serviceFailure: TerrainPathResult? = null,
             )
@@ -3342,11 +3372,13 @@ class MissionMapFragment : Fragment() {
                     rawBasePath.map { LatLng(it.lat, it.lon) },
                     plannedHome,
                 ).map { LatLon(it.latitude, it.longitude) }
+                val hasPointCloudOverlap =
+                    terrainModel != null && terrainModel.hasPointsInside(polygonLatLon)
                 val canBuildPointCloudProfile =
                     terrainModel != null &&
                     generatedBasePath.isNotEmpty() &&
                     plannedHome != null &&
-                    terrainModel.hasPointsInside(polygonLatLon)
+                    hasPointCloudOverlap
                 if (canBuildPointCloudProfile) {
                     val safeHome = requireNotNull(plannedHome)
                     val safeTerrainModel = requireNotNull(terrainModel)
@@ -3421,6 +3453,7 @@ class MissionMapFragment : Fragment() {
                         work = workResult,
                         outbound = outboundResult,
                         returnHome = returnResult,
+                        hasPointCloudOverlap = true,
                         serviceCorridors = serviceCorridors,
                         serviceFailure = serviceFailure,
                     )
@@ -3437,6 +3470,7 @@ class MissionMapFragment : Fragment() {
                         work = TerrainPathResult(failure = failure),
                         outbound = TerrainPathResult(failure = failure),
                         returnHome = TerrainPathResult(failure = failure),
+                        hasPointCloudOverlap = hasPointCloudOverlap,
                     )
                 }
             }
@@ -3451,6 +3485,10 @@ class MissionMapFragment : Fragment() {
             val failed = results.firstOrNull { !it.isValid }
             if (failed == null) {
                 activityViewModel.pointCloudCoversMissionArea.value = true
+                activityViewModel.pointCloudCoverage.value = PointCloudCoverage.classify(
+                    hasPointCloudOverlap = generated.hasPointCloudOverlap,
+                    allRequiredFlightPathsCovered = true,
+                )
                 activityViewModel.pointCloudMissionFailure.value = TerrainPathFailure.NONE
                 activityViewModel.pointCloudMissionFirstUncoveredPoint.value = null
                 activityViewModel.pointCloudProfileHome.value = plannedHome
@@ -3464,6 +3502,10 @@ class MissionMapFragment : Fragment() {
                 )
             } else {
                 activityViewModel.pointCloudCoversMissionArea.value = false
+                activityViewModel.pointCloudCoverage.value = PointCloudCoverage.classify(
+                    hasPointCloudOverlap = generated.hasPointCloudOverlap,
+                    allRequiredFlightPathsCovered = false,
+                )
                 activityViewModel.pointCloudMissionFailure.value = failed.failure
                 activityViewModel.pointCloudMissionFirstUncoveredPoint.value = failed.firstUncoveredPoint
                 activityViewModel.pointCloudProfileHome.value = null

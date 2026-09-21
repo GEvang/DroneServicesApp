@@ -8,6 +8,7 @@
   <string name="parameters_title">Παράμετροι</string>
   <string name="spray_mode_terrain_rangefinder">Λειτουργία: Χαμηλές καλλιέργειες</string>
   <string name="spray_mode_relative_point_cloud">Λειτουργία: Δενδρώδεις καλλιέργειες</string>
+  <string name="spray_mode_point_cloud_partial">Λειτουργία: Μικρές καλλιέργειες · Μερική κάλυψη νέφους σημείων</string>
   <string name="flight_speed_label">Ταχύτητα</string>
   <string name="terrain_source_not_confirmed">Αναμονή επιβεβαίωσης της απαιτούμενης πηγής εδάφους από το όχημα. Δοκιμάστε ξανά σε λίγο.</string>
   <string name="terrain_database_enabling">Επιλέχθηκε αποστολή με υψόμετρο εδάφους. Ενεργοποιείται η βάση δεδομένων εδάφους του οχήματος και αναμένεται επιβεβαίωση. Ανεβάστε ξανά μόλις επιβεβαιωθεί.</string>

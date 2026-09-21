@@ -13,11 +13,12 @@
     <string name="menu_debug">Debug</string>
     <string name="menu_parameters">Parameters</string>
     <string name="parameters_title">Parameters</string>
-    <string name="spray_mode_terrain_rangefinder">Mode: Field Crops</string>
+    <string name="spray_mode_terrain_rangefinder">Mode: Small Crop Area</string>
     <string name="spray_mode_relative_point_cloud">Mode: Tree Crops</string>
-    <string name="spray_mode_point_cloud_validated">Mode: Tree Crops · Point cloud validated</string>
-    <string name="spray_mode_point_cloud_validating">Mode: Tree Crops · Validating point cloud…</string>
-    <string name="spray_mode_point_cloud_incomplete">Mode: Tree Crops · Incomplete point-cloud coverage</string>
+    <string name="spray_mode_point_cloud_validated">Mode: Tree Crop Area · Complete point-cloud coverage</string>
+    <string name="spray_mode_point_cloud_validating">Checking point-cloud coverage…</string>
+    <string name="spray_mode_point_cloud_incomplete">Mode: Small Crop Area · Partial point-cloud coverage</string>
+    <string name="spray_mode_point_cloud_partial">Mode: Small Crop Area · Partial point-cloud coverage</string>
     <string name="point_cloud_home_uncovered">Point-cloud mission blocked: the takeoff/home position is not fully covered by the loaded point cloud.</string>
     <string name="point_cloud_path_uncovered">Point-cloud mission blocked: part of the flight path is outside the loaded point cloud or crosses a data gap.</string>
     <string name="point_cloud_path_uncovered_at">Point-cloud mission blocked near %1$.7f, %2$.7f: the flight path leaves the loaded point cloud or crosses a data gap.</string>

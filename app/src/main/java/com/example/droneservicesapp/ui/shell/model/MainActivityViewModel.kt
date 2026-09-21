@@ -23,6 +23,7 @@ import com.example.droneservicesapp.domain.planning.MissionServiceLeg
 import com.example.droneservicesapp.domain.survey.SprayPresets
 import com.example.droneservicesapp.domain.survey.SprayFlowCalibration
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
+import com.example.droneservicesapp.domain.terrain.PointCloudCoverage
 import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
 import com.example.droneservicesapp.domain.terrain.TerrainServiceCorridor
 import com.google.android.gms.maps.model.LatLng
@@ -189,6 +190,10 @@ class MainActivityViewModel : ViewModel() {
     /** True only when home and every sampled work/transit point have local cloud coverage. */
     val pointCloudCoversMissionArea: MutableLiveData<Boolean> by lazy {
         MutableLiveData(false)
+    }
+
+    val pointCloudCoverage: MutableLiveData<PointCloudCoverage> by lazy {
+        MutableLiveData(PointCloudCoverage.NONE)
     }
 
     val missionObstacles: MutableLiveData<List<MissionObstacle>> by lazy {
@@ -656,6 +661,7 @@ class MainActivityViewModel : ViewModel() {
         terrainReturnWaypoints.value = emptyList()
         terrainServiceCorridors.value = emptyList()
         pointCloudCoversMissionArea.value = false
+        pointCloudCoverage.value = PointCloudCoverage.NONE
         pointCloudMissionFailure.value = failure
         pointCloudMissionFirstUncoveredPoint.value = null
         pointCloudProfileHome.value = null

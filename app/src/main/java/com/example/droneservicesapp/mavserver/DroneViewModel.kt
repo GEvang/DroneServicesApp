@@ -55,6 +55,7 @@ class DroneViewModel : ViewModel() {
         private const val HEARTBEAT_STALE_MS = 2500L
         private const val TELEMETRY_STALE_MS = 2500L
         private const val MISSION_DEBOUNCE_MS = 1500L
+        private const val MISSION_REFRESH_MS = 10_000L
         private const val UPLOAD_TIMEOUT_MS = 8000L
         private const val GCS_COMPONENT_ID = 190
         private const val MAVLINK_SYSTEM_ALL = 0
@@ -625,6 +626,14 @@ class DroneViewModel : ViewModel() {
                             HEARTBEAT_STALE_MS
                         )
                         stateStore.conStateLiveData.postValue(connected)
+                        if (
+                            connected &&
+                            runtimeState.autopilotSysId != -1 &&
+                            now - runtimeState.lastMissionRefreshMs >= MISSION_REFRESH_MS
+                        ) {
+                            runtimeState.lastMissionRefreshMs = now
+                            downloadMissionNew()
+                        }
                         if (runtimeState.lastLoggedConnectionState != connected) {
                             runtimeState.lastLoggedConnectionState = connected
                             if (connected) {

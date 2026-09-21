@@ -19,6 +19,7 @@ data class HomeMapUiState(
         ): HomeMapUiState {
             val shellState = HomeMapShellUiState(
                 isLeftPanelVisible = hasMissionArea &&
+                    screenMode == HomeMapScreenMode.EditingParams &&
                     !arePanelsDismissed &&
                     screenMode != HomeMapScreenMode.SavingMission &&
                     screenMode != HomeMapScreenMode.LoadingMission,

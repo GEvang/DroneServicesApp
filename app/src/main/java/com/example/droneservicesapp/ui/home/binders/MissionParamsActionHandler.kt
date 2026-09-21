@@ -77,12 +77,14 @@ class MissionParamsActionHandler(
         val validatedSprayer = sprayer ?: return
         val validatedSpeed = speed ?: return
         val validatedAngle = angle ?: return
-        if (workflow == PlanningWorkflow.AREA && operationMode == PlanningOperationMode.SPRAY) {
+        if (
+            workflow == PlanningWorkflow.AREA &&
+            operationMode == PlanningOperationMode.SPRAY &&
+            activityViewModel.pointCloudCoversMissionArea.value == true
+        ) {
             val pointCloudFailure = activityViewModel.pointCloudMissionFailure.value
                 ?: TerrainPathFailure.NO_GEOREFERENCE
-            if (pointCloudFailure != TerrainPathFailure.NONE &&
-                pointCloudFailure != TerrainPathFailure.NO_GEOREFERENCE
-            ) {
+            if (pointCloudFailure != TerrainPathFailure.NONE) {
                 return showPointCloudValidationFailure(pointCloudFailure)
             }
             if (pointCloudFailure == TerrainPathFailure.NONE) {

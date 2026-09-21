@@ -14,7 +14,7 @@ import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.survey.SprayPresets
-import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
+import com.example.droneservicesapp.domain.terrain.PointCloudCoverage
 import com.example.droneservicesapp.ui.home.model.MissionParamsUiState
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import java.util.Locale
@@ -48,7 +48,7 @@ class MissionParamsRenderer(
         renderPreset(activityViewModel.selectedSprayPresetId.value)
         renderMode(
             missionParamsUiState.operationMode,
-            activityViewModel.pointCloudCoversMissionArea.value == true
+            activityViewModel.pointCloudCoverage.value ?: PointCloudCoverage.NONE
         )
         renderSurveyValues(missionParamsUiState)
         bindPresetSelector()
@@ -78,22 +78,24 @@ class MissionParamsRenderer(
         activityViewModel.planningOperationMode.observe(lifecycleOwner) { mode ->
             val operationMode = mode ?: PlanningOperationMode.SURVEY
             missionParamsUiState = missionParamsUiState.copy(operationMode = operationMode)
-            renderMode(operationMode, activityViewModel.pointCloudCoversMissionArea.value == true)
+            renderMode(
+                operationMode,
+                activityViewModel.pointCloudCoverage.value ?: PointCloudCoverage.NONE,
+            )
         }
 
         activityViewModel.activePlanningWorkflow.observe(lifecycleOwner) {
             renderMode(
                 missionParamsUiState.operationMode,
-                activityViewModel.pointCloudCoversMissionArea.value == true
+                activityViewModel.pointCloudCoverage.value ?: PointCloudCoverage.NONE
             )
         }
 
-        activityViewModel.pointCloudCoversMissionArea.observe(lifecycleOwner) { covered ->
-            renderMode(missionParamsUiState.operationMode, covered == true)
-        }
-
-        activityViewModel.pointCloudMissionFailure.observe(lifecycleOwner) {
-            renderPointCloudStatus(missionParamsUiState.operationMode)
+        activityViewModel.pointCloudCoverage.observe(lifecycleOwner) { coverage ->
+            renderMode(
+                missionParamsUiState.operationMode,
+                coverage ?: PointCloudCoverage.NONE,
+            )
         }
 
         bindSurveyField(activityViewModel.surveyStripSpacing) { value ->
@@ -174,11 +176,11 @@ class MissionParamsRenderer(
         views.presetSelector.text = SprayPresets.byId(presetId).label
     }
 
-    private fun renderMode(mode: PlanningOperationMode, hasPointCloudInArea: Boolean) {
+    private fun renderMode(mode: PlanningOperationMode, coverage: PointCloudCoverage) {
         val isSurvey = mode == PlanningOperationMode.SURVEY
         val isPointRoute = activityViewModel.activePlanningWorkflow.value ==
             com.example.droneservicesapp.domain.model.PlanningWorkflow.POINTS
-        val isThreeDimensionalSpray = !isSurvey && hasPointCloudInArea
+        val isThreeDimensionalSpray = !isSurvey && coverage == PointCloudCoverage.COMPLETE
         arrangeParameterFields(isSurvey, isPointRoute)
         views.surveyModeSection.isVisible = isSurvey
         views.sprayModeSection.isVisible = !isSurvey
@@ -197,7 +199,7 @@ class MissionParamsRenderer(
         views.speedTimeRow.isVisible = true
         views.flightTimeValue.isVisible = false
         views.flightTimeUnit.isVisible = false
-        renderPointCloudStatus(mode)
+        renderPointCloudStatus(mode, coverage)
 
         if (!isSurvey) {
             val requiredMode = if (isThreeDimensionalSpray) {
@@ -211,15 +213,16 @@ class MissionParamsRenderer(
         }
     }
 
-    private fun renderPointCloudStatus(mode: PlanningOperationMode) {
+    private fun renderPointCloudStatus(
+        mode: PlanningOperationMode,
+        coverage: PointCloudCoverage,
+    ) {
         if (mode == PlanningOperationMode.SURVEY) return
-        val label = when (activityViewModel.pointCloudMissionFailure.value) {
-            TerrainPathFailure.NONE -> R.string.spray_mode_point_cloud_validated
-            TerrainPathFailure.VALIDATION_PENDING -> R.string.spray_mode_point_cloud_validating
-            TerrainPathFailure.HOME_UNCOVERED,
-            TerrainPathFailure.PATH_UNCOVERED,
-            TerrainPathFailure.PATH_TOO_SHORT -> R.string.spray_mode_point_cloud_incomplete
-            else -> R.string.spray_mode_terrain_rangefinder
+        val label = when (coverage) {
+            PointCloudCoverage.CHECKING -> R.string.spray_mode_point_cloud_validating
+            PointCloudCoverage.COMPLETE -> R.string.spray_mode_point_cloud_validated
+            PointCloudCoverage.PARTIAL -> R.string.spray_mode_point_cloud_partial
+            PointCloudCoverage.NONE -> R.string.spray_mode_terrain_rangefinder
         }
         views.sprayAltitudeModeStatus.setText(label)
     }
