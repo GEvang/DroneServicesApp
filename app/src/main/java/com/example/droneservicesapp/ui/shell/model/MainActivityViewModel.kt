@@ -23,6 +23,8 @@ import com.example.droneservicesapp.domain.planning.MissionServiceLeg
 import com.example.droneservicesapp.domain.survey.SprayPresets
 import com.example.droneservicesapp.domain.survey.SprayFlowCalibration
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
+import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
+import com.example.droneservicesapp.domain.terrain.TerrainServiceCorridor
 import com.google.android.gms.maps.model.LatLng
 
 class MainActivityViewModel : ViewModel() {
@@ -150,6 +152,32 @@ class MainActivityViewModel : ViewModel() {
         MutableLiveData(emptyList())
     }
 
+    /** Point-cloud-profiled, non-spraying corridor from home to the work path. */
+    val terrainOutboundWaypoints: MutableLiveData<List<TerrainWaypoint>> by lazy {
+        MutableLiveData(emptyList())
+    }
+
+    /** Point-cloud-profiled, non-spraying corridor from the work path back to home. */
+    val terrainReturnWaypoints: MutableLiveData<List<TerrainWaypoint>> by lazy {
+        MutableLiveData(emptyList())
+    }
+
+    val terrainServiceCorridors: MutableLiveData<List<TerrainServiceCorridor>> by lazy {
+        MutableLiveData(emptyList())
+    }
+
+    val pointCloudMissionFailure: MutableLiveData<TerrainPathFailure> by lazy {
+        MutableLiveData(TerrainPathFailure.NO_GEOREFERENCE)
+    }
+
+    val pointCloudMissionFirstUncoveredPoint: MutableLiveData<LatLon?> by lazy {
+        MutableLiveData(null)
+    }
+
+    val pointCloudProfileHome: MutableLiveData<LatLon?> by lazy {
+        MutableLiveData(null)
+    }
+
     enum class ServiceMissionState {
         IDLE,
         LEG_UPLOADING,
@@ -158,7 +186,7 @@ class MainActivityViewModel : ViewModel() {
         WAITING_FOR_SERVICE,
     }
 
-    /** True only when a georeferenced point cloud contributes points inside the drawn area. */
+    /** True only when home and every sampled work/transit point have local cloud coverage. */
     val pointCloudCoversMissionArea: MutableLiveData<Boolean> by lazy {
         MutableLiveData(false)
     }
@@ -622,12 +650,23 @@ class MainActivityViewModel : ViewModel() {
         serviceMissionState.value = ServiceMissionState.IDLE
     }
 
+    fun clearPointCloudMissionProfile(failure: TerrainPathFailure = TerrainPathFailure.NO_GEOREFERENCE) {
+        terrainSurveyWaypoints.value = emptyList()
+        terrainOutboundWaypoints.value = emptyList()
+        terrainReturnWaypoints.value = emptyList()
+        terrainServiceCorridors.value = emptyList()
+        pointCloudCoversMissionArea.value = false
+        pointCloudMissionFailure.value = failure
+        pointCloudMissionFirstUncoveredPoint.value = null
+        pointCloudProfileHome.value = null
+    }
+
     fun applySavedMission(mission: SavedMission) {
         // A loaded mission replaces whichever geometry is currently on the map.
         clearPolygonVertices()
         clearRouteWaypoints()
         surveyPath.value = emptyList()
-        terrainSurveyWaypoints.value = emptyList()
+        clearPointCloudMissionProfile()
         setPlanningOperationMode(mission.operationMode)
         setPlanningWorkflow(mission.workflow)
         updateMissionAngle(mission.angleDegrees, markCustom = false)
@@ -653,17 +692,9 @@ class MainActivityViewModel : ViewModel() {
         plannedHomePosition.value = mission.plannedHomePosition
         missionObstacles.value = mission.obstacles
         surveyPath.value = if (mission.workflow == PlanningWorkflow.AREA) mission.surveyPath else emptyList()
-        terrainSurveyWaypoints.value = if (mission.workflow == PlanningWorkflow.AREA) {
-            mission.terrainSurveyWaypoints.map {
-                TerrainWaypoint(
-                    latLon = it.position,
-                    displayAltitudeMeters = it.displayAltitudeMeters,
-                    missionAltitudeMeters = it.missionAltitudeMeters
-                )
-            }
-        } else {
-            emptyList()
-        }
+        // Persisted point-cloud altitudes are display hints only. They must be regenerated and
+        // revalidated against the currently loaded cloud and current home before upload.
+        terrainSurveyWaypoints.value = emptyList()
         mapState.value = MapState.SetFlightParams
     }
 

@@ -173,4 +173,33 @@ class MissionBuilderTest {
         assertEquals(MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, missionItems[2].frame().entry())
         assertEquals(MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT, missionItems[3].frame().entry())
     }
+
+    @Test
+    fun sprayMissionUsesValidatedOutboundWorkAndReturnAltitudes() {
+        val missionItems = MissionBuilder.buildSprayAreaMission(
+            waypoints = arrayListOf(LatLng(35.0002, 24.0), LatLng(35.0003, 24.0)),
+            currentLatitude = 35.0,
+            currentLongitude = 24.0,
+            alt = 5f,
+            sprayerIntensity = 75,
+            flightSpeed = 3f,
+            angleProgress = 90f,
+            targetSystemId = 1,
+            targetComponentId = 1,
+            altitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
+            waypointAltitudes = listOf(12f, 14f),
+            preserveWaypointOrder = true,
+            outboundPath = listOf(LatLng(35.0, 24.0), LatLng(35.0001, 24.0)),
+            outboundAltitudes = listOf(8f, 10f),
+            returnPathToHome = listOf(LatLng(35.0003, 24.0), LatLng(35.0, 24.0)),
+            returnAltitudes = listOf(14f, 8f),
+        )
+
+        val navItems = missionItems.filter {
+            it.command().entry() == MavCmd.MAV_CMD_NAV_WAYPOINT
+        }
+        assertEquals(8f, missionItems.first().z(), 0.001f)
+        assertEquals(listOf(10f, 12f, 14f, 8f), navItems.map { it.z() })
+        assertEquals(MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, navItems.first().frame().entry())
+    }
 }

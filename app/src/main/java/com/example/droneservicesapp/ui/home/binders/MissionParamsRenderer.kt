@@ -14,6 +14,7 @@ import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.survey.SprayPresets
+import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
 import com.example.droneservicesapp.ui.home.model.MissionParamsUiState
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import java.util.Locale
@@ -89,6 +90,10 @@ class MissionParamsRenderer(
 
         activityViewModel.pointCloudCoversMissionArea.observe(lifecycleOwner) { covered ->
             renderMode(missionParamsUiState.operationMode, covered == true)
+        }
+
+        activityViewModel.pointCloudMissionFailure.observe(lifecycleOwner) {
+            renderPointCloudStatus(missionParamsUiState.operationMode)
         }
 
         bindSurveyField(activityViewModel.surveyStripSpacing) { value ->
@@ -192,10 +197,7 @@ class MissionParamsRenderer(
         views.speedTimeRow.isVisible = true
         views.flightTimeValue.isVisible = false
         views.flightTimeUnit.isVisible = false
-        views.sprayAltitudeModeStatus.setText(
-            if (isThreeDimensionalSpray) R.string.spray_mode_relative_point_cloud
-            else R.string.spray_mode_terrain_rangefinder
-        )
+        renderPointCloudStatus(mode)
 
         if (!isSurvey) {
             val requiredMode = if (isThreeDimensionalSpray) {
@@ -207,6 +209,19 @@ class MissionParamsRenderer(
                 activityViewModel.setAltitudeReferenceMode(requiredMode)
             }
         }
+    }
+
+    private fun renderPointCloudStatus(mode: PlanningOperationMode) {
+        if (mode == PlanningOperationMode.SURVEY) return
+        val label = when (activityViewModel.pointCloudMissionFailure.value) {
+            TerrainPathFailure.NONE -> R.string.spray_mode_point_cloud_validated
+            TerrainPathFailure.VALIDATION_PENDING -> R.string.spray_mode_point_cloud_validating
+            TerrainPathFailure.HOME_UNCOVERED,
+            TerrainPathFailure.PATH_UNCOVERED,
+            TerrainPathFailure.PATH_TOO_SHORT -> R.string.spray_mode_point_cloud_incomplete
+            else -> R.string.spray_mode_terrain_rangefinder
+        }
+        views.sprayAltitudeModeStatus.setText(label)
     }
 
     private fun arrangeParameterFields(isSurvey: Boolean, isPointRoute: Boolean) {

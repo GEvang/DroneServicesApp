@@ -19,6 +19,31 @@ data class TerrainWaypoint(
     val missionAltitudeMeters: Double
 )
 
+enum class TerrainPathFailure {
+    NONE,
+    VALIDATION_PENDING,
+    NO_GEOREFERENCE,
+    PATH_TOO_SHORT,
+    HOME_UNCOVERED,
+    PATH_UNCOVERED,
+}
+
+data class TerrainPathResult(
+    val waypoints: List<TerrainWaypoint> = emptyList(),
+    val failure: TerrainPathFailure = TerrainPathFailure.NONE,
+    val firstUncoveredPoint: LatLon? = null,
+    val homeTerrainZMeters: Double? = null,
+) {
+    val isValid: Boolean
+        get() = failure == TerrainPathFailure.NONE && waypoints.size >= 2
+}
+
+data class TerrainServiceCorridor(
+    val pathDistanceMeters: Double,
+    val outboundWaypoints: List<TerrainWaypoint>,
+    val returnWaypoints: List<TerrainWaypoint>,
+)
+
 data class TerrainGridSummary(
     val cellSizeMeters: Double,
     val cellCount: Int,
@@ -194,6 +219,85 @@ class PointCloudTerrainModel(
         }
     }
 
+    /**
+     * Builds an upload-safe terrain path without substituting fallback heights for missing data.
+     * Every metre of the path must have local point-cloud support and all mission altitudes share
+     * the point-cloud surface at home as their relative-altitude zero.
+     */
+    suspend fun buildValidatedTerrainPath(
+        path: List<LatLon>,
+        home: LatLon,
+        heightAboveTerrainMeters: Double,
+        segmentMeters: Double,
+        canopySmoothingMeters: Double,
+    ): TerrainPathResult {
+        val frame = coordinateFrame ?: return TerrainPathResult(
+            failure = TerrainPathFailure.NO_GEOREFERENCE
+        )
+        if (path.size < 2) return TerrainPathResult(failure = TerrainPathFailure.PATH_TOO_SHORT)
+
+        val (homeX, homeY) = frame.latLonToLocal(home.lat, home.lon)
+        val homeTerrainZ = nearestTerrainWithinRadius(
+            xMeters = homeX,
+            yMeters = homeY,
+            radiusMeters = HOME_REFERENCE_RADIUS_METERS,
+        ) ?: return TerrainPathResult(
+            failure = TerrainPathFailure.HOME_UNCOVERED,
+            firstUncoveredPoint = home,
+        )
+
+        val localPath = path.map { point ->
+            val (x, y) = frame.latLonToLocal(point.lat, point.lon)
+            LocalPoint(x, y)
+        }
+        val missionSpacing = segmentMeters.coerceAtLeast(MIN_SEGMENT_METERS)
+        val validationSpacing = missionSpacing.coerceAtMost(MAX_VALIDATED_SEGMENT_METERS)
+        val validationSamples = samplePath(localPath, validationSpacing)
+        val canopyRadius = canopySmoothingMeters.coerceAtLeast(0.0)
+
+        validationSamples.forEachIndexed { index, point ->
+            if (index % CANCELLATION_CHECK_INTERVAL == 0) coroutineContext.ensureActive()
+            if (!hasLocalCoverage(point.x, point.y)) {
+                val (lat, lon) = frame.localToLatLon(point.x, point.y)
+                return TerrainPathResult(
+                    failure = TerrainPathFailure.PATH_UNCOVERED,
+                    firstUncoveredPoint = LatLon(lat, lon),
+                    homeTerrainZMeters = homeTerrainZ,
+                )
+            }
+        }
+
+        val missionSamples = samplePath(localPath, missionSpacing)
+        val waypoints = ArrayList<TerrainWaypoint>(missionSamples.size)
+        val profileRadius = max(max(DEFAULT_SEARCH_RADIUS_METERS, canopyRadius), missionSpacing)
+        missionSamples.forEachIndexed { index, point ->
+            if (index % CANCELLATION_CHECK_INTERVAL == 0) coroutineContext.ensureActive()
+            val (lat, lon) = frame.localToLatLon(point.x, point.y)
+            val latLon = LatLon(lat, lon)
+            val terrainZ = highestTerrainWithinRadius(
+                xMeters = point.x,
+                yMeters = point.y,
+                // Include at least one full mission segment so linear interpolation between
+                // adjacent uploaded waypoints cannot cut below an intervening sampled peak.
+                radiusMeters = profileRadius,
+            ) ?: return TerrainPathResult(
+                failure = TerrainPathFailure.PATH_UNCOVERED,
+                firstUncoveredPoint = latLon,
+                homeTerrainZMeters = homeTerrainZ,
+            )
+            waypoints += TerrainWaypoint(
+                latLon = latLon,
+                displayAltitudeMeters = terrainZ + heightAboveTerrainMeters,
+                missionAltitudeMeters = terrainZ - homeTerrainZ + heightAboveTerrainMeters,
+            )
+        }
+
+        return TerrainPathResult(
+            waypoints = waypoints,
+            homeTerrainZMeters = homeTerrainZ,
+        )
+    }
+
     fun terrainHeightAt(
         xMeters: Double,
         yMeters: Double,
@@ -201,10 +305,25 @@ class PointCloudTerrainModel(
         canopyRadiusMeters: Double = 0.0,
         fallback: Double = fallbackTerrainZ
     ): Double {
-        if (terrainGrid.isEmpty()) return fallback
-        val searchCells = ceil(searchRadiusMeters / cellSizeMeters).toInt().coerceAtLeast(1)
-        val canopyCells = ceil(canopyRadiusMeters / cellSizeMeters).toInt().coerceAtLeast(0)
-        val radiusCells = max(searchCells, canopyCells)
+        return highestTerrainWithinRadius(
+            xMeters = xMeters,
+            yMeters = yMeters,
+            radiusMeters = max(searchRadiusMeters, canopyRadiusMeters),
+        ) ?: fallback
+    }
+
+    private fun hasLocalCoverage(xMeters: Double, yMeters: Double): Boolean =
+        highestTerrainWithinRadius(xMeters, yMeters, COVERAGE_RADIUS_METERS) != null
+
+    private fun highestTerrainWithinRadius(
+        xMeters: Double,
+        yMeters: Double,
+        radiusMeters: Double,
+    ): Double? {
+        if (terrainGrid.isEmpty()) return null
+        val radiusCells = ceil(radiusMeters.coerceAtLeast(0.0) / cellSizeMeters)
+            .toInt()
+            .coerceAtLeast(0)
         val radiusCellsSquared = radiusCells * radiusCells
         val centerX = floor(xMeters / cellSizeMeters).toInt()
         val centerY = floor(yMeters / cellSizeMeters).toInt()
@@ -218,7 +337,55 @@ class PointCloudTerrainModel(
             }
         }
 
-        return best?.toDouble() ?: fallback
+        return best?.toDouble()
+    }
+
+    private fun nearestTerrainWithinRadius(
+        xMeters: Double,
+        yMeters: Double,
+        radiusMeters: Double,
+    ): Double? {
+        if (terrainGrid.isEmpty()) return null
+        val radiusCells = ceil(radiusMeters.coerceAtLeast(0.0) / cellSizeMeters)
+            .toInt()
+            .coerceAtLeast(0)
+        val radiusCellsSquared = radiusCells * radiusCells
+        val centerX = floor(xMeters / cellSizeMeters).toInt()
+        val centerY = floor(yMeters / cellSizeMeters).toInt()
+        var nearestDistanceSquared = Int.MAX_VALUE
+        var nearest: Float? = null
+        for (dx in -radiusCells..radiusCells) {
+            for (dy in -radiusCells..radiusCells) {
+                val distanceSquared = dx * dx + dy * dy
+                if (distanceSquared > radiusCellsSquared || distanceSquared > nearestDistanceSquared) continue
+                val z = terrainGrid.getOrNaN(packCellKey(centerX + dx, centerY + dy))
+                if (!z.isNaN() &&
+                    (distanceSquared < nearestDistanceSquared || nearest == null || z > nearest)
+                ) {
+                    nearestDistanceSquared = distanceSquared
+                    nearest = z
+                }
+            }
+        }
+        return nearest?.toDouble()
+    }
+
+    private fun samplePath(path: List<LocalPoint>, spacingMeters: Double): List<LocalPoint> {
+        val sampled = ArrayList<LocalPoint>()
+        path.zipWithNext().forEach { (from, to) ->
+            val segmentCount = ceil(hypot(to.x - from.x, to.y - from.y) / spacingMeters)
+                .toInt()
+                .coerceAtLeast(1)
+            for (segmentIndex in 0 until segmentCount) {
+                val t = segmentIndex.toDouble() / segmentCount
+                sampled += LocalPoint(
+                    x = from.x + (to.x - from.x) * t,
+                    y = from.y + (to.y - from.y) * t,
+                )
+            }
+        }
+        sampled += path.last()
+        return sampled
     }
 
     private fun buildTerrainGrid(): LongFloatMaxMap {
@@ -415,6 +582,9 @@ class PointCloudTerrainModel(
         private const val VALUES_PER_POINT = 3
         private const val DEFAULT_CELL_SIZE_METERS = 1.0
         private const val DEFAULT_SEARCH_RADIUS_METERS = 2.0
+        private const val COVERAGE_RADIUS_METERS = 2.0
+        private const val HOME_REFERENCE_RADIUS_METERS = 2.0
+        private const val MAX_VALIDATED_SEGMENT_METERS = 1.0
         private const val MIN_SEGMENT_METERS = 0.5
         private const val MIN_STRIP_SPACING_METERS = 1.0
         private const val CANCELLATION_CHECK_INTERVAL = 4096

@@ -157,7 +157,7 @@ class MissionLoadController(
         activityViewModel.clearPolygonVertices()
         activityViewModel.clearRouteWaypoints()
         activityViewModel.surveyPath.postValue(path)
-        activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
+        activityViewModel.clearPointCloudMissionProfile()
         activityViewModel.updateSurveyHeightAboveTerrain(averageAltitude.toInt().coerceIn(0, 120))
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.SetFlightParams)
         DiagnosticLog.event("mission", "waypoints_loaded", data = mapOf("itemCount" to items.size, "averageAltitudeMeters" to averageAltitude))

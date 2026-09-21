@@ -56,7 +56,48 @@ object MissionBuilder {
         waypointAltitudes: List<Float>? = null,
         startClosestToHome: Boolean = true,
         preserveWaypointOrder: Boolean = false,
+        outboundPath: List<LatLng> = emptyList(),
+        outboundAltitudes: List<Float>? = null,
         returnPathToHome: List<LatLng> = emptyList(),
+        returnAltitudes: List<Float>? = null,
+    ): ArrayList<MissionItemInt> = buildSprayAreaMission(
+        waypoints = waypoints,
+        currentLatitude = currentPos.latitude,
+        currentLongitude = currentPos.longitude,
+        alt = alt,
+        sprayerIntensity = sprayerIntensity,
+        flightSpeed = flightSpeed,
+        angleProgress = angleProgress,
+        targetSystemId = targetSystemId,
+        targetComponentId = targetComponentId,
+        altitudeReferenceMode = altitudeReferenceMode,
+        waypointAltitudes = waypointAltitudes,
+        startClosestToHome = startClosestToHome,
+        preserveWaypointOrder = preserveWaypointOrder,
+        outboundPath = outboundPath,
+        outboundAltitudes = outboundAltitudes,
+        returnPathToHome = returnPathToHome,
+        returnAltitudes = returnAltitudes,
+    )
+
+    internal fun buildSprayAreaMission(
+        waypoints: ArrayList<LatLng>,
+        currentLatitude: Double,
+        currentLongitude: Double,
+        alt: Float,
+        sprayerIntensity: Int,
+        flightSpeed: Float,
+        angleProgress: Float,
+        targetSystemId: Int,
+        targetComponentId: Int,
+        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
+        waypointAltitudes: List<Float>? = null,
+        startClosestToHome: Boolean = true,
+        preserveWaypointOrder: Boolean = false,
+        outboundPath: List<LatLng> = emptyList(),
+        outboundAltitudes: List<Float>? = null,
+        returnPathToHome: List<LatLng> = emptyList(),
+        returnAltitudes: List<Float>? = null,
     ): ArrayList<MissionItemInt> {
 
         val sprayerIntensityPWM = servo5PwmForSprayerIntensity(sprayerIntensity)
@@ -68,8 +109,8 @@ object MissionBuilder {
         val orderedPath = orderAreaPath(
             waypoints = waypoints,
             waypointAltitudes = waypointAltitudes,
-            homeLatitude = currentPos.latitude,
-            homeLongitude = currentPos.longitude,
+            homeLatitude = currentLatitude,
+            homeLongitude = currentLongitude,
             startClosestToHome = startClosestToHome,
             preserveWaypointOrder = preserveWaypointOrder,
         )
@@ -115,11 +156,27 @@ object MissionBuilder {
                 command = MavCmd.MAV_CMD_NAV_TAKEOFF,
                 currentFlag = 1,
                 p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
-                x = currentPos.latitude.toE7(),
-                y = currentPos.longitude.toE7(),
-                z = alt
+                x = currentLatitude.toE7(),
+                y = currentLongitude.toE7(),
+                z = maxOf(alt, outboundAltitudes?.firstOrNull() ?: alt)
             )
         )
+
+        // The first outbound point is home itself. TAKEOFF above already establishes its safe
+        // altitude, so only the remaining non-spraying corridor points are uploaded here.
+        outboundPath.drop(1).forEachIndexed { index, waypoint ->
+            missionItems.add(
+                buildItem(
+                    frame = waypointFrame,
+                    command = MavCmd.MAV_CMD_NAV_WAYPOINT,
+                    currentFlag = 0,
+                    p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
+                    x = waypoint.latitude.toE7(),
+                    y = waypoint.longitude.toE7(),
+                    z = outboundAltitudes?.getOrNull(index + 1) ?: alt,
+                )
+            )
+        }
 
         orderedPath.waypoints.forEachIndexed { i, wp ->
 
@@ -178,7 +235,7 @@ object MissionBuilder {
         // A service leg may provide an obstacle-aware corridor back to home.
         // The final RTL remains as the landing/failsafe command once that
         // corridor has brought the aircraft to the home position.
-        returnPathToHome.drop(1).forEach { waypoint ->
+        returnPathToHome.drop(1).forEachIndexed { index, waypoint ->
             missionItems.add(
                 buildItem(
                     frame = waypointFrame,
@@ -187,7 +244,7 @@ object MissionBuilder {
                     p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
                     x = waypoint.latitude.toE7(),
                     y = waypoint.longitude.toE7(),
-                    z = alt,
+                    z = returnAltitudes?.getOrNull(index + 1) ?: alt,
                 )
             )
         }

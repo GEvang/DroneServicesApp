@@ -79,6 +79,9 @@ import com.example.droneservicesapp.domain.planning.MissionServiceStop
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
 import com.example.droneservicesapp.domain.survey.SurveyGridPlanner
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
+import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
+import com.example.droneservicesapp.domain.terrain.TerrainPathResult
+import com.example.droneservicesapp.domain.terrain.TerrainServiceCorridor
 import com.example.droneservicesapp.domain.weather.WindWeather
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.mavserver.GpsFixQuality
@@ -859,8 +862,7 @@ class MissionMapFragment : Fragment() {
         cancelPendingMissionPlanning()
         activityViewModel.clearPolygonVertices()
         activityViewModel.surveyPath.value = emptyList()
-        activityViewModel.terrainSurveyWaypoints.value = emptyList()
-        activityViewModel.pointCloudCoversMissionArea.value = false
+        activityViewModel.clearPointCloudMissionProfile()
         if (::osmdroidPolygonEditor.isInitialized) osmdroidPolygonEditor.clear()
         if (::osmdroidMapController.isInitialized) osmdroidMapController.clearSurveyPath()
     }
@@ -1926,8 +1928,13 @@ class MissionMapFragment : Fragment() {
                     }
                 }
 
-                activityViewModel.surveyPath.postValue(surveyPath)
-                activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
+                // Keep the validated planning profile intact: service-leg resume depends on its
+                // work-only path and altitude alignment. Uploaded NAV items also contain transit
+                // corridors, so replacing surveyPath here would corrupt those boundaries.
+                if (activityViewModel.pointCloudMissionFailure.value != TerrainPathFailure.NONE) {
+                    activityViewModel.surveyPath.postValue(surveyPath)
+                    activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
+                }
             }
         }
 
@@ -2109,11 +2116,25 @@ class MissionMapFragment : Fragment() {
 
         activityViewModel.flightSpeed.observe(viewLifecycleOwner) {
             stopMissionSimulationIfActive()
+            if (
+                activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
+                activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
+                activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
+            ) {
+                scheduleAreaMissionRedraw()
+            }
             updateMissionSummaryCard()
         }
 
         activityViewModel.sprayerProgress.observe(viewLifecycleOwner) {
             stopMissionSimulationIfActive()
+            if (
+                activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
+                activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
+                activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
+            ) {
+                scheduleAreaMissionRedraw()
+            }
             updateMissionSummaryCard()
         }
 
@@ -2128,8 +2149,7 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.clearMissionObstacles()
                     activityViewModel.clearRouteWaypoints()
                     activityViewModel.surveyPath.postValue(emptyList())
-                    activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
-                    activityViewModel.pointCloudCoversMissionArea.postValue(false)
+                    activityViewModel.clearPointCloudMissionProfile()
                     osmdroidPolygonEditor.clear()
                     osmdroidMapController.clearSurveyPath()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
@@ -2139,8 +2159,7 @@ class MissionMapFragment : Fragment() {
                     cancelObstaclePlacement()
                     activityViewModel.clearPolygonVertices()
                     activityViewModel.surveyPath.postValue(emptyList())
-                    activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
-                    activityViewModel.pointCloudCoversMissionArea.postValue(false)
+                    activityViewModel.clearPointCloudMissionProfile()
                     osmdroidPolygonEditor.clear()
                     osmdroidMapController.clearSurveyPath()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
@@ -2149,8 +2168,7 @@ class MissionMapFragment : Fragment() {
                     cancelPendingMissionPlanning()
                     cancelObstaclePlacement()
                     activityViewModel.surveyPath.postValue(emptyList())
-                    activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
-                    activityViewModel.pointCloudCoversMissionArea.postValue(false)
+                    activityViewModel.clearPointCloudMissionProfile()
                     osmdroidMapController.clearSurveyPath()
                     osmdroidPolygonEditor.clear()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Draw)
@@ -2164,8 +2182,7 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.clearMissionObstacles()
                     activityViewModel.clearRouteWaypoints()
                     activityViewModel.surveyPath.postValue(emptyList())
-                    activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
-                    activityViewModel.pointCloudCoversMissionArea.postValue(false)
+                    activityViewModel.clearPointCloudMissionProfile()
                     osmdroidPolygonEditor.clear()
                     osmdroidMapController.clearSurveyPath()
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
@@ -3283,6 +3300,13 @@ class MissionMapFragment : Fragment() {
 
     private fun drawSprayMissionOnMap(distance: Double, angle: Int, generation: Long) {
         terrainSurveyJob?.cancel()
+        activityViewModel.pointCloudCoversMissionArea.value = false
+        activityViewModel.pointCloudMissionFailure.value = TerrainPathFailure.VALIDATION_PENDING
+        activityViewModel.pointCloudMissionFirstUncoveredPoint.value = null
+        activityViewModel.pointCloudProfileHome.value = null
+        activityViewModel.terrainOutboundWaypoints.value = emptyList()
+        activityViewModel.terrainReturnWaypoints.value = emptyList()
+        activityViewModel.terrainServiceCorridors.value = emptyList()
         val area = activityViewModel.missionArea.value ?: return
         val polygonLatLon = area.vertices.map { LatLon(it.latitude, it.longitude) }
         val obstacles = activityViewModel.missionObstacles.value.orEmpty()
@@ -3292,48 +3316,167 @@ class MissionMapFragment : Fragment() {
         val terrainSegment = activityViewModel.surveyTerrainSegment.value ?: 2.5
         val canopySmoothing = activityViewModel.surveyCanopySmoothing.value ?: 5.0
 
+        val plannedHome = activityViewModel.plannedHomePosition.value
+            ?: currentOffsetDroneLocation()?.let { LatLon(it.latitude, it.longitude) }
+        val plannedSpeed = activityViewModel.flightSpeed.value ?: 5.0
+        val plannedSprayRate = activityViewModel.sprayFlowLitersPerMinute()
+
         terrainSurveyJob = viewLifecycleOwner.lifecycleScope.launch {
-            val (basePath, terrainWaypoints) = withContext(Dispatchers.Default) {
-                val generatedBasePath = SurveyPlanner().buildSurveyPath(
+            data class GeneratedSprayProfile(
+                val basePath: List<LatLon>,
+                val work: TerrainPathResult,
+                val outbound: TerrainPathResult,
+                val returnHome: TerrainPathResult,
+                val serviceCorridors: List<TerrainServiceCorridor> = emptyList(),
+                val serviceFailure: TerrainPathResult? = null,
+            )
+
+            val generated = withContext(Dispatchers.Default) {
+                val rawBasePath = SurveyPlanner().buildSurveyPath(
                     polygon = polygonLatLon,
                     distanceMeters = distance,
                     angleDeg = angle,
                     obstacles = obstacles
                 )
-                val generatedTerrainPath = if (
+                val generatedBasePath = orderPathForHome(
+                    rawBasePath.map { LatLng(it.lat, it.lon) },
+                    plannedHome,
+                ).map { LatLon(it.latitude, it.longitude) }
+                val canBuildPointCloudProfile =
                     terrainModel != null &&
                     generatedBasePath.isNotEmpty() &&
+                    plannedHome != null &&
                     terrainModel.hasPointsInside(polygonLatLon)
-                ) {
-                    terrainModel.buildTerrainPath(
-                        path = generatedBasePath,
-                        heightAboveTerrainMeters = heightAboveTerrain,
-                        segmentMeters = terrainSegment,
-                        canopySmoothingMeters = canopySmoothing
+                if (canBuildPointCloudProfile) {
+                    val safeHome = requireNotNull(plannedHome)
+                    val safeTerrainModel = requireNotNull(terrainModel)
+                    val planner = SurveyPlanner()
+                    val outboundPath = planner.buildObstacleAvoidingTransitPath(
+                        from = safeHome,
+                        to = generatedBasePath.first(),
+                        obstacles = obstacles,
+                    )
+                    val returnPath = planner.buildObstacleAvoidingTransitPath(
+                        from = generatedBasePath.last(),
+                        to = safeHome,
+                        obstacles = obstacles,
+                    )
+                    val workResult = safeTerrainModel.buildValidatedTerrainPath(
+                            path = generatedBasePath,
+                            home = safeHome,
+                            heightAboveTerrainMeters = heightAboveTerrain,
+                            segmentMeters = terrainSegment,
+                            canopySmoothingMeters = canopySmoothing,
+                        )
+                    val outboundResult = safeTerrainModel.buildValidatedTerrainPath(
+                            path = outboundPath,
+                            home = safeHome,
+                            heightAboveTerrainMeters = heightAboveTerrain,
+                            segmentMeters = terrainSegment,
+                            canopySmoothingMeters = canopySmoothing,
+                        )
+                    val returnResult = safeTerrainModel.buildValidatedTerrainPath(
+                            path = returnPath,
+                            home = safeHome,
+                            heightAboveTerrainMeters = heightAboveTerrain,
+                            segmentMeters = terrainSegment,
+                            canopySmoothingMeters = canopySmoothing,
+                        )
+                    val serviceCorridors = mutableListOf<TerrainServiceCorridor>()
+                    var serviceFailure: TerrainPathResult? = null
+                    if (workResult.isValid && outboundResult.isValid && returnResult.isValid) {
+                        val resourcePlan = MissionResourcePlanner.plan(
+                            path = workResult.waypoints.map { it.latLon },
+                            home = safeHome,
+                            speedMetersPerSecond = plannedSpeed.coerceAtLeast(0.1),
+                            sprayRateLitersPerMinute = plannedSprayRate,
+                            usableBatteryMinutes = MissionResourcePlanner.sprayerBatteryMinutes(plannedSprayRate),
+                        )
+                        for (stop in resourcePlan.serviceStops) {
+                            val serviceReturnPath = planner.buildObstacleAvoidingTransitPath(
+                                from = stop.point,
+                                to = safeHome,
+                                obstacles = obstacles,
+                            )
+                            val serviceResult = safeTerrainModel.buildValidatedTerrainPath(
+                                path = serviceReturnPath,
+                                home = safeHome,
+                                heightAboveTerrainMeters = heightAboveTerrain,
+                                segmentMeters = terrainSegment,
+                                canopySmoothingMeters = canopySmoothing,
+                            )
+                            if (!serviceResult.isValid) {
+                                serviceFailure = serviceResult
+                                break
+                            }
+                            serviceCorridors += TerrainServiceCorridor(
+                                pathDistanceMeters = stop.pathDistanceMeters,
+                                outboundWaypoints = serviceResult.waypoints.reversed(),
+                                returnWaypoints = serviceResult.waypoints,
+                            )
+                        }
+                    }
+                    GeneratedSprayProfile(
+                        basePath = generatedBasePath,
+                        work = workResult,
+                        outbound = outboundResult,
+                        returnHome = returnResult,
+                        serviceCorridors = serviceCorridors,
+                        serviceFailure = serviceFailure,
                     )
                 } else {
-                    emptyList()
+                    val failure = if (terrainModel == null) {
+                        TerrainPathFailure.NO_GEOREFERENCE
+                    } else if (plannedHome == null) {
+                        TerrainPathFailure.HOME_UNCOVERED
+                    } else {
+                        TerrainPathFailure.PATH_UNCOVERED
+                    }
+                    GeneratedSprayProfile(
+                        basePath = generatedBasePath,
+                        work = TerrainPathResult(failure = failure),
+                        outbound = TerrainPathResult(failure = failure),
+                        returnHome = TerrainPathResult(failure = failure),
+                    )
                 }
-                generatedBasePath to generatedTerrainPath
             }
 
             if (generation != missionPlanningGeneration || _binding == null) return@launch
-            if (terrainWaypoints.isNotEmpty()) {
+            val results = listOfNotNull(
+                generated.work,
+                generated.outbound,
+                generated.returnHome,
+                generated.serviceFailure,
+            )
+            val failed = results.firstOrNull { !it.isValid }
+            if (failed == null) {
                 activityViewModel.pointCloudCoversMissionArea.value = true
+                activityViewModel.pointCloudMissionFailure.value = TerrainPathFailure.NONE
+                activityViewModel.pointCloudMissionFirstUncoveredPoint.value = null
+                activityViewModel.pointCloudProfileHome.value = plannedHome
+                activityViewModel.terrainOutboundWaypoints.value = generated.outbound.waypoints
+                activityViewModel.terrainReturnWaypoints.value = generated.returnHome.waypoints
+                activityViewModel.terrainServiceCorridors.value = generated.serviceCorridors
                 renderSurveyPath(
-                    pathLatLon = terrainWaypoints.map { it.latLon },
+                    pathLatLon = generated.work.waypoints.map { it.latLon },
                     areaVertices = area.vertices,
-                    terrainWaypoints = terrainWaypoints
+                    terrainWaypoints = generated.work.waypoints
                 )
             } else {
                 activityViewModel.pointCloudCoversMissionArea.value = false
-                if (basePath.isEmpty()) {
+                activityViewModel.pointCloudMissionFailure.value = failed.failure
+                activityViewModel.pointCloudMissionFirstUncoveredPoint.value = failed.firstUncoveredPoint
+                activityViewModel.pointCloudProfileHome.value = null
+                activityViewModel.terrainOutboundWaypoints.value = emptyList()
+                activityViewModel.terrainReturnWaypoints.value = emptyList()
+                activityViewModel.terrainServiceCorridors.value = emptyList()
+                if (generated.basePath.isEmpty()) {
                     osmdroidMapController.clearSurveyPath()
                     activityViewModel.surveyPath.value = emptyList()
                     activityViewModel.terrainSurveyWaypoints.value = emptyList()
                     activityViewModel.mapState.value = MainActivityViewModel.MapState.Draw
                 } else {
-                    renderSurveyPath(basePath, area.vertices)
+                    renderSurveyPath(generated.basePath, area.vertices)
                 }
             }
         }
@@ -3346,7 +3489,7 @@ class MissionMapFragment : Fragment() {
         val polygonLatLon = area.vertices.map { LatLon(it.latitude, it.longitude) }
         val params = activityViewModel.surveyGridParams.value ?: return
         val obstacles = activityViewModel.missionObstacles.value.orEmpty()
-        activityViewModel.pointCloudCoversMissionArea.value = false
+        activityViewModel.clearPointCloudMissionProfile()
 
         terrainSurveyJob = viewLifecycleOwner.lifecycleScope.launch {
             val pathLatLon = withContext(Dispatchers.Default) {
@@ -3368,7 +3511,7 @@ class MissionMapFragment : Fragment() {
     ) {
         if (pathLatLon.isEmpty()) {
             activityViewModel.surveyPath.postValue(emptyList())
-            activityViewModel.terrainSurveyWaypoints.postValue(emptyList())
+            activityViewModel.clearPointCloudMissionProfile()
             osmdroidMapController.clearSurveyPath()
             return
         }
@@ -3463,6 +3606,27 @@ class MissionMapFragment : Fragment() {
             appendLine(getString(R.string.mission_summary_path_length, formatMissionDistance(totalDistanceMeters)))
             appendLine(getString(R.string.mission_summary_lines, lineCount))
             appendLine(getString(R.string.mission_summary_altitude, altitudeMeters.toInt()))
+            if (
+                mode == PlanningOperationMode.SPRAY &&
+                activityViewModel.pointCloudMissionFailure.value == TerrainPathFailure.NONE
+            ) {
+                val profile = activityViewModel.terrainOutboundWaypoints.value.orEmpty() +
+                    activityViewModel.terrainSurveyWaypoints.value.orEmpty() +
+                    activityViewModel.terrainReturnWaypoints.value.orEmpty()
+                val minAltitude = profile.minOfOrNull { it.missionAltitudeMeters }
+                val maxAltitude = profile.maxOfOrNull { it.missionAltitudeMeters }
+                appendLine(getString(R.string.mission_summary_point_cloud_clearance, altitudeMeters.toInt()))
+                if (minAltitude != null && maxAltitude != null) {
+                    appendLine(
+                        getString(
+                            R.string.mission_summary_relative_altitude_range,
+                            minAltitude,
+                            maxAltitude,
+                        )
+                    )
+                }
+                appendLine(getString(R.string.mission_summary_point_cloud_validated))
+            }
             appendLine(getString(R.string.mission_summary_speed, String.format(Locale.US, "%.1f", speedMetersPerSecond)))
             appendLine(getString(R.string.mission_summary_estimated_time, formatEstimatedTime(resourcePlan.estimatedFlightSeconds.toInt())))
             appendLine(getString(R.string.mission_summary_batteries, resourcePlan.batteryCount))
