@@ -157,6 +157,8 @@ class DatasetsFragment : Fragment() {
             override fun onItemSelected(parent: AdapterView<*>?, view: View?, position: Int, id: Long) {
                 if (suppressOptionCallbacks) return
                 val detail = POINT_CLOUD_DETAILS.getOrNull(position) ?: return
+                val record = datasetStore.activeDataset() ?: return
+                if (parent?.selectedItemPosition != position || record.pointCloudDetailLevel == detail.name) return
                 updateActiveDataset { copy(pointCloudDetailLevel = detail.name) }
             }
 
@@ -202,7 +204,10 @@ class DatasetsFragment : Fragment() {
     }
 
     private fun updateActiveDataset(update: PreviewDatasetRecord.() -> PreviewDatasetRecord) {
-        val updated = activeDataset().update()
+        // AdapterView can deliver a queued selection callback after the last dataset is deleted.
+        // Treat option updates without a current dataset as stale UI events rather than crashing.
+        val current = datasetStore.activeDataset() ?: return
+        val updated = current.update()
         datasetStore.upsert(updated)
         applySettings(updated)
     }
