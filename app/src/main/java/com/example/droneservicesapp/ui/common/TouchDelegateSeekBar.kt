@@ -3,6 +3,7 @@ package com.example.droneservicesapp.ui.common
 import android.content.Context
 import android.graphics.Rect
 import android.util.AttributeSet
+import android.view.MotionEvent
 import android.view.TouchDelegate
 import androidx.appcompat.widget.AppCompatSeekBar
 
@@ -33,6 +34,26 @@ class TouchDelegateSeekBar @JvmOverloads constructor(
         super.onAttachedToWindow()
         // Post to ensure layout has completed before setting up the delegate
         post { setupTouchDelegate() }
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        post { setupTouchDelegate() }
+    }
+
+    /**
+     * SeekBar's platform thumb can have optical insets that make its effective drag line sit
+     * above or below the painted track. Normalizing Y keeps the horizontal value under the
+     * user's finger anywhere inside the expanded row.
+     */
+    override fun onTouchEvent(event: MotionEvent): Boolean {
+        val centeredEvent = MotionEvent.obtain(event)
+        centeredEvent.setLocation(event.x, height / 2f)
+        return try {
+            super.onTouchEvent(centeredEvent)
+        } finally {
+            centeredEvent.recycle()
+        }
     }
 
     /**

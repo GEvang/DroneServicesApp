@@ -88,6 +88,7 @@
   <string name="upload_mission">Ανέβασμα Αποστολής</string>
   <string name="exit">Έξοδος</string>
   <string name="flight_altitude">Ύψος πάνω από το έδαφος</string>
+  <string name="takeoff_height">Ύψος απογείωσης</string>
   <string name="line_distance">Απόσταση λωρίδων</string>
   <string name="mission_angle">Γωνία</string>
   <string name="mavlink_target_host_title">MAVLink Target IP (blank for auto)</string>
@@ -742,4 +743,5 @@
   <string name="telemetry_rtk_streaming">Μετάδοση διορθώσεων</string>
   <string name="telemetry_rtk_reconnecting">Επανασύνδεση: %1$s</string>
   <string name="telemetry_rtk_protocol_error">Σφάλμα πρωτοκόλλου: %1$s</string>
+  <string name="mission_downloading_from_drone">Λήψη αποστολής από το drone %1$d%%</string>
 </resources>

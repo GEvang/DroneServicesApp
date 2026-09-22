@@ -52,6 +52,7 @@ class MissionParamsActionHandler(
         val routeWaypoints = activityViewModel.routeWaypoints.value.orEmpty()
         val workflow = activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA
         val alt = activityViewModel.flightAltProgress.value
+        val takeoffHeight = activityViewModel.takeoffHeight.value
         val sprayer = activityViewModel.sprayerProgress.value
         val speed = activityViewModel.flightSpeed.value
         val angle = activityViewModel.angleProgress.value
@@ -67,13 +68,14 @@ class MissionParamsActionHandler(
             workflow == PlanningWorkflow.POINTS && routeWaypoints.size < 2 -> {
                 return showMessage(context.getString(R.string.route_requires_two_points))
             }
-            alt == null || sprayer == null || speed == null || angle == null -> {
+            alt == null || takeoffHeight == null || sprayer == null || speed == null || angle == null -> {
                 return showMessage(context.getString(R.string.missing_mission_parameters))
             }
         }
 
         val validatedDroneLoc = droneLoc ?: return
         val validatedAlt = alt ?: return
+        val validatedTakeoffHeight = takeoffHeight ?: return
         val validatedSprayer = sprayer ?: return
         val validatedSpeed = speed ?: return
         val validatedAngle = angle ?: return
@@ -154,6 +156,7 @@ class MissionParamsActionHandler(
                     } else {
                         altitudeReferenceMode
                     },
+                    takeoffHeight = validatedTakeoffHeight.toFloat(),
                 ),
                 altitudeReferenceMode = if (terrainPointRoute != null) {
                     AltitudeReferenceMode.RELATIVE
@@ -169,6 +172,7 @@ class MissionParamsActionHandler(
                 serviceLeg = firstLeg,
                 currentLocation = validatedDroneLoc,
                 altitude = validatedAlt,
+                takeoffHeight = validatedTakeoffHeight,
                 sprayer = validatedSprayer,
                 speed = validatedSpeed,
                 angle = validatedAngle,
@@ -235,12 +239,14 @@ class MissionParamsActionHandler(
         val fullPath = activityViewModel.surveyPath.value.orEmpty()
             .map { LatLon(it.latitude, it.longitude) }
         val altitude = activityViewModel.flightAltProgress.value ?: 0.0
+        val takeoffHeight = activityViewModel.takeoffHeight.value ?: 5.0
         val build = buildAreaMission(
             missionPath = leg.path,
             fullPath = fullPath,
             serviceLeg = leg,
             currentLocation = droneLoc,
             altitude = altitude,
+            takeoffHeight = takeoffHeight,
             sprayer = activityViewModel.sprayerProgress.value ?: 0.0,
             speed = activityViewModel.flightSpeed.value ?: 5.0,
             angle = activityViewModel.angleProgress.value ?: 90.0,
@@ -269,6 +275,7 @@ class MissionParamsActionHandler(
         serviceLeg: MissionServiceLeg?,
         currentLocation: Location,
         altitude: Double,
+        takeoffHeight: Double,
         sprayer: Double,
         speed: Double,
         angle: Double,
@@ -321,6 +328,7 @@ class MissionParamsActionHandler(
                     startClosestToHome = true,
                     preserveWaypointOrder = serviceLeg != null,
                     returnPathToHome = returnPathToHome,
+                    takeoffHeight = takeoffHeight.toFloat(),
                 ),
                 altitudeReferenceMode = reference,
                 usesTerrainAltitudes = legAltitudes != null,
@@ -339,6 +347,7 @@ class MissionParamsActionHandler(
                 altitudeReferenceMode = altitudeReferenceMode,
                 waypointAltitudes = null,
                 preserveWaypointOrder = serviceLeg != null,
+                takeoffHeight = takeoffHeight.toFloat(),
             ),
             altitudeReferenceMode = altitudeReferenceMode,
             usesTerrainAltitudes = false,

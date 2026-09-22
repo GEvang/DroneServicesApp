@@ -27,6 +27,13 @@ class MissionParamsInputBinder(
 
     private fun bindSeekbars() {
         bindSeekbar(
+            touchTarget = views.takeoffHeightSliderRow,
+            seekbar = views.takeoffHeightSeekbar,
+            valueView = views.takeoffHeightValue,
+            target = activityViewModel.takeoffHeight,
+            updateValue = activityViewModel::updateTakeoffHeight
+        )
+        bindSeekbar(
             touchTarget = views.angleSliderRow,
             seekbar = views.angleSeekbar,
             valueView = views.angleValue,
@@ -96,6 +103,11 @@ class MissionParamsInputBinder(
     }
 
     private fun bindIconButtons() {
+        bindIncrementButtons(
+            views.takeoffHeightMinusButton,
+            views.takeoffHeightPlusButton,
+            views.takeoffHeightSeekbar
+        )
         bindIncrementButtons(views.angleMinusButton, views.anglePlusButton, views.angleSeekbar)
         bindIncrementButtons(
             views.lineDistanceMinusButton,

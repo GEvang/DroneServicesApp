@@ -32,6 +32,7 @@ class MissionXmlParser(
         val schemaVersion = root.getAttribute("schemaVersion").toIntOrNull() ?: 1
         val missionName = root.getAttribute("Name").orEmpty()
         val altitude = childText(root, "altitude")?.toIntOrNull() ?: -1
+        val takeoffHeight = childText(root, "takeoffHeight")?.toIntOrNull() ?: 5
         val altitudeReferenceMode = childText(root, "altitudeReferenceMode")
             ?.let(AltitudeReferenceMode::fromStorageValue)
             ?: AltitudeReferenceMode.RELATIVE
@@ -70,6 +71,7 @@ class MissionXmlParser(
             workflow = missionType,
             operationMode = operationMode,
             altitudeMeters = altitude.takeIf { it >= 0 } ?: 0,
+            takeoffHeightMeters = takeoffHeight.coerceIn(1, 120),
             altitudeReferenceMode = altitudeReferenceMode,
             angleDegrees = angleDegrees.takeIf { it >= 0 } ?: 90,
             lineDistanceMeters = lineDistance.takeIf { it >= 0 } ?: 5,

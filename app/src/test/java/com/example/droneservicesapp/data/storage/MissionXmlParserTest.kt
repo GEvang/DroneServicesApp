@@ -42,6 +42,7 @@ class MissionXmlParserTest {
         assertEquals(PlanningOperationMode.SURVEY, mission.operationMode)
         assertEquals(3, mission.polygon.size)
         assertNull(mission.plannedHomePosition)
+        assertEquals(5, mission.takeoffHeightMeters)
         assertEquals(0, mission.obstacles.size)
     }
 
@@ -135,12 +136,13 @@ class MissionXmlParserTest {
     }
 
     @Test
-    fun `serialize and parse round trips version two mission state`() {
+    fun `serialize and parse round trips current mission state`() {
         val original = SavedMission(
             name = "round-trip",
             workflow = PlanningWorkflow.POINTS,
             operationMode = PlanningOperationMode.SPRAY,
             altitudeMeters = 18,
+            takeoffHeightMeters = 7,
             angleDegrees = 32,
             lineDistanceMeters = 7,
             sprayerIntensityPercent = 65,
@@ -205,6 +207,7 @@ class MissionXmlParserTest {
         assertEquals(original.name, parsed.name)
         assertEquals(original.workflow, parsed.workflow)
         assertEquals(original.operationMode, parsed.operationMode)
+        assertEquals(original.takeoffHeightMeters, parsed.takeoffHeightMeters)
         assertEquals(original.plannedHomePosition, parsed.plannedHomePosition)
         assertEquals(original.polygon.size, parsed.polygon.size)
         assertEquals(original.surveyPath.size, parsed.surveyPath.size)

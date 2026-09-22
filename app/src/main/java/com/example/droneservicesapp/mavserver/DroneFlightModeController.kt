@@ -18,6 +18,7 @@ internal class DroneFlightModeController(
     private val isConnected: () -> Boolean,
     private val targetSystemId: () -> Int,
     private val targetComponentId: () -> Int,
+    private val onModeConfirmed: (ArduCopterFlightMode) -> Unit = {},
     private val commandTimeoutMs: Long = 4_000L,
 ) {
     companion object {
@@ -94,6 +95,7 @@ internal class DroneFlightModeController(
             message = "flight_mode_confirmed",
             data = mapOf("mode" to mode.name, "customMode" to mode.customMode)
         )
+        onModeConfirmed(mode)
     }
 
     fun onConnectionLost() {

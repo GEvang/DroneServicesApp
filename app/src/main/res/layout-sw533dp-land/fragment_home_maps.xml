@@ -62,6 +62,41 @@
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/home_top_status_strip" />
 
+        <LinearLayout
+            android:id="@+id/mission_download_indicator"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="@dimen/ds_space_xs"
+            android:background="@drawable/bg_ds_overlay_card"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="@dimen/ds_space_sm"
+            android:paddingTop="@dimen/ds_space_xs"
+            android:paddingEnd="@dimen/ds_space_sm"
+            android:paddingBottom="@dimen/ds_space_xs"
+            android:visibility="gone"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toBottomOf="@id/wind_weather_panel_include">
+
+            <ProgressBar
+                android:id="@+id/mission_download_progress"
+                style="?android:attr/progressBarStyleHorizontal"
+                android:layout_width="72dp"
+                android:layout_height="4dp"
+                android:max="100"
+                android:progress="0" />
+
+            <TextView
+                android:id="@+id/mission_download_text"
+                style="@style/TextAppearance.DroneServices.Caption"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="@dimen/ds_space_sm"
+                android:textColor="@color/ds_color_text_primary"
+                tools:text="Downloading mission from drone 42%" />
+        </LinearLayout>
+
         <androidx.core.widget.NestedScrollView
             android:id="@+id/mission_params_side_view"
             android:layout_width="@dimen/tablet_left_panel_width"

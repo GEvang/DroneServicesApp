@@ -63,6 +63,10 @@ class MainActivityViewModel : ViewModel() {
         MutableLiveData(0.0)
     }
 
+    val takeoffHeight: MutableLiveData<Double> by lazy {
+        MutableLiveData(5.0)
+    }
+
     val lineDistanceProgress: MutableLiveData<Double> by lazy {
         MutableLiveData(5.0)
     }
@@ -366,6 +370,10 @@ class MainActivityViewModel : ViewModel() {
         flightAltProgress.value = value.coerceIn(0, 20).toDouble()
         updateMissionParams { copy(altitude = flightAltProgress.value ?: 0.0) }
         markPresetCustomIfNeeded(markCustom)
+    }
+
+    fun updateTakeoffHeight(value: Int) {
+        takeoffHeight.value = value.coerceIn(1, 120).toDouble()
     }
 
     fun updateSprayIntensity(value: Int, markCustom: Boolean = true) {
@@ -678,6 +686,7 @@ class MainActivityViewModel : ViewModel() {
         updateMissionAngle(mission.angleDegrees, markCustom = false)
         updateLineSpacing(mission.lineDistanceMeters, markCustom = false)
         updateAltitude(mission.altitudeMeters, markCustom = false)
+        updateTakeoffHeight(mission.takeoffHeightMeters)
         updateSprayIntensity(mission.sprayerIntensityPercent, markCustom = false)
         updateMissionSpeed(mission.flightSpeedMetersPerSecond, markCustom = false)
         setAltitudeReferenceMode(mission.altitudeReferenceMode)

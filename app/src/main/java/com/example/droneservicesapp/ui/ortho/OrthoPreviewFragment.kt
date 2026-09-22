@@ -75,6 +75,7 @@ class OrthoPreviewFragment : Fragment() {
     private var missionAreaOverlay: Polygon? = null
     private var missionPathOverlay: Polyline? = null
     private var routePathOverlay: Polyline? = null
+    private var droneMarker: Marker? = null
     private val missionDirectionMarkers = mutableListOf<Marker>()
     private val missionWaypointMarkers = mutableListOf<Marker>()
     private val missionInfoMarkers = mutableListOf<Marker>()
@@ -167,6 +168,8 @@ class OrthoPreviewFragment : Fragment() {
         overlay?.let { binding.orthoMap.overlays.remove(it) }
         overlay = null
         clearMissionOverlays()
+        droneMarker?.let { binding.orthoMap.overlays.remove(it) }
+        droneMarker = null
         binding.orthoMap.onDetach()
         _binding = null
         super.onDestroyView()
@@ -338,6 +341,14 @@ class OrthoPreviewFragment : Fragment() {
         }
         activityViewModel.surveyPath.observe(viewLifecycleOwner) { renderMissionOverlays() }
         activityViewModel.routeWaypoints.observe(viewLifecycleOwner) { renderMissionOverlays() }
+        activityViewModel.mapState.observe(viewLifecycleOwner) { renderMissionOverlays() }
+        previewAssetsViewModel.retainedDroneMissionPath.observe(viewLifecycleOwner) { renderMissionOverlays() }
+        droneViewModel.missionItems.observe(viewLifecycleOwner) { missionItems ->
+            previewAssetsViewModel.retainDroneMission(missionItems.orEmpty())
+            renderMissionOverlays()
+        }
+        droneViewModel.droneLocationLiveData.observe(viewLifecycleOwner) { renderDroneMarker() }
+        droneViewModel.droneHeading.observe(viewLifecycleOwner) { renderDroneMarker() }
         activityViewModel.activePlanningWorkflow.observe(viewLifecycleOwner) {
             updateMissionPanelVisibility()
             renderMissionOverlays()
@@ -377,7 +388,15 @@ class OrthoPreviewFragment : Fragment() {
         val currentBinding = _binding ?: return
         clearMissionOverlays()
 
-        val polygonPoints = activityViewModel.missionArea.value?.vertices.orEmpty()
+        previewAssetsViewModel.retainDroneMission(droneViewModel.missionItems.value.orEmpty())
+        val downloadedPoints = previewAssetsViewModel.retainedDroneMissionPath.value.orEmpty()
+        val showingDownloadedMission = downloadedPoints.isNotEmpty()
+        val areaVertices = if (showingDownloadedMission) {
+            emptyList()
+        } else {
+            activityViewModel.missionArea.value?.vertices.orEmpty()
+        }
+        val polygonPoints = areaVertices
             .map { GeoPoint(it.latitude, it.longitude) }
         if (polygonPoints.size >= 3) {
             missionAreaOverlay = Polygon(currentBinding.orthoMap).apply {
@@ -390,7 +409,11 @@ class OrthoPreviewFragment : Fragment() {
             currentBinding.orthoMap.overlays.add(missionAreaOverlay)
         }
 
-        val surveyPoints = activityViewModel.surveyPath.value.orEmpty()
+        val surveyPoints = if (showingDownloadedMission) {
+            downloadedPoints
+        } else {
+            activityViewModel.surveyPath.value.orEmpty()
+        }
         if (surveyPoints.size >= 2) {
             missionPathOverlay = createPathOverlay(surveyPoints, SURVEY_PATH_COLOR)
             currentBinding.orthoMap.overlays.add(missionPathOverlay)
@@ -398,16 +421,48 @@ class OrthoPreviewFragment : Fragment() {
             renderSurveyDirectionMarkers(surveyPoints)
         }
 
-        val routePoints = activityViewModel.routeWaypoints.value.orEmpty().map {
-            LatLng(it.latitude, it.longitude)
+        val routePoints = if (showingDownloadedMission) {
+            emptyList()
+        } else {
+            activityViewModel.routeWaypoints.value.orEmpty().map {
+                LatLng(it.latitude, it.longitude)
+            }
         }
         if (routePoints.size >= 2) {
             routePathOverlay = createPathOverlay(routePoints, ROUTE_PATH_COLOR)
             currentBinding.orthoMap.overlays.add(routePathOverlay)
         }
 
-        renderSurveyInfoMarkers(activityViewModel.missionArea.value?.vertices.orEmpty())
+        renderSurveyInfoMarkers(areaVertices)
+        renderDroneMarker()
         currentBinding.orthoMap.invalidate()
+    }
+
+    private fun renderDroneMarker() {
+        val map = _binding?.orthoMap ?: return
+        val location = droneViewModel.droneLocationLiveData.value
+        val usableLocation = location?.takeIf {
+            it.latitude.isFinite() && it.longitude.isFinite() &&
+                it.latitude in -90.0..90.0 && it.longitude in -180.0..180.0 &&
+                (it.latitude != 0.0 || it.longitude != 0.0)
+        }
+        if (usableLocation == null) {
+            droneMarker?.let { map.overlays.remove(it) }
+            droneMarker = null
+            map.invalidate()
+            return
+        }
+
+        val marker = droneMarker ?: Marker(map).apply {
+            setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_CENTER)
+            infoWindow = null
+            icon = ContextCompat.getDrawable(requireContext(), R.drawable.drone_marker_36)
+        }.also { droneMarker = it }
+        marker.position = GeoPoint(usableLocation.latitude, usableLocation.longitude)
+        marker.rotation = droneViewModel.droneHeading.value?.toFloat() ?: 0f
+        map.overlays.remove(marker)
+        map.overlays.add(marker)
+        map.invalidate()
     }
 
     private fun createPathOverlay(points: List<LatLng>, color: Int): Polyline {

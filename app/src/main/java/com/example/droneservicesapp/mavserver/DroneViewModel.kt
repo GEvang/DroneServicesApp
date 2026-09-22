@@ -98,7 +98,20 @@ class DroneViewModel : ViewModel() {
                     )
             },
             targetSystemId = { runtimeState.autopilotSysId },
-            targetComponentId = { runtimeState.autopilotCompId }
+            targetComponentId = { runtimeState.autopilotCompId },
+            onModeConfirmed = { mode ->
+                if (mode == ArduCopterFlightMode.AUTO) {
+                    val result = missionStartController.requestStart()
+                    if (result != MissionStartRequestResult.SENT) {
+                        DiagnosticLog.event(
+                            module = "flight",
+                            message = "mission_start_not_sent",
+                            severity = "WARN",
+                            data = mapOf("reason" to result.name),
+                        )
+                    }
+                }
+            },
         )
     }
     private val armController: DroneArmController by lazy {
@@ -114,6 +127,20 @@ class DroneViewModel : ViewModel() {
             targetComponentId = { runtimeState.autopilotCompId },
         )
     }
+    private val missionStartController: DroneMissionStartController by lazy {
+        DroneMissionStartController(
+            mavlinkClient = mavlinkClient,
+            scope = viewModelScope,
+            isConnected = {
+                stateStore.conStateLiveData.value == true &&
+                    isAutopilotLinkHealthy(runtimeState.lastAutopilotHeartbeatMs, System.currentTimeMillis(), HEARTBEAT_STALE_MS)
+            },
+            isArmed = { stateStore.armedState.value == true },
+            hasMission = { !stateStore.missionItems.value.isNullOrEmpty() },
+            targetSystemId = { runtimeState.autopilotSysId },
+            targetComponentId = { runtimeState.autopilotCompId },
+        )
+    }
 
     private val missionService: MissionService by lazy { MissionService(mavlinkClient) }
     private val missionController: DroneMissionController by lazy {
@@ -121,6 +148,7 @@ class DroneViewModel : ViewModel() {
             missionService = missionService,
             missionItems = stateStore.missionItems,
             uploadProgressPercent = stateStore.uploadProgressPercent,
+            downloadProgressPercent = stateStore.missionDownloadProgressPercent,
             repoDisposables = repoDisposables,
             onUploadSucceeded = { downloadMissionNew(force = true) },
         )
@@ -182,6 +210,7 @@ class DroneViewModel : ViewModel() {
                 mainHandler.post {
                     flightModeController.onCommandAck(ack)
                     armController.onCommandAck(ack)
+                    missionStartController.onCommandAck(ack)
                 }
             },
             onFlightModeHeartbeat = { mode -> mainHandler.post { flightModeController.onHeartbeatMode(mode) } },
@@ -259,6 +288,7 @@ class DroneViewModel : ViewModel() {
     val droneFlightMode: MutableLiveData<Int?> = stateStore.droneFlightMode
     val flightModeCommandState: MutableLiveData<FlightModeCommandState> = flightModeController.state
     val armCommandState: MutableLiveData<ArmCommandState> = armController.state
+    val missionStartCommandState: MutableLiveData<MissionStartCommandState> = missionStartController.state
     val vehicleParameterCatalog = parameterCatalogController.state
     val droneLogCatalog = logDownloadController.catalog
     val droneLogDownloadState = logDownloadController.download
@@ -267,6 +297,7 @@ class DroneViewModel : ViewModel() {
     val liquidLevel: MutableLiveData<Float> = stateStore.liquidLevel
     val servo5OutputRaw: MutableLiveData<Int?> = stateStore.servo5OutputRaw
     val uploadProgressPercent: MutableLiveData<Int> = stateStore.uploadProgressPercent
+    val missionDownloadProgressPercent: MutableLiveData<Int> = stateStore.missionDownloadProgressPercent
     val rtkForwardingState: MutableLiveData<RtkForwardingState> = stateStore.rtkForwardingState
     val selectedRtkMountpoint: MutableLiveData<RtkMountpoint?> = stateStore.selectedRtkMountpoint
     val rtkGpsDebugStatus: MutableLiveData<String> = stateStore.rtkGpsDebugStatus
@@ -673,6 +704,7 @@ class DroneViewModel : ViewModel() {
                         if (!connected) {
                             flightModeController.onConnectionLost()
                             armController.onConnectionLost()
+                            missionStartController.onConnectionLost()
                             stateStore.telemetryAliveLiveData.postValue(false)
                             stateStore.armedState.postValue(false)
                             stateStore.droneLandedState.postValue(null)

@@ -39,6 +39,12 @@ class MissionParamsViews(
 
     val presetSelector: TextView = rootView.findViewById(R.id.spray_preset_selector)
 
+    val takeoffHeightValue: EditText = rootView.findViewById(R.id.takeoff_height_value)
+    val takeoffHeightSeekbar: SeekBar = rootView.findViewById(R.id.takeoff_height_seekbar)
+    val takeoffHeightSliderRow: LinearLayout = rootView.findViewById(R.id.takeoff_height_slider_row)
+    val takeoffHeightMinusButton: View = panelRoot.findViewById(R.id.btn_takeoff_height_minus)
+    val takeoffHeightPlusButton: View = panelRoot.findViewById(R.id.btn_takeoff_height_plus)
+
     val surveyStripSpacingValue: EditText = rootView.findViewById(R.id.survey_strip_spacing_value)
     val surveyStripSpacingSeekbar: SeekBar = rootView.findViewById(R.id.survey_strip_spacing_seekbar)
     val surveyStripSpacingSliderRow: LinearLayout = rootView.findViewById(R.id.survey_strip_spacing_slider_row)

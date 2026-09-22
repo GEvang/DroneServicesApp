@@ -19,6 +19,7 @@ internal class DroneMissionController(
     private val missionService: MissionService,
     private val missionItems: MutableLiveData<ArrayList<MissionItemInt>>,
     private val uploadProgressPercent: MutableLiveData<Int>,
+    private val downloadProgressPercent: MutableLiveData<Int>,
     private val repoDisposables: CompositeDisposable,
     private val onUploadSucceeded: () -> Unit,
 ) {
@@ -59,10 +60,14 @@ internal class DroneMissionController(
 
         val token = AtomicBoolean(false)
         currentDownloadCancelToken = token
+        downloadProgressPercent.postValue(0)
 
         val disposable = Single.fromCallable {
             try {
-                missionService.downloadMission(cancel = token)
+                missionService.downloadMission(
+                    cancel = token,
+                    onProgress = { _, _, percent -> downloadProgressPercent.postValue(percent) },
+                )
             } catch (interrupted: InterruptedException) {
                 Log.d(logTag, "downloadMission interrupted during cancellation")
                 Thread.currentThread().interrupt()
@@ -79,6 +84,7 @@ internal class DroneMissionController(
                     }
                     missionDownloadInProgress = false
                 }
+                downloadProgressPercent.postValue(-1)
             }
             .subscribe(
                 { items ->
@@ -226,6 +232,7 @@ internal class DroneMissionController(
             currentDownloadDisposable = null
             currentDownloadCancelToken = null
             missionDownloadInProgress = false
+            downloadProgressPercent.postValue(-1)
             uploadInProgress = false
             lastUploadFinishedMs = System.currentTimeMillis()
         }

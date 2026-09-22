@@ -304,6 +304,7 @@
     <string name="upload_mission">Upload Mission</string>
     <string name="exit">Exit</string>
     <string name="flight_altitude">Height above terrain</string>
+    <string name="takeoff_height">Takeoff height</string>
     <string name="line_distance">Strip Spacing</string>
     <string name="mission_angle">Angle</string>
     <string name="drone_services_sprayer" translatable="false">Drone Services Sprayer</string>
@@ -346,6 +347,7 @@
     <string name="survey_line_distance_pref" translatable="false">surveyLineDist</string>
     <string name="survey_angle_pref" translatable="false">surveyAngle</string>
     <string name="survey_altitude_pref" translatable="false">missionAlt</string>
+    <string name="takeoff_height_pref" translatable="false">missionTakeoffHeight</string>
     <string name="survey_altitude_reference_pref" translatable="false">missionAltitudeReference</string>
     <string name="survey_spray_preset_pref" translatable="false">missionSprayPreset</string>
     <string name="survey_sprayer_intensity_pref" translatable="false">sprayerIntensity</string>
@@ -660,6 +662,7 @@
     <string name="live_geo_vertical_unknown">V --</string>
     <string name="live_geo_more_placeholder">+0 more</string>
     <string name="telemetry_uploading">Uploading %1$d%%</string>
+    <string name="mission_downloading_from_drone">Downloading mission from drone %1$d%%</string>
     <string name="gps_fix_2d">2D Lock</string>
     <string name="gps_fix_3d">3D Lock</string>
     <string name="gps_fix_dgps">DGPS</string>

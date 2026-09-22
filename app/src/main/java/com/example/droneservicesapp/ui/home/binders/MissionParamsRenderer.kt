@@ -30,6 +30,7 @@ class MissionParamsRenderer(
         angle = 90,
         lineDistance = 5,
         altitude = 0,
+        takeoffHeight = 5,
         sprayerIntensity = 75,
         surveyStripSpacing = 70,
         surveyHeightAboveTerrain = 50,

@@ -152,6 +152,7 @@ class MissionSaveController(
                 lineDist = savedLineDistance,
                 angleDeg = savedAngle,
                 alt = savedAltitude,
+                takeoffHeight = activityViewModel.takeoffHeight.value?.toInt() ?: 5,
                 altitudeReferenceMode = activityViewModel.altitudeReferenceMode.value
                     ?: AltitudeReferenceMode.RELATIVE,
                 sprayerPct = activityViewModel.sprayerProgress.value!!.toInt(),

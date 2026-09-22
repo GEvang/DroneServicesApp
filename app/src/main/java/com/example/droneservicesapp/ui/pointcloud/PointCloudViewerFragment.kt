@@ -19,6 +19,7 @@ import androidx.navigation.fragment.findNavController
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.pointcloud.PointCloudImportCache
 import com.example.droneservicesapp.data.pointcloud.PointCloudData
+import com.example.droneservicesapp.data.pointcloud.PointCloudCoordinateFrame
 import com.example.droneservicesapp.databinding.FragmentPointCloudViewerBinding
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.ui.home.binders.MissionParamsController
@@ -219,6 +220,14 @@ class PointCloudViewerFragment : Fragment() {
         activityViewModel.surveyPath.observe(viewLifecycleOwner) { updateMissionOverlay() }
         activityViewModel.terrainSurveyWaypoints.observe(viewLifecycleOwner) { updateMissionOverlay() }
         activityViewModel.routeWaypoints.observe(viewLifecycleOwner) { updateMissionOverlay() }
+        activityViewModel.mapState.observe(viewLifecycleOwner) { updateMissionOverlay() }
+        previewAssetsViewModel.retainedDroneMissionPath.observe(viewLifecycleOwner) { updateMissionOverlay() }
+        droneViewModel.missionItems.observe(viewLifecycleOwner) { missionItems ->
+            previewAssetsViewModel.retainDroneMission(missionItems.orEmpty())
+            updateMissionOverlay()
+        }
+        droneViewModel.droneLocationLiveData.observe(viewLifecycleOwner) { updateMissionOverlay() }
+        droneViewModel.droneHeading.observe(viewLifecycleOwner) { updateMissionOverlay() }
     }
 
     private fun updateMissionPanelVisibility() {
@@ -253,8 +262,48 @@ class PointCloudViewerFragment : Fragment() {
     private fun updateMissionOverlay() {
         val currentBinding = _binding ?: return
         val pointCloud = previewAssetsViewModel.pointCloudAsset?.pointCloud
-        val frame = pointCloud?.coordinateFrame
-        if (pointCloud == null || frame == null) {
+        previewAssetsViewModel.retainDroneMission(droneViewModel.missionItems.value.orEmpty())
+        val downloadedPoints = previewAssetsViewModel.retainedDroneMissionPath.value.orEmpty()
+        val showingDownloadedMission = downloadedPoints.isNotEmpty()
+        val surveyPoints = if (showingDownloadedMission) {
+            downloadedPoints
+        } else {
+            activityViewModel.surveyPath.value.orEmpty()
+        }
+        val routePoints = if (showingDownloadedMission) {
+            emptyList()
+        } else {
+            activityViewModel.routeWaypoints.value.orEmpty().map { waypoint ->
+                LatLng(waypoint.latitude, waypoint.longitude)
+            }
+        }
+        val polygonPoints = if (showingDownloadedMission) {
+            emptyList()
+        } else {
+            activityViewModel.missionArea.value?.vertices.orEmpty()
+        }
+        val droneLocation = droneViewModel.droneLocationLiveData.value?.takeIf {
+            it.latitude.isFinite() && it.longitude.isFinite() &&
+                it.latitude in -90.0..90.0 && it.longitude in -180.0..180.0 &&
+                (it.latitude != 0.0 || it.longitude != 0.0)
+        }
+        val missionReferencePoints = buildList {
+            addAll(surveyPoints)
+            addAll(routePoints)
+            addAll(polygonPoints)
+        }
+        val referencePoints = buildList {
+            addAll(missionReferencePoints)
+            droneLocation?.let { add(LatLng(it.latitude, it.longitude)) }
+        }
+        val originPoints = missionReferencePoints.ifEmpty { referencePoints }
+        val frame = pointCloud?.coordinateFrame ?: originPoints.takeIf { it.isNotEmpty() }?.let { points ->
+            PointCloudCoordinateFrame(
+                originLat = points.map { it.latitude }.average(),
+                originLon = points.map { it.longitude }.average(),
+            )
+        }
+        if (frame == null) {
             missionOverlayLineCount = 0
             missionOverlayPointCount = 0
             currentBinding.pointCloudGlView.setMissionOverlay(null)
@@ -262,15 +311,30 @@ class PointCloudViewerFragment : Fragment() {
             return
         }
 
-        val centeredMaxZ = pointCloud.bounds.maxZ - pointCloud.bounds.centerZ
-        val overlayZ = centeredMaxZ + max(pointCloud.bounds.maxSpan * 0.02f, MIN_MISSION_OVERLAY_Z_OFFSET)
+        val horizontalSpan = referencePoints.map { point ->
+            frame.latLonToLocal(point.latitude, point.longitude)
+        }.let { localPoints ->
+            if (localPoints.isEmpty()) {
+                0f
+            } else {
+                max(
+                    localPoints.maxOf { it.first }.minus(localPoints.minOf { it.first }),
+                    localPoints.maxOf { it.second }.minus(localPoints.minOf { it.second }),
+                ).toFloat()
+            }
+        }
+        val displaySpan = max(pointCloud?.bounds?.maxSpan ?: 0f, horizontalSpan).coerceAtLeast(10f)
+        val centeredMaxZ = pointCloud?.let { it.bounds.maxZ - it.bounds.centerZ } ?: 0f
+        val overlayZ = centeredMaxZ + max(displaySpan * 0.02f, MIN_MISSION_OVERLAY_Z_OFFSET)
         val vertices = ArrayList<Float>()
         val colors = ArrayList<Float>()
         val pointVertices = ArrayList<Float>()
         val pointColors = ArrayList<Float>()
+        var dronePointVertices = FloatArray(0)
+        var dronePointColors = FloatArray(0)
 
         addClosedLineStrip(
-            source = activityViewModel.missionArea.value?.vertices.orEmpty(),
+            source = polygonPoints,
             z = overlayZ,
             color = POLYGON_COLOR,
             vertices = vertices,
@@ -279,8 +343,11 @@ class PointCloudViewerFragment : Fragment() {
             frame.latLonToLocal(point.latitude, point.longitude)
         }
 
-        val surveyPoints = activityViewModel.surveyPath.value.orEmpty()
-        val surveyZValues = pointCloudSurveyZValues(surveyPoints)
+        val surveyZValues = if (showingDownloadedMission || pointCloud == null) {
+            null
+        } else {
+            pointCloudSurveyZValues(surveyPoints)
+        }
         addOpenLineStrip(
             source = surveyPoints,
             z = overlayZ + MISSION_LAYER_Z_STEP,
@@ -304,16 +371,13 @@ class PointCloudViewerFragment : Fragment() {
             source = surveyPoints,
             z = overlayZ + MISSION_LAYER_Z_STEP * 1.7f,
             zValues = surveyZValues,
-            arrowSizeMeters = max(pointCloud.bounds.maxSpan * 0.012f, MIN_MISSION_ARROW_SIZE_METERS),
+            arrowSizeMeters = max(displaySpan * 0.012f, MIN_MISSION_ARROW_SIZE_METERS),
             vertices = vertices,
             colors = colors
         ) { point ->
             frame.latLonToLocal(point.latitude, point.longitude)
         }
 
-        val routePoints = activityViewModel.routeWaypoints.value.orEmpty().map { waypoint ->
-            LatLng(waypoint.latitude, waypoint.longitude)
-        }
         addOpenLineStrip(
             source = routePoints,
             z = overlayZ + MISSION_LAYER_Z_STEP * 2f,
@@ -324,7 +388,23 @@ class PointCloudViewerFragment : Fragment() {
             frame.latLonToLocal(point.latitude, point.longitude)
         }
 
-        if (vertices.isEmpty() && pointVertices.isEmpty()) {
+        if (droneLocation != null) {
+            val (droneX, droneY) = frame.latLonToLocal(droneLocation.latitude, droneLocation.longitude)
+            val droneZ = overlayZ + MISSION_LAYER_Z_STEP * 3f
+            addDroneGlyph(
+                centerX = droneX,
+                centerY = droneY,
+                z = droneZ,
+                headingDegrees = droneViewModel.droneHeading.value ?: 0.0,
+                sizeMeters = max(displaySpan * 0.018f, MIN_DRONE_GLYPH_SIZE_METERS),
+                vertices = vertices,
+                colors = colors,
+            )
+            dronePointVertices = floatArrayOf(droneX.toFloat(), droneY.toFloat(), droneZ)
+            dronePointColors = DRONE_COLOR.copyOf()
+        }
+
+        if (vertices.isEmpty() && pointVertices.isEmpty() && dronePointVertices.isEmpty()) {
             missionOverlayLineCount = 0
             missionOverlayPointCount = 0
             currentBinding.pointCloudGlView.setMissionOverlay(null)
@@ -340,7 +420,10 @@ class PointCloudViewerFragment : Fragment() {
                 lineVertexCount = vertices.size / VALUES_PER_VERTEX,
                 pointVertices = pointVertices.toFloatArray(),
                 pointColors = pointColors.toFloatArray(),
-                pointVertexCount = pointVertices.size / VALUES_PER_VERTEX
+                pointVertexCount = pointVertices.size / VALUES_PER_VERTEX,
+                dronePointVertices = dronePointVertices,
+                dronePointColors = dronePointColors,
+                dronePointVertexCount = dronePointVertices.size / VALUES_PER_VERTEX,
             )
         )
         updateOverlayStatusText()
@@ -478,6 +561,40 @@ class PointCloudViewerFragment : Fragment() {
         colors += color[2]
     }
 
+    private fun addDroneGlyph(
+        centerX: Double,
+        centerY: Double,
+        z: Float,
+        headingDegrees: Double,
+        sizeMeters: Float,
+        vertices: MutableList<Float>,
+        colors: MutableList<Float>,
+    ) {
+        val heading = Math.toRadians(headingDegrees)
+        val forwardX = kotlin.math.sin(heading)
+        val forwardY = kotlin.math.cos(heading)
+        val rightX = forwardY
+        val rightY = -forwardX
+        val arm = sizeMeters.toDouble() * 0.5
+
+        fun point(forward: Double, right: Double): Pair<Double, Double> =
+            Pair(
+                centerX + forwardX * forward + rightX * right,
+                centerY + forwardY * forward + rightY * right,
+            )
+
+        fun line(from: Pair<Double, Double>, to: Pair<Double, Double>) {
+            addLocalMissionVertex(from.first, from.second, z, DRONE_COLOR, vertices, colors)
+            addLocalMissionVertex(to.first, to.second, z, DRONE_COLOR, vertices, colors)
+        }
+
+        line(point(-arm, -arm), point(arm, arm))
+        line(point(-arm, arm), point(arm, -arm))
+        line(point(0.0, 0.0), point(sizeMeters.toDouble(), 0.0))
+        line(point(sizeMeters.toDouble(), 0.0), point(arm, -arm * 0.35))
+        line(point(sizeMeters.toDouble(), 0.0), point(arm, arm * 0.35))
+    }
+
     private fun renderEmptyState() {
         val currentBinding = _binding ?: return
         currentBinding.pointCloudStatusText.text = getString(R.string.point_cloud_empty_state)
@@ -572,12 +689,14 @@ class PointCloudViewerFragment : Fragment() {
         private const val VERTICES_PER_LINE = 2
         private const val MIN_MISSION_OVERLAY_Z_OFFSET = 0.5f
         private const val MIN_MISSION_ARROW_SIZE_METERS = 1.0f
+        private const val MIN_DRONE_GLYPH_SIZE_METERS = 2.0f
         private const val MISSION_LAYER_Z_STEP = 0.2f
         private const val MAX_MISSION_DIRECTION_ARROWS = 80
         private val POLYGON_COLOR = floatArrayOf(0.31f, 0.78f, 1.0f)
         private val SURVEY_PATH_COLOR = floatArrayOf(0.16f, 0.90f, 0.85f)
         private val SURVEY_POINT_COLOR = floatArrayOf(0.89f, 0.65f, 0.25f)
         private val ROUTE_COLOR = floatArrayOf(0.3f, 1.0f, 0.35f)
+        private val DRONE_COLOR = floatArrayOf(1.0f, 0.84f, 0.16f)
         private const val MIN_PREVIEW_PANEL_WIDTH_PX = 220
         private const val MIN_PREVIEW_PANEL_HEIGHT_PX = 180
     }

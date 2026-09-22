@@ -9,6 +9,8 @@ import com.example.droneservicesapp.data.ortho.OrthoBounds
 import com.example.droneservicesapp.data.pointcloud.PointCloudData
 import com.example.droneservicesapp.domain.terrain.TerrainGridSummary
 import com.example.droneservicesapp.domain.terrain.PointCloudTerrainModel
+import com.google.android.gms.maps.model.LatLng
+import io.dronefleet.mavlink.common.MissionItemInt
 
 data class OrthoPreviewAsset(
     val bitmap: Bitmap,
@@ -38,6 +40,9 @@ class PreviewAssetsViewModel : ViewModel() {
 
     private val _assetVersion = MutableLiveData(0)
     val assetVersion: LiveData<Int> = _assetVersion
+
+    private val _retainedDroneMissionPath = MutableLiveData<List<LatLng>>(emptyList())
+    val retainedDroneMissionPath: LiveData<List<LatLng>> = _retainedDroneMissionPath
 
     var orthoAsset: OrthoPreviewAsset? = null
         private set
@@ -115,6 +120,17 @@ class PreviewAssetsViewModel : ViewModel() {
         pointCloudTerrainModel = null
         pointCloudTerrainSummary = null
         notifyAssetsChanged()
+    }
+
+    /**
+     * Keeps the last complete, drawable mission downloaded from the aircraft. Navigation and
+     * short-lived empty refresh results must not make the mission blink out between previews.
+     */
+    fun retainDroneMission(items: List<MissionItemInt>) {
+        val path = downloadedMissionPath(items)
+        if (path.isNotEmpty() && path != _retainedDroneMissionPath.value) {
+            _retainedDroneMissionPath.value = path
+        }
     }
 
     fun updateSettings(update: PreviewSettings.() -> PreviewSettings) {

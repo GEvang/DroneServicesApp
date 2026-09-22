@@ -178,6 +178,7 @@ data class MissionParamsUiState(
     val angle: Int,
     val lineDistance: Int,
     val altitude: Int,
+    val takeoffHeight: Int,
     val sprayerIntensity: Int,
     val surveyStripSpacing: Int,
     val surveyHeightAboveTerrain: Int,

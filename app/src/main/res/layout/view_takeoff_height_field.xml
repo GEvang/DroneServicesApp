@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/takeoff_height_field"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/ds_space_md"
+    android:orientation="vertical">
+
+    <TextView
+        style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/takeoff_height" />
+
+    <LinearLayout
+        android:id="@+id/takeoff_height_slider_row"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/phone_map_panel_slider_row_height"
+        android:layout_marginTop="@dimen/ds_space_xs"
+        android:background="@drawable/bg_slider_pill"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="@dimen/ds_space_sm"
+        android:paddingEnd="@dimen/ds_space_sm">
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/btn_takeoff_height_minus"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:background="@drawable/bg_icon_button_neutral"
+            android:contentDescription="@string/decrease"
+            android:padding="5dp"
+            android:src="@drawable/ic_remove_24"
+            android:tint="@color/text_secondary" />
+
+        <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
+            android:id="@+id/takeoff_height_seekbar"
+            android:layout_width="0dp"
+            android:layout_height="28dp"
+            android:layout_marginStart="@dimen/ds_space_xs"
+            android:layout_marginEnd="@dimen/ds_space_xs"
+            android:layout_weight="1"
+            android:max="120"
+            android:min="1"
+            android:progress="5"
+            android:progressDrawable="@drawable/seekbar_progress_dji"
+            android:splitTrack="false"
+            android:thumb="@drawable/seekbar_thumb_dji" />
+
+        <EditText
+            android:id="@+id/takeoff_height_value"
+            style="@style/TextAppearance.DroneServices.PhoneMapPanelValue"
+            android:layout_width="@dimen/map_panel_value_column_width"
+            android:layout_height="wrap_content"
+            android:background="@null"
+            android:cursorVisible="false"
+            android:focusable="false"
+            android:gravity="end"
+            android:inputType="none"
+            android:text="@string/unknown_value_three_questionmarks" />
+
+        <TextView
+            style="@style/TextAppearance.DroneServices.PhoneMapPanelLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="3dp"
+            android:text="@string/m" />
+
+        <androidx.appcompat.widget.AppCompatImageButton
+            android:id="@+id/btn_takeoff_height_plus"
+            android:layout_width="24dp"
+            android:layout_height="24dp"
+            android:layout_marginStart="@dimen/ds_space_sm"
+            android:background="@drawable/bg_icon_button_neutral"
+            android:contentDescription="@string/increase"
+            android:padding="5dp"
+            android:src="@drawable/ic_add_24"
+            android:tint="@color/text_secondary" />
+    </LinearLayout>
+</LinearLayout>

@@ -20,6 +20,11 @@ class MissionParamsPreferencesBridge(
             "5"
         )
         loadPreference(R.string.survey_altitude_pref, activityViewModel.flightAltProgress, "0")
+        val prefs = PreferenceManager.getDefaultSharedPreferences(context.applicationContext)
+        activityViewModel.updateTakeoffHeight(
+            prefs.getString(context.getString(R.string.takeoff_height_pref), "5")
+                ?.toIntOrNull() ?: 5
+        )
         loadAltitudeReferencePreference()
         loadPreference(
             R.string.survey_sprayer_intensity_pref,
@@ -43,6 +48,10 @@ class MissionParamsPreferencesBridge(
         savePreference(
             R.string.survey_altitude_pref,
             activityViewModel.flightAltProgress.value?.toInt() ?: 0
+        )
+        savePreference(
+            R.string.takeoff_height_pref,
+            activityViewModel.takeoffHeight.value?.toInt() ?: 5
         )
         saveAltitudeReferencePreference(
             activityViewModel.altitudeReferenceMode.value ?: AltitudeReferenceMode.RELATIVE

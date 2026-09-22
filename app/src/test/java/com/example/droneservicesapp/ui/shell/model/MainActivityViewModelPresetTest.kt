@@ -11,6 +11,17 @@ class MainActivityViewModelPresetTest {
     val instantTaskExecutorRule = InstantTaskExecutorRule()
 
     @Test
+    fun takeoffHeightDefaultsToFiveMetersAndStaysWithinOperationalRange() {
+        val viewModel = MainActivityViewModel()
+
+        assertEquals(5.0, viewModel.takeoffHeight.value ?: -1.0, 0.001)
+        viewModel.updateTakeoffHeight(0)
+        assertEquals(1.0, viewModel.takeoffHeight.value ?: -1.0, 0.001)
+        viewModel.updateTakeoffHeight(121)
+        assertEquals(120.0, viewModel.takeoffHeight.value ?: -1.0, 0.001)
+    }
+
+    @Test
     fun applyPresetCopiesDefaultsIntoActivePlanningValues() {
         val viewModel = MainActivityViewModel()
 

@@ -15,6 +15,7 @@ data class SavedMission(
     val workflow: PlanningWorkflow = PlanningWorkflow.AREA,
     val operationMode: PlanningOperationMode = PlanningOperationMode.SURVEY,
     val altitudeMeters: Int = 0,
+    val takeoffHeightMeters: Int = 5,
     val altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
     val angleDegrees: Int = 90,
     val lineDistanceMeters: Int = 5,
@@ -29,7 +30,7 @@ data class SavedMission(
     val obstacles: List<MissionObstacle> = emptyList(),
 ) {
     companion object {
-        const val CURRENT_SCHEMA_VERSION = 2
+        const val CURRENT_SCHEMA_VERSION = 3
     }
 }
 

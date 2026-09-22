@@ -428,6 +428,7 @@ class OsmdroidMapController(
             clearSurveySegmentPolylines()
             surveyPolyline?.setPoints(geoPoints)
         }
+        placeFlightTraceAboveMissionLines()
         renderSurveyWaypointMarkers(path)
         renderSurveyDirectionMarkers(path)
         renderSurveyInfoMarkers(areaVertices)
@@ -531,10 +532,26 @@ class OsmdroidMapController(
         if (flightTracePolyline != null) return
         flightTracePolyline = Polyline(mapView).apply {
             infoWindow = null
-            outlinePaint.color = Color.RED
-            outlinePaint.strokeWidth = 5f
+            outlinePaint.color = ContextCompat.getColor(context, R.color.ds_color_flight_trace)
+            outlinePaint.strokeWidth = 8f
         }
-        addOverlayBelowDrone(flightTracePolyline!!)
+        placeFlightTraceAboveMissionLines()
+    }
+
+    /** Keeps the flown coverage visible above both whole-path and per-segment mission lines. */
+    private fun placeFlightTraceAboveMissionLines() {
+        val trace = flightTracePolyline ?: return
+        mapView.overlays.remove(trace)
+
+        var topMissionLineIndex = surveyPolyline?.let { mapView.overlays.indexOf(it) } ?: -1
+        surveySegmentPolylines.forEach { missionLine ->
+            topMissionLineIndex = max(topMissionLineIndex, mapView.overlays.indexOf(missionLine))
+        }
+        if (topMissionLineIndex >= 0) {
+            mapView.overlays.add(topMissionLineIndex + 1, trace)
+        } else {
+            addOverlayBelowDrone(trace)
+        }
     }
 
     private fun addOverlayBelowDrone(overlay: org.osmdroid.views.overlay.Overlay) {

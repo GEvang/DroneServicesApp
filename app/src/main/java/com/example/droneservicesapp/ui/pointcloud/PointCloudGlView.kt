@@ -28,6 +28,9 @@ data class PointCloudMissionOverlay(
     val selectedPointVertices: FloatArray = FloatArray(0),
     val selectedPointColors: FloatArray = FloatArray(0),
     val selectedPointVertexCount: Int = 0,
+    val dronePointVertices: FloatArray = FloatArray(0),
+    val dronePointColors: FloatArray = FloatArray(0),
+    val dronePointVertexCount: Int = 0,
 )
 
 class PointCloudGlView @JvmOverloads constructor(
@@ -217,6 +220,8 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     private var overlayPointColorBuffer: FloatBuffer? = null
     private var selectedPointPositionBuffer: FloatBuffer? = null
     private var selectedPointColorBuffer: FloatBuffer? = null
+    private var dronePointPositionBuffer: FloatBuffer? = null
+    private var dronePointColorBuffer: FloatBuffer? = null
     private var pointCount = 0
     private var fullPointCount = 0
     private var activeLodStride = 1
@@ -224,6 +229,7 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     private var overlayLineVertexCount = 0
     private var overlayPointVertexCount = 0
     private var selectedPointVertexCount = 0
+    private var dronePointVertexCount = 0
     private var overlayPointPositions = FloatArray(0)
     private var cloudSpan = 100f
     private var heightColorModeEnabled = true
@@ -264,26 +270,32 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
 
     override fun onDrawFrame(gl: GL10?) {
         GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT or GLES20.GL_DEPTH_BUFFER_BIT)
-        if (pointCount == 0 || program == 0) return
+        if (
+            program == 0 ||
+            (pointCount == 0 && overlayLineVertexCount == 0 &&
+                overlayPointVertexCount == 0 && dronePointVertexCount == 0)
+        ) return
 
         updateViewMatrix()
         GLES20.glUseProgram(program)
         GLES20.glUniformMatrix4fv(matrixHandle, 1, false, viewProjectionMatrix, 0)
-        GLES20.glUniform1f(pointSizeHandle, pointSize)
-        GLES20.glUniform1f(alphaHandle, pointCloudOpacity)
+        if (pointCount > 0) {
+            GLES20.glUniform1f(pointSizeHandle, pointSize)
+            GLES20.glUniform1f(alphaHandle, pointCloudOpacity)
 
-        positionBuffer?.position(0)
-        GLES20.glEnableVertexAttribArray(positionHandle)
-        GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, positionBuffer)
+            positionBuffer?.position(0)
+            GLES20.glEnableVertexAttribArray(positionHandle)
+            GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, positionBuffer)
 
-        colorBuffer?.position(0)
-        GLES20.glEnableVertexAttribArray(colorHandle)
-        GLES20.glVertexAttribPointer(colorHandle, 3, GLES20.GL_FLOAT, false, 0, colorBuffer)
+            colorBuffer?.position(0)
+            GLES20.glEnableVertexAttribArray(colorHandle)
+            GLES20.glVertexAttribPointer(colorHandle, 3, GLES20.GL_FLOAT, false, 0, colorBuffer)
 
-        GLES20.glDrawArrays(GLES20.GL_POINTS, 0, pointCount)
+            GLES20.glDrawArrays(GLES20.GL_POINTS, 0, pointCount)
 
-        GLES20.glDisableVertexAttribArray(positionHandle)
-        GLES20.glDisableVertexAttribArray(colorHandle)
+            GLES20.glDisableVertexAttribArray(positionHandle)
+            GLES20.glDisableVertexAttribArray(colorHandle)
+        }
 
         drawMissionOverlay()
     }
@@ -331,19 +343,27 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
     }
 
     fun setMissionOverlay(overlay: PointCloudMissionOverlay?) {
-        if (overlay == null || (overlay.lineVertexCount == 0 && overlay.pointVertexCount == 0)) {
+        if (
+            overlay == null ||
+            (overlay.lineVertexCount == 0 && overlay.pointVertexCount == 0 &&
+                overlay.dronePointVertexCount == 0)
+        ) {
             overlayPositionBuffer = null
             overlayColorBuffer = null
             overlayPointPositionBuffer = null
             overlayPointColorBuffer = null
             selectedPointPositionBuffer = null
             selectedPointColorBuffer = null
+            dronePointPositionBuffer = null
+            dronePointColorBuffer = null
             overlayLineVertexCount = 0
             overlayPointVertexCount = 0
             selectedPointVertexCount = 0
+            dronePointVertexCount = 0
             overlayPointPositions = FloatArray(0)
             return
         }
+        val hadOverlay = overlayLineVertexCount > 0 || overlayPointVertexCount > 0 || dronePointVertexCount > 0
         overlayPositionBuffer = overlay.vertices.takeIf { overlay.lineVertexCount > 0 }?.toFloatBuffer()
         overlayColorBuffer = overlay.colors.takeIf { overlay.lineVertexCount > 0 }?.toFloatBuffer()
         overlayPointPositionBuffer = overlay.pointVertices.takeIf { overlay.pointVertexCount > 0 }?.toFloatBuffer()
@@ -354,10 +374,42 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
         selectedPointColorBuffer = overlay.selectedPointColors
             .takeIf { overlay.selectedPointVertexCount > 0 }
             ?.toFloatBuffer()
+        dronePointPositionBuffer = overlay.dronePointVertices
+            .takeIf { overlay.dronePointVertexCount > 0 }
+            ?.toFloatBuffer()
+        dronePointColorBuffer = overlay.dronePointColors
+            .takeIf { overlay.dronePointVertexCount > 0 }
+            ?.toFloatBuffer()
         overlayLineVertexCount = overlay.lineVertexCount
         overlayPointVertexCount = overlay.pointVertexCount
         selectedPointVertexCount = overlay.selectedPointVertexCount
+        dronePointVertexCount = overlay.dronePointVertexCount
         overlayPointPositions = overlay.pointVertices.copyOf()
+        if (loadedPointCloud == null) {
+            val positions = overlay.vertices + overlay.pointVertices + overlay.dronePointVertices
+            if (positions.size >= VALUES_PER_POINT) {
+                val xs = positions.indices.filter { it % VALUES_PER_POINT == 0 }.map { positions[it] }
+                val ys = positions.indices.filter { it % VALUES_PER_POINT == 1 }.map { positions[it] }
+                val zs = positions.indices.filter { it % VALUES_PER_POINT == 2 }.map { positions[it] }
+                val minX = xs.minOrNull()!!
+                val maxX = xs.maxOrNull()!!
+                val minY = ys.minOrNull()!!
+                val maxY = ys.maxOrNull()!!
+                val minZ = zs.minOrNull()!!
+                val maxZ = zs.maxOrNull()!!
+                val overlaySpan = max(max(maxX - minX, maxY - minY), maxZ - minZ).coerceAtLeast(10f)
+                val targetOutsideOverlay =
+                    targetX !in (minX - overlaySpan)..(maxX + overlaySpan) ||
+                        targetY !in (minY - overlaySpan)..(maxY + overlaySpan)
+                cloudSpan = overlaySpan
+                if (!hadOverlay || targetOutsideOverlay) {
+                    targetX = (minX + maxX) / 2f
+                    targetY = (minY + maxY) / 2f
+                    targetZ = (minZ + maxZ) / 2f
+                    distance = cloudSpan * 1.6f
+                }
+            }
+        }
     }
 
     fun pickMissionPoint(screenX: Float, screenY: Float, hitRadiusPx: Float): Int? {
@@ -448,6 +500,25 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
                 GLES20.glVertexAttribPointer(colorHandle, 3, GLES20.GL_FLOAT, false, 0, selectedColors)
 
                 GLES20.glDrawArrays(GLES20.GL_POINTS, 0, selectedPointVertexCount)
+            }
+        }
+
+        if (dronePointVertexCount > 0) {
+            val dronePositions = dronePointPositionBuffer
+            val droneColors = dronePointColorBuffer
+            if (dronePositions != null && droneColors != null) {
+                GLES20.glUniform1f(pointSizeHandle, DRONE_POINT_SIZE)
+                GLES20.glUniform1f(alphaHandle, 1f)
+
+                dronePositions.position(0)
+                GLES20.glEnableVertexAttribArray(positionHandle)
+                GLES20.glVertexAttribPointer(positionHandle, 3, GLES20.GL_FLOAT, false, 0, dronePositions)
+
+                droneColors.position(0)
+                GLES20.glEnableVertexAttribArray(colorHandle)
+                GLES20.glVertexAttribPointer(colorHandle, 3, GLES20.GL_FLOAT, false, 0, droneColors)
+
+                GLES20.glDrawArrays(GLES20.GL_POINTS, 0, dronePointVertexCount)
             }
         }
 
@@ -601,6 +672,7 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
         private const val MISSION_OVERLAY_LINE_WIDTH = 6f
         private const val MISSION_OVERLAY_POINT_SIZE = 22f
         private const val MISSION_SELECTED_POINT_SIZE = 32f
+        private const val DRONE_POINT_SIZE = 42f
         private const val VERTEX_SHADER = """
             uniform mat4 u_MvpMatrix;
             uniform float u_PointSize;

@@ -7,7 +7,9 @@ import io.dronefleet.mavlink.common.MavCmd
 import io.dronefleet.mavlink.common.MavFrame
 import io.dronefleet.mavlink.common.MavMissionType
 import io.dronefleet.mavlink.common.MissionCount
+import io.dronefleet.mavlink.common.MissionItem
 import io.dronefleet.mavlink.common.MissionItemInt
+import io.dronefleet.mavlink.common.MissionRequest
 import io.dronefleet.mavlink.common.MissionRequestInt
 import io.dronefleet.mavlink.common.MissionRequestList
 import io.dronefleet.mavlink.protocol.MavlinkPacket
@@ -32,6 +34,25 @@ class MissionServiceImmediateResponseTest {
         assertEquals(0, downloaded.single().seq())
         assertEquals(350_000_000, downloaded.single().x())
         assertEquals(240_000_000, downloaded.single().y())
+    }
+
+    @Test
+    fun downloadRemembersLegacyProtocolAndReportsProgress() {
+        val client = LegacyMissionClient(itemCount = 3)
+        val service = MissionService(client).apply {
+            targetSystemId = 1
+            targetComponentId = 1
+        }
+        val progress = mutableListOf<Int>()
+
+        val downloaded = service.downloadMission(timeoutMs = 5L) { _, _, percent ->
+            progress += percent
+        }
+
+        assertEquals(3, downloaded.size)
+        assertEquals(1, client.intRequestCount)
+        assertEquals(3, client.legacyRequestCount)
+        assertEquals(listOf(0, 33, 66, 100), progress)
     }
 
     private class ImmediateMissionClient : BaseFakeMavlinkClient() {
@@ -64,6 +85,47 @@ class MissionServiceImmediateResponseTest {
                         .missionType(MavMissionType.MAV_MISSION_TYPE_MISSION)
                         .build()
                 )
+            }
+        }
+    }
+
+    private class LegacyMissionClient(private val itemCount: Int) : BaseFakeMavlinkClient() {
+        var intRequestCount = 0
+        var legacyRequestCount = 0
+
+        override fun send2(systemId: Int, componentId: Int, payload: Any) {
+            when (payload) {
+                is MissionRequestList -> emit(
+                    MissionCount.builder()
+                        .targetSystem(systemId)
+                        .targetComponent(componentId)
+                        .count(itemCount)
+                        .missionType(MavMissionType.MAV_MISSION_TYPE_MISSION)
+                        .build()
+                )
+                is MissionRequestInt -> intRequestCount++
+                is MissionRequest -> {
+                    legacyRequestCount++
+                    emit(
+                        MissionItem.builder()
+                            .targetSystem(systemId)
+                            .targetComponent(componentId)
+                            .seq(payload.seq())
+                            .frame(MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT)
+                            .command(MavCmd.MAV_CMD_NAV_WAYPOINT)
+                            .current(0)
+                            .autocontinue(1)
+                            .param1(0f)
+                            .param2(0f)
+                            .param3(0f)
+                            .param4(0f)
+                            .x(35f)
+                            .y(24f)
+                            .z(10f)
+                            .missionType(MavMissionType.MAV_MISSION_TYPE_MISSION)
+                            .build()
+                    )
+                }
             }
         }
     }

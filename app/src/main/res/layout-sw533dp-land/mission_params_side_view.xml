@@ -81,6 +81,8 @@
             android:visibility="gone" />
     </LinearLayout>
 
+    <include layout="@layout/view_takeoff_height_field" />
+
     <LinearLayout
         android:id="@+id/spray_mode_section"
         android:layout_width="match_parent"

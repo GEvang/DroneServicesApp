@@ -54,6 +54,8 @@ internal class DroneUiStateStore(
         MutableLiveData<Int?>().default(null)
     val uploadProgressPercent: MutableLiveData<Int> =
         MutableLiveData<Int>().default(0)
+    val missionDownloadProgressPercent: MutableLiveData<Int> =
+        MutableLiveData<Int>().default(-1)
     val rtkForwardingState: MutableLiveData<RtkForwardingState> =
         MutableLiveData<RtkForwardingState>().default(RtkForwardingState.Idle)
     val selectedRtkMountpoint: MutableLiveData<RtkMountpoint?> =

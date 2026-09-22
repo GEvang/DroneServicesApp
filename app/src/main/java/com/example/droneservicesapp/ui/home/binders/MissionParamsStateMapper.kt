@@ -13,6 +13,7 @@ class MissionParamsStateMapper(
             angle = activityViewModel.angleProgress.value?.toInt() ?: 90,
             lineDistance = activityViewModel.lineDistanceProgress.value?.toInt() ?: 5,
             altitude = activityViewModel.flightAltProgress.value?.toInt() ?: 0,
+            takeoffHeight = activityViewModel.takeoffHeight.value?.toInt() ?: 5,
             sprayerIntensity = activityViewModel.sprayerProgress.value?.toInt() ?: 75,
             surveyStripSpacing = activityViewModel.surveyStripSpacing.value?.toInt() ?: 70,
             surveyHeightAboveTerrain = activityViewModel.surveyHeightAboveTerrain.value?.toInt() ?: 50,

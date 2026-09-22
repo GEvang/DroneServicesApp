@@ -23,6 +23,7 @@ object MissionXmlSerializer {
         root.appendTextElement(doc, "missionType", mission.workflow.name)
         root.appendTextElement(doc, "operationMode", mission.operationMode.name)
         root.appendTextElement(doc, "altitude", mission.altitudeMeters.toString())
+        root.appendTextElement(doc, "takeoffHeight", mission.takeoffHeightMeters.toString())
         root.appendTextElement(doc, "altitudeReferenceMode", mission.altitudeReferenceMode.name)
         root.appendTextElement(doc, "angleDegrees", mission.angleDegrees.toString())
         root.appendTextElement(doc, "lineDistance", mission.lineDistanceMeters.toString())

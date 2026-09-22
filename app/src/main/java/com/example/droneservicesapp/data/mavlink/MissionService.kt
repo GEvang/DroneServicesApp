@@ -131,7 +131,11 @@ class MissionService(
         return res == MavMissionResult.MAV_MISSION_ACCEPTED
     }
 
-    fun downloadMission(timeoutMs: Long = 1500L, cancel: AtomicBoolean? = null): ArrayList<MissionItemInt> {
+    fun downloadMission(
+        timeoutMs: Long = 1500L,
+        cancel: AtomicBoolean? = null,
+        onProgress: ((received: Int, total: Int, percent: Int) -> Unit)? = null,
+    ): ArrayList<MissionItemInt> {
         if (cancelled(cancel)) return ArrayList()
         val reqList = MissionRequestList.builder()
             .targetSystem(targetSystemId)
@@ -140,12 +144,13 @@ class MissionService(
             .build()
 
         var missionCount: MissionCount? = null
-        repeat(5) {
+        var countAttempt = 0
+        while (missionCount == null && countAttempt < 5) {
             if (cancelled(cancel)) return ArrayList()
             missionCount = waitForDownloadedMissionCount(timeoutMs, cancel) {
                 client.send2(gcsSystemId, gcsComponentId, reqList)
             }
-            if (missionCount != null) return@repeat
+            countAttempt++
         }
 
         if (missionCount == null) {
@@ -156,15 +161,20 @@ class MissionService(
         if (cancelled(cancel)) return ArrayList()
 
         val count = missionCount!!.count()
-        if (count <= 0) return ArrayList()
+        if (count <= 0) {
+            onProgress?.invoke(0, 0, 100)
+            return ArrayList()
+        }
 
         val items = ArrayList<MissionItemInt>(count)
+        var preferLegacyRequests = false
+        onProgress?.invoke(0, count, 0)
 
         for (seq in 0 until count) {
             if (cancelled(cancel)) return ArrayList()
-            var item: MissionItemInt? = null
+            var downloadedItem: DownloadedMissionItem? = null
 
-            repeat(5) { attempt ->
+            retry@ for (attempt in 0 until 5) {
                 if (cancelled(cancel)) return ArrayList()
                 // Prefer the modern request first, but accept either MISSION_ITEM_INT or
                 // legacy MISSION_ITEM because some ArduPilot builds stay on the legacy
@@ -176,11 +186,6 @@ class MissionService(
                     .seq(seq)
                     .build()
 
-                item = waitForDownloadedMissionItem(seq, timeoutMs, cancel) {
-                    client.send2(gcsSystemId, gcsComponentId, reqInt)
-                }
-                if (item != null) return@repeat
-
                 val reqLegacy = MissionRequest.builder()
                     .targetSystem(targetSystemId)
                     .targetComponent(targetComponentId)
@@ -188,24 +193,36 @@ class MissionService(
                     .seq(seq)
                     .build()
 
-                Log.w(
-                    "MissionService",
-                    "Missing MissionItemInt seq=$seq after request-int attempt=${attempt + 1}; trying legacy MissionRequest"
-                )
-                item = waitForDownloadedMissionItem(seq, timeoutMs, cancel) {
-                    client.send2(gcsSystemId, gcsComponentId, reqLegacy)
+                val requests = if (preferLegacyRequests) {
+                    listOf("MISSION_REQUEST" to reqLegacy, "MISSION_REQUEST_INT" to reqInt)
+                } else {
+                    listOf("MISSION_REQUEST_INT" to reqInt, "MISSION_REQUEST" to reqLegacy)
                 }
-                if (item != null) return@repeat
+                for ((requestName, requestPayload) in requests) {
+                    downloadedItem = waitForDownloadedMissionItem(seq, timeoutMs, cancel) {
+                        client.send2(gcsSystemId, gcsComponentId, requestPayload)
+                    }
+                    if (downloadedItem != null) {
+                        preferLegacyRequests = downloadedItem!!.receivedAsLegacy
+                        break@retry
+                    }
+                    Log.w(
+                        "MissionService",
+                        "Missing mission item seq=$seq after $requestName attempt=${attempt + 1}"
+                    )
+                }
             }
 
             if (cancelled(cancel)) return ArrayList()
 
-            if (item == null) {
+            if (downloadedItem == null) {
                 Log.e("MissionService", "Missing mission item seq=$seq after INT and legacy retries")
                 throw MissionDownloadException("The vehicle did not return mission item $seq of $count.")
             }
 
-            items.add(item!!)
+            items.add(downloadedItem!!.item)
+            val received = items.size
+            onProgress?.invoke(received, count, received * 100 / count)
         }
 
         return items
@@ -697,13 +714,16 @@ class MissionService(
     }
 
     private fun validateMissionForUpload(items: List<MissionItemInt>): String? {
-        if (items.isEmpty()) return "mission item list is empty"
+        if (items.size < 2) return "mission must contain a home row and TAKEOFF"
 
         val currentItems = items.filter { it.current() == 1 }
         if (currentItems.size != 1) return "expected exactly one current=1 item, found ${currentItems.size}"
         if (items.first().current() != 1) return "current=1 item must be seq/index 0"
-        if (items.first().command().entry() != MavCmd.MAV_CMD_NAV_TAKEOFF) {
-            return "seq/index 0 must be MAV_CMD_NAV_TAKEOFF for generated Copter missions"
+        if (items.first().command().entry() != MavCmd.MAV_CMD_NAV_WAYPOINT) {
+            return "seq/index 0 must be the MAV_CMD_NAV_WAYPOINT home row"
+        }
+        if (items[1].command().entry() != MavCmd.MAV_CMD_NAV_TAKEOFF) {
+            return "seq/index 1 must be MAV_CMD_NAV_TAKEOFF for generated Copter missions"
         }
 
         items.forEachIndexed { index, item ->
@@ -810,14 +830,19 @@ class MissionService(
         }
     }
 
+    private data class DownloadedMissionItem(
+        val item: MissionItemInt,
+        val receivedAsLegacy: Boolean,
+    )
+
     private fun waitForDownloadedMissionItem(
         seq: Int,
         timeoutMs: Long,
         cancel: AtomicBoolean?,
         request: () -> Unit,
-    ): MissionItemInt? {
+    ): DownloadedMissionItem? {
         if (cancelled(cancel)) return null
-        val ref = AtomicReference<MissionItemInt?>(null)
+        val ref = AtomicReference<DownloadedMissionItem?>(null)
         val latch = CountDownLatch(1)
 
         val disposable = client.messages()
@@ -841,7 +866,10 @@ class MissionService(
                     is MissionItem -> missionItemToMissionItemInt(payload)
                     else -> null
                 }
-                if (converted != null && ref.compareAndSet(null, converted)) {
+                val downloaded = converted?.let {
+                    DownloadedMissionItem(it, receivedAsLegacy = payload is MissionItem)
+                }
+                if (downloaded != null && ref.compareAndSet(null, downloaded)) {
                     val sourceType = if (payload is MissionItem) "MISSION_ITEM" else "MISSION_ITEM_INT"
                     Log.i("MissionService", "RX $sourceType seq=$seq during mission download")
                     latch.countDown()

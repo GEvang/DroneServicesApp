@@ -21,6 +21,9 @@ import kotlin.math.sqrt
  */
 object MissionBuilder {
 
+    const val DEFAULT_TAKEOFF_HEIGHT_METERS = 5f
+    const val MAX_TAKEOFF_HEIGHT_METERS = 120f
+
     fun buildSurveyMission(
         waypoints: ArrayList<LatLng>,
         currentPos: Location,
@@ -30,7 +33,8 @@ object MissionBuilder {
         angleProgress: Float,
         targetSystemId: Int,
         targetComponentId: Int,
-        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE
+        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
+        takeoffHeight: Float = DEFAULT_TAKEOFF_HEIGHT_METERS,
     ): ArrayList<MissionItemInt> = buildSprayAreaMission(
         waypoints = waypoints,
         currentPos = currentPos,
@@ -40,7 +44,8 @@ object MissionBuilder {
         angleProgress = angleProgress,
         targetSystemId = targetSystemId,
         targetComponentId = targetComponentId,
-        altitudeReferenceMode = altitudeReferenceMode
+        altitudeReferenceMode = altitudeReferenceMode,
+        takeoffHeight = takeoffHeight,
     )
 
     fun buildSprayAreaMission(
@@ -60,6 +65,7 @@ object MissionBuilder {
         outboundAltitudes: List<Float>? = null,
         returnPathToHome: List<LatLng> = emptyList(),
         returnAltitudes: List<Float>? = null,
+        takeoffHeight: Float = DEFAULT_TAKEOFF_HEIGHT_METERS,
     ): ArrayList<MissionItemInt> = buildSprayAreaMission(
         waypoints = waypoints,
         currentLatitude = currentPos.latitude,
@@ -78,6 +84,7 @@ object MissionBuilder {
         outboundAltitudes = outboundAltitudes,
         returnPathToHome = returnPathToHome,
         returnAltitudes = returnAltitudes,
+        takeoffHeight = takeoffHeight,
     )
 
     internal fun buildSprayAreaMission(
@@ -98,6 +105,7 @@ object MissionBuilder {
         outboundAltitudes: List<Float>? = null,
         returnPathToHome: List<LatLng> = emptyList(),
         returnAltitudes: List<Float>? = null,
+        takeoffHeight: Float = DEFAULT_TAKEOFF_HEIGHT_METERS,
     ): ArrayList<MissionItemInt> {
 
         val sprayerIntensityPWM = servo5PwmForSprayerIntensity(sprayerIntensity)
@@ -149,16 +157,30 @@ object MissionBuilder {
                 targetComponent(targetComponentId)
             }.build()
 
-        // seq=0: TAKEOFF for generated Copter ground-start AUTO missions.
+        // ArduPilot reserves seq=0 for the mission home row. Mission Planner does not show
+        // this row in the command list, so TAKEOFF must be seq=1 to remain an executable item.
         missionItems.add(
             buildItem(
                 frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
-                command = MavCmd.MAV_CMD_NAV_TAKEOFF,
+                command = MavCmd.MAV_CMD_NAV_WAYPOINT,
                 currentFlag = 1,
                 p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
                 x = currentLatitude.toE7(),
                 y = currentLongitude.toE7(),
-                z = maxOf(alt, outboundAltitudes?.firstOrNull() ?: alt)
+                z = 0.0f
+            )
+        )
+
+        // seq=1: TAKEOFF for generated Copter ground-start AUTO missions.
+        missionItems.add(
+            buildItem(
+                frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
+                command = MavCmd.MAV_CMD_NAV_TAKEOFF,
+                currentFlag = 0,
+                p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
+                x = currentLatitude.toE7(),
+                y = currentLongitude.toE7(),
+                z = takeoffHeight.coerceIn(1f, MAX_TAKEOFF_HEIGHT_METERS)
             )
         )
 
@@ -285,6 +307,7 @@ object MissionBuilder {
         altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
         waypointAltitudes: List<Float>? = null,
         preserveWaypointOrder: Boolean = false,
+        takeoffHeight: Float = DEFAULT_TAKEOFF_HEIGHT_METERS,
     ): ArrayList<MissionItemInt> {
         val orderedPath = orderAreaPath(
             waypoints = waypoints,
@@ -330,12 +353,24 @@ object MissionBuilder {
         missionItems.add(
             buildItem(
                 frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
-                command = MavCmd.MAV_CMD_NAV_TAKEOFF,
+                command = MavCmd.MAV_CMD_NAV_WAYPOINT,
                 currentFlag = 1,
                 p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
                 x = currentPos.latitude.toE7(),
                 y = currentPos.longitude.toE7(),
-                z = alt
+                z = 0.0f
+            )
+        )
+
+        missionItems.add(
+            buildItem(
+                frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
+                command = MavCmd.MAV_CMD_NAV_TAKEOFF,
+                currentFlag = 0,
+                p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
+                x = currentPos.latitude.toE7(),
+                y = currentPos.longitude.toE7(),
+                z = takeoffHeight.coerceIn(1f, MAX_TAKEOFF_HEIGHT_METERS)
             )
         )
 
@@ -384,14 +419,16 @@ object MissionBuilder {
         currentPos: Location,
         targetSystemId: Int,
         targetComponentId: Int,
-        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE
+        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
+        takeoffHeight: Float = DEFAULT_TAKEOFF_HEIGHT_METERS,
     ): ArrayList<MissionItemInt> = buildPointRouteMission(
         routeWaypoints = routeWaypoints,
         currentLatitude = currentPos.latitude,
         currentLongitude = currentPos.longitude,
         targetSystemId = targetSystemId,
         targetComponentId = targetComponentId,
-        altitudeReferenceMode = altitudeReferenceMode
+        altitudeReferenceMode = altitudeReferenceMode,
+        takeoffHeight = takeoffHeight,
     )
 
     fun buildPointRouteMission(
@@ -400,7 +437,8 @@ object MissionBuilder {
         currentLongitude: Double,
         targetSystemId: Int,
         targetComponentId: Int,
-        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE
+        altitudeReferenceMode: AltitudeReferenceMode = AltitudeReferenceMode.RELATIVE,
+        takeoffHeight: Float = DEFAULT_TAKEOFF_HEIGHT_METERS,
     ): ArrayList<MissionItemInt> {
         val missionItems = ArrayList<MissionItemInt>()
         val waypointFrame = missionWaypointFrameFor(altitudeReferenceMode)
@@ -440,17 +478,27 @@ object MissionBuilder {
                 targetComponent(targetComponentId)
             }.build()
 
-        val firstAltitude = routeWaypoints.firstOrNull()?.altitudeMeters?.toFloat() ?: 2.0f
+        missionItems.add(
+            buildItem(
+                frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
+                command = MavCmd.MAV_CMD_NAV_WAYPOINT,
+                currentFlag = 1,
+                p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
+                x = currentLatitude.toE7(),
+                y = currentLongitude.toE7(),
+                z = 0.0f
+            )
+        )
 
         missionItems.add(
             buildItem(
                 frame = MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT,
                 command = MavCmd.MAV_CMD_NAV_TAKEOFF,
-                currentFlag = 1,
+                currentFlag = 0,
                 p1 = 0.0f, p2 = 0.0f, p3 = 0.0f, p4 = 0.0f,
                 x = currentLatitude.toE7(),
                 y = currentLongitude.toE7(),
-                z = firstAltitude
+                z = takeoffHeight.coerceIn(1f, MAX_TAKEOFF_HEIGHT_METERS)
             )
         )
 
@@ -583,8 +631,18 @@ object MissionBuilder {
 
         missionItems.add(
             buildItem(
-                command = MavCmd.MAV_CMD_NAV_TAKEOFF,
+                command = MavCmd.MAV_CMD_NAV_WAYPOINT,
                 currentFlag = 1,
+                p1 = 0f, p2 = 0f, p3 = 0f, p4 = 0.0f,
+                x = currentLatitude.toE7(),
+                y = currentLongitude.toE7(),
+                z = 0f
+            )
+        )
+        missionItems.add(
+            buildItem(
+                command = MavCmd.MAV_CMD_NAV_TAKEOFF,
+                currentFlag = 0,
                 p1 = 0f, p2 = 0f, p3 = 0f, p4 = 0.0f,
                 x = currentLatitude.toE7(),
                 y = currentLongitude.toE7(),

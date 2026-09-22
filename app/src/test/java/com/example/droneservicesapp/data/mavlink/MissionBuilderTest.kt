@@ -128,7 +128,8 @@ class MissionBuilderTest {
             currentLongitude = 24.0,
             targetSystemId = 1,
             targetComponentId = 1,
-            altitudeReferenceMode = AltitudeReferenceMode.TERRAIN
+            altitudeReferenceMode = AltitudeReferenceMode.TERRAIN,
+            takeoffHeight = 6f,
         )
         val navWaypoints = missionItems.filter { it.command().entry() == MavCmd.MAV_CMD_NAV_WAYPOINT }
         val servoCommands = missionItems.filter {
@@ -138,14 +139,18 @@ class MissionBuilderTest {
 
         assertEquals(MavCmd.MAV_CMD_NAV_RETURN_TO_LAUNCH, rtlCommand.command().entry())
         assertEquals(MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT, rtlCommand.frame().entry())
-        assertEquals(MavCmd.MAV_CMD_NAV_TAKEOFF, missionItems.first().command().entry())
+        assertEquals(MavCmd.MAV_CMD_NAV_WAYPOINT, missionItems[0].command().entry())
         assertEquals(1, missionItems.first().current())
         assertEquals(MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, missionItems.first().frame().entry())
-        assertEquals(2, navWaypoints.size)
-        assertEquals(MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT_INT, navWaypoints[0].frame().entry())
-        assertEquals((35.1 * 1e7).toInt(), navWaypoints[0].x())
-        assertEquals((24.1 * 1e7).toInt(), navWaypoints[0].y())
-        assertEquals(8.0f, navWaypoints[0].z(), 0.001f)
+        assertEquals(0f, missionItems[0].z(), 0.001f)
+        assertEquals(MavCmd.MAV_CMD_NAV_TAKEOFF, missionItems[1].command().entry())
+        assertEquals(0, missionItems[1].current())
+        assertEquals(6f, missionItems[1].z(), 0.001f)
+        assertEquals(3, navWaypoints.size)
+        assertEquals(MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT_INT, navWaypoints[1].frame().entry())
+        assertEquals((35.1 * 1e7).toInt(), navWaypoints[1].x())
+        assertEquals((24.1 * 1e7).toInt(), navWaypoints[1].y())
+        assertEquals(8.0f, navWaypoints[1].z(), 0.001f)
         assertEquals(2, servoCommands.size)
         assertEquals(1350.0f, servoCommands.first().param2(), 0.001f)
         assertEquals(1000.0f, servoCommands.last().param2(), 0.001f)
@@ -161,9 +166,11 @@ class MissionBuilderTest {
             targetComponentId = 1
         )
 
-        assertEquals(4, missionItems.size)
-        assertEquals(MavCmd.MAV_CMD_NAV_TAKEOFF, missionItems[0].command().entry())
+        assertEquals(5, missionItems.size)
+        assertEquals(MavCmd.MAV_CMD_NAV_WAYPOINT, missionItems[0].command().entry())
         assertEquals(1, missionItems[0].current())
+        assertEquals(MavCmd.MAV_CMD_NAV_TAKEOFF, missionItems[1].command().entry())
+        assertEquals(0, missionItems[1].current())
         assertEquals(MavCmd.MAV_CMD_NAV_RETURN_TO_LAUNCH, missionItems.last().command().entry())
         missionItems.forEachIndexed { index, item ->
             assertEquals(index, item.seq())
@@ -171,7 +178,8 @@ class MissionBuilderTest {
         assertEquals(MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, missionItems[0].frame().entry())
         assertEquals(MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, missionItems[1].frame().entry())
         assertEquals(MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, missionItems[2].frame().entry())
-        assertEquals(MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT, missionItems[3].frame().entry())
+        assertEquals(MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, missionItems[3].frame().entry())
+        assertEquals(MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT, missionItems[4].frame().entry())
     }
 
     @Test
@@ -193,13 +201,14 @@ class MissionBuilderTest {
             outboundAltitudes = listOf(8f, 10f),
             returnPathToHome = listOf(LatLng(35.0003, 24.0), LatLng(35.0, 24.0)),
             returnAltitudes = listOf(14f, 8f),
+            takeoffHeight = 6f,
         )
 
         val navItems = missionItems.filter {
             it.command().entry() == MavCmd.MAV_CMD_NAV_WAYPOINT
         }
-        assertEquals(8f, missionItems.first().z(), 0.001f)
-        assertEquals(listOf(10f, 12f, 14f, 8f), navItems.map { it.z() })
+        assertEquals(6f, missionItems[1].z(), 0.001f)
+        assertEquals(listOf(0f, 10f, 12f, 14f, 8f), navItems.map { it.z() })
         assertEquals(MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT, navItems.first().frame().entry())
     }
 }
