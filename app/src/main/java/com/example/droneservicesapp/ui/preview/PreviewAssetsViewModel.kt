@@ -43,6 +43,8 @@ class PreviewAssetsViewModel : ViewModel() {
 
     private val _retainedDroneMissionPath = MutableLiveData<List<LatLng>>(emptyList())
     val retainedDroneMissionPath: LiveData<List<LatLng>> = _retainedDroneMissionPath
+    private val _retainedDroneMissionWaypoints = MutableLiveData<List<DownloadedMissionWaypoint>>(emptyList())
+    val retainedDroneMissionWaypoints: LiveData<List<DownloadedMissionWaypoint>> = _retainedDroneMissionWaypoints
 
     var orthoAsset: OrthoPreviewAsset? = null
         private set
@@ -127,9 +129,13 @@ class PreviewAssetsViewModel : ViewModel() {
      * short-lived empty refresh results must not make the mission blink out between previews.
      */
     fun retainDroneMission(items: List<MissionItemInt>) {
-        val path = downloadedMissionPath(items)
+        val waypoints = downloadedMissionWaypoints(items)
+        val path = waypoints.map(DownloadedMissionWaypoint::position)
         if (path.isNotEmpty() && path != _retainedDroneMissionPath.value) {
             _retainedDroneMissionPath.value = path
+        }
+        if (waypoints.isNotEmpty() && waypoints != _retainedDroneMissionWaypoints.value) {
+            _retainedDroneMissionWaypoints.value = waypoints
         }
     }
 

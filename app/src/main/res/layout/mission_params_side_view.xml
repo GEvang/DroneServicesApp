@@ -871,7 +871,7 @@
             <LinearLayout
                 android:id="@+id/survey_canopy_smoothing_slider_row"
                 android:layout_width="match_parent"
-                android:layout_height="@dimen/phone_map_panel_slider_row_height"
+                android:layout_height="48dp"
                 android:layout_marginTop="@dimen/ds_space_xs"
                 android:background="@drawable/bg_slider_pill"
                 android:gravity="center_vertical"
@@ -892,7 +892,7 @@
                 <com.example.droneservicesapp.ui.common.TouchDelegateSeekBar
                     android:id="@+id/survey_canopy_smoothing_seekbar"
                     android:layout_width="0dp"
-                    android:layout_height="28dp"
+                    android:layout_height="match_parent"
                     android:layout_marginStart="@dimen/ds_space_xs"
                     android:layout_marginEnd="@dimen/ds_space_xs"
                     android:layout_weight="1"

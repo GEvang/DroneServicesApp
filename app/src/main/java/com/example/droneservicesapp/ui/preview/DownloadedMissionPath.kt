@@ -4,8 +4,13 @@ import com.google.android.gms.maps.model.LatLng
 import io.dronefleet.mavlink.common.MavCmd
 import io.dronefleet.mavlink.common.MissionItemInt
 
+data class DownloadedMissionWaypoint(
+    val position: LatLng,
+    val altitudeMeters: Float,
+)
+
 /** Extracts drawable navigation geometry from a mission downloaded from the aircraft. */
-fun downloadedMissionPath(items: List<MissionItemInt>): List<LatLng> = items
+fun downloadedMissionWaypoints(items: List<MissionItemInt>): List<DownloadedMissionWaypoint> = items
     .sortedBy { it.seq() }
     .filter { item ->
         item.command().entry() == MavCmd.MAV_CMD_NAV_WAYPOINT ||
@@ -19,8 +24,14 @@ fun downloadedMissionPath(items: List<MissionItemInt>): List<LatLng> = items
             latitude in -90.0..90.0 && longitude in -180.0..180.0 &&
             (latitude != 0.0 || longitude != 0.0)
         ) {
-            LatLng(latitude, longitude)
+            DownloadedMissionWaypoint(
+                position = LatLng(latitude, longitude),
+                altitudeMeters = item.z().takeIf { it.isFinite() } ?: 0f,
+            )
         } else {
             null
         }
     }
+
+fun downloadedMissionPath(items: List<MissionItemInt>): List<LatLng> =
+    downloadedMissionWaypoints(items).map(DownloadedMissionWaypoint::position)

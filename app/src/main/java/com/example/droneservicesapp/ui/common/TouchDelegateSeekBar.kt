@@ -1,15 +1,14 @@
 package com.example.droneservicesapp.ui.common
 
 import android.content.Context
-import android.graphics.Rect
 import android.util.AttributeSet
 import android.view.MotionEvent
-import android.view.TouchDelegate
 import androidx.appcompat.widget.AppCompatSeekBar
 
 /**
- * Custom SeekBar that expands its touch hit-rect on all sides using TouchDelegate.
- * This makes it easier to interact with the seek bar on touch screens.
+ * SeekBar with a stable, full-row touch surface. The layout supplies the actual
+ * hit area: using a TouchDelegate here made adjacent scroll content repeatedly
+ * take ownership of a drag gesture.
  */
 class TouchDelegateSeekBar @JvmOverloads constructor(
     context: Context,
@@ -17,36 +16,18 @@ class TouchDelegateSeekBar @JvmOverloads constructor(
     defStyleAttr: Int = android.R.attr.seekBarStyle
 ) : AppCompatSeekBar(context, attrs, defStyleAttr) {
 
-    private var extraTouchDp: Int = 44
-
-    /**
-     * Set the amount of extra touch padding in dp on all sides.
-     * Default is 44dp.
-     *
-     * @param dp The extra padding in dp
-     */
-    fun setExtraTouchDp(dp: Int) {
-        this.extraTouchDp = dp
-        setupTouchDelegate()
-    }
-
-    override fun onAttachedToWindow() {
-        super.onAttachedToWindow()
-        // Post to ensure layout has completed before setting up the delegate
-        post { setupTouchDelegate() }
-    }
-
-    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
-        super.onSizeChanged(w, h, oldw, oldh)
-        post { setupTouchDelegate() }
-    }
-
     /**
      * SeekBar's platform thumb can have optical insets that make its effective drag line sit
      * above or below the painted track. Normalizing Y keeps the horizontal value under the
      * user's finger anywhere inside the expanded row.
      */
     override fun onTouchEvent(event: MotionEvent): Boolean {
+        when (event.actionMasked) {
+            MotionEvent.ACTION_DOWN -> parent?.requestDisallowInterceptTouchEvent(true)
+            MotionEvent.ACTION_UP,
+            MotionEvent.ACTION_CANCEL -> parent?.requestDisallowInterceptTouchEvent(false)
+        }
+
         val centeredEvent = MotionEvent.obtain(event)
         centeredEvent.setLocation(event.x, height / 2f)
         return try {
@@ -54,28 +35,5 @@ class TouchDelegateSeekBar @JvmOverloads constructor(
         } finally {
             centeredEvent.recycle()
         }
-    }
-
-    /**
-     * Setup the touch delegate to expand the touch area by the specified dp value.
-     */
-    private fun setupTouchDelegate() {
-        val parent = parent as? android.view.View ?: return
-
-        // Convert dp to pixels
-        val extraTouchPx = (extraTouchDp * resources.displayMetrics.density).toInt()
-
-        // Get the bounds of this view
-        val delegateArea = Rect()
-        getHitRect(delegateArea)
-
-        // Expand the rect on all sides
-        delegateArea.left -= extraTouchPx
-        delegateArea.top -= extraTouchPx
-        delegateArea.right += extraTouchPx
-        delegateArea.bottom += extraTouchPx
-
-        // Create and set the touch delegate on the parent
-        parent.touchDelegate = TouchDelegate(delegateArea, this)
     }
 }

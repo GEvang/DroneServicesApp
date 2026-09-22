@@ -2572,7 +2572,10 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun renderCurrentSurveyPathOnMap() {
-        val path = activityViewModel.surveyPath.value.orEmpty()
+        val downloadedPath = previewAssetsViewModel.retainedDroneMissionPath.value.orEmpty()
+        val showingDownloadedMission =
+            activityViewModel.mapState.value == MainActivityViewModel.MapState.Idle && downloadedPath.size >= 2
+        val path = if (showingDownloadedMission) downloadedPath else activityViewModel.surveyPath.value.orEmpty()
         val areaVertices = activityViewModel.missionArea.value?.vertices.orEmpty()
         if (path.size >= 2) {
             osmdroidMapController.setSurveyPath(
@@ -2770,6 +2773,7 @@ class MissionMapFragment : Fragment() {
         if (activePreviewMode != PreviewMode.POINT_CLOUD) return
         val pointCloud = previewAssetsViewModel.pointCloudAsset?.pointCloud
         val downloadedPoints = previewAssetsViewModel.retainedDroneMissionPath.value.orEmpty()
+        val downloadedWaypoints = previewAssetsViewModel.retainedDroneMissionWaypoints.value.orEmpty()
         val showingDownloadedMission =
             activityViewModel.mapState.value == MainActivityViewModel.MapState.Idle && downloadedPoints.isNotEmpty()
         val areaVertices = if (showingDownloadedMission) {
@@ -2839,7 +2843,12 @@ class MissionMapFragment : Fragment() {
             pointWorkflow -> emptyList()
             else -> activityViewModel.surveyPath.value.orEmpty()
         }
-        val surveyZValues = if (showingDownloadedMission) null else pointCloudSurveyZValues(surveyPoints)
+        val surveyZValues = when {
+            showingDownloadedMission && downloadedWaypoints.size == surveyPoints.size ->
+                downloadedWaypoints.map { it.altitudeMeters }
+            showingDownloadedMission -> null
+            else -> pointCloudSurveyZValues(surveyPoints)
+        }
         addPointCloudOpenLineStrip(
             source = surveyPoints,
             z = overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP,
