@@ -97,19 +97,15 @@
                 tools:text="Downloading mission from drone 42%" />
         </LinearLayout>
 
-        <androidx.core.widget.NestedScrollView
+        <FrameLayout
             android:id="@+id/mission_params_side_view"
             android:layout_width="@dimen/tablet_left_panel_width"
             android:layout_height="0dp"
             android:layout_marginStart="@dimen/ds_space_md"
             android:layout_marginTop="@dimen/ds_space_md"
             android:layout_marginBottom="@dimen/ds_space_sm"
-            android:fillViewport="false"
-            android:overScrollMode="ifContentScrolls"
-            android:scrollbars="vertical"
             android:visibility="gone"
             app:layout_constraintBottom_toTopOf="@id/home_bottom_utility_dock"
-            app:layout_constraintHeight_max="@dimen/phone_map_panel_max_height"
             app:layout_constraintStart_toStartOf="parent"
             app:layout_constraintTop_toBottomOf="@id/home_top_status_strip"
             app:layout_constraintVertical_bias="0">
@@ -119,9 +115,9 @@
                 layout="@layout/mission_params_side_view"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
-        </androidx.core.widget.NestedScrollView>
+        </FrameLayout>
 
-        <androidx.core.widget.NestedScrollView
+        <FrameLayout
             android:id="@+id/planning_panel_container"
             android:layout_width="@dimen/tablet_right_panel_width"
             android:layout_height="0dp"
@@ -129,9 +125,6 @@
             android:layout_marginTop="@dimen/ds_space_md"
             android:layout_marginBottom="@dimen/ds_space_sm"
             android:clipToPadding="false"
-            android:fillViewport="false"
-            android:overScrollMode="ifContentScrolls"
-            android:scrollbars="none"
             android:visibility="gone"
             app:layout_constraintBottom_toTopOf="@id/preview_mode_bottom_dock"
             app:layout_constraintEnd_toEndOf="parent"
@@ -143,7 +136,7 @@
                 layout="@layout/home_workflow_panel_v2"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
-        </androidx.core.widget.NestedScrollView>
+        </FrameLayout>
 
         <TextView
             android:id="@+id/home_bottom_planning_label"

@@ -25,6 +25,10 @@ class MissionParamsRenderer(
     private val activityViewModel: MainActivityViewModel,
     private val stateMapper: MissionParamsStateMapper,
 ) {
+    // Point-cloud coverage is refreshed while mission parameters are edited. Keep that
+    // refresh from causing an otherwise identical settings layout to be rebuilt.
+    private var lastLayoutSignature: Triple<Boolean, Boolean, Boolean>? = null
+
     private var missionParamsUiState = MissionParamsUiState(
         operationMode = PlanningOperationMode.SURVEY,
         angle = 90,
@@ -182,6 +186,14 @@ class MissionParamsRenderer(
         val isPointRoute = activityViewModel.activePlanningWorkflow.value ==
             com.example.droneservicesapp.domain.model.PlanningWorkflow.POINTS
         val isThreeDimensionalSpray = !isSurvey && coverage == PointCloudCoverage.COMPLETE
+        val layoutSignature = Triple(isSurvey, isPointRoute, isThreeDimensionalSpray)
+
+        // The status text may change from CHECKING to COMPLETE during a recalculation,
+        // but that alone must not detach and reattach the terrain controls.
+        renderPointCloudStatus(mode, coverage)
+        if (layoutSignature == lastLayoutSignature) return
+        lastLayoutSignature = layoutSignature
+
         arrangeParameterFields(isSurvey, isPointRoute)
         views.surveyModeSection.isVisible = isSurvey
         views.sprayModeSection.isVisible = !isSurvey
@@ -200,8 +212,6 @@ class MissionParamsRenderer(
         views.speedTimeRow.isVisible = true
         views.flightTimeValue.isVisible = false
         views.flightTimeUnit.isVisible = false
-        renderPointCloudStatus(mode, coverage)
-
         if (!isSurvey) {
             val requiredMode = if (isThreeDimensionalSpray) {
                 AltitudeReferenceMode.RELATIVE
@@ -266,6 +276,12 @@ class MissionParamsRenderer(
     }
 
     private fun moveToEnd(parent: ViewGroup, children: List<View>) {
+        val firstExpectedIndex = parent.childCount - children.size
+        val alreadyInPlace = firstExpectedIndex >= 0 && children.withIndex().all { (index, child) ->
+            child.parent === parent && parent.indexOfChild(child) == firstExpectedIndex + index
+        }
+        if (alreadyInPlace) return
+
         children.forEach { child ->
             (child.parent as? ViewGroup)?.removeView(child)
             parent.addView(child)
