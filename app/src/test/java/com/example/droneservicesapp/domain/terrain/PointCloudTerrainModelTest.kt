@@ -35,6 +35,42 @@ class PointCloudTerrainModelTest {
     }
 
     @Test
+    fun classifiesCompletePartialAndAbsentAreaCoverage() = runBlocking {
+        val positions = mutableListOf<Float>()
+        for (x in 0..10) {
+            for (y in 0..10) {
+                positions += x.toFloat()
+                positions += y.toFloat()
+                positions += 10f
+            }
+        }
+        val coverageModel = PointCloudTerrainModel(
+            PointCloudData(
+                positions = positions.toFloatArray(),
+                colors = floatArrayOf(),
+                totalPointCount = positions.size / 3,
+                displayedPointCount = positions.size / 3,
+                bounds = PointCloudBounds(0f, 10f, 0f, 10f, 10f, 10f),
+                hasRgb = false,
+                coordinateFrame = frame,
+            )
+        )
+
+        assertEquals(
+            PointCloudCoverage.COMPLETE,
+            coverageModel.classifyAreaCoverage(localPolygon(1.0, 1.0, 9.0, 9.0)),
+        )
+        assertEquals(
+            PointCloudCoverage.PARTIAL,
+            coverageModel.classifyAreaCoverage(localPolygon(1.0, 1.0, 14.0, 9.0)),
+        )
+        assertEquals(
+            PointCloudCoverage.NONE,
+            coverageModel.classifyAreaCoverage(localPolygon(20.0, 20.0, 25.0, 25.0)),
+        )
+    }
+
+    @Test
     fun samplesObstacleAwarePathAtTerrainSegmentInterval() = runBlocking {
         val (startLat, startLon) = frame.localToLatLon(0.0, 0.0)
         val (endLat, endLon) = frame.localToLatLon(5.0, 0.0)

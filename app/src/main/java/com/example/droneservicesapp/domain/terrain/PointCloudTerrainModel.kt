@@ -171,6 +171,48 @@ class PointCloudTerrainModel(
         return hasPointInside(localPolygon)
     }
 
+    /**
+     * Classifies the accepted area, not only the generated flight lines. A cloud that overlaps
+     * the polygon but leaves any boundary or interior sample unsupported is partial coverage.
+     */
+    suspend fun classifyAreaCoverage(polygon: List<LatLon>): PointCloudCoverage {
+        val frame = coordinateFrame ?: return PointCloudCoverage.NONE
+        if (polygon.size < 3 || pointCloud.displayedPointCount == 0) return PointCloudCoverage.NONE
+        val localPolygon = polygon.map { vertex ->
+            val (x, y) = frame.latLonToLocal(vertex.lat, vertex.lon)
+            LocalPoint(x, y)
+        }
+        if (!hasPointInside(localPolygon)) return PointCloudCoverage.NONE
+
+        val boundary = samplePath(localPolygon + localPolygon.first(), AREA_COVERAGE_SAMPLE_METERS)
+        boundary.forEachIndexed { index, point ->
+            if (index % CANCELLATION_CHECK_INTERVAL == 0) coroutineContext.ensureActive()
+            if (!hasLocalCoverage(point.x, point.y)) return PointCloudCoverage.PARTIAL
+        }
+
+        val minX = localPolygon.minOf { it.x }
+        val maxX = localPolygon.maxOf { it.x }
+        val minY = localPolygon.minOf { it.y }
+        val maxY = localPolygon.maxOf { it.y }
+        var checkedSamples = 0
+        var y = minY
+        while (y <= maxY) {
+            var x = minX
+            while (x <= maxX) {
+                if (checkedSamples++ % CANCELLATION_CHECK_INTERVAL == 0) {
+                    coroutineContext.ensureActive()
+                }
+                val sample = LocalPoint(x, y)
+                if (pointInPolygon(sample, localPolygon) && !hasLocalCoverage(x, y)) {
+                    return PointCloudCoverage.PARTIAL
+                }
+                x += AREA_COVERAGE_SAMPLE_METERS
+            }
+            y += AREA_COVERAGE_SAMPLE_METERS
+        }
+        return PointCloudCoverage.COMPLETE
+    }
+
     /** Samples an already obstacle-aware route against the point cloud at a fixed segment length. */
     suspend fun buildTerrainPath(
         path: List<LatLon>,
@@ -601,6 +643,7 @@ class PointCloudTerrainModel(
         private const val DEFAULT_CELL_SIZE_METERS = 1.0
         private const val DEFAULT_SEARCH_RADIUS_METERS = 2.0
         private const val COVERAGE_RADIUS_METERS = 2.0
+        private const val AREA_COVERAGE_SAMPLE_METERS = 2.0
         private const val HOME_REFERENCE_RADIUS_METERS = 2.0
         private const val MAX_VALIDATED_SEGMENT_METERS = 1.0
         private const val MIN_SEGMENT_METERS = 0.5

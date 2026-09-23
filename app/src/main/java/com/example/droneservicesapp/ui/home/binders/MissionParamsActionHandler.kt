@@ -13,6 +13,7 @@ import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.planning.MissionResourcePlanner
 import com.example.droneservicesapp.domain.planning.MissionServiceLeg
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
+import com.example.droneservicesapp.domain.terrain.PointCloudCoverage
 import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.mavserver.TerrainMissionReadiness
@@ -79,10 +80,23 @@ class MissionParamsActionHandler(
         val validatedSprayer = sprayer ?: return
         val validatedSpeed = speed ?: return
         val validatedAngle = angle ?: return
+        val pointCloudCoverage = activityViewModel.pointCloudCoverage.value ?: PointCloudCoverage.NONE
+        if (workflow == PlanningWorkflow.AREA && operationMode == PlanningOperationMode.SPRAY) {
+            when (pointCloudCoverage) {
+                PointCloudCoverage.CHECKING -> {
+                    return showMessage(context.getString(R.string.point_cloud_coverage_still_checking))
+                }
+                PointCloudCoverage.PARTIAL -> {
+                    return showMessage(context.getString(R.string.point_cloud_partial_coverage_blocked))
+                }
+                PointCloudCoverage.NONE,
+                PointCloudCoverage.COMPLETE -> Unit
+            }
+        }
         if (
             workflow == PlanningWorkflow.AREA &&
             operationMode == PlanningOperationMode.SPRAY &&
-            activityViewModel.pointCloudCoversMissionArea.value == true
+            pointCloudCoverage == PointCloudCoverage.COMPLETE
         ) {
             val pointCloudFailure = activityViewModel.pointCloudMissionFailure.value
                 ?: TerrainPathFailure.NO_GEOREFERENCE
@@ -143,7 +157,9 @@ class MissionParamsActionHandler(
             emptyList()
         }
 
-        val firstLeg = serviceLegs.firstOrNull()
+        // A single leg is an ordinary mission. Passing it as a service leg would preserve the
+        // planner's incidental direction and bypass the spray-nearest/survey-farthest ordering.
+        val firstLeg = serviceLegs.takeIf { it.size > 1 }?.firstOrNull()
         val build = if (workflow == PlanningWorkflow.POINTS) {
             MissionBuild(
                 items = MissionBuilder.buildPointRouteMission(
@@ -185,10 +201,14 @@ class MissionParamsActionHandler(
             return showMessage(context.getString(R.string.point_cloud_service_route_not_validated))
         }
 
-        if (!terrainReady(build.altitudeReferenceMode)) return
+        if (!terrainReady(build.altitudeReferenceMode, operationMode)) return
 
         val proceedWithUpload = {
             beforeMissionUpload()
+            activityViewModel.beginMissionUpload(
+                usesPointCloudProfile = operationMode == PlanningOperationMode.SPRAY &&
+                    build.usesTerrainAltitudes
+            )
             if (serviceLegs.size > 1) {
                 activityViewModel.beginServiceMission(serviceLegs)
                 if (activityViewModel.plannedHomePosition.value == null) {
@@ -258,13 +278,18 @@ class MissionParamsActionHandler(
             showMessage(context.getString(R.string.point_cloud_service_route_not_validated))
             return
         }
-        if (!terrainReady(build.altitudeReferenceMode)) {
+        val operationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
+        if (!terrainReady(build.altitudeReferenceMode, operationMode)) {
             activityViewModel.markServiceLegUploadFailed()
             return
         }
 
         logUpload(PlanningWorkflow.AREA, build, altitude)
         beforeMissionUpload()
+        activityViewModel.beginMissionUpload(
+            usesPointCloudProfile = operationMode == PlanningOperationMode.SPRAY &&
+                build.usesTerrainAltitudes
+        )
         droneViewModel.uploadMissionNew(build.items, activityViewModel)
         preferencesBridge.saveFromViewModel()
     }
@@ -396,8 +421,15 @@ class MissionParamsActionHandler(
         return altitudes[lower] + (altitudes[upper] - altitudes[lower]) * fraction
     }
 
-    private fun terrainReady(referenceMode: AltitudeReferenceMode): Boolean {
-        if (referenceMode != AltitudeReferenceMode.TERRAIN) return true
+    private fun terrainReady(
+        referenceMode: AltitudeReferenceMode,
+        operationMode: PlanningOperationMode,
+    ): Boolean {
+        // TERRAIN_ENABLE is a survey-mode policy. Spray missions keep it off even when their
+        // waypoint coordinates use the terrain altitude frame.
+        if (referenceMode != AltitudeReferenceMode.TERRAIN ||
+            operationMode != PlanningOperationMode.SURVEY
+        ) return true
         when (droneViewModel.terrainMissionReadiness()) {
             TerrainMissionReadiness.READY -> return true
             TerrainMissionReadiness.CHECKING -> showMessage(context.getString(R.string.terrain_database_enabling))

@@ -24,6 +24,7 @@ import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
+import com.example.droneservicesapp.domain.terrain.PointCloudCoverage
 import com.example.droneservicesapp.databinding.ActivityMainBinding
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.ui.home.binders.HomeTelemetryCoordinator
@@ -66,6 +67,7 @@ class MainActivity : AppCompatActivity() {
         droneViewModel = ViewModelProvider(this)[DroneViewModel::class.java]
         activityViewModel = ViewModelProvider(this)[MainActivityViewModel::class.java]
         loadPlanningOperationMode()
+        bindPlanningParameterPolicy()
         homeTelemetryViewModel = ViewModelProvider(this)[HomeTelemetryViewModel::class.java]
 
         homeTelemetryCoordinator = HomeTelemetryCoordinator(
@@ -174,6 +176,27 @@ class MainActivity : AppCompatActivity() {
             PlanningOperationMode.valueOf(value.orEmpty())
         }.getOrDefault(PlanningOperationMode.SURVEY)
         activityViewModel.setPlanningOperationMode(mode)
+    }
+
+    private fun bindPlanningParameterPolicy() {
+        fun applyPolicy() {
+            val operationMode = activityViewModel.planningOperationMode.value
+                ?: PlanningOperationMode.SURVEY
+            val hasPointCloudProfile =
+                activityViewModel.pointCloudCoverage.value == PointCloudCoverage.COMPLETE ||
+                    activityViewModel.terrainRouteWaypoints.value.orEmpty().isNotEmpty() ||
+                    activityViewModel.activeMissionUsesPointCloudProfile.value == true
+            droneViewModel.applyPlanningParameterPolicy(operationMode, hasPointCloudProfile)
+        }
+
+        activityViewModel.planningOperationMode.observe(this) { applyPolicy() }
+        activityViewModel.pointCloudCoverage.observe(this) { applyPolicy() }
+        activityViewModel.terrainRouteWaypoints.observe(this) { applyPolicy() }
+        activityViewModel.activeMissionUsesPointCloudProfile.observe(this) { applyPolicy() }
+        droneViewModel.conStateLiveData.observe(this) { connected ->
+            if (connected == true) applyPolicy()
+        }
+        applyPolicy()
     }
 
     override fun onResume() {

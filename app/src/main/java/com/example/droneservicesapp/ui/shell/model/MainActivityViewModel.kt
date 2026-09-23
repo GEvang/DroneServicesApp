@@ -200,6 +200,47 @@ class MainActivityViewModel : ViewModel() {
         MutableLiveData(PointCloudCoverage.NONE)
     }
 
+    private var pointCloudCoverageLocked = false
+
+    /**
+     * Whether the mission currently being uploaded (or most recently uploaded) uses a local
+     * point-cloud height profile. This deliberately survives clearing the planning geometry:
+     * the vehicle parameter policy must continue to match the mission that is now on the drone.
+     */
+    val activeMissionUsesPointCloudProfile: MutableLiveData<Boolean> by lazy {
+        MutableLiveData(false)
+    }
+
+    private var pointCloudProfileBeforePendingUpload: Boolean? = null
+
+    fun beginMissionUpload(usesPointCloudProfile: Boolean) {
+        pointCloudProfileBeforePendingUpload = activeMissionUsesPointCloudProfile.value ?: false
+        activeMissionUsesPointCloudProfile.value = usesPointCloudProfile
+    }
+
+    fun confirmMissionUpload() {
+        pointCloudProfileBeforePendingUpload = null
+    }
+
+    fun cancelMissionUpload() {
+        val previousValue = pointCloudProfileBeforePendingUpload ?: return
+        pointCloudProfileBeforePendingUpload = null
+        activeMissionUsesPointCloudProfile.value = previousValue
+    }
+
+    /** Returns true only for the first point-cloud classification after accepting an area. */
+    fun beginPointCloudCoverageCheck(): Boolean {
+        if (pointCloudCoverageLocked) return false
+        pointCloudCoverage.value = PointCloudCoverage.CHECKING
+        return true
+    }
+
+    fun lockPointCloudCoverage(coverage: PointCloudCoverage) {
+        require(coverage != PointCloudCoverage.CHECKING)
+        pointCloudCoverageLocked = true
+        pointCloudCoverage.value = coverage
+    }
+
     val missionObstacles: MutableLiveData<List<MissionObstacle>> by lazy {
         MutableLiveData(emptyList())
     }
@@ -670,6 +711,7 @@ class MainActivityViewModel : ViewModel() {
         terrainServiceCorridors.value = emptyList()
         pointCloudCoversMissionArea.value = false
         pointCloudCoverage.value = PointCloudCoverage.NONE
+        pointCloudCoverageLocked = false
         pointCloudMissionFailure.value = failure
         pointCloudMissionFirstUncoveredPoint.value = null
         pointCloudProfileHome.value = null

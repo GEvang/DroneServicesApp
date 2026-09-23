@@ -25,6 +25,7 @@ import com.example.droneservicesapp.data.mavlink.MissionService
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.rtk.RtkMountpoint
 import com.example.droneservicesapp.domain.model.LatLon
+import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.CommandLong
@@ -343,6 +344,19 @@ class DroneViewModel : ViewModel() {
 
     fun setWaypointRangefinderEnabled(enabled: Boolean) {
         parameterController.setValue(DroneParameterController.WP_RFND_USE, if (enabled) 1 else 0)
+    }
+
+    /**
+     * Keeps the flight controller aligned with the planning mode. Desired values are retained
+     * while disconnected and are applied as soon as the first parameter reads complete.
+     */
+    fun applyPlanningParameterPolicy(
+        operationMode: PlanningOperationMode,
+        hasPointCloudProfile: Boolean,
+    ) {
+        val targets = PlanningParameterPolicy.targets(operationMode, hasPointCloudProfile)
+        parameterController.setDesiredValue(DroneParameterController.TERRAIN_ENABLE, targets.terrainEnable)
+        parameterController.setDesiredValue(DroneParameterController.WP_RFND_USE, targets.waypointRangefinderUse)
     }
 
     /**

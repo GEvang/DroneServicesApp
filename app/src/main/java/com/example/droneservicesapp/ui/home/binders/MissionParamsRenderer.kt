@@ -236,6 +236,15 @@ class MissionParamsRenderer(
             PointCloudCoverage.NONE -> R.string.spray_mode_terrain_rangefinder
         }
         views.sprayAltitudeModeStatus.setText(label)
+        val color = when (coverage) {
+            PointCloudCoverage.PARTIAL -> R.color.ds_color_shell_danger
+            PointCloudCoverage.CHECKING -> R.color.ds_color_shell_warning
+            PointCloudCoverage.NONE,
+            PointCloudCoverage.COMPLETE -> R.color.ds_color_shell_active
+        }
+        views.sprayAltitudeModeStatus.setTextColor(
+            ContextCompat.getColor(views.sprayAltitudeModeStatus.context, color)
+        )
     }
 
     private fun arrangeParameterFields(isSurvey: Boolean, isPointRoute: Boolean) {

@@ -9,6 +9,7 @@ import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.model.RouteWaypoint
 import com.example.droneservicesapp.domain.planning.MissionServiceLeg
 import com.example.droneservicesapp.domain.planning.MissionServiceStop
+import com.example.droneservicesapp.domain.terrain.PointCloudCoverage
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
 import com.google.android.gms.maps.model.LatLng
 import org.junit.Assert.assertEquals
@@ -19,6 +20,35 @@ import org.junit.Test
 class MainActivityViewModelRouteTest {
     @get:Rule
     val instantTaskExecutorRule = InstantTaskExecutorRule()
+
+    @Test
+    fun pointCloudCoverageIsClassifiedOnceUntilAreaIsCleared() {
+        val viewModel = MainActivityViewModel()
+
+        assertTrue(viewModel.beginPointCloudCoverageCheck())
+        viewModel.lockPointCloudCoverage(PointCloudCoverage.COMPLETE)
+        assertEquals(PointCloudCoverage.COMPLETE, viewModel.pointCloudCoverage.value)
+        assertTrue(!viewModel.beginPointCloudCoverageCheck())
+        assertEquals(PointCloudCoverage.COMPLETE, viewModel.pointCloudCoverage.value)
+
+        viewModel.clearPointCloudMissionProfile()
+        assertTrue(viewModel.beginPointCloudCoverageCheck())
+    }
+
+    @Test
+    fun uploadedPointCloudPolicySurvivesPlannerResetAndRollsBackFailedReplacement() {
+        val viewModel = MainActivityViewModel()
+
+        viewModel.beginMissionUpload(usesPointCloudProfile = true)
+        viewModel.confirmMissionUpload()
+        viewModel.clearPointCloudMissionProfile()
+        assertEquals(true, viewModel.activeMissionUsesPointCloudProfile.value)
+
+        viewModel.beginMissionUpload(usesPointCloudProfile = false)
+        assertEquals(false, viewModel.activeMissionUsesPointCloudProfile.value)
+        viewModel.cancelMissionUpload()
+        assertEquals(true, viewModel.activeMissionUsesPointCloudProfile.value)
+    }
 
     @Test
     fun serviceMissionWaitsAtHomeAndResumesTheNextLeg() {

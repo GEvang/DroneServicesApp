@@ -123,8 +123,10 @@ internal class DroneParameterController(
         desiredValues[parameterName] = value
         val current = mutableStates[parameterName]?.value
         when {
-            current?.availability == VehicleParameterAvailability.SUPPORTED &&
-                current.value != value && !current.isWriting -> setValue(parameterName, value, showFeedback = false)
+            current?.availability == VehicleParameterAvailability.SUPPORTED && current.value == value -> Unit
+            current?.availability == VehicleParameterAvailability.SUPPORTED && current.isWriting -> Unit
+            current?.availability == VehicleParameterAvailability.SUPPORTED ->
+                setValue(parameterName, value, showFeedback = false)
             current?.availability != VehicleParameterAvailability.LOADING -> startRead(parameterName)
         }
     }
@@ -219,6 +221,9 @@ internal class DroneParameterController(
                 if (confirmed) "INFO" else "ERROR",
                 mapOf("parameter" to parameterName, "requestedValue" to requestedValue, "receivedValue" to receivedValue, "confirmed" to confirmed)
             )
+            desiredValues[parameterName]
+                ?.takeIf { it != roundedValue }
+                ?.let { desiredValue -> setValue(parameterName, desiredValue, showFeedback = false) }
             return
         }
 

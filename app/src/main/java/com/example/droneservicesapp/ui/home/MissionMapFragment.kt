@@ -2219,6 +2219,7 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
                 }
                 is MainActivityViewModel.MapAction.UploadMissionSuccess -> {
+                    activityViewModel.confirmMissionUpload()
                     operatorEventLogger.logMissionUploadSucceeded(activityViewModel.surveyPath.value?.size)
                     val serviceAfter = activityViewModel.currentServiceMissionLeg()?.serviceAfter
                     if (activityViewModel.markServiceLegUploadSucceeded()) {
@@ -2236,6 +2237,7 @@ class MissionMapFragment : Fragment() {
                     }
                 }
                 is MainActivityViewModel.MapAction.UploadMissionFailed -> {
+                    activityViewModel.cancelMissionUpload()
                     if (activityViewModel.serviceMissionState.value == ServiceMissionState.LEG_UPLOADING) {
                         activityViewModel.markServiceLegUploadFailed()
                     }
@@ -3272,7 +3274,7 @@ class MissionMapFragment : Fragment() {
         }
     }
 
-    private fun loadHomePointCloud(uri: Uri) {
+    private fun loadHomePointCloud(uri: Uri, activatePreview: Boolean = true) {
         val fileName = queryPreviewDisplayName(uri) ?: getString(R.string.point_cloud_unknown_file)
         if (!isSupportedPointCloudFile(fileName)) {
             Toast.makeText(requireContext(), R.string.point_cloud_select_ply, Toast.LENGTH_SHORT).show()
@@ -3291,10 +3293,12 @@ class MissionMapFragment : Fragment() {
             result.onSuccess { pointCloud ->
                 previewAssetsViewModel.setPointCloud(pointCloud, fileName, uri)
                 saveHomePointCloudReference(uri, fileName)
-                activePreviewMode = PreviewMode.POINT_CLOUD
-                binding.homePointCloudGlView.setPointCloud(pointCloud)
-                binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
-                warmPointCloudTerrainGrid(showToast = true)
+                if (activatePreview) {
+                    activePreviewMode = PreviewMode.POINT_CLOUD
+                    binding.homePointCloudGlView.setPointCloud(pointCloud)
+                    binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
+                }
+                warmPointCloudTerrainGrid(showToast = activatePreview)
                 generatePointRouteTerrainPath()
                 updatePointCloudMissionOverlay()
                 renderPreviewMode()
@@ -3314,11 +3318,14 @@ class MissionMapFragment : Fragment() {
         val imageName = preferences.getString(KEY_ORTHO_IMAGE_NAME, null) ?: getString(R.string.ortho_unknown_image)
         val worldUri = preferences.getString(KEY_ORTHO_WORLD_URI, null)?.let(Uri::parse)
         val worldName = preferences.getString(KEY_ORTHO_WORLD_NAME, null)
-        if (imageUri == null) return
+        if (imageUri == null) {
+            restorePointCloudOnDemand(activatePreview = false)
+            return
+        }
 
         previewAssetLoadJob?.cancel()
         previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
-            if (previewAssetsViewModel.orthoAsset == null && imageUri != null) {
+            if (previewAssetsViewModel.orthoAsset == null) {
                     val result = runCatching {
                         withContext(Dispatchers.IO) {
                             val decoded = requireContext().contentResolver.openInputStream(imageUri)?.use { stream ->
@@ -3349,14 +3356,18 @@ class MissionMapFragment : Fragment() {
                         }
                     }
             }
+            // The terrain model is planning data, not just a 3D-view asset. Restore it in the
+            // background so map and ortho planning can classify an accepted area immediately.
+            previewAssetLoadJob = null
+            restorePointCloudOnDemand(activatePreview = false)
         }
     }
 
-    private fun restorePointCloudOnDemand() {
+    private fun restorePointCloudOnDemand(activatePreview: Boolean = true) {
         if (previewAssetsViewModel.pointCloudAsset != null || previewAssetLoadJob?.isActive == true) return
         val preferences = previewPreferences()
         val uri = preferences.getString(KEY_POINT_CLOUD_URI, null)?.let(Uri::parse) ?: return
-        loadHomePointCloud(uri)
+        loadHomePointCloud(uri, activatePreview)
     }
 
     private fun warmPointCloudTerrainGrid(showToast: Boolean) {
@@ -3436,8 +3447,11 @@ class MissionMapFragment : Fragment() {
 
     private fun drawSprayMissionOnMap(distance: Double, angle: Int, generation: Long) {
         terrainSurveyJob?.cancel()
-        activityViewModel.pointCloudCoversMissionArea.value = false
-        activityViewModel.pointCloudCoverage.value = PointCloudCoverage.CHECKING
+        val shouldClassifyPointCloud = activityViewModel.beginPointCloudCoverageCheck()
+        val lockedCoverage = activityViewModel.pointCloudCoverage.value ?: PointCloudCoverage.NONE
+        if (shouldClassifyPointCloud) {
+            activityViewModel.pointCloudCoversMissionArea.value = false
+        }
         activityViewModel.pointCloudMissionFailure.value = TerrainPathFailure.VALIDATION_PENDING
         activityViewModel.pointCloudMissionFirstUncoveredPoint.value = null
         activityViewModel.pointCloudProfileHome.value = null
@@ -3459,7 +3473,7 @@ class MissionMapFragment : Fragment() {
             data class GeneratedSprayProfile(
                 val basePath: List<LatLon>,
                 val work: TerrainPathResult,
-                val hasPointCloudOverlap: Boolean,
+                val areaCoverage: PointCloudCoverage,
             )
 
             val generated = withContext(Dispatchers.Default) {
@@ -3473,12 +3487,17 @@ class MissionMapFragment : Fragment() {
                     rawBasePath.map { LatLng(it.lat, it.lon) },
                     plannedHome,
                 ).map { LatLon(it.latitude, it.longitude) }
-                val hasPointCloudOverlap =
-                    terrainModel != null && terrainModel.hasPointsInside(polygonLatLon)
+                // Membership is classified once, when the operator accepts the area. Parameter
+                // edits may rebuild heights and spacing, but must not make the 3D controls blink.
+                val areaCoverage = if (shouldClassifyPointCloud) {
+                    terrainModel?.classifyAreaCoverage(polygonLatLon) ?: PointCloudCoverage.NONE
+                } else {
+                    lockedCoverage
+                }
                 val canBuildPointCloudProfile =
                     terrainModel != null &&
                     generatedBasePath.isNotEmpty() &&
-                    hasPointCloudOverlap
+                    areaCoverage == PointCloudCoverage.COMPLETE
                 if (canBuildPointCloudProfile) {
                     val safeTerrainModel = requireNotNull(terrainModel)
                     val profileReference = plannedHome ?: generatedBasePath.first()
@@ -3494,7 +3513,7 @@ class MissionMapFragment : Fragment() {
                     GeneratedSprayProfile(
                         basePath = generatedBasePath,
                         work = workResult,
-                        hasPointCloudOverlap = true,
+                        areaCoverage = areaCoverage,
                     )
                 } else {
                     val failure = if (terrainModel == null) {
@@ -3505,7 +3524,7 @@ class MissionMapFragment : Fragment() {
                     GeneratedSprayProfile(
                         basePath = generatedBasePath,
                         work = TerrainPathResult(failure = failure),
-                        hasPointCloudOverlap = hasPointCloudOverlap,
+                        areaCoverage = areaCoverage,
                     )
                 }
             }
@@ -3514,10 +3533,9 @@ class MissionMapFragment : Fragment() {
             val failed = generated.work.takeUnless { it.isValid }
             if (failed == null) {
                 activityViewModel.pointCloudCoversMissionArea.value = true
-                activityViewModel.pointCloudCoverage.value = PointCloudCoverage.classify(
-                    hasPointCloudOverlap = generated.hasPointCloudOverlap,
-                    allSprayingPathPointsCovered = true,
-                )
+                if (shouldClassifyPointCloud) {
+                    activityViewModel.lockPointCloudCoverage(generated.areaCoverage)
+                }
                 activityViewModel.pointCloudMissionFailure.value = TerrainPathFailure.NONE
                 activityViewModel.pointCloudMissionFirstUncoveredPoint.value = null
                 activityViewModel.pointCloudProfileHome.value = null
@@ -3531,10 +3549,14 @@ class MissionMapFragment : Fragment() {
                 )
             } else {
                 activityViewModel.pointCloudCoversMissionArea.value = false
-                activityViewModel.pointCloudCoverage.value = PointCloudCoverage.classify(
-                    hasPointCloudOverlap = generated.hasPointCloudOverlap,
-                    allSprayingPathPointsCovered = false,
-                )
+                if (shouldClassifyPointCloud) {
+                    activityViewModel.lockPointCloudCoverage(
+                        PointCloudCoverage.classify(
+                            hasPointCloudOverlap = generated.areaCoverage != PointCloudCoverage.NONE,
+                            allSprayingPathPointsCovered = false,
+                        )
+                    )
+                }
                 activityViewModel.pointCloudMissionFailure.value = failed.failure
                 activityViewModel.pointCloudMissionFirstUncoveredPoint.value = failed.firstUncoveredPoint
                 activityViewModel.pointCloudProfileHome.value = null

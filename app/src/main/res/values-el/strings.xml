@@ -6,9 +6,14 @@
   <string name="menu_rtk">RTK</string>
   <string name="menu_parameters">Παράμετροι</string>
   <string name="parameters_title">Παράμετροι</string>
-  <string name="spray_mode_terrain_rangefinder">Λειτουργία: Χαμηλές καλλιέργειες</string>
-  <string name="spray_mode_relative_point_cloud">Λειτουργία: Δενδρώδεις καλλιέργειες</string>
-  <string name="spray_mode_point_cloud_partial">Λειτουργία: Μικρές καλλιέργειες · Μερική κάλυψη νέφους σημείων</string>
+  <string name="spray_mode_terrain_rangefinder">Χαμηλή καλλιέργεια</string>
+  <string name="spray_mode_relative_point_cloud">Δενδρώδης καλλιέργεια</string>
+  <string name="spray_mode_point_cloud_validated">Δενδρώδης καλλιέργεια</string>
+  <string name="spray_mode_point_cloud_validating">Έλεγχος κάλυψης…</string>
+  <string name="spray_mode_point_cloud_incomplete">Μερική κάλυψη — σχεδιάστε ξανά</string>
+  <string name="spray_mode_point_cloud_partial">Μερική κάλυψη — σχεδιάστε ξανά</string>
+  <string name="point_cloud_coverage_still_checking">Ο έλεγχος κάλυψης του νέφους σημείων δεν έχει ολοκληρωθεί. Περιμένετε πριν από την αποστολή.</string>
+  <string name="point_cloud_partial_coverage_blocked">Η αποστολή μπλοκαρίστηκε: η επιλεγμένη περιοχή καλύπτεται μερικώς από το νέφος σημείων. Σχεδιάστε την ξανά ώστε να βρίσκεται ολόκληρη μέσα ή έξω από το νέφος.</string>
   <string name="flight_speed_label">Ταχύτητα</string>
   <string name="terrain_source_not_confirmed">Αναμονή επιβεβαίωσης της απαιτούμενης πηγής εδάφους από το όχημα. Δοκιμάστε ξανά σε λίγο.</string>
   <string name="terrain_database_enabling">Επιλέχθηκε αποστολή με υψόμετρο εδάφους. Ενεργοποιείται η βάση δεδομένων εδάφους του οχήματος και αναμένεται επιβεβαίωση. Ανεβάστε ξανά μόλις επιβεβαιωθεί.</string>

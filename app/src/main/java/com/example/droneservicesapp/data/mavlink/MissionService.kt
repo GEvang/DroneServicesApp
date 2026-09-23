@@ -673,16 +673,7 @@ class MissionService(
                 when (sourceFrame) {
                     MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT,
                     MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT_INT -> {
-                        if (ENABLE_TERRAIN_MISSION_FRAMES) {
-                            MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT_INT
-                        } else {
-                            Log.w(
-                                "MissionUpload",
-                                "Terrain mission frame requested for seq=${src.seq()} cmd=${command.name}; " +
-                                        "falling back to MAV_FRAME_GLOBAL_RELATIVE_ALT_INT"
-                            )
-                            MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
-                        }
+                        MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT_INT
                     }
                     else -> MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT_INT
                 }
@@ -700,11 +691,7 @@ class MissionService(
                 when (sourceFrame) {
                     MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT,
                     MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT_INT -> {
-                        if (ENABLE_TERRAIN_MISSION_FRAMES) {
-                            MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT
-                        } else {
-                            MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT
-                        }
+                        MavFrame.MAV_FRAME_GLOBAL_TERRAIN_ALT
                     }
                     else -> MavFrame.MAV_FRAME_GLOBAL_RELATIVE_ALT
                 }
@@ -947,7 +934,6 @@ class MissionService(
 
     private companion object {
         private const val SEND_MISSION_ITEM_INT_FOR_LEGACY_REQUEST = false
-        private const val ENABLE_TERRAIN_MISSION_FRAMES = false
     }
 
     private fun waitForMissionAckFromAutopilot(
