@@ -7,6 +7,14 @@
     <dimen name="ds_space_lg">12dp</dimen>
     <dimen name="ds_space_xl">16dp</dimen>
 
+    <dimen name="more_screen_padding">10dp</dimen>
+    <dimen name="more_column_gap">10dp</dimen>
+    <dimen name="more_panel_padding">12dp</dimen>
+    <dimen name="more_panel_gap">9dp</dimen>
+    <dimen name="more_row_min_height">54dp</dimen>
+    <dimen name="more_icon_size">40dp</dimen>
+    <dimen name="more_icon_glyph_size">21dp</dimen>
+
     <dimen name="tablet_screen_margin">12dp</dimen>
     <dimen name="tablet_side_panel_width">252dp</dimen>
     <dimen name="tablet_left_panel_width">260dp</dimen>

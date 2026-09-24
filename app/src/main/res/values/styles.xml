@@ -137,6 +137,32 @@
         <item name="android:textStyle">bold</item>
     </style>
 
+    <style name="TextAppearance.DroneServices.MoreTitle" parent="TextAppearance.DroneServices.Title">
+        <item name="android:textSize">25sp</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="TextAppearance.DroneServices.MoreSubtitle" parent="TextAppearance.DroneServices.Body">
+        <item name="android:textSize">14sp</item>
+        <item name="android:textColor">@color/ds_color_shell_unselected</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="TextAppearance.DroneServices.MorePanelTitle" parent="TextAppearance.DroneServices.BodyStrong">
+        <item name="android:textSize">18sp</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="TextAppearance.DroneServices.MoreRowTitle" parent="TextAppearance.DroneServices.BodyStrong">
+        <item name="android:textSize">14sp</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
+    <style name="TextAppearance.DroneServices.MoreRowSubtitle" parent="TextAppearance.DroneServices.Caption">
+        <item name="android:textSize">12sp</item>
+        <item name="android:includeFontPadding">false</item>
+    </style>
+
     <style name="Widget.DroneServices" parent="" />
 
     <style name="Widget.DroneServices.Toolbar">

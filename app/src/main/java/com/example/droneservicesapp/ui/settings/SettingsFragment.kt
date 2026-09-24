@@ -27,6 +27,7 @@ import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.example.droneservicesapp.ui.home.components.MapDisplayPreferences
 import com.google.android.material.switchmaterial.SwitchMaterial
+import com.google.android.material.button.MaterialButtonToggleGroup
 import org.osmdroid.config.Configuration
 import java.io.File
 import java.text.SimpleDateFormat
@@ -56,35 +57,42 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
         activityViewModel = ViewModelProvider(requireActivity())[MainActivityViewModel::class.java]
         requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
 
-        val context = requireContext()
-        val contentPadding = resources.getDimensionPixelSize(R.dimen.ds_space_lg)
-
-        val scrollView = ScrollView(context).apply {
-            setBackgroundColor(ContextCompat.getColor(context, R.color.ds_color_background))
-            isFillViewport = true
-            isVerticalScrollBarEnabled = false
+        val root = inflater.inflate(R.layout.fragment_settings, container, false)
+        root.findViewById<android.widget.ImageView>(R.id.more_header_icon).setImageResource(R.drawable.ic_menu_settings)
+        root.findViewById<TextView>(R.id.more_header_title).setText(R.string.menu_settings)
+        root.findViewById<TextView>(R.id.more_header_subtitle).setText(R.string.more_settings_subtitle)
+        operationModeSummary = root.findViewById(R.id.settings_operation_summary)
+        languageSummary = root.findViewById(R.id.settings_language_summary)
+        geoDatasetSourceSummary = root.findViewById(R.id.settings_geo_source_summary)
+        geoDatasetUpdatedSummary = root.findViewById(R.id.settings_geo_updated_summary)
+        geoDatasetStatusSummary = root.findViewById(R.id.settings_geo_status_summary)
+        geoDatasetScopeSummary = root.findViewById(R.id.settings_geo_scope_summary)
+        cacheSizeSummary = root.findViewById(R.id.settings_cache_summary)
+        val modeGroup = root.findViewById<MaterialButtonToggleGroup>(R.id.settings_operation_group)
+        val currentMode = operationModeFromPreferences()
+        modeGroup.check(if (currentMode == PlanningOperationMode.SPRAY) R.id.settings_spray_button else R.id.settings_mapping_button)
+        modeGroup.addOnButtonCheckedListener { _, checkedId, isChecked ->
+            if (!isChecked) return@addOnButtonCheckedListener
+            val mode = if (checkedId == R.id.settings_spray_button) PlanningOperationMode.SPRAY else PlanningOperationMode.SURVEY
+            sharedPreferences.edit { putString(getString(R.string.mission_operation_mode_pref), mode.name) }
         }
-
-        val content = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(contentPadding, contentPadding, contentPadding, resources.getDimensionPixelSize(R.dimen.ds_space_xl))
-        }
-        scrollView.addView(
-            content,
-            ViewGroup.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
+        root.findViewById<View>(R.id.settings_language_row).setOnClickListener {
+            showChoiceDialog(
+                title = getString(R.string.language),
+                entries = arrayOf("English", "Ελληνικά"),
+                values = arrayOf(LocaleUtils.ENGLISH, LocaleUtils.GREEK),
+                key = LocaleUtils.PREFERENCE_KEY,
+                defaultValue = LocaleUtils.ENGLISH,
+                restartOnChange = true
             )
-        )
-
-        content.addView(createMissionOperationPanel())
-        content.addView(createLocalizationPanel())
-        content.addView(createMapDisplayPanel())
-        content.addView(createGeoAwarenessPanel())
-        content.addView(createOfflineMapsPanel())
-
+        }
+        root.findViewById<SwitchMaterial>(R.id.settings_map_labels_switch).apply {
+            isChecked = sharedPreferences.getBoolean(MapDisplayPreferences.LABELS_ENABLED_KEY, MapDisplayPreferences.LABELS_ENABLED_DEFAULT)
+            setOnCheckedChangeListener { _, enabled -> sharedPreferences.edit { putBoolean(MapDisplayPreferences.LABELS_ENABLED_KEY, enabled) } }
+        }
+        root.findViewById<View>(R.id.settings_clear_cache_button).setOnClickListener { clearOfflineMapCache() }
         refreshSummaries()
-        return scrollView
+        return root
     }
 
     private fun createMissionOperationPanel(): View {

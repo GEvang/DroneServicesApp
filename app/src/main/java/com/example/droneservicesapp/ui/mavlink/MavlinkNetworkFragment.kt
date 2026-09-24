@@ -31,6 +31,8 @@ class MavlinkNetworkFragment : Fragment(), SharedPreferences.OnSharedPreferenceC
     private lateinit var bridgeSwitch: SwitchCompat
     private lateinit var qgcHostSummary: TextView
     private lateinit var qgcPortSummary: TextView
+    private lateinit var qgcHostRow: View
+    private lateinit var qgcPortRow: View
     private lateinit var bridgeStatus: TextView
     private lateinit var bridgePanel: View
 
@@ -41,22 +43,48 @@ class MavlinkNetworkFragment : Fragment(), SharedPreferences.OnSharedPreferenceC
     ): View {
         preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
         requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
-
-        val padding = resources.getDimensionPixelSize(R.dimen.ds_space_lg)
-        val content = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(padding, padding, padding, resources.getDimensionPixelSize(R.dimen.ds_space_xl))
+        val root = inflater.inflate(R.layout.fragment_mavlink_network, container, false)
+        root.findViewById<android.widget.ImageView>(R.id.more_header_icon).setImageResource(R.drawable.ic_menu_mavlink_network)
+        root.findViewById<TextView>(R.id.more_header_title).setText(R.string.menu_mavlink_network)
+        root.findViewById<TextView>(R.id.more_header_subtitle).setText(R.string.more_mavlink_subtitle)
+        interfaceSummary = root.findViewById(R.id.mavlink_interface_summary)
+        localPortSummary = root.findViewById(R.id.mavlink_local_port_summary)
+        localPortRow = root.findViewById(R.id.mavlink_local_port_row)
+        targetHostSummary = root.findViewById(R.id.mavlink_target_host_summary)
+        targetPortSummary = root.findViewById(R.id.mavlink_target_port_summary)
+        gcsSystemIdSummary = root.findViewById(R.id.mavlink_system_id_summary)
+        bridgeSwitch = root.findViewById(R.id.mavlink_bridge_switch)
+        qgcHostSummary = root.findViewById(R.id.mavlink_qgc_host_summary)
+        qgcPortSummary = root.findViewById(R.id.mavlink_qgc_port_summary)
+        bridgeStatus = root.findViewById(R.id.mavlink_bridge_status)
+        bridgePanel = root.findViewById(R.id.mavlink_bridge_panel)
+        root.findViewById<View>(R.id.mavlink_interface_row).setOnClickListener { showInterfaceDialog() }
+        root.findViewById<View>(R.id.mavlink_local_port_row).setOnClickListener {
+            showTextDialog(R.string.mavlink_local_port_title, R.string.mavlink_lan_port_pref, "14550", true)
         }
-        content.addView(createConnectionPanel())
-        content.addView(createBridgePanel().also { bridgePanel = it })
-
+        root.findViewById<View>(R.id.mavlink_target_host_row).setOnClickListener {
+            showTextDialog(R.string.mavlink_aircraft_host_title, R.string.mavlink_target_host_pref, "", false)
+        }
+        root.findViewById<View>(R.id.mavlink_target_port_row).setOnClickListener {
+            showTextDialog(R.string.mavlink_aircraft_port_title, R.string.mavlink_target_port_pref, "14550", true)
+        }
+        root.findViewById<View>(R.id.mavlink_system_id_row).setOnClickListener {
+            showTextDialog(R.string.mavlink_gcs_system_id_title, R.string.mavlink_gcs_system_id_pref, "254", true, 1..255, R.string.mavlink_invalid_system_id)
+        }
+        qgcHostRow = root.findViewById(R.id.mavlink_qgc_host_row)
+        qgcPortRow = root.findViewById(R.id.mavlink_qgc_port_row)
+        qgcHostRow.setOnClickListener {
+            showTextDialog(R.string.mavlink_qgc_host_title, R.string.mavlink_bridge_host_pref, "", false)
+        }
+        qgcPortRow.setOnClickListener {
+            showTextDialog(R.string.mavlink_qgc_port_title, R.string.mavlink_bridge_port_pref, "14550", true)
+        }
+        bridgeSwitch.setOnCheckedChangeListener { _, enabled ->
+            preferences.edit { putBoolean(getString(R.string.mavlink_bridge_enabled_pref), enabled) }
+            refreshSummaries()
+        }
         refreshSummaries()
-        return ScrollView(requireContext()).apply {
-            setBackgroundColor(ContextCompat.getColor(requireContext(), R.color.ds_color_background))
-            isFillViewport = true
-            isVerticalScrollBarEnabled = false
-            addView(content, ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT))
-        }
+        return root
     }
 
     private fun createConnectionPanel(): View = createPanel(getString(R.string.drone_con_props_title_pref)).apply {
@@ -228,6 +256,10 @@ class MavlinkNetworkFragment : Fragment(), SharedPreferences.OnSharedPreferenceC
             preferences.edit { putBoolean(getString(R.string.mavlink_bridge_enabled_pref), checked) }
             refreshSummaries()
         }
+        qgcHostRow.isEnabled = enabled
+        qgcPortRow.isEnabled = enabled
+        qgcHostRow.alpha = if (enabled) 1f else 0.55f
+        qgcPortRow.alpha = if (enabled) 1f else 0.55f
         val target = preferences.getString(getString(R.string.mavlink_target_host_pref), "").orEmpty().trim()
         val qgc = preferences.getString(getString(R.string.mavlink_bridge_host_pref), "").orEmpty().trim()
         bridgeStatus.text = when {

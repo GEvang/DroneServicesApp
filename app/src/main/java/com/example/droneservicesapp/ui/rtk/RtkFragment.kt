@@ -52,6 +52,9 @@ class RtkFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        view.findViewById<android.widget.ImageView>(R.id.more_header_icon).setImageResource(R.drawable.ic_status_rtk_24)
+        view.findViewById<android.widget.TextView>(R.id.more_header_title).setText(R.string.rtk_title)
+        view.findViewById<android.widget.TextView>(R.id.more_header_subtitle).setText(R.string.rtk_subtitle)
         rtkPreferences = RtkPreferences(requireContext())
         droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
 

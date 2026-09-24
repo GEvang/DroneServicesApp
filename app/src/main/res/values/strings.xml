@@ -89,6 +89,13 @@
     <string name="ortho_background">Background</string>
     <string name="ortho_opacity">Opacity</string>
     <string name="datasets_title">Datasets</string>
+    <string name="more_settings_subtitle">Mission, display and data preferences</string>
+    <string name="more_mission_defaults">Mission defaults</string>
+    <string name="more_mission_defaults_subtitle">Set default parameters for new missions</string>
+    <string name="more_localization_subtitle">Language preferences</string>
+    <string name="more_offline_maps_subtitle">Manage downloaded map tiles</string>
+    <string name="more_map_display_subtitle">Configure how information is shown on the map</string>
+    <string name="more_geo_data_subtitle">Geo-zone and regulatory dataset status</string>
     <string name="datasets_subtitle">Create datasets that pair an ortho image/world file with a 3D point cloud.</string>
     <string name="dataset_create">Create Dataset</string>
     <string name="dataset_load">Load Dataset</string>
@@ -107,6 +114,12 @@
     <string name="dataset_default_name">Dataset %1$d</string>
     <string name="dataset_assets">Dataset Assets</string>
     <string name="dataset_display_options">Display Options</string>
+    <string name="more_dataset_manager">Dataset manager</string>
+    <string name="more_dataset_manager_subtitle">Create, load and manage dataset configurations</string>
+    <string name="more_dataset_assets_subtitle">Files linked to the active dataset</string>
+    <string name="more_display_options_subtitle">Control how the active dataset is rendered</string>
+    <string name="more_background_subtitle">Show the map behind the dataset</string>
+    <string name="more_height_colors_subtitle">Colorize points by elevation</string>
     <string name="dataset_active_name">Active: %1$s</string>
     <string name="dataset_none">None</string>
     <string name="dataset_ortho_image_status">Ortho image: %1$s</string>
@@ -134,6 +147,10 @@
     <string name="ortho_unknown_world">ortho.tfw</string>
     <string name="ortho_stats">Image: %1$d x %2$d\nBounds: %3$.6f,%4$.6f to %5$.6f,%6$.6f</string>
     <string name="geo_awareness_title">Geo-awareness</string>
+    <string name="more_system_status">System status</string>
+    <string name="more_internal_tools">Internal tools</string>
+    <string name="more_about_geo">About geo-awareness</string>
+    <string name="more_about_geo_body">Geo-zone datasets help identify restricted or sensitive airspace before mission upload.</string>
     <string name="geo_awareness_subtitle">Airspace and zone awareness</string>
     <string name="geo_awareness_live_status">Live status</string>
     <string name="geo_awareness_health_section">Health</string>
@@ -341,6 +358,15 @@
     <string name="mavlink_bridge_status_incomplete">Bridge needs both the aircraft/transceiver IP and the QGroundControl IP.</string>
     <string name="mavlink_bridge_status_same_host">Aircraft and QGroundControl IP addresses must be different.</string>
     <string name="mavlink_bridge_status_ready">Ready: aircraft %1$s ↔ this app ↔ QGroundControl %2$s</string>
+    <string name="more_mavlink_subtitle">Configure drone transport and QGroundControl routing</string>
+    <string name="more_drone_connection">Drone connection</string>
+    <string name="more_drone_connection_subtitle">Direct MAVLink transport settings</string>
+    <string name="more_mavlink_bridge_subtitle">Forward MAVLink while keeping this app connected</string>
+    <string name="more_mavlink_distinct_ips">Aircraft and QGroundControl must use different IP addresses</string>
+    <string name="more_mavlink_direct_info">Receives telemetry locally and forwards MAVLink to the configured target.</string>
+    <string name="more_aircraft_radio">Aircraft radio</string>
+    <string name="more_this_app">This app</string>
+    <string name="more_qgroundcontrol" translatable="false">QGroundControl</string>
     <string name="mission_operation_mode_pref" translatable="false">missionOperationMode</string>
     <string name="mission_operation_settings_title">Mission Type</string>
     <string name="mission_operation_mode_title">Operation Mode</string>
@@ -375,6 +401,11 @@
     <string name="drone_con_props_title_pref">Drone Connection Properties</string>
     <string name="rtk">RTK</string>
     <string name="rtk_title">RTK</string>
+    <string name="rtk_subtitle">Configure caster access and monitor live correction flow</string>
+    <string name="rtk_caster_access">Caster access</string>
+    <string name="rtk_caster_access_subtitle">Enter your NTRIP caster credentials</string>
+    <string name="rtk_connection_status">Connection status</string>
+    <string name="rtk_gps_diagnostics">GPS diagnostics</string>
     <string name="rtk_console_subtitle">Configure caster access and monitor live correction flow.</string>
     <string name="rtk_connection_section_title">Caster Access</string>
     <string name="rtk_ip">IP</string>

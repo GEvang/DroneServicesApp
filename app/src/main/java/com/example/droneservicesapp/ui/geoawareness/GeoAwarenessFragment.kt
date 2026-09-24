@@ -129,6 +129,9 @@ class GeoAwarenessFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+        view.findViewById<android.widget.ImageView>(R.id.more_header_icon).setImageResource(R.drawable.ic_status_gps_pin_24)
+        view.findViewById<android.widget.TextView>(R.id.more_header_title).setText(R.string.geo_awareness_title)
+        view.findViewById<android.widget.TextView>(R.id.more_header_subtitle).setText(R.string.geo_awareness_subtitle)
         activityViewModel = ViewModelProvider(requireActivity())[MainActivityViewModel::class.java]
         droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
         geoEventLogger = GeoAwarenessEventLogger(requireContext().applicationContext)

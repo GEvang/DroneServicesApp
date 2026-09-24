@@ -11,6 +11,15 @@
     <dimen name="ds_space_lg">16dp</dimen>
     <dimen name="ds_space_xl">24dp</dimen>
 
+    <!-- More/settings screens -->
+    <dimen name="more_screen_padding">16dp</dimen>
+    <dimen name="more_column_gap">14dp</dimen>
+    <dimen name="more_panel_padding">18dp</dimen>
+    <dimen name="more_panel_gap">12dp</dimen>
+    <dimen name="more_row_min_height">64dp</dimen>
+    <dimen name="more_icon_size">46dp</dimen>
+    <dimen name="more_icon_glyph_size">24dp</dimen>
+
     <!-- Design system radii -->
     <dimen name="ds_radius_sm">10dp</dimen>
     <dimen name="ds_radius_md">14dp</dimen>
