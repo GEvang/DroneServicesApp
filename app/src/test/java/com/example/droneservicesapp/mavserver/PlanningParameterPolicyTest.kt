@@ -1,31 +1,30 @@
 package com.example.droneservicesapp.mavserver
 
-import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class PlanningParameterPolicyTest {
     @Test
-    fun surveyEnablesTerrainAndDisablesWaypointRangefinder() {
+    fun terrainFrameEnablesThirtyMeterTerrainAndDisablesWaypointRangefinder() {
         assertEquals(
-            PlanningParameterTargets(terrainEnable = 1, waypointRangefinderUse = 0),
-            PlanningParameterPolicy.targets(PlanningOperationMode.SURVEY, hasPointCloudProfile = false),
+            PlanningParameterTargets(terrainEnable = 1, terrainSpacing = 30, waypointRangefinderUse = 0),
+            PlanningParameterPolicy.targets(usesTerrainFrame = true, hasPointCloudProfile = false),
         )
     }
 
     @Test
     fun pointCloudSprayDisablesTerrainAndWaypointRangefinder() {
         assertEquals(
-            PlanningParameterTargets(terrainEnable = 0, waypointRangefinderUse = 0),
-            PlanningParameterPolicy.targets(PlanningOperationMode.SPRAY, hasPointCloudProfile = true),
+            PlanningParameterTargets(terrainEnable = 0, terrainSpacing = 30, waypointRangefinderUse = 0),
+            PlanningParameterPolicy.targets(usesTerrainFrame = false, hasPointCloudProfile = true),
         )
     }
 
     @Test
-    fun ordinarySprayDisablesTerrainAndEnablesWaypointRangefinder() {
+    fun nonTerrainMissionNeverEnablesMissingRangefinder() {
         assertEquals(
-            PlanningParameterTargets(terrainEnable = 0, waypointRangefinderUse = 1),
-            PlanningParameterPolicy.targets(PlanningOperationMode.SPRAY, hasPointCloudProfile = false),
+            PlanningParameterTargets(terrainEnable = 0, terrainSpacing = 30, waypointRangefinderUse = 0),
+            PlanningParameterPolicy.targets(usesTerrainFrame = false, hasPointCloudProfile = false),
         )
     }
 }

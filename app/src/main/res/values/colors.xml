@@ -62,6 +62,8 @@
     <color name="ds_color_shell_selected_content">#29E6DA</color>
     <color name="ds_color_shell_unselected">#C9D0D6</color>
     <color name="ds_color_flight_trace">#46F29C</color>
+    <color name="terrain_purple">#9C6BFF</color>
+    <color name="terrain_purple_track">#359C6BFF</color>
 
     <color name="gps_no_fix_red">#FF5B5B</color>
     <color name="gps_2d_orange">#F2994A</color>

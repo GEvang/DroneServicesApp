@@ -70,6 +70,7 @@ import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessProximit
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
+import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.MissionObstacle
 import com.example.droneservicesapp.domain.model.MissionObstacleShape
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
@@ -83,6 +84,7 @@ import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
 import com.example.droneservicesapp.domain.terrain.PointCloudCoverage
 import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
 import com.example.droneservicesapp.domain.terrain.TerrainPathResult
+import com.example.droneservicesapp.domain.terrain.TerrainCoveragePlanner
 import com.example.droneservicesapp.domain.weather.WindWeather
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.mavserver.GpsFixQuality
@@ -102,6 +104,7 @@ import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
 import com.example.droneservicesapp.ui.home.components.OsmdroidObstacleEditor
 import com.example.droneservicesapp.ui.home.components.OsmdroidPolygonEditor
 import com.example.droneservicesapp.ui.home.components.OsmdroidRouteWaypointEditor
+import com.example.droneservicesapp.ui.home.components.TerrainCoverageOverlayController
 import com.example.droneservicesapp.ui.home.geoawareness.GeoZoneOverlayController
 import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoAwarenessPanelBinder
 import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoThreatUiModel
@@ -182,6 +185,7 @@ class MissionMapFragment : Fragment() {
     private var geoAwarenessLoadError: Throwable? = null
     private var geoZoneValidationResult: GeoZoneValidationResult? = null
     private var geoZoneOverlayController: GeoZoneOverlayController? = null
+    private var terrainCoverageOverlayController: TerrainCoverageOverlayController? = null
     private var geoAwarenessChecker: GeoAwarenessChecker? = null
     private var latestGeoAwarenessResult: GeoAwarenessResult = GeoAwarenessResult.clear()
     private var liveGeoAwarenessChecker: LiveGeoAwarenessChecker? = null
@@ -412,6 +416,8 @@ class MissionMapFragment : Fragment() {
 
         osmdroidObstacleEditor = OsmdroidObstacleEditor(requireContext(), activityViewModel, mapView)
         osmdroidObstacleEditor.init()
+
+        terrainCoverageOverlayController = TerrainCoverageOverlayController(requireContext(), mapView)
 
         geoZoneOverlayController = GeoZoneOverlayController(requireContext(), mapView)
         geoAwarenessChecker = GeoAwarenessChecker()
@@ -908,6 +914,7 @@ class MissionMapFragment : Fragment() {
             updateSurveyWaypointEditorEnabled()
             updateGeoAwarenessPlanningStatus()
             updateMissionSummaryCard()
+            updateTerrainCoverageOverlay()
         }
     }
 
@@ -2057,6 +2064,7 @@ class MissionMapFragment : Fragment() {
             scheduleGeoAwarenessPlanningStatusUpdate()
             updateMissionSummaryCard()
             updatePointCloudMissionOverlay()
+            updateTerrainCoverageOverlay()
         }
 
         activityViewModel.terrainSurveyWaypoints.observe(viewLifecycleOwner) {
@@ -2086,6 +2094,7 @@ class MissionMapFragment : Fragment() {
             updatePointCloudMissionOverlay()
             updateSurveyWaypointEditorEnabled()
             generatePointRouteTerrainPath()
+            updateTerrainCoverageOverlay()
         }
 
         activityViewModel.terrainRouteWaypoints.observe(viewLifecycleOwner) { terrainWaypoints ->
@@ -2098,6 +2107,7 @@ class MissionMapFragment : Fragment() {
             )
             updateMissionSummaryCard()
             updatePointCloudMissionOverlay()
+            updateTerrainCoverageOverlay()
         }
 
         activityViewModel.plannedRoutePath.observe(viewLifecycleOwner) { plannedPath ->
@@ -2112,6 +2122,7 @@ class MissionMapFragment : Fragment() {
             )
             updateMissionSummaryCard()
             updatePointCloudMissionOverlay()
+            updateTerrainCoverageOverlay()
         }
 
         activityViewModel.mapState.observe(viewLifecycleOwner) { mapState ->
@@ -2143,6 +2154,15 @@ class MissionMapFragment : Fragment() {
                 redrawAreaMissionOnMap()
             }
             updateMissionSummaryCard()
+            updateTerrainCoverageOverlay()
+        }
+
+        activityViewModel.altitudeReferenceMode.observe(viewLifecycleOwner) {
+            updateTerrainCoverageOverlay()
+        }
+
+        activityViewModel.pointCloudCoverage.observe(viewLifecycleOwner) {
+            updateTerrainCoverageOverlay()
         }
 
         activityViewModel.flightSpeed.observe(viewLifecycleOwner) {
@@ -3754,6 +3774,40 @@ class MissionMapFragment : Fragment() {
         }
     }
 
+    private fun updateTerrainCoverageOverlay() {
+        val overlay = terrainCoverageOverlayController ?: return
+        val hasPointCloudProfile =
+            activityViewModel.pointCloudCoverage.value == PointCloudCoverage.COMPLETE ||
+                activityViewModel.terrainRouteWaypoints.value.orEmpty().isNotEmpty()
+        val operationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
+        val altitudeReference = activityViewModel.altitudeReferenceMode.value ?: AltitudeReferenceMode.TERRAIN
+        val usesTerrain = !hasPointCloudProfile &&
+            (operationMode == PlanningOperationMode.SPRAY || altitudeReference == AltitudeReferenceMode.TERRAIN)
+        if (!usesTerrain) {
+            overlay.clear()
+            return
+        }
+        val path = when (activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA) {
+            PlanningWorkflow.AREA -> activityViewModel.surveyPath.value.orEmpty().map {
+                LatLon(it.latitude, it.longitude)
+            }
+            PlanningWorkflow.POINTS -> activityViewModel.plannedRoutePath.value.orEmpty()
+                .takeIf { it.size >= 2 }
+                ?.map { LatLon(it.latitude, it.longitude) }
+                ?: activityViewModel.routeWaypoints.value.orEmpty().map {
+                    LatLon(it.latitude, it.longitude)
+                }
+        }
+        if (path.isEmpty()) {
+            overlay.clear()
+            return
+        }
+        overlay.render(
+            center = TerrainCoveragePlanner.missionCenter(path),
+            radiusMeters = TerrainCoveragePlanner.COVERAGE_RADIUS_METERS,
+        )
+    }
+
     override fun onDestroyView() {
         if (::flightModeUiBinder.isInitialized) flightModeUiBinder.dismiss()
         if (::armUiBinder.isInitialized) armUiBinder.dismiss()
@@ -3775,8 +3829,10 @@ class MissionMapFragment : Fragment() {
         cancelDroneOffsetAdjustment()
         showShellToolbar()
         geoZoneOverlayController?.clear()
+        terrainCoverageOverlayController?.clear()
         osmdroidObstacleEditor.release()
         geoZoneOverlayController = null
+        terrainCoverageOverlayController = null
         geoAwarenessChecker = null
         liveGeoAwarenessStatusBinder = null
         liveGeoAwarenessChecker = null

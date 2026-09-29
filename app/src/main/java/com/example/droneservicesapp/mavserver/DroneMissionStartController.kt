@@ -24,6 +24,7 @@ enum class MissionStartRequestResult {
     DISCONNECTED,
     NOT_ARMED,
     MISSION_UNAVAILABLE,
+    TERRAIN_NOT_READY,
     TARGET_UNAVAILABLE,
     ALREADY_PENDING,
 }
@@ -35,6 +36,7 @@ internal class DroneMissionStartController(
     private val isConnected: () -> Boolean,
     private val isArmed: () -> Boolean,
     private val hasMission: () -> Boolean,
+    private val isMissionReady: () -> Boolean = { true },
     private val targetSystemId: () -> Int,
     private val targetComponentId: () -> Int,
     private val commandTimeoutMs: Long = 5_000L,
@@ -53,6 +55,7 @@ internal class DroneMissionStartController(
         if (!isConnected()) return MissionStartRequestResult.DISCONNECTED
         if (!isArmed()) return MissionStartRequestResult.NOT_ARMED
         if (!hasMission()) return MissionStartRequestResult.MISSION_UNAVAILABLE
+        if (!isMissionReady()) return MissionStartRequestResult.TERRAIN_NOT_READY
         val systemId = targetSystemId()
         if (systemId < 0) return MissionStartRequestResult.TARGET_UNAVAILABLE
         if (pending) return MissionStartRequestResult.ALREADY_PENDING

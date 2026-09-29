@@ -27,6 +27,7 @@ class MissionParamsController(
         views = views,
         lifecycleOwner = lifecycleOwner,
         activityViewModel = activityViewModel,
+        droneViewModel = droneViewModel,
         stateMapper = stateMapper
     )
     private val inputBinder = MissionParamsInputBinder(

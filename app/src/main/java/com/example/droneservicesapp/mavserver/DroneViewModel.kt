@@ -22,10 +22,12 @@ import com.example.droneservicesapp.data.mavlink.MavlinkClient
 import com.example.droneservicesapp.data.mavlink.MavlinkConfig
 import com.example.droneservicesapp.data.mavlink.MavlinkConnectionManager
 import com.example.droneservicesapp.data.mavlink.MissionService
+import com.example.droneservicesapp.data.network.InternetNetworkSelector
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.rtk.RtkMountpoint
+import com.example.droneservicesapp.data.terrain.SrtmTerrainRepository
 import com.example.droneservicesapp.domain.model.LatLon
-import com.example.droneservicesapp.domain.model.PlanningOperationMode
+import com.example.droneservicesapp.domain.terrain.TerrainCoveragePlan
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.CommandLong
@@ -35,6 +37,8 @@ import io.dronefleet.mavlink.common.MissionItemInt
 import io.dronefleet.mavlink.common.ParamValue
 import io.dronefleet.mavlink.common.LogEntry
 import io.dronefleet.mavlink.common.LogData
+import io.dronefleet.mavlink.common.TerrainReport
+import io.dronefleet.mavlink.common.TerrainRequest
 import io.dronefleet.mavlink.minimal.Heartbeat
 import io.dronefleet.mavlink.minimal.MavAutopilot
 import io.dronefleet.mavlink.minimal.MavModeFlag
@@ -46,6 +50,7 @@ import io.reactivex.disposables.CompositeDisposable
 import io.reactivex.schedulers.Schedulers
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.launch
 
 class DroneViewModel : ViewModel() {
 
@@ -72,10 +77,12 @@ class DroneViewModel : ViewModel() {
     private val repoDisposables = CompositeDisposable()
     private val mainHandler = Handler(Looper.getMainLooper())
     private val logDataExecutor = Executors.newSingleThreadExecutor()
+    private val terrainDataExecutor = Executors.newSingleThreadExecutor()
     private val runtimeState = DroneRuntimeState()
     private val stateStore = DroneUiStateStore(Application.getInstance().applicationContext)
     private val eventLogger = GeoAwarenessEventLogger(Application.getInstance().applicationContext)
     private val operatorEventLogger = OperatorFlightEventLogger(eventLogger)
+    private val appContext = Application.getInstance().applicationContext
 
     private val repo = MavlinkConnectionManager()
     val mavlinkClient: MavlinkClient = repo
@@ -138,6 +145,10 @@ class DroneViewModel : ViewModel() {
             },
             isArmed = { stateStore.armedState.value == true },
             hasMission = { !stateStore.missionItems.value.isNullOrEmpty() },
+            isMissionReady = {
+                stateStore.terrainProvisioningState.value?.requiresAircraftTerrainGate() != true ||
+                    terrainController.isReadyForAuto()
+            },
             targetSystemId = { runtimeState.autopilotSysId },
             targetComponentId = { runtimeState.autopilotCompId },
         )
@@ -151,7 +162,22 @@ class DroneViewModel : ViewModel() {
             uploadProgressPercent = stateStore.uploadProgressPercent,
             downloadProgressPercent = stateStore.missionDownloadProgressPercent,
             repoDisposables = repoDisposables,
-            onUploadSucceeded = { downloadMissionNew(force = true) },
+            onUploadSucceeded = {
+                terrainController.onMissionUploadSucceeded()
+                downloadMissionNew(force = true)
+            },
+        )
+    }
+    private val terrainController: DroneTerrainController by lazy {
+        DroneTerrainController(
+            mavlinkClient = mavlinkClient,
+            sourceRepository = SrtmTerrainRepository(appContext) {
+                InternetNetworkSelector.select(appContext)
+            },
+            scope = viewModelScope,
+            state = stateStore.terrainProvisioningState,
+            isConnected = { stateStore.conStateLiveData.value == true },
+            targetSystemId = { runtimeState.autopilotSysId },
         )
     }
     private val rtkController: DroneRtkController by lazy {
@@ -302,7 +328,9 @@ class DroneViewModel : ViewModel() {
     val rtkForwardingState: MutableLiveData<RtkForwardingState> = stateStore.rtkForwardingState
     val selectedRtkMountpoint: MutableLiveData<RtkMountpoint?> = stateStore.selectedRtkMountpoint
     val rtkGpsDebugStatus: MutableLiveData<String> = stateStore.rtkGpsDebugStatus
+    val terrainProvisioningState: MutableLiveData<TerrainProvisioningState> = stateStore.terrainProvisioningState
     val terrainEnableParameter = parameterController.state(DroneParameterController.TERRAIN_ENABLE)
+    val terrainSpacingParameter = parameterController.state(DroneParameterController.TERRAIN_SPACING)
     val waypointRangefinderParameter = parameterController.state(DroneParameterController.WP_RFND_USE)
     val surfaceTrackingParameter = parameterController.state(DroneParameterController.SURFTRAK_MODE)
     val avoidanceParameter = parameterController.state(DroneParameterController.AVOID_ENABLE)
@@ -316,8 +344,15 @@ class DroneViewModel : ViewModel() {
 
     fun getTargetComponentId(): Int = runtimeState.autopilotCompId
 
-    fun requestFlightMode(mode: ArduCopterFlightMode): FlightModeRequestResult =
-        flightModeController.requestMode(mode)
+    fun requestFlightMode(mode: ArduCopterFlightMode): FlightModeRequestResult {
+        if (mode == ArduCopterFlightMode.AUTO &&
+            stateStore.terrainProvisioningState.value?.requiresAircraftTerrainGate() == true &&
+            !terrainController.isReadyForAuto()
+        ) {
+            return FlightModeRequestResult.TerrainNotReady
+        }
+        return flightModeController.requestMode(mode)
+    }
 
     fun clearFlightModeCommandResult() {
         flightModeController.clearResult()
@@ -351,11 +386,12 @@ class DroneViewModel : ViewModel() {
      * while disconnected and are applied as soon as the first parameter reads complete.
      */
     fun applyPlanningParameterPolicy(
-        operationMode: PlanningOperationMode,
+        usesTerrainFrame: Boolean,
         hasPointCloudProfile: Boolean,
     ) {
-        val targets = PlanningParameterPolicy.targets(operationMode, hasPointCloudProfile)
+        val targets = PlanningParameterPolicy.targets(usesTerrainFrame, hasPointCloudProfile)
         parameterController.setDesiredValue(DroneParameterController.TERRAIN_ENABLE, targets.terrainEnable)
+        parameterController.setDesiredValue(DroneParameterController.TERRAIN_SPACING, targets.terrainSpacing)
         parameterController.setDesiredValue(DroneParameterController.WP_RFND_USE, targets.waypointRangefinderUse)
     }
 
@@ -365,18 +401,66 @@ class DroneViewModel : ViewModel() {
      * transaction and returns a state the upload UI can explain to the operator.
      */
     fun terrainMissionReadiness(): TerrainMissionReadiness {
-        val state = terrainEnableParameter.value ?: VehicleParameterUiState()
+        val enable = terrainEnableParameter.value ?: VehicleParameterUiState()
+        val spacing = terrainSpacingParameter.value ?: VehicleParameterUiState()
+        val rangefinder = waypointRangefinderParameter.value ?: VehicleParameterUiState()
+        val states = listOf(enable, spacing, rangefinder)
         return when {
-            state.availability == VehicleParameterAvailability.UNSUPPORTED -> TerrainMissionReadiness.UNSUPPORTED
-            state.result == VehicleParameterResult.ERROR -> TerrainMissionReadiness.REJECTED
-            state.availability == VehicleParameterAvailability.SUPPORTED &&
-                !state.isWriting && state.value == 1 -> TerrainMissionReadiness.READY
+            states.any { it.availability == VehicleParameterAvailability.UNSUPPORTED } -> TerrainMissionReadiness.UNSUPPORTED
+            states.any { it.result == VehicleParameterResult.ERROR } -> TerrainMissionReadiness.REJECTED
+            enable.availability == VehicleParameterAvailability.SUPPORTED && enable.value == 1 && !enable.isWriting &&
+                spacing.availability == VehicleParameterAvailability.SUPPORTED && spacing.value == 30 && !spacing.isWriting &&
+                rangefinder.availability == VehicleParameterAvailability.SUPPORTED && rangefinder.value == 0 && !rangefinder.isWriting ->
+                TerrainMissionReadiness.READY
             else -> {
                 parameterController.setDesiredValue(DroneParameterController.TERRAIN_ENABLE, 1)
+                parameterController.setDesiredValue(DroneParameterController.TERRAIN_SPACING, 30)
+                parameterController.setDesiredValue(DroneParameterController.WP_RFND_USE, 0)
                 TerrainMissionReadiness.CHECKING
             }
         }
     }
+
+    fun prepareTerrainMission(plan: TerrainCoveragePlan, onComplete: (Boolean) -> Unit) {
+        applyPlanningParameterPolicy(usesTerrainFrame = true, hasPointCloudProfile = false)
+        terrainController.prepare(plan) { sourceReady ->
+            if (!sourceReady) {
+                onComplete(false)
+                return@prepare
+            }
+            viewModelScope.launch {
+                repeat(60) {
+                    when (terrainMissionReadiness()) {
+                        TerrainMissionReadiness.READY -> {
+                            onComplete(true)
+                            return@launch
+                        }
+                        TerrainMissionReadiness.UNSUPPORTED -> {
+                            terrainController.markFailed(TerrainFailure.UNSUPPORTED_FLIGHT_CONTROLLER)
+                            onComplete(false)
+                            return@launch
+                        }
+                        TerrainMissionReadiness.REJECTED -> {
+                            terrainController.markFailed(TerrainFailure.PARAMETER_REJECTED)
+                            onComplete(false)
+                            return@launch
+                        }
+                        TerrainMissionReadiness.CHECKING -> kotlinx.coroutines.delay(100L)
+                    }
+                }
+                terrainController.markFailed(TerrainFailure.PARAMETER_REJECTED, "Terrain parameters were not confirmed")
+                onComplete(false)
+            }
+        }
+    }
+
+    fun downloadTerrainSource(plan: TerrainCoveragePlan, onComplete: (Boolean) -> Unit) {
+        terrainController.download(plan, onComplete)
+    }
+
+    fun clearTerrainMission() = terrainController.clear()
+
+    fun isTerrainMissionReady(): Boolean = terrainController.isReadyForAuto()
 
     fun setAvoidanceEnabled(enabled: Boolean) {
         // AVOID_ENABLE is a bitmask. Restore the vehicle's previous non-zero selection,
@@ -637,6 +721,7 @@ class DroneViewModel : ViewModel() {
     }
 
     fun uploadMissionNew(items: ArrayList<MissionItemInt>, activityVm: MainActivityViewModel) {
+        terrainController.onMissionUploadStarted()
         operatorEventLogger.logMissionUploadStarted(items.size)
         missionController.uploadMission(
             items = items,
@@ -736,6 +821,7 @@ class DroneViewModel : ViewModel() {
                             parameterController.onDisconnected()
                             parameterCatalogController.onDisconnected()
                             logDownloadController.onDisconnected()
+                            terrainController.onDisconnected()
                         }
 
                         rtkController.onConnectionStateEvaluated(connected)
@@ -773,6 +859,8 @@ class DroneViewModel : ViewModel() {
             }
             is LogEntry -> mainHandler.post { logDownloadController.handle(message) }
             is LogData -> logDataExecutor.execute { logDownloadController.handle(message) }
+            is TerrainRequest,
+            is TerrainReport -> terrainDataExecutor.execute { terrainController.handle(message) }
         }
     }
 
@@ -912,10 +1000,12 @@ class DroneViewModel : ViewModel() {
         parameterCatalogController.clear()
         repoDisposables.clear()
         logDataExecutor.shutdownNow()
+        terrainDataExecutor.shutdownNow()
         logDownloadController.clear()
         mainHandler.removeCallbacksAndMessages(null)
         Log.i(TAG, "bridge detached: clearing all subscriptions in onCleared")
         rtkController.shutdown()
+        terrainController.clear()
         mavlinkClient.stop()
     }
 }

@@ -71,6 +71,7 @@ internal class DroneParameterController(
 ) {
     companion object {
         const val TERRAIN_ENABLE = "TERRAIN_ENABLE"
+        const val TERRAIN_SPACING = "TERRAIN_SPACING"
         const val WP_RFND_USE = "WP_RFND_USE"
         const val SURFTRAK_MODE = "SURFTRAK_MODE"
         const val AVOID_ENABLE = "AVOID_ENABLE"
@@ -82,7 +83,13 @@ internal class DroneParameterController(
         private const val WRITE_READBACK_MS = 1_000L
         private const val WRITE_TIMEOUT_MS = 3_500L
         private const val VALUE_TOLERANCE = 0.01f
-        private val SUPPORTED_PARAMETERS = setOf(TERRAIN_ENABLE, WP_RFND_USE, SURFTRAK_MODE, AVOID_ENABLE)
+        private val SUPPORTED_PARAMETERS = setOf(
+            TERRAIN_ENABLE,
+            TERRAIN_SPACING,
+            WP_RFND_USE,
+            SURFTRAK_MODE,
+            AVOID_ENABLE,
+        )
     }
 
     private val mutableStates = SUPPORTED_PARAMETERS.associateWith {

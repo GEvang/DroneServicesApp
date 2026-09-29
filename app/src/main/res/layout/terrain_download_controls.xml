@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:layout_marginTop="@dimen/ds_space_xs"
+    android:orientation="vertical">
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/terrain_download_button"
+        style="@style/Widget.DroneServices.Button.MapDark"
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/phone_map_panel_button_height_tall"
+        android:text="@string/terrain_download_button"
+        android:textColor="@android:color/white"
+        android:textSize="@dimen/phone_map_panel_label_text_size"
+        android:textStyle="bold"
+        android:visibility="gone"
+        app:backgroundTint="@color/terrain_purple" />
+
+    <com.google.android.material.progressindicator.LinearProgressIndicator
+        android:id="@+id/terrain_download_progress"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_xs"
+        android:max="100"
+        android:progress="0"
+        android:visibility="gone"
+        app:indicatorColor="@color/terrain_purple"
+        app:trackColor="@color/terrain_purple_track"
+        app:trackCornerRadius="2dp"
+        app:trackThickness="4dp" />
+
+    <TextView
+        android:id="@+id/terrain_provisioning_status"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="@dimen/ds_space_xs"
+        android:textColor="@color/ds_color_text_primary"
+        android:textSize="@dimen/phone_map_panel_label_text_size"
+        android:visibility="gone" />
+
+</LinearLayout>

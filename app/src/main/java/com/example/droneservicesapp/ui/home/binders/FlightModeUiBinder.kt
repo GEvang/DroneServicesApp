@@ -185,6 +185,7 @@ class FlightModeUiBinder(
             FlightModeRequestResult.Disconnected -> toast(R.string.flight_mode_unavailable)
             FlightModeRequestResult.TargetUnavailable -> toast(R.string.flight_mode_target_unavailable)
             FlightModeRequestResult.AlreadyPending -> toast(R.string.flight_mode_request_pending)
+            FlightModeRequestResult.TerrainNotReady -> toast(R.string.terrain_auto_not_ready)
         }
     }
 

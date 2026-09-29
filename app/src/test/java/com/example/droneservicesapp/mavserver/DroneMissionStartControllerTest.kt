@@ -58,13 +58,26 @@ class DroneMissionStartControllerTest {
         assertTrue(client.sent.isEmpty())
     }
 
-    private fun controller(connected: Boolean, armed: Boolean, hasMission: Boolean) =
+    @Test fun `terrain mission start is not sent until terrain is ready`() {
+        val controller = controller(connected = true, armed = true, hasMission = true, missionReady = false)
+
+        assertEquals(MissionStartRequestResult.TERRAIN_NOT_READY, controller.requestStart())
+        assertTrue(client.sent.isEmpty())
+    }
+
+    private fun controller(
+        connected: Boolean,
+        armed: Boolean,
+        hasMission: Boolean,
+        missionReady: Boolean = true,
+    ) =
         DroneMissionStartController(
             mavlinkClient = client,
             scope = scope,
             isConnected = { connected },
             isArmed = { armed },
             hasMission = { hasMission },
+            isMissionReady = { missionReady },
             targetSystemId = { 1 },
             targetComponentId = { 1 },
             commandTimeoutMs = 60_000,

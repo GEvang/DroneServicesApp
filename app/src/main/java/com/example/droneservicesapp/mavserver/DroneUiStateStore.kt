@@ -62,6 +62,8 @@ internal class DroneUiStateStore(
         MutableLiveData<RtkMountpoint?>().default(null)
     val rtkGpsDebugStatus: MutableLiveData<String> =
         MutableLiveData<String>().default(context.getString(R.string.rtk_gps_debug_default))
+    val terrainProvisioningState: MutableLiveData<TerrainProvisioningState> =
+        MutableLiveData<TerrainProvisioningState>().default(TerrainProvisioningState.Idle)
 
     private fun <T : Any?> MutableLiveData<T>.default(initialValue: T) =
         apply { postValue(initialValue) }

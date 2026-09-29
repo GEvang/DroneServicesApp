@@ -12,9 +12,14 @@ import androidx.core.view.isVisible
 import androidx.lifecycle.LifecycleOwner
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
+import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
+import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.survey.SprayPresets
 import com.example.droneservicesapp.domain.terrain.PointCloudCoverage
+import com.example.droneservicesapp.domain.terrain.TerrainCoveragePlanner
+import com.example.droneservicesapp.mavserver.DroneViewModel
+import com.example.droneservicesapp.mavserver.TerrainProvisioningState
 import com.example.droneservicesapp.ui.home.model.MissionParamsUiState
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import java.util.Locale
@@ -23,11 +28,13 @@ class MissionParamsRenderer(
     private val views: MissionParamsViews,
     private val lifecycleOwner: LifecycleOwner,
     private val activityViewModel: MainActivityViewModel,
+    private val droneViewModel: DroneViewModel,
     private val stateMapper: MissionParamsStateMapper,
 ) {
     // Point-cloud coverage is refreshed while mission parameters are edited. Keep that
     // refresh from causing an otherwise identical settings layout to be rebuilt.
     private var lastLayoutSignature: Triple<Boolean, Boolean, Boolean>? = null
+    private var currentTerrainState: TerrainProvisioningState = TerrainProvisioningState.Idle
 
     private var missionParamsUiState = MissionParamsUiState(
         operationMode = PlanningOperationMode.SURVEY,
@@ -59,6 +66,7 @@ class MissionParamsRenderer(
         bindPresetSelector()
         bindAltitudeReferenceSelector()
         renderAltitudeReference(missionParamsUiState.altitudeReferenceMode)
+        droneViewModel.terrainProvisioningState.observe(lifecycleOwner, ::renderTerrainProvisioning)
 
         activityViewModel.flightSpeed.observe(lifecycleOwner) { flightSpeed ->
             missionParamsUiState = missionParamsUiState.copy(flightSpeed = flightSpeed)
@@ -74,6 +82,7 @@ class MissionParamsRenderer(
             val selectedMode = mode ?: AltitudeReferenceMode.RELATIVE
             missionParamsUiState = missionParamsUiState.copy(altitudeReferenceMode = selectedMode)
             renderAltitudeReference(selectedMode)
+            renderTerrainProvisioning(currentTerrainState)
         }
 
         activityViewModel.selectedSprayPresetId.observe(lifecycleOwner) { presetId ->
@@ -87,6 +96,7 @@ class MissionParamsRenderer(
                 operationMode,
                 activityViewModel.pointCloudCoverage.value ?: PointCloudCoverage.NONE,
             )
+            renderTerrainProvisioning(currentTerrainState)
         }
 
         activityViewModel.activePlanningWorkflow.observe(lifecycleOwner) {
@@ -94,6 +104,7 @@ class MissionParamsRenderer(
                 missionParamsUiState.operationMode,
                 activityViewModel.pointCloudCoverage.value ?: PointCloudCoverage.NONE
             )
+            renderTerrainProvisioning(currentTerrainState)
         }
 
         activityViewModel.pointCloudCoverage.observe(lifecycleOwner) { coverage ->
@@ -101,6 +112,23 @@ class MissionParamsRenderer(
                 missionParamsUiState.operationMode,
                 coverage ?: PointCloudCoverage.NONE,
             )
+            renderTerrainProvisioning(currentTerrainState)
+        }
+
+        droneViewModel.conStateLiveData.observe(lifecycleOwner) {
+            renderTerrainProvisioning(currentTerrainState)
+        }
+        activityViewModel.surveyPath.observe(lifecycleOwner) {
+            renderTerrainProvisioning(currentTerrainState)
+        }
+        activityViewModel.plannedRoutePath.observe(lifecycleOwner) {
+            renderTerrainProvisioning(currentTerrainState)
+        }
+        activityViewModel.routeWaypoints.observe(lifecycleOwner) {
+            renderTerrainProvisioning(currentTerrainState)
+        }
+        activityViewModel.terrainRouteWaypoints.observe(lifecycleOwner) {
+            renderTerrainProvisioning(currentTerrainState)
         }
 
         bindSurveyField(activityViewModel.surveyStripSpacing) { value ->
@@ -127,6 +155,101 @@ class MissionParamsRenderer(
         bindSurveyField(activityViewModel.surveyCanopySmoothing) { value ->
             missionParamsUiState = missionParamsUiState.copy(surveyCanopySmoothing = value)
             views.surveyCanopySmoothingValue.setText(value.toString())
+        }
+    }
+
+    private fun renderTerrainProvisioning(state: TerrainProvisioningState?) {
+        val current = state ?: TerrainProvisioningState.Idle
+        currentTerrainState = current
+        val sourceReadyForCurrentMission = current is TerrainProvisioningState.SourceReady &&
+            sourceReadyMatchesCurrentMission(current)
+        val text = when (current) {
+            TerrainProvisioningState.Idle -> null
+            is TerrainProvisioningState.PreparingSource -> views.panelRoot.context.getString(
+                R.string.terrain_preparing_tile,
+                current.tileName ?: "…",
+                current.completedTiles,
+                current.totalTiles,
+            )
+            is TerrainProvisioningState.SourceReady -> if (sourceReadyForCurrentMission) {
+                views.panelRoot.context.getString(R.string.terrain_downloaded, current.tileCount)
+            } else {
+                null
+            }
+            TerrainProvisioningState.WaitingForMissionUpload ->
+                views.panelRoot.context.getString(R.string.terrain_waiting_for_upload)
+            is TerrainProvisioningState.Serving -> if (current.pending != null) {
+                views.panelRoot.context.getString(R.string.terrain_sending_blocks_pending, current.blocksSent, current.pending)
+            } else {
+                views.panelRoot.context.getString(R.string.terrain_sending_blocks, current.blocksSent)
+            }
+            is TerrainProvisioningState.Verifying -> views.panelRoot.context.getString(
+                R.string.terrain_verifying_progress,
+                current.checked,
+                current.total,
+            )
+            is TerrainProvisioningState.Ready ->
+                views.panelRoot.context.getString(R.string.terrain_ready_blocks, current.blocksSent)
+            is TerrainProvisioningState.Failed -> views.panelRoot.context.getString(
+                R.string.terrain_failed_detail,
+                current.detail ?: current.failure.name,
+            )
+        }
+        views.terrainProvisioningStatus?.isVisible = text != null
+        views.terrainProvisioningStatus?.text = text.orEmpty()
+        val progress = when (current) {
+            is TerrainProvisioningState.PreparingSource -> current.progressPercent.coerceIn(0, 100)
+            is TerrainProvisioningState.SourceReady -> if (sourceReadyForCurrentMission) 100 else null
+            TerrainProvisioningState.WaitingForMissionUpload,
+            is TerrainProvisioningState.Serving,
+            is TerrainProvisioningState.Verifying,
+            is TerrainProvisioningState.Ready -> 100
+            TerrainProvisioningState.Idle,
+            is TerrainProvisioningState.Failed -> null
+        }
+        views.terrainDownloadProgress?.isVisible = progress != null
+        if (progress != null) views.terrainDownloadProgress?.progress = progress
+        val downloadBusy = current is TerrainProvisioningState.PreparingSource
+        // Keep the offline action discoverable before a mission is drawn or Terrain mode is
+        // selected. The click handler explains that a mission path is required for the actual
+        // download, while a completed download is represented by the 100% bar and status text.
+        val showDownload = droneViewModel.conStateLiveData.value != true &&
+            !sourceReadyForCurrentMission
+        views.terrainDownloadButton?.isVisible = showDownload
+        views.terrainDownloadButton?.isEnabled = showDownload && !downloadBusy
+        views.uploadMissionButton?.isEnabled = current is TerrainProvisioningState.Idle ||
+            current is TerrainProvisioningState.SourceReady ||
+            current is TerrainProvisioningState.Ready || current is TerrainProvisioningState.Failed
+    }
+
+    private fun sourceReadyMatchesCurrentMission(state: TerrainProvisioningState.SourceReady): Boolean {
+        val path = currentTerrainPath()
+        if (path.isEmpty()) return false
+        val center = TerrainCoveragePlanner.missionCenter(path)
+        return TerrainCoveragePlanner.distanceMeters(center, state.center) < 1.0 &&
+            state.radiusMeters == TerrainCoveragePlanner.COVERAGE_RADIUS_METERS
+    }
+
+    private fun usesFlightControllerTerrain(): Boolean {
+        val hasPointCloudProfile =
+            activityViewModel.pointCloudCoverage.value == PointCloudCoverage.COMPLETE ||
+                activityViewModel.terrainRouteWaypoints.value.orEmpty().isNotEmpty()
+        return !hasPointCloudProfile &&
+            (missionParamsUiState.operationMode == PlanningOperationMode.SPRAY ||
+                missionParamsUiState.altitudeReferenceMode == AltitudeReferenceMode.TERRAIN)
+    }
+
+    private fun currentTerrainPath(): List<LatLon> {
+        return when (activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA) {
+            PlanningWorkflow.AREA -> activityViewModel.surveyPath.value.orEmpty().map {
+                LatLon(it.latitude, it.longitude)
+            }
+            PlanningWorkflow.POINTS -> activityViewModel.plannedRoutePath.value.orEmpty()
+                .takeIf { it.size >= 2 }
+                ?.map { LatLon(it.latitude, it.longitude) }
+                ?: activityViewModel.routeWaypoints.value.orEmpty().map {
+                    LatLon(it.latitude, it.longitude)
+                }
         }
     }
 

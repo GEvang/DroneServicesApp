@@ -8,6 +8,7 @@ import android.widget.ImageButton
 import android.widget.SeekBar
 import android.widget.TextView
 import com.example.droneservicesapp.R
+import com.google.android.material.progressindicator.LinearProgressIndicator
 
 class MissionParamsViews(
     rootView: View,
@@ -115,5 +116,10 @@ class MissionParamsViews(
     val speedTimeRow: View = rootView.findViewById(R.id.speed_time_row)
 
     val uploadMissionButton: Button? = rootView.findViewById(R.id.uploadMission)
+    val terrainDownloadButton: Button? = rootView.findViewById(R.id.terrain_download_button)
+    val terrainDownloadProgress: LinearProgressIndicator? =
+        rootView.findViewById(R.id.terrain_download_progress)
+    // Optional so a future resource-qualified panel cannot crash app startup if it omits status UI.
+    val terrainProvisioningStatus: TextView? = rootView.findViewById(R.id.terrain_provisioning_status)
     val saveMissionButton: Button? = rootView.findViewById(R.id.save_mission)
 }

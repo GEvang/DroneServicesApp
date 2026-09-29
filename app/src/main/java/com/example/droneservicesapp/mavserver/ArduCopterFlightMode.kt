@@ -70,4 +70,5 @@ sealed class FlightModeRequestResult {
     object Disconnected : FlightModeRequestResult()
     object TargetUnavailable : FlightModeRequestResult()
     object AlreadyPending : FlightModeRequestResult()
+    object TerrainNotReady : FlightModeRequestResult()
 }

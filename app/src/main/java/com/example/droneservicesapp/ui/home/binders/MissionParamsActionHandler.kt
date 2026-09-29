@@ -14,9 +14,10 @@ import com.example.droneservicesapp.domain.planning.MissionResourcePlanner
 import com.example.droneservicesapp.domain.planning.MissionServiceLeg
 import com.example.droneservicesapp.domain.survey.SurveyPlanner
 import com.example.droneservicesapp.domain.terrain.PointCloudCoverage
+import com.example.droneservicesapp.domain.terrain.MissionOutsideTerrainCoverageException
+import com.example.droneservicesapp.domain.terrain.TerrainCoveragePlanner
 import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
 import com.example.droneservicesapp.mavserver.DroneViewModel
-import com.example.droneservicesapp.mavserver.TerrainMissionReadiness
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel.ServiceMissionState
 import com.google.android.gms.maps.model.LatLng
@@ -41,8 +42,51 @@ class MissionParamsActionHandler(
 
     fun bind() {
         views.uploadMissionButton?.setOnClickListener { uploadMission() }
+        views.terrainDownloadButton?.setOnClickListener { downloadTerrainForCurrentMission() }
         views.saveMissionButton?.setOnClickListener {
             activityViewModel.mapState.postValue(MainActivityViewModel.MapState.SaveMissionToFile)
+        }
+    }
+
+    private fun downloadTerrainForCurrentMission() {
+        val path = currentTerrainPlanningPath()
+        if (path.isEmpty()) {
+            showMessage(context.getString(R.string.terrain_download_requires_mission))
+            return
+        }
+        val home = activityViewModel.plannedHomePosition.value ?: path.first()
+        val plan = try {
+            TerrainCoveragePlanner.createPlan(missionPath = path, home = home)
+        } catch (outside: MissionOutsideTerrainCoverageException) {
+            showMessage(context.getString(R.string.terrain_mission_outside_coverage))
+            return
+        } catch (error: IllegalArgumentException) {
+            showMessage(error.message ?: context.getString(R.string.terrain_source_unavailable))
+            return
+        }
+        droneViewModel.downloadTerrainSource(plan) { downloaded ->
+            showMessage(
+                context.getString(
+                    if (downloaded) R.string.terrain_download_complete
+                    else R.string.terrain_source_unavailable
+                )
+            )
+        }
+    }
+
+    private fun currentTerrainPlanningPath(): List<LatLon> {
+        return when (activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA) {
+            PlanningWorkflow.AREA -> activityViewModel.surveyPath.value.orEmpty().map {
+                LatLon(it.latitude, it.longitude)
+            }
+            PlanningWorkflow.POINTS -> {
+                activityViewModel.plannedRoutePath.value.orEmpty()
+                    .takeIf { it.size >= 2 }
+                    ?.map { LatLon(it.latitude, it.longitude) }
+                    ?: activityViewModel.routeWaypoints.value.orEmpty().map {
+                        LatLon(it.latitude, it.longitude)
+                    }
+            }
         }
     }
 
@@ -201,8 +245,6 @@ class MissionParamsActionHandler(
             return showMessage(context.getString(R.string.point_cloud_service_route_not_validated))
         }
 
-        if (!terrainReady(build.altitudeReferenceMode, operationMode)) return
-
         val proceedWithUpload = {
             beforeMissionUpload()
             activityViewModel.beginMissionUpload(
@@ -223,7 +265,20 @@ class MissionParamsActionHandler(
             droneViewModel.uploadMissionNew(build.items, activityViewModel)
             preferencesBridge.saveFromViewModel()
         }
-        beforeUploadGuard?.invoke(proceedWithUpload) ?: proceedWithUpload()
+        val guardedUpload = { beforeUploadGuard?.invoke(proceedWithUpload) ?: proceedWithUpload() }
+        if (build.altitudeReferenceMode == AltitudeReferenceMode.TERRAIN) {
+            val home = activityViewModel.plannedHomePosition.value
+                ?: LatLon(validatedDroneLoc.latitude, validatedDroneLoc.longitude)
+            val planningPath = if (workflow == PlanningWorkflow.POINTS) {
+                uploadRouteWaypoints.map { LatLon(it.latitude, it.longitude) }
+            } else {
+                fullPath
+            }
+            prepareTerrainForUpload(build, planningPath, home, guardedUpload)
+        } else {
+            droneViewModel.clearTerrainMission()
+            guardedUpload()
+        }
     }
 
     private fun nearestRouteWaypoint(
@@ -279,19 +334,25 @@ class MissionParamsActionHandler(
             return
         }
         val operationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
-        if (!terrainReady(build.altitudeReferenceMode, operationMode)) {
-            activityViewModel.markServiceLegUploadFailed()
-            return
+        val uploadLeg = {
+            logUpload(PlanningWorkflow.AREA, build, altitude)
+            beforeMissionUpload()
+            activityViewModel.beginMissionUpload(
+                usesPointCloudProfile = operationMode == PlanningOperationMode.SPRAY && build.usesTerrainAltitudes
+            )
+            droneViewModel.uploadMissionNew(build.items, activityViewModel)
+            preferencesBridge.saveFromViewModel()
         }
-
-        logUpload(PlanningWorkflow.AREA, build, altitude)
-        beforeMissionUpload()
-        activityViewModel.beginMissionUpload(
-            usesPointCloudProfile = operationMode == PlanningOperationMode.SPRAY &&
-                build.usesTerrainAltitudes
-        )
-        droneViewModel.uploadMissionNew(build.items, activityViewModel)
-        preferencesBridge.saveFromViewModel()
+        if (build.altitudeReferenceMode == AltitudeReferenceMode.TERRAIN) {
+            val home = activityViewModel.plannedHomePosition.value
+                ?: LatLon(droneLoc.latitude, droneLoc.longitude)
+            prepareTerrainForUpload(build, leg.path, home, uploadLeg) {
+                activityViewModel.markServiceLegUploadFailed()
+            }
+        } else {
+            droneViewModel.clearTerrainMission()
+            uploadLeg()
+        }
     }
 
     private fun buildAreaMission(
@@ -421,22 +482,41 @@ class MissionParamsActionHandler(
         return altitudes[lower] + (altitudes[upper] - altitudes[lower]) * fraction
     }
 
-    private fun terrainReady(
-        referenceMode: AltitudeReferenceMode,
-        operationMode: PlanningOperationMode,
-    ): Boolean {
-        // TERRAIN_ENABLE is a survey-mode policy. Spray missions keep it off even when their
-        // waypoint coordinates use the terrain altitude frame.
-        if (referenceMode != AltitudeReferenceMode.TERRAIN ||
-            operationMode != PlanningOperationMode.SURVEY
-        ) return true
-        when (droneViewModel.terrainMissionReadiness()) {
-            TerrainMissionReadiness.READY -> return true
-            TerrainMissionReadiness.CHECKING -> showMessage(context.getString(R.string.terrain_database_enabling))
-            TerrainMissionReadiness.UNSUPPORTED -> showMessage(context.getString(R.string.terrain_database_unsupported))
-            TerrainMissionReadiness.REJECTED -> showMessage(context.getString(R.string.terrain_database_rejected))
+    private fun prepareTerrainForUpload(
+        build: MissionBuild,
+        planningPath: List<LatLon>,
+        home: LatLon,
+        onReady: () -> Unit,
+        onFailure: () -> Unit = {},
+    ) {
+        val uploadedPath = build.items.mapNotNull { item ->
+            val latitude = item.x() / 1e7
+            val longitude = item.y() / 1e7
+            if (latitude == 0.0 && longitude == 0.0) null else LatLon(latitude, longitude)
         }
-        return false
+        val plan = try {
+            TerrainCoveragePlanner.createPlan(
+                missionPath = planningPath,
+                home = home,
+                returnPaths = listOf(uploadedPath),
+            )
+        } catch (outside: MissionOutsideTerrainCoverageException) {
+            showMessage(context.getString(R.string.terrain_mission_outside_coverage))
+            onFailure()
+            return
+        } catch (error: IllegalArgumentException) {
+            showMessage(error.message ?: context.getString(R.string.terrain_source_unavailable))
+            onFailure()
+            return
+        }
+        showMessage(context.getString(R.string.terrain_preparing_source))
+        droneViewModel.prepareTerrainMission(plan) { ready ->
+            if (ready) onReady()
+            else {
+                showMessage(context.getString(R.string.terrain_source_unavailable))
+                onFailure()
+            }
+        }
     }
 
     private fun logUpload(workflow: PlanningWorkflow, build: MissionBuild, altitude: Double) {

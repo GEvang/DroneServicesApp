@@ -239,6 +239,8 @@
         app:iconPadding="@dimen/ds_space_sm"
         app:iconTint="@color/ds_color_shell_active" />
 
+    <include layout="@layout/terrain_download_controls" />
+
     <com.google.android.material.button.MaterialButton
         android:id="@+id/right_panel_resume_mission_button"
         style="@style/Widget.DroneServices.Button.MapEmphasis"
