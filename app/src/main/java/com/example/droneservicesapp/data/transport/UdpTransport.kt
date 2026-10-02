@@ -191,15 +191,16 @@ class UdpTransport(
     }
 
     private fun maybeDeliverToMavlinkSession(receivePacket: DatagramPacket) {
-        if (!bridgeRouter.isActive && configuredTargetIP != null && receivePacket.address != configuredTargetIP) {
-            return
-        }
         val endpoint = UdpEndpoint(receivePacket.address, receivePacket.port)
         val hasAutopilotHeartbeat = MavlinkDatagramInspector.containsAutopilotHeartbeat(
             receivePacket.data,
             receivePacket.offset,
             receivePacket.length,
         )
+        // The RC Tool can send telemetry through a radio/NAT endpoint that differs from
+        // the configured command target. The peer tracker elects a single endpoint only
+        // after an autopilot heartbeat, preventing unrelated traffic from entering the
+        // MAVLink parser while allowing these asymmetric command/telemetry routes.
         val accepted = peerTracker.shouldAccept(endpoint, hasAutopilotHeartbeat, SystemClock.elapsedRealtime())
         if (!accepted) {
             logRejectedEndpointIfChanged(endpoint)
