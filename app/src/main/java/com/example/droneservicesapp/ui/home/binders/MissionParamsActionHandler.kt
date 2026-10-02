@@ -5,7 +5,9 @@ import android.location.Location
 import android.util.Log
 import android.widget.Toast
 import com.example.droneservicesapp.R
+import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import com.example.droneservicesapp.data.mavlink.MissionBuilder
+import com.example.droneservicesapp.data.terrain.TerrainDebugOptions
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
@@ -55,8 +57,13 @@ class MissionParamsActionHandler(
             return
         }
         val home = activityViewModel.plannedHomePosition.value ?: path.first()
+        val coverageSafeguardDisabled = TerrainDebugOptions.isCoverageSafeguardDisabled(context)
         val plan = try {
-            TerrainCoveragePlanner.createPlan(missionPath = path, home = home)
+            TerrainCoveragePlanner.createPlan(
+                missionPath = path,
+                home = home,
+                enforceCoverage = !coverageSafeguardDisabled,
+            )
         } catch (outside: MissionOutsideTerrainCoverageException) {
             showMessage(context.getString(R.string.terrain_mission_outside_coverage))
             return
@@ -64,6 +71,7 @@ class MissionParamsActionHandler(
             showMessage(error.message ?: context.getString(R.string.terrain_source_unavailable))
             return
         }
+        logTerrainCoverageBypassIfNeeded(coverageSafeguardDisabled, "download")
         droneViewModel.downloadTerrainSource(plan) { downloaded ->
             showMessage(
                 context.getString(
@@ -498,11 +506,13 @@ class MissionParamsActionHandler(
             val longitude = item.y() / 1e7
             if (latitude == 0.0 && longitude == 0.0) null else LatLon(latitude, longitude)
         }
+        val coverageSafeguardDisabled = TerrainDebugOptions.isCoverageSafeguardDisabled(context)
         val plan = try {
             TerrainCoveragePlanner.createPlan(
                 missionPath = planningPath,
                 home = home,
                 returnPaths = listOf(uploadedPath),
+                enforceCoverage = !coverageSafeguardDisabled,
             )
         } catch (outside: MissionOutsideTerrainCoverageException) {
             showMessage(context.getString(R.string.terrain_mission_outside_coverage))
@@ -513,6 +523,7 @@ class MissionParamsActionHandler(
             onFailure()
             return
         }
+        logTerrainCoverageBypassIfNeeded(coverageSafeguardDisabled, "upload")
         showMessage(context.getString(R.string.terrain_preparing_source))
         droneViewModel.prepareTerrainMission(plan) { ready ->
             if (ready) onReady()
@@ -521,6 +532,16 @@ class MissionParamsActionHandler(
                 onFailure()
             }
         }
+    }
+
+    private fun logTerrainCoverageBypassIfNeeded(disabled: Boolean, action: String) {
+        if (!disabled) return
+        DiagnosticLog.event(
+            "terrain",
+            "coverage_safeguard_bypassed",
+            "WARN",
+            mapOf("action" to action),
+        )
     }
 
     private fun logUpload(workflow: PlanningWorkflow, build: MissionBuild, altitude: Double) {

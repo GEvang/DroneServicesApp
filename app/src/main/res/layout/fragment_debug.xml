@@ -90,6 +90,22 @@
                     android:layout_height="48dp"
                     android:layout_marginTop="@dimen/ds_space_sm"
                     android:text="@string/debug_save_access_code" />
+
+                <com.google.android.material.switchmaterial.SwitchMaterial
+                    android:id="@+id/debug_disable_terrain_coverage_safeguard_switch"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_md"
+                    android:text="@string/debug_disable_terrain_coverage_safeguard"
+                    android:textColor="@color/ds_color_shell_danger" />
+
+                <TextView
+                    style="@style/TextAppearance.DroneServices.Body"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginTop="@dimen/ds_space_xs"
+                    android:text="@string/debug_disable_terrain_coverage_safeguard_description"
+                    android:textColor="@color/ds_color_text_secondary" />
             </LinearLayout>
 
             <TextView style="@style/TextAppearance.DroneServices.SectionTitle" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="@dimen/ds_space_xl" android:text="@string/debug_parameters_title" />

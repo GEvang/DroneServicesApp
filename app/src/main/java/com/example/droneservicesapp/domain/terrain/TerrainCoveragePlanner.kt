@@ -32,6 +32,7 @@ object TerrainCoveragePlanner {
         home: LatLon,
         returnPaths: List<List<LatLon>> = emptyList(),
         radiusMeters: Double = COVERAGE_RADIUS_METERS,
+        enforceCoverage: Boolean = true,
     ): TerrainCoveragePlan {
         require(missionPath.isNotEmpty()) { "Terrain mission path is empty" }
         require(radiusMeters > 0.0) { "Terrain coverage radius must be positive" }
@@ -48,15 +49,24 @@ object TerrainCoveragePlanner {
 
         sampled.forEach { point ->
             val distance = distanceMeters(center, point)
-            if (distance > radiusMeters + 0.01) {
+            if (enforceCoverage && distance > radiusMeters + 0.01) {
                 throw MissionOutsideTerrainCoverageException(point, distance)
             }
+        }
+
+        // The debug bypass deliberately prepares only the normal local coverage area. Including
+        // a distant home in the plan would turn a diagnostic test into a multi-tile corridor
+        // download and would still fail when the local elevation source is queried later.
+        val requiredSamples = if (enforceCoverage) {
+            sampled
+        } else {
+            sampled.filter { distanceMeters(center, it) <= radiusMeters + 0.01 }
         }
 
         return TerrainCoveragePlan(
             center = center,
             radiusMeters = radiusMeters,
-            requiredPathSamples = sampled.ifEmpty { authoredPoints + home },
+            requiredPathSamples = requiredSamples.ifEmpty { authoredPoints },
             // A TERRAIN_REQUEST covers a complete 32 x 28 sample block. Load a source margin so
             // an edge request can be answered even when its unused samples extend past 1 km.
             sourceTiles = tilesIntersectingCircle(center, radiusMeters + MAX_REQUEST_BLOCK_EXTENT_METERS),

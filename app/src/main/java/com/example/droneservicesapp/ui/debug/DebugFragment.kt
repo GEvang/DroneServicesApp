@@ -23,6 +23,7 @@ import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
+import com.example.droneservicesapp.data.terrain.TerrainDebugOptions
 import com.example.droneservicesapp.databinding.FragmentDebugBinding
 import com.example.droneservicesapp.mavserver.DroneLogDownloadState
 import com.example.droneservicesapp.mavserver.DroneLogFile
@@ -64,6 +65,7 @@ class DebugFragment : Fragment() {
         bindUnlockGate()
         bindDebugControls()
         bindDebugAccessSettings()
+        bindTerrainDebugSettings()
         bindParameterCatalog()
         bindLogTransfer()
     }
@@ -120,6 +122,24 @@ class DebugFragment : Fragment() {
     }
 
     private fun debugPreferences() = requireContext().getSharedPreferences(DEBUG_PREFS, 0)
+
+    private fun bindTerrainDebugSettings() {
+        binding.debugDisableTerrainCoverageSafeguardSwitch.isChecked =
+            TerrainDebugOptions.isCoverageSafeguardDisabled(requireContext())
+        binding.debugDisableTerrainCoverageSafeguardSwitch.setOnCheckedChangeListener { _, disabled ->
+            TerrainDebugOptions.setCoverageSafeguardDisabled(requireContext(), disabled)
+            DiagnosticLog.event(
+                "terrain",
+                "coverage_safeguard_debug_option_changed",
+                if (disabled) "WARN" else "INFO",
+                mapOf("disabled" to disabled),
+            )
+            toast(
+                if (disabled) R.string.debug_terrain_coverage_safeguard_disabled_notice
+                else R.string.debug_terrain_coverage_safeguard_enabled_notice
+            )
+        }
+    }
 
     private fun bindKeyboardInput(input: EditText) {
         input.showSoftInputOnFocus = true

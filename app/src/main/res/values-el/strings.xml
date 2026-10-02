@@ -531,6 +531,10 @@
     <string name="debug_access_disabled_notice">Ο κωδικός πρόσβασης αποσφαλμάτωσης απενεργοποιήθηκε.</string>
     <string name="debug_access_code_required">Εισαγάγετε τουλάχιστον ένα ψηφίο.</string>
     <string name="debug_access_code_saved">Ο κωδικός πρόσβασης αποσφαλμάτωσης αποθηκεύτηκε.</string>
+    <string name="debug_disable_terrain_coverage_safeguard">Απενεργοποίηση ορίου εδάφους 1 km</string>
+    <string name="debug_disable_terrain_coverage_safeguard_description">Μόνο για δοκιμές. Το μακρινό σημείο επιστροφής και η διαδρομή επιστροφής εξαιρούνται από την προετοιμασία και την επαλήθευση εδάφους. Μην το χρησιμοποιείτε για πτήση.</string>
+    <string name="debug_terrain_coverage_safeguard_disabled_notice">Το όριο εδάφους απενεργοποιήθηκε. Μόνο για δοκιμές—μην πετάξετε.</string>
+    <string name="debug_terrain_coverage_safeguard_enabled_notice">Το όριο εδάφους επανενεργοποιήθηκε.</string>
     <string name="debug_parameter_edit_title">Επεξεργασία %1$s</string>
     <string name="debug_parameter_save">Εγγραφή στο όχημα</string>
     <string name="debug_parameter_invalid_value">Εισαγάγετε έγκυρη αριθμητική τιμή.</string>

@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="debug_disable_terrain_coverage_safeguard">Disable 1 km terrain safeguard</string>
+    <string name="debug_disable_terrain_coverage_safeguard_description">Testing only. Distant home and return-path points are excluded from terrain preparation and verification. Do not use for flight.</string>
+    <string name="debug_terrain_coverage_safeguard_disabled_notice">Terrain safeguard disabled. Testing only—do not fly.</string>
+    <string name="debug_terrain_coverage_safeguard_enabled_notice">Terrain safeguard restored.</string>
+</resources>

@@ -23,6 +23,25 @@ class TerrainCoveragePlannerTest {
         )
     }
 
+    @Test fun debugBypassExcludesDistantHomeFromPreparedSamples() {
+        val path = listOf(LatLon(36.1, 24.6), LatLon(36.101, 24.6))
+        val distantHome = LatLon(35.36, 24.64)
+
+        val plan = TerrainCoveragePlanner.createPlan(
+            missionPath = path,
+            home = distantHome,
+            enforceCoverage = false,
+        )
+
+        assertTrue(plan.requiredPathSamples.isNotEmpty())
+        assertTrue(distantHome !in plan.requiredPathSamples)
+        assertTrue(plan.requiredPathSamples.all {
+            TerrainCoveragePlanner.distanceMeters(plan.center, it) <= plan.radiusMeters + 0.01
+        })
+        assertTrue(SrtmTileId(36, 24) in plan.sourceTiles)
+        assertTrue(SrtmTileId(35, 24) !in plan.sourceTiles)
+    }
+
     @Test fun coverageCrossingDegreeBoundaryIncludesAdjacentTiles() {
         val path = listOf(LatLon(35.999, 24.999), LatLon(35.9995, 24.9995))
         val plan = TerrainCoveragePlanner.createPlan(path, home = path.first())
