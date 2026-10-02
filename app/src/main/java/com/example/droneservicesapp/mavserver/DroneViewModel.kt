@@ -27,6 +27,7 @@ import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.rtk.RtkMountpoint
 import com.example.droneservicesapp.data.terrain.SrtmTerrainRepository
 import com.example.droneservicesapp.domain.model.LatLon
+import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.terrain.TerrainCoveragePlan
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import io.dronefleet.mavlink.MavlinkMessage
@@ -386,10 +387,10 @@ class DroneViewModel : ViewModel() {
      * while disconnected and are applied as soon as the first parameter reads complete.
      */
     fun applyPlanningParameterPolicy(
-        usesTerrainFrame: Boolean,
+        operationMode: PlanningOperationMode,
         hasPointCloudProfile: Boolean,
     ) {
-        val targets = PlanningParameterPolicy.targets(usesTerrainFrame, hasPointCloudProfile)
+        val targets = PlanningParameterPolicy.targets(operationMode, hasPointCloudProfile)
         parameterController.setDesiredValue(DroneParameterController.TERRAIN_ENABLE, targets.terrainEnable)
         parameterController.setDesiredValue(DroneParameterController.TERRAIN_SPACING, targets.terrainSpacing)
         parameterController.setDesiredValue(DroneParameterController.WP_RFND_USE, targets.waypointRangefinderUse)
@@ -422,7 +423,7 @@ class DroneViewModel : ViewModel() {
     }
 
     fun prepareTerrainMission(plan: TerrainCoveragePlan, onComplete: (Boolean) -> Unit) {
-        applyPlanningParameterPolicy(usesTerrainFrame = true, hasPointCloudProfile = false)
+        applyPlanningParameterPolicy(PlanningOperationMode.SURVEY, hasPointCloudProfile = false)
         terrainController.prepare(plan) { sourceReady ->
             if (!sourceReady) {
                 onComplete(false)

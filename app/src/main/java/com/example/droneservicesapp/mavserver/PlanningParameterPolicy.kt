@@ -1,5 +1,7 @@
 package com.example.droneservicesapp.mavserver
 
+import com.example.droneservicesapp.domain.model.PlanningOperationMode
+
 /** Vehicle parameter targets derived from the currently selected planning mode. */
 data class PlanningParameterTargets(
     val terrainEnable: Int,
@@ -9,14 +11,14 @@ data class PlanningParameterTargets(
 
 object PlanningParameterPolicy {
     fun targets(
-        usesTerrainFrame: Boolean,
+        operationMode: PlanningOperationMode,
         hasPointCloudProfile: Boolean,
     ): PlanningParameterTargets {
-        val requiresFlightControllerTerrain = usesTerrainFrame && !hasPointCloudProfile
+        val isSurvey = operationMode == PlanningOperationMode.SURVEY
         return PlanningParameterTargets(
-            terrainEnable = if (requiresFlightControllerTerrain) 1 else 0,
+            terrainEnable = if (isSurvey) 1 else 0,
             terrainSpacing = 30,
-            waypointRangefinderUse = 0,
+            waypointRangefinderUse = if (isSurvey || hasPointCloudProfile) 0 else 1,
         )
     }
 }

@@ -159,8 +159,12 @@ class MissionParamsRenderer(
     }
 
     private fun renderTerrainProvisioning(state: TerrainProvisioningState?) {
-        val current = state ?: TerrainProvisioningState.Idle
-        currentTerrainState = current
+        currentTerrainState = state ?: TerrainProvisioningState.Idle
+        val current = if (usesFlightControllerTerrain()) {
+            currentTerrainState
+        } else {
+            TerrainProvisioningState.Idle
+        }
         val sourceReadyForCurrentMission = current is TerrainProvisioningState.SourceReady &&
             sourceReadyMatchesCurrentMission(current)
         val text = when (current) {
@@ -210,10 +214,10 @@ class MissionParamsRenderer(
         views.terrainDownloadProgress?.isVisible = progress != null
         if (progress != null) views.terrainDownloadProgress?.progress = progress
         val downloadBusy = current is TerrainProvisioningState.PreparingSource
-        // Keep the offline action discoverable before a mission is drawn or Terrain mode is
-        // selected. The click handler explains that a mission path is required for the actual
-        // download, while a completed download is represented by the 100% bar and status text.
-        val showDownload = droneViewModel.conStateLiveData.value != true &&
+        // Offline terrain provisioning belongs to survey terrain missions only. Spray terrain
+        // missions retain their rangefinder-backed behavior and must not offer an SRTM download.
+        val showDownload = missionParamsUiState.operationMode == PlanningOperationMode.SURVEY &&
+            usesFlightControllerTerrain() && droneViewModel.conStateLiveData.value != true &&
             !sourceReadyForCurrentMission
         views.terrainDownloadButton?.isVisible = showDownload
         views.terrainDownloadButton?.isEnabled = showDownload && !downloadBusy
@@ -234,9 +238,9 @@ class MissionParamsRenderer(
         val hasPointCloudProfile =
             activityViewModel.pointCloudCoverage.value == PointCloudCoverage.COMPLETE ||
                 activityViewModel.terrainRouteWaypoints.value.orEmpty().isNotEmpty()
-        return !hasPointCloudProfile &&
-            (missionParamsUiState.operationMode == PlanningOperationMode.SPRAY ||
-                missionParamsUiState.altitudeReferenceMode == AltitudeReferenceMode.TERRAIN)
+        return missionParamsUiState.operationMode == PlanningOperationMode.SURVEY &&
+            !hasPointCloudProfile &&
+            missionParamsUiState.altitudeReferenceMode == AltitudeReferenceMode.TERRAIN
     }
 
     private fun currentTerrainPath(): List<LatLon> {

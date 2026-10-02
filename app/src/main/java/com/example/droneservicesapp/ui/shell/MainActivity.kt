@@ -24,7 +24,6 @@ import androidx.preference.PreferenceManager
 import com.example.droneservicesapp.Application
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
-import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.terrain.PointCloudCoverage
 import com.example.droneservicesapp.databinding.ActivityMainBinding
 import com.example.droneservicesapp.mavserver.DroneViewModel
@@ -187,18 +186,13 @@ class MainActivity : AppCompatActivity() {
                 activityViewModel.pointCloudCoverage.value == PointCloudCoverage.COMPLETE ||
                     activityViewModel.terrainRouteWaypoints.value.orEmpty().isNotEmpty() ||
                     activityViewModel.activeMissionUsesPointCloudProfile.value == true
-            val selectedReference = activityViewModel.altitudeReferenceMode.value
-                ?: AltitudeReferenceMode.TERRAIN
-            val usesTerrainFrame = !hasPointCloudProfile &&
-                (operationMode == PlanningOperationMode.SPRAY || selectedReference == AltitudeReferenceMode.TERRAIN)
-            droneViewModel.applyPlanningParameterPolicy(usesTerrainFrame, hasPointCloudProfile)
+            droneViewModel.applyPlanningParameterPolicy(operationMode, hasPointCloudProfile)
         }
 
         activityViewModel.planningOperationMode.observe(this) { applyPolicy() }
         activityViewModel.pointCloudCoverage.observe(this) { applyPolicy() }
         activityViewModel.terrainRouteWaypoints.observe(this) { applyPolicy() }
         activityViewModel.activeMissionUsesPointCloudProfile.observe(this) { applyPolicy() }
-        activityViewModel.altitudeReferenceMode.observe(this) { applyPolicy() }
         droneViewModel.conStateLiveData.observe(this) { connected ->
             if (connected == true) applyPolicy()
         }

@@ -266,7 +266,9 @@ class MissionParamsActionHandler(
             preferencesBridge.saveFromViewModel()
         }
         val guardedUpload = { beforeUploadGuard?.invoke(proceedWithUpload) ?: proceedWithUpload() }
-        if (build.altitudeReferenceMode == AltitudeReferenceMode.TERRAIN) {
+        if (build.altitudeReferenceMode == AltitudeReferenceMode.TERRAIN &&
+            operationMode == PlanningOperationMode.SURVEY
+        ) {
             val home = activityViewModel.plannedHomePosition.value
                 ?: LatLon(validatedDroneLoc.latitude, validatedDroneLoc.longitude)
             val planningPath = if (workflow == PlanningWorkflow.POINTS) {
@@ -343,7 +345,9 @@ class MissionParamsActionHandler(
             droneViewModel.uploadMissionNew(build.items, activityViewModel)
             preferencesBridge.saveFromViewModel()
         }
-        if (build.altitudeReferenceMode == AltitudeReferenceMode.TERRAIN) {
+        if (build.altitudeReferenceMode == AltitudeReferenceMode.TERRAIN &&
+            operationMode == PlanningOperationMode.SURVEY
+        ) {
             val home = activityViewModel.plannedHomePosition.value
                 ?: LatLon(droneLoc.latitude, droneLoc.longitude)
             prepareTerrainForUpload(build, leg.path, home, uploadLeg) {

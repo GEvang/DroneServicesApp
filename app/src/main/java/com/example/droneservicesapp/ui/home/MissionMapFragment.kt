@@ -3781,8 +3781,8 @@ class MissionMapFragment : Fragment() {
                 activityViewModel.terrainRouteWaypoints.value.orEmpty().isNotEmpty()
         val operationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY
         val altitudeReference = activityViewModel.altitudeReferenceMode.value ?: AltitudeReferenceMode.TERRAIN
-        val usesTerrain = !hasPointCloudProfile &&
-            (operationMode == PlanningOperationMode.SPRAY || altitudeReference == AltitudeReferenceMode.TERRAIN)
+        val usesTerrain = operationMode == PlanningOperationMode.SURVEY &&
+            !hasPointCloudProfile && altitudeReference == AltitudeReferenceMode.TERRAIN
         if (!usesTerrain) {
             overlay.clear()
             return
