@@ -177,6 +177,7 @@ class DroneViewModel : ViewModel() {
             },
             scope = viewModelScope,
             state = stateStore.terrainProvisioningState,
+            preview = stateStore.terrainPreview,
             isConnected = { stateStore.conStateLiveData.value == true },
             targetSystemId = { runtimeState.autopilotSysId },
         )
@@ -330,6 +331,7 @@ class DroneViewModel : ViewModel() {
     val selectedRtkMountpoint: MutableLiveData<RtkMountpoint?> = stateStore.selectedRtkMountpoint
     val rtkGpsDebugStatus: MutableLiveData<String> = stateStore.rtkGpsDebugStatus
     val terrainProvisioningState: MutableLiveData<TerrainProvisioningState> = stateStore.terrainProvisioningState
+    val terrainPreview = stateStore.terrainPreview
     val terrainEnableParameter = parameterController.state(DroneParameterController.TERRAIN_ENABLE)
     val terrainSpacingParameter = parameterController.state(DroneParameterController.TERRAIN_SPACING)
     val waypointRangefinderParameter = parameterController.state(DroneParameterController.WP_RFND_USE)

@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.droneservicesapp.R
 import android.location.Location
 import androidx.lifecycle.MutableLiveData
+import com.example.droneservicesapp.data.terrain.TerrainPreview
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.rtk.RtkMountpoint
 import io.dronefleet.mavlink.common.GpsFixType
@@ -64,6 +65,7 @@ internal class DroneUiStateStore(
         MutableLiveData<String>().default(context.getString(R.string.rtk_gps_debug_default))
     val terrainProvisioningState: MutableLiveData<TerrainProvisioningState> =
         MutableLiveData<TerrainProvisioningState>().default(TerrainProvisioningState.Idle)
+    val terrainPreview: MutableLiveData<TerrainPreview?> = MutableLiveData<TerrainPreview?>().default(null)
 
     private fun <T : Any?> MutableLiveData<T>.default(initialValue: T) =
         apply { postValue(initialValue) }

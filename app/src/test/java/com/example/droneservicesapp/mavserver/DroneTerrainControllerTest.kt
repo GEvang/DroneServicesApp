@@ -6,6 +6,7 @@ import com.example.droneservicesapp.data.mavlink.MavlinkClient
 import com.example.droneservicesapp.data.mavlink.MavlinkConfig
 import com.example.droneservicesapp.data.terrain.SrtmPreparationProgress
 import com.example.droneservicesapp.data.terrain.TerrainElevationSource
+import com.example.droneservicesapp.data.terrain.TerrainPreview
 import com.example.droneservicesapp.data.terrain.TerrainSourceRepository
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.terrain.SrtmTileId
@@ -32,6 +33,7 @@ class DroneTerrainControllerTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Unconfined)
     private val client = RecordingMavlinkClient()
     private val state = MutableLiveData<TerrainProvisioningState>(TerrainProvisioningState.Idle)
+    private val preview = MutableLiveData<TerrainPreview?>(null)
 
     @After fun tearDown() = scope.cancel()
 
@@ -115,8 +117,10 @@ class DroneTerrainControllerTest {
         },
         scope = scope,
         state = state,
+        preview = preview,
         isConnected = { connected },
         targetSystemId = { 1 },
+        previewDispatcher = Dispatchers.Unconfined,
     )
 
     private fun source(

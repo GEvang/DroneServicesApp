@@ -50,6 +50,7 @@ import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import com.example.droneservicesapp.data.ortho.SimpleTiffDecoder
 import com.example.droneservicesapp.data.ortho.WorldFileParser
 import com.example.droneservicesapp.data.pointcloud.PointCloudCoordinateFrame
+import com.example.droneservicesapp.data.pointcloud.PointCloudData
 import com.example.droneservicesapp.data.pointcloud.PointCloudImportCache
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.storage.MissionFileStore
@@ -722,7 +723,7 @@ class MissionMapFragment : Fragment() {
         }
         binding.previewMode3dButton.setOnClickListener {
             activePreviewMode = PreviewMode.POINT_CLOUD
-            restorePointCloudOnDemand()
+            if (!isSurveyMode()) restorePointCloudOnDemand()
             renderPreviewMode()
         }
         binding.previewAssetPrimaryButton.setOnClickListener {
@@ -780,6 +781,9 @@ class MissionMapFragment : Fragment() {
             refreshPreviewAssets()
             renderCurrentSurveyPathOnMap()
             redrawAreaMissionIfEditable()
+        }
+        droneViewModel.terrainPreview.observe(viewLifecycleOwner) {
+            if (isSurveyMode()) renderPreviewMode()
         }
     }
 
@@ -2155,6 +2159,7 @@ class MissionMapFragment : Fragment() {
             }
             updateMissionSummaryCard()
             updateTerrainCoverageOverlay()
+            renderPreviewMode()
         }
 
         activityViewModel.altitudeReferenceMode.observe(viewLifecycleOwner) {
@@ -2611,18 +2616,36 @@ class MissionMapFragment : Fragment() {
         }
     }
 
-    private fun cyclePreviewMode() {
-        activePreviewMode = when (activePreviewMode) {
-            PreviewMode.MAP -> PreviewMode.ORTHO
-            PreviewMode.ORTHO -> PreviewMode.POINT_CLOUD
-            PreviewMode.POINT_CLOUD -> PreviewMode.MAP
+    private fun isSurveyMode(): Boolean =
+        (activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY) ==
+            PlanningOperationMode.SURVEY
+
+    private fun current3dPointCloud(): PointCloudData? =
+        if (isSurveyMode()) {
+            droneViewModel.terrainPreview.value?.pointCloud
+        } else {
+            previewAssetsViewModel.pointCloudAsset?.pointCloud
         }
-        if (activePreviewMode == PreviewMode.POINT_CLOUD) restorePointCloudOnDemand()
+
+    private fun cyclePreviewMode() {
+        activePreviewMode = if (isSurveyMode()) {
+            when (activePreviewMode) {
+                PreviewMode.MAP, PreviewMode.ORTHO -> PreviewMode.POINT_CLOUD
+                PreviewMode.POINT_CLOUD -> PreviewMode.MAP
+            }
+        } else {
+            when (activePreviewMode) {
+                PreviewMode.MAP -> PreviewMode.ORTHO
+                PreviewMode.ORTHO -> PreviewMode.POINT_CLOUD
+                PreviewMode.POINT_CLOUD -> PreviewMode.MAP
+            }
+        }
+        if (activePreviewMode == PreviewMode.POINT_CLOUD && !isSurveyMode()) restorePointCloudOnDemand()
         renderPreviewMode()
     }
 
     private fun refreshPreviewAssets() {
-        val pointCloud = previewAssetsViewModel.pointCloudAsset?.pointCloud
+        val pointCloud = current3dPointCloud()
         if (pointCloud == null) {
             binding.homePointCloudGlView.clearPointCloud()
         }
@@ -2632,6 +2655,7 @@ class MissionMapFragment : Fragment() {
 
     private fun renderPreviewMode() {
         if (_binding == null) return
+        if (isSurveyMode() && activePreviewMode == PreviewMode.ORTHO) activePreviewMode = PreviewMode.MAP
         renderPreviewModeButtons()
         binding.previewAssetPrimaryRow.visibility = View.GONE
         binding.previewAssetSecondaryRow.visibility = View.GONE
@@ -2646,9 +2670,15 @@ class MissionMapFragment : Fragment() {
                 binding.osmMap.visibility = View.VISIBLE
                 binding.homePointCloudGlView.visibility = View.GONE
                 removeHomeOrthoOverlay()
-                binding.previewModeCycleButton.setImageResource(R.drawable.ic_ortho_24)
-                binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_ortho)
-                binding.previewModeCycleLabel.text = getString(R.string.preview_mode_next_ortho)
+                if (isSurveyMode()) {
+                    binding.previewModeCycleButton.setImageResource(R.drawable.ic_point_cloud_24)
+                    binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_3d)
+                    binding.previewModeCycleLabel.text = getString(R.string.preview_mode_next_3d)
+                } else {
+                    binding.previewModeCycleButton.setImageResource(R.drawable.ic_ortho_24)
+                    binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_ortho)
+                    binding.previewModeCycleLabel.text = getString(R.string.preview_mode_next_ortho)
+                }
                 binding.osmMap.overlayManager.tilesOverlay?.isEnabled = true
                 renderCurrentSurveyPathOnMap()
             }
@@ -2683,15 +2713,24 @@ class MissionMapFragment : Fragment() {
                 binding.previewAssetPrimaryLabel.text = getString(R.string.point_cloud_load)
                 binding.previewAssetSecondaryLabel.text = getString(R.string.point_cloud_reset)
                 binding.previewColorModeLabel.text = colorModeLabel()
-                previewAssetsViewModel.pointCloudAsset?.pointCloud?.let { pointCloud ->
+                val pointCloud = current3dPointCloud()
+                if (pointCloud == null) {
+                    binding.homePointCloudGlView.clearPointCloud()
+                } else {
                     binding.homePointCloudGlView.setPointCloud(pointCloud)
+                    binding.homePointCloudGlView.setPointSize(
+                        if (isSurveyMode()) 4f
+                        else previewAssetsViewModel.previewSettings.value?.pointCloudPointSize ?: 2.5f
+                    )
                     binding.homePointCloudGlView.setHeightColorModeEnabled(
-                        previewAssetsViewModel.previewSettings.value?.heightColorModeEnabled ?: false
+                        isSurveyMode() ||
+                            (previewAssetsViewModel.previewSettings.value?.heightColorModeEnabled ?: false)
                     )
                     binding.homePointCloudGlView.setPointCloudOpacity(
                         previewAssetsViewModel.previewSettings.value?.orthoOpacity ?: 0.85f
                     )
                 }
+                renderTerrainGridStatus()
                 updatePointCloudMissionOverlay()
             }
         }
@@ -2699,6 +2738,7 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun renderPreviewModeButtons() {
+        binding.previewModeOrthoButton.visibility = if (isSurveyMode()) View.GONE else View.VISIBLE
         val activeColor = ContextCompat.getColor(requireContext(), R.color.ds_color_shell_active)
         val inactiveColor = ContextCompat.getColor(requireContext(), R.color.ds_color_text_primary)
         val modes = listOf(
@@ -2740,6 +2780,21 @@ class MissionMapFragment : Fragment() {
         )
 
     private fun renderTerrainGridStatus() {
+        if (isSurveyMode()) {
+            val terrain = droneViewModel.terrainPreview.value
+            binding.previewTerrainStatus.visibility = View.VISIBLE
+            binding.previewTerrainStatus.text = if (terrain == null) {
+                getString(R.string.terrain_3d_not_ready)
+            } else {
+                getString(
+                    R.string.terrain_3d_ready,
+                    terrain.fileNames.joinToString(),
+                    terrain.pointCloud.displayedPointCount,
+                    terrain.gridSpacingMeters,
+                )
+            }
+            return
+        }
         val summary = previewAssetsViewModel.pointCloudTerrainSummary
         binding.previewTerrainStatus.visibility = View.VISIBLE
         binding.previewTerrainStatus.text = when {
@@ -2793,7 +2848,7 @@ class MissionMapFragment : Fragment() {
     private fun updatePointCloudMissionOverlay() {
         if (_binding == null) return
         if (activePreviewMode != PreviewMode.POINT_CLOUD) return
-        val pointCloud = previewAssetsViewModel.pointCloudAsset?.pointCloud
+        val pointCloud = current3dPointCloud()
         val downloadedPoints = previewAssetsViewModel.retainedDroneMissionPath.value.orEmpty()
         val downloadedWaypoints = previewAssetsViewModel.retainedDroneMissionWaypoints.value.orEmpty()
         val showingDownloadedMission =

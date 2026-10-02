@@ -4,6 +4,8 @@ import androidx.lifecycle.MutableLiveData
 import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
 import com.example.droneservicesapp.data.mavlink.MavlinkClient
 import com.example.droneservicesapp.data.terrain.TerrainElevationSource
+import com.example.droneservicesapp.data.terrain.TerrainPreview
+import com.example.droneservicesapp.data.terrain.TerrainPreviewBuilder
 import com.example.droneservicesapp.data.terrain.TerrainSourceRepository
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.terrain.TerrainCoveragePlan
@@ -16,17 +18,22 @@ import io.dronefleet.mavlink.common.TerrainRequest
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 internal class DroneTerrainController(
     private val mavlinkClient: MavlinkClient,
     private val sourceRepository: TerrainSourceRepository,
     private val scope: CoroutineScope,
     private val state: MutableLiveData<TerrainProvisioningState>,
+    private val preview: MutableLiveData<TerrainPreview?>,
     private val isConnected: () -> Boolean,
     private val targetSystemId: () -> Int,
+    private val previewDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) {
     companion object {
         private const val GCS_COMPONENT_ID = 190
@@ -65,6 +72,7 @@ internal class DroneTerrainController(
     ) {
         cancel(closeSource = true)
         val generation = preparationGeneration
+        preview.postValue(null)
         if (requireConnection && !isConnected()) {
             state.postValue(TerrainProvisioningState.Failed(TerrainFailure.DISCONNECTED))
             onComplete(false)
@@ -99,6 +107,23 @@ internal class DroneTerrainController(
                     prepared.close()
                     return@launch
                 }
+                val terrainPreview = try {
+                    withContext(previewDispatcher) { TerrainPreviewBuilder.build(prepared) }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Throwable) {
+                    DiagnosticLog.event(
+                        "terrain",
+                        "preview_build_failed",
+                        "WARN",
+                        mapOf("reason" to error.message),
+                    )
+                    null
+                }
+                if (synchronized(this@DroneTerrainController) { generation != preparationGeneration }) {
+                    return@launch
+                }
+                preview.postValue(terrainPreview)
                 state.postValue(
                     if (requireConnection) {
                         TerrainProvisioningState.WaitingForMissionUpload
@@ -185,6 +210,7 @@ internal class DroneTerrainController(
     @Synchronized
     fun clear() {
         cancel(closeSource = true)
+        preview.postValue(null)
         state.postValue(TerrainProvisioningState.Idle)
     }
 

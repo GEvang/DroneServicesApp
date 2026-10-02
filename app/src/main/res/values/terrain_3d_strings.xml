@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="terrain_3d_not_ready">3D terrain becomes available after terrain is prepared.</string>
+    <string name="terrain_3d_ready">%1$s · %2$d points · %3$d m grid</string>
+</resources>
