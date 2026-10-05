@@ -1,18 +1,12 @@
 package com.example.droneservicesapp.ui.home
 
-import android.animation.Animator
-import android.animation.AnimatorListenerAdapter
-import android.animation.ValueAnimator
 import android.app.Activity
-import android.content.Context
-import android.content.res.ColorStateList
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import android.os.SystemClock
 import android.graphics.Color
 import android.graphics.Typeface
-import android.provider.OpenableColumns
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -36,35 +30,23 @@ import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.findNavController
 import androidx.preference.PreferenceManager
-import androidx.appcompat.widget.Toolbar
 import androidx.drawerlayout.widget.DrawerLayout
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.data.geoawareness.GeoZoneImportedFileDataSource
-import com.example.droneservicesapp.data.geoawareness.GeoZoneRepository
 import com.example.droneservicesapp.data.geoawareness.incident.GeoIncidentEncryptedLogStore
 import com.example.droneservicesapp.data.geoawareness.incident.GeoIncidentLogger
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
 import com.example.droneservicesapp.data.geoawareness.logging.OperatorFlightEventLogger
 import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
-import com.example.droneservicesapp.data.ortho.SimpleTiffDecoder
-import com.example.droneservicesapp.data.ortho.WorldFileParser
-import com.example.droneservicesapp.data.pointcloud.PointCloudCoordinateFrame
 import com.example.droneservicesapp.data.pointcloud.PointCloudData
-import com.example.droneservicesapp.data.pointcloud.PointCloudImportCache
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.data.weather.OpenMeteoWindRepository
-import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessChecker
-import com.example.droneservicesapp.domain.geoawareness.GeoAltitudeContext
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
-import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthEvaluator
-import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthState
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessResult
-import com.example.droneservicesapp.domain.geoawareness.GeoConflictType
+import com.example.droneservicesapp.domain.geoawareness.GeoAltitudeContext
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
-import com.example.droneservicesapp.domain.geoawareness.GeoZoneConflict
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
 import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessChecker
 import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessProximityResult
@@ -77,16 +59,13 @@ import com.example.droneservicesapp.domain.model.MissionObstacleShape
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.planning.MissionResourcePlan
-import com.example.droneservicesapp.domain.planning.MissionResourcePlanner
+import com.example.droneservicesapp.domain.planning.MissionPlanningCoordinator
 import com.example.droneservicesapp.domain.planning.MissionServiceStop
-import com.example.droneservicesapp.domain.survey.SurveyPlanner
-import com.example.droneservicesapp.domain.survey.SurveyGridPlanner
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
 import com.example.droneservicesapp.domain.terrain.PointCloudCoverage
 import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
 import com.example.droneservicesapp.domain.terrain.TerrainPathResult
 import com.example.droneservicesapp.domain.terrain.TerrainCoveragePlanner
-import com.example.droneservicesapp.domain.weather.WindWeather
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.mavserver.GpsFixQuality
 import com.example.droneservicesapp.mavserver.TelemetryMapping
@@ -102,21 +81,37 @@ import com.example.droneservicesapp.ui.home.binders.MissionSaveController
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel.ServiceMissionState
 import com.example.droneservicesapp.ui.home.components.EsriMapLayers
 import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
+import com.example.droneservicesapp.ui.home.components.MissionSimulationController
+import com.example.droneservicesapp.ui.home.components.DroneMapTrackingController
+import com.example.droneservicesapp.ui.home.components.PlannedHomePlacementController
+import com.example.droneservicesapp.ui.home.components.WindWeatherController
+import com.example.droneservicesapp.ui.home.components.HomeMapViewLifecycleController
+import com.example.droneservicesapp.ui.home.components.InitialMapViewportController
 import com.example.droneservicesapp.ui.home.components.OsmdroidObstacleEditor
 import com.example.droneservicesapp.ui.home.components.OsmdroidPolygonEditor
 import com.example.droneservicesapp.ui.home.components.OsmdroidRouteWaypointEditor
 import com.example.droneservicesapp.ui.home.components.TerrainCoverageOverlayController
 import com.example.droneservicesapp.ui.home.geoawareness.GeoZoneOverlayController
+import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessDatasetController
+import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessPlanningController
+import com.example.droneservicesapp.ui.home.geoawareness.GeoAuthorizationSession
+import com.example.droneservicesapp.ui.home.geoawareness.GeoUploadGuardPolicy
 import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoAwarenessPanelBinder
-import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoThreatUiModel
+import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoThreatPresenter
+import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessEventTracker
+import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessDialogController
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
-import com.example.droneservicesapp.ui.ortho.OrthoImageOverlay
-import com.example.droneservicesapp.ui.pointcloud.PointCloudMissionOverlay
+import com.example.droneservicesapp.ui.preview.OrthoOverlayController
+import com.example.droneservicesapp.ui.preview.PreviewMode
+import com.example.droneservicesapp.ui.preview.PreviewModeRenderer
+import com.example.droneservicesapp.ui.preview.PointCloudMissionOverlayBuilder
+import com.example.droneservicesapp.ui.preview.PointCloudTerrainStyleMapper
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
+import com.example.droneservicesapp.ui.preview.PreviewAssetStore
+import com.example.droneservicesapp.ui.preview.PreviewAssetLoader
 import com.example.droneservicesapp.ui.preview.PreviewMapFocus
-import com.example.droneservicesapp.ui.preview.buildSurveyDirectionSegments
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.example.droneservicesapp.ui.common.RtkTonePlayer
 import com.google.android.gms.maps.model.LatLng
@@ -137,12 +132,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.PI
 import kotlin.math.abs
-import kotlin.math.atan2
-import kotlin.math.cos
 import kotlin.math.ln
 import kotlin.math.max
 import kotlin.math.min
-import kotlin.math.sin
 import kotlin.math.sqrt
 import kotlin.math.tan
 
@@ -154,15 +146,23 @@ class MissionMapFragment : Fragment() {
     private lateinit var droneViewModel: DroneViewModel
     private lateinit var activityViewModel: MainActivityViewModel
     private val previewAssetsViewModel: PreviewAssetsViewModel by activityViewModels()
+    private lateinit var previewAssetStore: PreviewAssetStore
+    private lateinit var previewAssetLoader: PreviewAssetLoader
     private lateinit var homeTelemetryViewModel: HomeTelemetryViewModel
     private lateinit var mapViewModel: MissionMapViewModel
 
     private lateinit var missionParamsController: MissionParamsController
     private lateinit var missionSaveController: MissionSaveController
     private lateinit var missionLoadController: MissionLoadController
+    private val missionPlanningCoordinator = MissionPlanningCoordinator()
     private lateinit var geoEventLogger: GeoAwarenessEventLogger
-    private lateinit var geoIncidentLogger: GeoIncidentLogger
     private lateinit var operatorEventLogger: OperatorFlightEventLogger
+    private lateinit var geoAwarenessEventTracker: GeoAwarenessEventTracker
+    private lateinit var geoAwarenessDialogController: GeoAwarenessDialogController
+    private lateinit var geoAwarenessDatasetController: GeoAwarenessDatasetController
+    private val geoAwarenessPlanningController = GeoAwarenessPlanningController()
+    private val geoAuthorizationSession = GeoAuthorizationSession()
+    private lateinit var liveGeoThreatPresenter: LiveGeoThreatPresenter
     private lateinit var homeMapChromeBinder: HomeMapChromeBinder
     private lateinit var homeMapPanelsBinder: HomeMapPanelsBinder
     private lateinit var homeMapModeEffectsBinder: HomeMapModeEffectsBinder
@@ -170,14 +170,16 @@ class MissionMapFragment : Fragment() {
     private lateinit var flightModeUiBinder: FlightModeUiBinder
     private lateinit var armUiBinder: ArmUiBinder
     private lateinit var osmdroidMapController: OsmdroidMapController
+    private lateinit var droneMapTrackingController: DroneMapTrackingController
+    private lateinit var plannedHomePlacementController: PlannedHomePlacementController
+    private lateinit var windWeatherController: WindWeatherController
+    private lateinit var viewLifecycleController: HomeMapViewLifecycleController
+    private lateinit var initialViewportController: InitialMapViewportController
     private lateinit var esriMapLayers: EsriMapLayers
     private lateinit var osmdroidObstacleEditor: OsmdroidObstacleEditor
     private lateinit var osmdroidPolygonEditor: OsmdroidPolygonEditor
     private lateinit var osmdroidRouteWaypointEditor: OsmdroidRouteWaypointEditor
     private lateinit var missionFileStore: MissionFileStore
-    private val tiffDecoder = SimpleTiffDecoder()
-    private val worldFileParser = WorldFileParser()
-    private val pointCloudImportCache by lazy { PointCloudImportCache(requireContext().applicationContext) }
     private val windWeatherRepository = OpenMeteoWindRepository()
     private var geoAwarenessZones: List<GeoZone> = emptyList()
     private var geoAwarenessDatasetLoadAttempted = false
@@ -187,7 +189,6 @@ class MissionMapFragment : Fragment() {
     private var geoZoneValidationResult: GeoZoneValidationResult? = null
     private var geoZoneOverlayController: GeoZoneOverlayController? = null
     private var terrainCoverageOverlayController: TerrainCoverageOverlayController? = null
-    private var geoAwarenessChecker: GeoAwarenessChecker? = null
     private var latestGeoAwarenessResult: GeoAwarenessResult = GeoAwarenessResult.clear()
     private var liveGeoAwarenessChecker: LiveGeoAwarenessChecker? = null
     private var latestLiveGeoZones: List<GeoZone> = emptyList()
@@ -195,10 +196,10 @@ class MissionMapFragment : Fragment() {
     private var latestLiveGeoThreats: List<LiveGeoAwarenessProximityResult> = emptyList()
     private var liveGeoAwarenessStatusBinder: LiveGeoAwarenessPanelBinder? = null
     private var latestLiveDronePosition: LatLon? = null
-    private var latestRawDronePosition: LatLon? = null
-    private var latestRealDronePosition: LatLon? = null
-    private var droneOffsetLatitude = 0.0
-    private var droneOffsetLongitude = 0.0
+    private val latestRawDronePosition: LatLon?
+        get() = droneMapTrackingController.rawPosition
+    private val latestRealDronePosition: LatLon?
+        get() = droneMapTrackingController.correctedPosition
     private var latestRealDroneAltitudeMeters: Double? = null
     private var latestRealDroneAltitudeAmslMeters: Double? = null
     private var latestRealDroneHorizontalAccuracyMeters: Float? = null
@@ -206,24 +207,8 @@ class MissionMapFragment : Fragment() {
     private var latestRealDroneGroundSpeedMetersPerSecond: Float? = null
     private var latestRealDroneVerticalSpeedMetersPerSecond: Float? = null
     private var latestRealDroneHeadingDegrees: Double? = null
-    private var lastPlanningLogSignature: String? = null
-    private var lastConflictLogSignature: String? = null
-    private var lastHealthLogSignature: String? = null
-    private var lastHealthState: GeoAwarenessHealthState? = null
-    private var lastLiveZoneIdentityMap: Map<String, GeoZone> = emptyMap()
-    private var lastLiveProximityIdentity: String? = null
-    private val authorizedUgzIdsForCurrentFlight = mutableSetOf<String>()
     private var lastRtkStreamingActive: Boolean? = null
     private var isDrawingModeActive = false
-    private var hasCenteredInitialViewport = false
-    private var hasCenteredToDrone = false
-    private var homePosition: LatLon? = null
-    private var wasDroneArmed: Boolean = false
-    private var pendingHomeMarkerAfterArm: Boolean = false
-    private var lastTracePosition: LatLon? = null
-    private var flightTracePointCount: Int = 0
-    private var initialCenterAttemptCount = 0
-    private var initialDroneCenterAttemptCount = 0
     private var lastGeoZoneReloadToken: Long = 0L
     private var geoZoneReloadInProgress: Boolean = false
     private var obstaclePlacementMode: Boolean = false
@@ -240,35 +225,15 @@ class MissionMapFragment : Fragment() {
     private var missionPlanningGeneration: Long = 0L
     private var previewAssetLoadJob: Job? = null
     private var activePreviewMode: PreviewMode = PreviewMode.MAP
-    private var homeOrthoOverlay: OrthoImageOverlay? = null
+    private lateinit var orthoOverlayController: OrthoOverlayController
+    private lateinit var previewModeRenderer: PreviewModeRenderer
+    private val pointCloudMissionOverlayBuilder = PointCloudMissionOverlayBuilder()
     private var selectedSurveyWaypointIndex: Int? = null
     private var selectedTerrainWaypointWorkflow: PlanningWorkflow = PlanningWorkflow.AREA
     private var previewHeightColorModeEnabled: Boolean = false
-    private var homePlacementMode: Boolean = false
-    private var missionSimulationAnimator: ValueAnimator? = null
-    private var missionSimulationState: SimulationState = SimulationState.IDLE
-    private var simulationMissionPath: List<LatLng> = emptyList()
-    private var simulationCumulativeDistances: List<Double> = emptyList()
-    private var simulationServiceStops: List<MissionServiceStop> = emptyList()
-    private var simulationNextServiceStopIndex: Int = 0
-    private var simulationCurrentWorkDistance: Double = 0.0
-    private var simulationHome: LatLng? = null
-    private var pendingSimulationServiceStop: MissionServiceStop? = null
-    private var simulationUsesLiveDroneHome: Boolean = false
-    private var weatherVisible: Boolean = false
-    private var weatherRequestJob: Job? = null
-    private enum class PreviewMode {
-        MAP,
-        ORTHO,
-        POINT_CLOUD
-    }
-
-    private enum class SimulationState {
-        IDLE,
-        FLYING,
-        WAITING_FOR_SERVICE,
-        COMPLETE,
-    }
+    private val homePlacementMode: Boolean
+        get() = ::plannedHomePlacementController.isInitialized && plannedHomePlacementController.isActive
+    private lateinit var missionSimulationController: MissionSimulationController
 
     companion object {
         private const val DEFAULT_MAP_ZOOM = 18.0
@@ -283,15 +248,11 @@ class MissionMapFragment : Fragment() {
         private const val MAP_FLIGHT_TRACE_TAG = "MapFlightTrace"
         private const val TERRAIN_GRID_TAG = "TerrainGrid"
         private const val MIN_VALID_ABS_COORDINATE = 1e-4
-        private const val MIN_TRACE_POINT_DISTANCE_METERS = 2.0
         private const val DEFAULT_NEAR_ZONE_THRESHOLD_METERS = 100.0
         private const val MAX_INITIAL_DRONE_CENTER_ATTEMPTS = 20
         private const val PREVIEW_MAP_FIT_PADDING_PX = 96
         private const val MIN_PREVIEW_MAP_SPAN_METERS = 10.0
         private const val TILE_SIZE_PX = 256.0
-        private const val SIMULATION_SPEED_MULTIPLIER = 20.0
-        private const val MIN_SIMULATION_DURATION_MS = 4_000L
-        private const val MAX_SIMULATION_DURATION_MS = 60_000L
         private const val MIN_MAP_VIEWPORT_PX = 320
         private const val MIN_PREVIEW_BOUNDS_SPAN_DEGREES = 0.000001
         private const val MIN_PREVIEW_MERCATOR_SPAN = 0.000001
@@ -299,33 +260,11 @@ class MissionMapFragment : Fragment() {
         private const val MAX_MERCATOR_LATITUDE = 85.05112878
         private const val MIN_PREVIEW_MAP_ZOOM = 2.0
         private const val MAX_PREVIEW_MAP_ZOOM = 21.0
-        private const val MAX_ORTHO_PREVIEW_DIMENSION_PX = 2048
         private const val MISSION_EDIT_DEBOUNCE_MS = 140L
         private const val LIVE_GEO_UPDATE_INTERVAL_MS = 500L
         private const val REQUEST_HOME_OPEN_TIFF = 3301
         private const val REQUEST_HOME_OPEN_WORLD = 3302
         private const val REQUEST_HOME_OPEN_PLY = 3303
-        private const val PREVIEW_PREFS = "preview_assets"
-        private const val KEY_ORTHO_IMAGE_URI = "ortho_image_uri"
-        private const val KEY_ORTHO_IMAGE_NAME = "ortho_image_name"
-        private const val KEY_ORTHO_WORLD_URI = "ortho_world_uri"
-        private const val KEY_ORTHO_WORLD_NAME = "ortho_world_name"
-        private const val KEY_POINT_CLOUD_URI = "point_cloud_uri"
-        private const val KEY_POINT_CLOUD_NAME = "point_cloud_name"
-        private val SUPPORTED_POINT_CLOUD_EXTENSIONS = listOf(".ply", ".pcd", ".csv", ".txt", ".xyz")
-        private const val VALUES_PER_MISSION_VERTEX = 3
-        private const val VERTICES_PER_MISSION_LINE = 2
-        private const val MIN_POINT_CLOUD_MISSION_Z_OFFSET = 0.5f
-        private const val POINT_CLOUD_MISSION_LAYER_Z_STEP = 0.2f
-        private const val MIN_POINT_CLOUD_ARROW_SIZE_METERS = 1.0f
-        private const val MIN_POINT_CLOUD_DRONE_SIZE_METERS = 3.0f
-        private const val MAX_POINT_CLOUD_DIRECTION_ARROWS = 80
-        private val POINT_CLOUD_POLYGON_COLOR = floatArrayOf(0.31f, 0.78f, 1.0f)
-        private val POINT_CLOUD_SURVEY_PATH_COLOR = floatArrayOf(0.16f, 0.90f, 0.85f)
-        private val POINT_CLOUD_SURVEY_POINT_COLOR = floatArrayOf(0.89f, 0.65f, 0.25f)
-        private val POINT_CLOUD_SELECTED_POINT_COLOR = floatArrayOf(1.0f, 1.0f, 1.0f)
-        private val POINT_CLOUD_ROUTE_COLOR = floatArrayOf(0.3f, 1.0f, 0.35f)
-        private val POINT_CLOUD_DRONE_COLOR = floatArrayOf(1.0f, 0.84f, 0.16f)
     }
 
     override fun onCreateView(
@@ -340,11 +279,38 @@ class MissionMapFragment : Fragment() {
         homeTelemetryViewModel = ViewModelProvider(requireActivity())[HomeTelemetryViewModel::class.java]
         mapViewModel = ViewModelProvider(this)[MissionMapViewModel::class.java]
         missionFileStore = MissionFileStore(requireContext())
+        previewAssetStore = PreviewAssetStore(requireContext())
+        previewAssetLoader = PreviewAssetLoader(requireContext())
         geoEventLogger = GeoAwarenessEventLogger(requireContext().applicationContext)
-        geoIncidentLogger = GeoIncidentLogger(
+        val geoIncidentLogger = GeoIncidentLogger(
             GeoIncidentEncryptedLogStore(requireContext().applicationContext)
         )
         operatorEventLogger = OperatorFlightEventLogger(geoEventLogger)
+        geoAwarenessDatasetController = GeoAwarenessDatasetController(requireContext())
+        liveGeoThreatPresenter = LiveGeoThreatPresenter(requireContext())
+        geoAwarenessDialogController = GeoAwarenessDialogController(requireContext(), geoAuthorizationSession)
+        geoAwarenessEventTracker = GeoAwarenessEventTracker(
+            eventLogger = geoEventLogger,
+            incidentLogger = geoIncidentLogger,
+            metadata = {
+                GeoAwarenessEventTracker.Metadata(
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = geoAwarenessHealth?.state?.name,
+                )
+            },
+            telemetry = {
+                GeoAwarenessEventTracker.Telemetry(
+                    altitudeAglMeters = latestRealDroneAltitudeMeters,
+                    altitudeAmslMeters = latestRealDroneAltitudeAmslMeters,
+                    horizontalAccuracyMeters = latestRealDroneHorizontalAccuracyMeters,
+                    verticalAccuracyMeters = latestRealDroneVerticalAccuracyMeters,
+                    groundSpeedMetersPerSecond = latestRealDroneGroundSpeedMetersPerSecond,
+                    verticalSpeedMetersPerSecond = latestRealDroneVerticalSpeedMetersPerSecond,
+                    headingDegrees = latestRealDroneHeadingDegrees,
+                )
+            },
+        )
 
         return binding.root
     }
@@ -376,6 +342,22 @@ class MissionMapFragment : Fragment() {
 
     private fun initializeMapView(view: View) {
         mapView = view.findViewById(R.id.osmMap)
+        orthoOverlayController = OrthoOverlayController(
+            mapView = mapView,
+            assetsViewModel = previewAssetsViewModel,
+            focusOverlay = ::focusOrthoOnMap,
+        )
+        previewModeRenderer = PreviewModeRenderer(
+            context = requireContext(),
+            binding = binding,
+            assetsViewModel = previewAssetsViewModel,
+            renderMapPath = ::renderCurrentSurveyPathOnMap,
+            renderOrtho = ::renderHomeOrthoOverlay,
+            clearOrtho = ::removeHomeOrthoOverlay,
+            renderTerrainStatus = ::renderTerrainGridStatus,
+            renderMissionOverlay = ::updatePointCloudMissionOverlay,
+            updateDockPlacement = ::updatePreviewDockPlacement,
+        )
         mapView.setBuiltInZoomControls(false)
         mapView.setMultiTouchControls(true)
         esriMapLayers = EsriMapLayers.install(requireContext(), mapView)
@@ -386,6 +368,11 @@ class MissionMapFragment : Fragment() {
 
         osmdroidMapController = OsmdroidMapController(requireContext(), mapView)
         osmdroidMapController.initOverlays()
+        droneMapTrackingController = DroneMapTrackingController(
+            mapController = osmdroidMapController,
+            onHomeCaptured = activityViewModel::setPlannedHomePosition,
+            onDisarmed = { resetCurrentFlightUgzAuthorizations("disarmed") },
+        )
         osmdroidMapController.setSurveyWaypointEditCallbacks(
             onSelected = { index -> onSurveyWaypointSelected(index) },
             onMoved = { index, point -> onSurveyWaypointMoved(index, point) }
@@ -417,11 +404,36 @@ class MissionMapFragment : Fragment() {
 
         osmdroidObstacleEditor = OsmdroidObstacleEditor(requireContext(), activityViewModel, mapView)
         osmdroidObstacleEditor.init()
+        plannedHomePlacementController = PlannedHomePlacementController(
+            mapController = osmdroidMapController,
+            polygonEditor = osmdroidPolygonEditor,
+            routeWaypointEditor = osmdroidRouteWaypointEditor,
+            beforePlacement = {
+                cancelDroneOffsetAdjustment()
+                cancelObstaclePlacement()
+            },
+            onHomePlaced = ::placePlannedHome,
+        )
+        initialViewportController = InitialMapViewportController(
+            rootViewProvider = { _binding?.root },
+            mapController = osmdroidMapController,
+            hasPendingPreviewFocus = previewAssetsViewModel::hasPendingMapFocusRequest,
+            focusPendingPreview = ::focusPreviewAssetOnMapIfRequested,
+            centerOnDrone = osmdroidMapController::centerOnDrone,
+            maxDroneAttempts = MAX_INITIAL_DRONE_CENTER_ATTEMPTS,
+        )
+        viewLifecycleController = HomeMapViewLifecycleController(
+            activityProvider = { activity },
+            mapView = mapView,
+            mapController = osmdroidMapController,
+            pointCloudView = binding.homePointCloudGlView,
+            refreshMapLabels = esriMapLayers::refreshLabelsEnabled,
+            isPointCloudVisible = { activePreviewMode == PreviewMode.POINT_CLOUD },
+        )
 
         terrainCoverageOverlayController = TerrainCoverageOverlayController(requireContext(), mapView)
 
         geoZoneOverlayController = GeoZoneOverlayController(requireContext(), mapView)
-        geoAwarenessChecker = GeoAwarenessChecker()
         liveGeoAwarenessChecker = LiveGeoAwarenessChecker()
         requireView().findViewById<View?>(R.id.liveGeoAwarenessPanel)?.visibility = View.GONE
         liveGeoAwarenessStatusBinder = null
@@ -432,6 +444,33 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun initControllers() {
+        missionSimulationController = MissionSimulationController(
+            flightSpeedMetersPerSecond = { activityViewModel.flightSpeed.value ?: 5.0 },
+            missionObstacles = { activityViewModel.missionObstacles.value.orEmpty() },
+            buildResourcePlan = { path, home -> buildMissionResourcePlan(path, home) },
+            setSimulationDrone = osmdroidMapController::setSimulationDrone,
+            clearSimulationDrone = osmdroidMapController::clearSimulationDrone,
+            onStateChanged = { updateSimulationButton(currentMissionPath().size >= 2) },
+            onWaitingForService = { stop ->
+                Toast.makeText(
+                    requireContext(),
+                    getString(R.string.simulation_waiting_for_service_format, serviceDescription(stop)),
+                    Toast.LENGTH_LONG,
+                ).show()
+            },
+        )
+        windWeatherController = WindWeatherController(
+            context = requireContext(),
+            rootView = requireView(),
+            lifecycleOwner = viewLifecycleOwner,
+            repository = windWeatherRepository,
+            locationProvider = {
+                activityViewModel.plannedHomePosition.value
+                    ?: latestRealDronePosition
+                    ?: mapView.mapCenter.let { LatLon(it.latitude, it.longitude) }
+            },
+            internetNetworkProvider = droneViewModel::currentRtkInternetNetwork,
+        ).also { it.bind() }
         homeMapChromeBinder = HomeMapChromeBinder(
             binding = binding,
             bottomActionBarViewProvider = { activity?.findViewById(R.id.bottom_nav_view) }
@@ -549,15 +588,11 @@ class MissionMapFragment : Fragment() {
                 startPlannedHomePlacement()
             }
 
-        requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_weather_button)
-            ?.setOnClickListener { toggleWindWeather() }
-        renderWindWeatherVisibility()
-
         requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_simulate_button)
             ?.setOnClickListener {
-                when (missionSimulationState) {
-                    SimulationState.FLYING -> stopMissionSimulation()
-                    SimulationState.WAITING_FOR_SERVICE -> resumeMissionSimulation()
+                when (missionSimulationController.state) {
+                    MissionSimulationController.State.FLYING -> stopMissionSimulation()
+                    MissionSimulationController.State.WAITING_FOR_SERVICE -> missionSimulationController.resume()
                     else -> startMissionSimulation()
                 }
             }
@@ -753,7 +788,7 @@ class MissionMapFragment : Fragment() {
             }
         }
         binding.previewOpacitySlider.addOnChangeListener { _, value, _ ->
-            homeOrthoOverlay?.opacity = value
+            orthoOverlayController.setOpacity(value)
             binding.homePointCloudGlView.setPointCloudOpacity(value)
             binding.osmMap.invalidate()
         }
@@ -769,7 +804,7 @@ class MissionMapFragment : Fragment() {
             binding.homePointCloudGlView.setPointCloudOpacity(settings.orthoOpacity)
             binding.homePointCloudGlView.setPointSize(settings.pointCloudPointSize)
             binding.homePointCloudGlView.setHeightColorModeEnabled(settings.heightColorModeEnabled)
-            homeOrthoOverlay?.opacity = settings.orthoOpacity
+            orthoOverlayController.setOpacity(settings.orthoOpacity)
             if (activePreviewMode == PreviewMode.ORTHO) {
                 binding.osmMap.overlayManager.tilesOverlay?.isEnabled = settings.orthoBackgroundEnabled
             }
@@ -819,8 +854,7 @@ class MissionMapFragment : Fragment() {
         hideObstaclePanel()
         mapViewModel.setPlanningPanelVisible(false)
         val started = osmdroidMapController.startDroneOffsetAdjustment { latitudeOffset, longitudeOffset ->
-            droneOffsetLatitude = latitudeOffset
-            droneOffsetLongitude = longitudeOffset
+            droneMapTrackingController.updateOffset(latitudeOffset, longitudeOffset)
             syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
             updateLiveGeoAwarenessFromActiveSource()
             setOffsetDockSelected(false)
@@ -1169,21 +1203,15 @@ class MissionMapFragment : Fragment() {
         val home = activityViewModel.plannedHomePosition.value
         val speed = (activityViewModel.flightSpeed.value ?: 5.0).coerceAtLeast(0.1)
         val sprayRate = if (isSpraying) activityViewModel.sprayFlowLitersPerMinute() else 0.0
-        val usableBatteryMinutes = if (isSpraying) {
-            MissionResourcePlanner.sprayerBatteryMinutes(sprayRate)
-        } else {
-            MissionResourcePlanner.USABLE_BATTERY_MINUTES
-        }
-
         missionSummaryJob?.cancel()
         missionSummaryJob = viewLifecycleOwner.lifecycleScope.launch {
             val plan = withContext(Dispatchers.Default) {
-                MissionResourcePlanner.plan(
+                missionPlanningCoordinator.buildResourcePlan(
                     path = missionPath.map { LatLon(it.latitude, it.longitude) },
                     home = home,
+                    operationMode = operationMode,
                     speedMetersPerSecond = speed,
                     sprayRateLitersPerMinute = sprayRate,
-                    usableBatteryMinutes = usableBatteryMinutes,
                 )
             }
             if (
@@ -1231,14 +1259,11 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun orderPathForHome(path: List<LatLng>, home: LatLon?): List<LatLng> {
-        home ?: return path
-        if (path.size < 2) return path
-        val homePoint = LatLng(home.lat, home.lon)
-        val firstDistance = SphericalUtil.computeDistanceBetween(homePoint, path.first())
-        val lastDistance = SphericalUtil.computeDistanceBetween(homePoint, path.last())
-        val spraying = activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
-        val shouldReverse = if (spraying) lastDistance < firstDistance else lastDistance > firstDistance
-        return if (shouldReverse) path.reversed() else path
+        return missionPlanningCoordinator.orderPathForHome(
+            path = path.map { LatLon(it.latitude, it.longitude) },
+            home = home,
+            operationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY,
+        ).map { LatLng(it.lat, it.lon) }
     }
 
     private fun pointRouteShouldReverse(terrainPath: List<TerrainWaypoint>): Boolean {
@@ -1254,18 +1279,12 @@ class MissionMapFragment : Fragment() {
         path: List<LatLng>,
         home: LatLon? = activityViewModel.plannedHomePosition.value,
     ): MissionResourcePlan {
-        val isSpraying = activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY
-        val sprayRate = if (isSpraying) activityViewModel.sprayFlowLitersPerMinute() else 0.0
-        return MissionResourcePlanner.plan(
+        return missionPlanningCoordinator.buildResourcePlan(
             path = path.map { LatLon(it.latitude, it.longitude) },
             home = home,
+            operationMode = activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY,
             speedMetersPerSecond = (activityViewModel.flightSpeed.value ?: 5.0).coerceAtLeast(0.1),
-            sprayRateLitersPerMinute = sprayRate,
-            usableBatteryMinutes = if (isSpraying) {
-                MissionResourcePlanner.sprayerBatteryMinutes(sprayRate)
-            } else {
-                MissionResourcePlanner.USABLE_BATTERY_MINUTES
-            },
+            sprayRateLitersPerMinute = activityViewModel.sprayFlowLitersPerMinute(),
         )
     }
 
@@ -1273,90 +1292,15 @@ class MissionMapFragment : Fragment() {
 
     private fun formatSprayLiters(value: Double): String = String.format(Locale.US, "%.1f", value)
 
-    private fun toggleWindWeather() {
-        weatherVisible = !weatherVisible
-        renderWindWeatherVisibility()
-        if (weatherVisible) refreshWindWeather()
-    }
-
-    private fun renderWindWeatherVisibility() {
-        view?.findViewById<View?>(R.id.wind_weather_panel_include)?.visibility =
-            if (weatherVisible) View.VISIBLE else View.GONE
-        val button = view?.findViewById<com.google.android.material.button.MaterialButton?>(
-            R.id.right_panel_weather_button
-        ) ?: return
-        val selectedColor = if (weatherVisible) {
-            ContextCompat.getColor(requireContext(), R.color.ds_color_shell_selected_surface)
-        } else {
-            ContextCompat.getColor(requireContext(), R.color.ds_color_shell_overlay_strong)
-        }
-        val contentColor = if (weatherVisible) {
-            ContextCompat.getColor(requireContext(), R.color.ds_color_shell_active)
-        } else {
-            ContextCompat.getColor(requireContext(), R.color.ds_color_text_primary)
-        }
-        button.backgroundTintList = ColorStateList.valueOf(selectedColor)
-        button.setTextColor(contentColor)
-        button.iconTint = ColorStateList.valueOf(contentColor)
-    }
-
-    private fun refreshWindWeather() {
-        val location = activityViewModel.plannedHomePosition.value
-            ?: latestRealDronePosition
-            ?: mapView.mapCenter.let { LatLon(it.latitude, it.longitude) }
-        renderWindWeatherLoading()
-        weatherRequestJob?.cancel()
-        weatherRequestJob = viewLifecycleOwner.lifecycleScope.launch {
-            runCatching {
-                windWeatherRepository.currentWind(
-                    latitude = location.lat,
-                    longitude = location.lon,
-                    internetNetwork = droneViewModel.currentRtkInternetNetwork(),
-                )
-            }.onSuccess(::renderWindWeather).onFailure {
-                Log.w("WindWeather", "Current wind request failed", it)
-                renderWindWeatherUnavailable()
-            }
-        }
-    }
-
-    private fun renderWindWeatherLoading() {
-        view?.findViewById<TextView?>(R.id.wind_weather_status)?.setText(R.string.weather_loading)
-        view?.findViewById<TextView?>(R.id.wind_weather_direction)?.setText(R.string.weather_loading)
-        view?.findViewById<TextView?>(R.id.wind_weather_speed)?.text = "--"
-        view?.findViewById<ImageView?>(R.id.wind_weather_direction_arrow)?.rotation = 0f
-    }
-
-    private fun renderWindWeather(wind: WindWeather) {
-        if (!weatherVisible) return
-        view?.findViewById<TextView?>(R.id.wind_weather_status)?.setText(R.string.weather_live)
-        view?.findViewById<TextView?>(R.id.wind_weather_direction)?.text = getString(
-            R.string.weather_wind_from_format,
-            wind.directionFromCompass,
-        )
-        view?.findViewById<TextView?>(R.id.wind_weather_speed)?.text = getString(
-            R.string.weather_wind_speed_format,
-            wind.speedKilometersPerHour,
-        )
-        view?.findViewById<ImageView?>(R.id.wind_weather_direction_arrow)?.rotation = wind.directionToDegrees
-    }
-
-    private fun renderWindWeatherUnavailable() {
-        if (!weatherVisible) return
-        view?.findViewById<TextView?>(R.id.wind_weather_status)?.setText(R.string.weather_unavailable)
-        view?.findViewById<TextView?>(R.id.wind_weather_direction)?.setText(R.string.weather_unavailable)
-        view?.findViewById<TextView?>(R.id.wind_weather_speed)?.text = "--"
-    }
-
     private fun updateSimulationButton(hasPath: Boolean) {
         view?.findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_simulate_button)
             ?.apply {
                 isEnabled = hasPath
                 alpha = if (hasPath) 1.0f else 0.5f
                 setText(
-                    when (missionSimulationState) {
-                        SimulationState.FLYING -> R.string.stop_mission_simulation
-                        SimulationState.WAITING_FOR_SERVICE -> R.string.resume_mission
+                    when (missionSimulationController.state) {
+                        MissionSimulationController.State.FLYING -> R.string.stop_mission_simulation
+                        MissionSimulationController.State.WAITING_FOR_SERVICE -> R.string.resume_mission
                         else -> R.string.simulate_mission_path
                     }
                 )
@@ -1393,170 +1337,9 @@ class MissionMapFragment : Fragment() {
             Toast.makeText(requireContext(), R.string.simulation_requires_path, Toast.LENGTH_SHORT).show()
             return
         }
-        stopMissionSimulation()
         activePreviewMode = PreviewMode.MAP
         renderPreviewMode()
-
-        simulationMissionPath = missionPath
-        simulationCumulativeDistances = cumulativeDistances(missionPath)
-        simulationServiceStops = buildMissionResourcePlan(missionPath, home).serviceStops
-        simulationNextServiceStopIndex = 0
-        simulationCurrentWorkDistance = 0.0
-        pendingSimulationServiceStop = null
-        simulationHome = LatLng(home.lat, home.lon)
-        simulationUsesLiveDroneHome = connected
-        missionSimulationState = SimulationState.FLYING
-        updateSimulationButton(hasPath = true)
-        animateSimulationPath(listOf(simulationHome ?: missionPath.first(), missionPath.first())) {
-            animateSimulationWorkLeg()
-        }
-    }
-
-    private fun animateSimulationWorkLeg() {
-        val totalWorkDistance = simulationCumulativeDistances.lastOrNull() ?: return
-        val nextStop = simulationServiceStops.getOrNull(simulationNextServiceStopIndex)
-        val targetDistance = nextStop?.pathDistanceMeters ?: totalWorkDistance
-        animateSimulationPath(
-            simulationSubpath(simulationCurrentWorkDistance, targetDistance)
-        ) {
-            simulationCurrentWorkDistance = targetDistance
-            if (nextStop != null) {
-                pendingSimulationServiceStop = nextStop
-                val workPoint = LatLng(nextStop.point.lat, nextStop.point.lon)
-                animateSimulationPath(obstacleAwareServiceTransit(workPoint, simulationHome ?: workPoint)) {
-                    missionSimulationAnimator = null
-                    missionSimulationState = SimulationState.WAITING_FOR_SERVICE
-                    updateSimulationButton(hasPath = true)
-                    Toast.makeText(
-                        requireContext(),
-                        getString(
-                            R.string.simulation_waiting_for_service_format,
-                            serviceDescription(nextStop),
-                        ),
-                        Toast.LENGTH_LONG,
-                    ).show()
-                }
-            } else {
-                val end = simulationMissionPath.last()
-                animateSimulationPath(listOf(end, simulationHome ?: end)) {
-                    missionSimulationAnimator = null
-                    missionSimulationState = SimulationState.COMPLETE
-                    updateSimulationButton(hasPath = true)
-                }
-            }
-        }
-    }
-
-    private fun resumeMissionSimulation() {
-        val stop = pendingSimulationServiceStop ?: return
-        val workPoint = LatLng(stop.point.lat, stop.point.lon)
-        missionSimulationState = SimulationState.FLYING
-        updateSimulationButton(hasPath = true)
-        animateSimulationPath(obstacleAwareServiceTransit(simulationHome ?: workPoint, workPoint)) {
-            simulationNextServiceStopIndex += 1
-            pendingSimulationServiceStop = null
-            animateSimulationWorkLeg()
-        }
-    }
-
-    private fun obstacleAwareServiceTransit(from: LatLng, to: LatLng): List<LatLng> {
-        return SurveyPlanner().buildObstacleAvoidingTransitPath(
-            from = LatLon(from.latitude, from.longitude),
-            to = LatLon(to.latitude, to.longitude),
-            obstacles = activityViewModel.missionObstacles.value.orEmpty(),
-        ).map { LatLng(it.lat, it.lon) }
-    }
-
-    private fun animateSimulationPath(rawPath: List<LatLng>, onComplete: () -> Unit) {
-        val path = rawPath.filterIndexed { index, point -> index == 0 || point != rawPath[index - 1] }
-        if (path.size < 2) {
-            path.firstOrNull()?.let {
-                osmdroidMapController.setSimulationDrone(LatLon(it.latitude, it.longitude), 0f)
-            }
-            onComplete()
-            return
-        }
-        val cumulative = cumulativeDistances(path)
-        val totalDistance = cumulative.last()
-        if (totalDistance <= 0.0) {
-            onComplete()
-            return
-        }
-        val speed = (activityViewModel.flightSpeed.value ?: 5.0).coerceAtLeast(0.1)
-        val durationMillis = (totalDistance / speed / SIMULATION_SPEED_MULTIPLIER * 1000.0)
-            .toLong()
-            .coerceIn(MIN_SIMULATION_DURATION_MS, MAX_SIMULATION_DURATION_MS)
-        val animator = ValueAnimator.ofFloat(0f, totalDistance.toFloat()).apply {
-            duration = durationMillis
-            addUpdateListener { animation ->
-                val traveled = (animation.animatedValue as Float).toDouble()
-                val upper = cumulative.indexOfFirst { it >= traveled }.takeIf { it >= 0 }
-                    ?: path.lastIndex
-                val lower = (upper - 1).coerceAtLeast(0)
-                val segmentLength = cumulative[upper] - cumulative[lower]
-                val fraction = if (segmentLength > 0.0) {
-                    ((traveled - cumulative[lower]) / segmentLength).coerceIn(0.0, 1.0)
-                } else {
-                    0.0
-                }
-                val point = SphericalUtil.interpolate(path[lower], path[upper], fraction)
-                val heading = bearingDegrees(
-                    LatLon(path[lower].latitude, path[lower].longitude),
-                    LatLon(path[upper].latitude, path[upper].longitude),
-                ).toFloat()
-                osmdroidMapController.setSimulationDrone(
-                    LatLon(point.latitude, point.longitude),
-                    heading,
-                )
-            }
-            addListener(object : AnimatorListenerAdapter() {
-                override fun onAnimationEnd(animation: Animator) {
-                    if (missionSimulationAnimator === animation) {
-                        missionSimulationAnimator = null
-                        onComplete()
-                    }
-                }
-            })
-        }
-        missionSimulationAnimator = animator
-        animator.start()
-    }
-
-    private fun simulationSubpath(startDistance: Double, endDistance: Double): List<LatLng> {
-        if (simulationMissionPath.size < 2 || simulationCumulativeDistances.isEmpty()) return emptyList()
-        return buildList {
-            add(pointOnSimulationPath(startDistance))
-            simulationMissionPath.forEachIndexed { index, point ->
-                val distance = simulationCumulativeDistances[index]
-                if (distance > startDistance + 0.5 && distance < endDistance - 0.5) add(point)
-            }
-            add(pointOnSimulationPath(endDistance))
-        }
-    }
-
-    private fun pointOnSimulationPath(distance: Double): LatLng {
-        val target = distance.coerceIn(0.0, simulationCumulativeDistances.last())
-        val upper = simulationCumulativeDistances.indexOfFirst { it >= target }
-            .takeIf { it >= 0 }
-            ?: simulationMissionPath.lastIndex
-        if (upper == 0) return simulationMissionPath.first()
-        val lower = upper - 1
-        val segment = simulationCumulativeDistances[upper] - simulationCumulativeDistances[lower]
-        val fraction = if (segment > 0.0) {
-            ((target - simulationCumulativeDistances[lower]) / segment).coerceIn(0.0, 1.0)
-        } else {
-            0.0
-        }
-        return SphericalUtil.interpolate(simulationMissionPath[lower], simulationMissionPath[upper], fraction)
-    }
-
-    private fun cumulativeDistances(path: List<LatLng>): List<Double> {
-        val cumulative = MutableList(path.size) { 0.0 }
-        for (index in 1 until path.size) {
-            cumulative[index] = cumulative[index - 1] +
-                SphericalUtil.computeDistanceBetween(path[index - 1], path[index])
-        }
-        return cumulative
+        missionSimulationController.start(missionPath, home, useLiveDroneHome = connected)
     }
 
     private fun serviceDescription(stop: MissionServiceStop): String = when {
@@ -1568,28 +1351,12 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun stopMissionSimulation() {
-        missionSimulationAnimator?.let { animator ->
-            missionSimulationAnimator = null
-            animator.removeAllListeners()
-            animator.cancel()
-        }
-        missionSimulationState = SimulationState.IDLE
-        simulationMissionPath = emptyList()
-        simulationCumulativeDistances = emptyList()
-        simulationServiceStops = emptyList()
-        simulationNextServiceStopIndex = 0
-        simulationCurrentWorkDistance = 0.0
-        simulationHome = null
-        pendingSimulationServiceStop = null
-        simulationUsesLiveDroneHome = false
-        if (::osmdroidMapController.isInitialized) osmdroidMapController.clearSimulationDrone()
+        if (::missionSimulationController.isInitialized) missionSimulationController.stop()
         updateSimulationButton(currentMissionPath().size >= 2)
     }
 
     private fun stopMissionSimulationIfActive() {
-        if (missionSimulationState != SimulationState.IDLE || missionSimulationAnimator != null) {
-            stopMissionSimulation()
-        }
+        if (::missionSimulationController.isInitialized) missionSimulationController.stopIfActive()
     }
 
     private fun formatEstimatedTime(totalSeconds: Int): String {
@@ -1797,12 +1564,7 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun renderPlannedHomePosition(position: LatLon?) {
-        homePosition = position
-        if (position == null) {
-            osmdroidMapController.clearHomeMarker()
-            return
-        }
-        osmdroidMapController.setOrMoveHomeMarker(position.lat, position.lon)
+        droneMapTrackingController.renderHome(position)
     }
 
     private fun observeDroneViewModel() {
@@ -1818,10 +1580,10 @@ class MissionMapFragment : Fragment() {
                 )
                 maybeSetPendingHomeMarker(correctedPosition)
                 maybeAppendFlightTrace(correctedPosition)
-                centerOnDroneIfNeeded()
+                initialViewportController.centerIfNeeded()
             } else {
                 osmdroidMapController.setDroneVisible(false)
-                centerInitialViewportIfNeeded()
+                initialViewportController.centerIfNeeded()
             }
 
             updateLiveGeoAwarenessFromActiveSource()
@@ -1829,7 +1591,7 @@ class MissionMapFragment : Fragment() {
         }
 
         droneViewModel.conStateLiveData.observe(viewLifecycleOwner) {
-            if (it != true && simulationUsesLiveDroneHome) stopMissionSimulationIfActive()
+            if (it != true && missionSimulationController.usesLiveDroneHome) stopMissionSimulationIfActive()
             syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
             renderAddHomeButton()
             updateLiveGeoAwarenessFromActiveSource()
@@ -1870,7 +1632,7 @@ class MissionMapFragment : Fragment() {
         }
 
         droneViewModel.droneLandedState.observe(viewLifecycleOwner) { landedState ->
-            if (simulationUsesLiveDroneHome && landedState != MavLandedState.MAV_LANDED_STATE_ON_GROUND) {
+            if (missionSimulationController.usesLiveDroneHome && landedState != MavLandedState.MAV_LANDED_STATE_ON_GROUND) {
                 stopMissionSimulationIfActive()
             }
         }
@@ -2518,20 +2280,10 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun buildObstacleAwarePointRoute(points: List<LatLng>): List<LatLng> {
-        if (points.size < 2) return points
-        val obstacles = activityViewModel.missionObstacles.value.orEmpty().filter { it.isValid() }
-        if (obstacles.isEmpty()) return points
-        val planner = SurveyPlanner()
-        return buildList {
-            points.zipWithNext().forEachIndexed { segmentIndex, (from, to) ->
-                val segment = planner.buildObstacleAvoidingTransitPath(
-                    from = LatLon(from.latitude, from.longitude),
-                    to = LatLon(to.latitude, to.longitude),
-                    obstacles = obstacles,
-                ).map { LatLng(it.lat, it.lon) }
-                if (segmentIndex == 0) addAll(segment) else addAll(segment.drop(1))
-            }
-        }
+        return missionPlanningCoordinator.buildPointRoute(
+            points = points.map { LatLon(it.latitude, it.longitude) },
+            obstacles = activityViewModel.missionObstacles.value.orEmpty(),
+        ).map { LatLng(it.lat, it.lon) }
     }
 
     private fun generateAreaMissionOnMap(generation: Long) {
@@ -2608,7 +2360,11 @@ class MissionMapFragment : Fragment() {
             osmdroidMapController.setSurveyPath(
                 path = path,
                 areaVertices = areaVertices,
-                segmentColors = mapSurveyHeightSegmentColors(path)
+                segmentColors = PointCloudTerrainStyleMapper.surveySegmentColors(
+                    enabled = previewHeightColorModeEnabled,
+                    surveyPoints = path,
+                    terrainWaypoints = activityViewModel.terrainSurveyWaypoints.value.orEmpty(),
+                )
             )
             osmdroidObstacleEditor.bringToFront()
         } else {
@@ -2656,128 +2412,8 @@ class MissionMapFragment : Fragment() {
     private fun renderPreviewMode() {
         if (_binding == null) return
         if (isSurveyMode() && activePreviewMode == PreviewMode.ORTHO) activePreviewMode = PreviewMode.MAP
-        renderPreviewModeButtons()
-        binding.previewAssetPrimaryRow.visibility = View.GONE
-        binding.previewAssetSecondaryRow.visibility = View.GONE
-        binding.previewAssetTertiaryRow.visibility = View.GONE
-        binding.previewColorModeRow.visibility = View.GONE
-        binding.previewBackgroundRow.visibility = View.GONE
-        binding.previewOpacityRow.visibility = View.GONE
-        binding.previewTerrainStatus.visibility = View.GONE
-        when (activePreviewMode) {
-            PreviewMode.MAP -> {
-                binding.homePointCloudGlView.onPause()
-                binding.osmMap.visibility = View.VISIBLE
-                binding.homePointCloudGlView.visibility = View.GONE
-                removeHomeOrthoOverlay()
-                if (isSurveyMode()) {
-                    binding.previewModeCycleButton.setImageResource(R.drawable.ic_point_cloud_24)
-                    binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_3d)
-                    binding.previewModeCycleLabel.text = getString(R.string.preview_mode_next_3d)
-                } else {
-                    binding.previewModeCycleButton.setImageResource(R.drawable.ic_ortho_24)
-                    binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_ortho)
-                    binding.previewModeCycleLabel.text = getString(R.string.preview_mode_next_ortho)
-                }
-                binding.osmMap.overlayManager.tilesOverlay?.isEnabled = true
-                renderCurrentSurveyPathOnMap()
-            }
-            PreviewMode.ORTHO -> {
-                binding.homePointCloudGlView.onPause()
-                binding.osmMap.visibility = View.VISIBLE
-                binding.homePointCloudGlView.visibility = View.GONE
-                renderHomeOrthoOverlay()
-                binding.previewModeCycleButton.setImageResource(R.drawable.ic_point_cloud_24)
-                binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_3d)
-                binding.previewModeCycleLabel.text = getString(R.string.preview_mode_next_3d)
-                binding.previewAssetPrimaryButton.setImageResource(R.drawable.baseline_load_file_24)
-                binding.previewAssetSecondaryButton.setImageResource(R.drawable.ic_menu_map)
-                binding.previewAssetPrimaryButton.contentDescription = getString(R.string.ortho_load_image)
-                binding.previewAssetSecondaryButton.contentDescription = getString(R.string.ortho_load_world)
-                binding.previewAssetPrimaryLabel.text = getString(R.string.ortho_load_image)
-                binding.previewAssetSecondaryLabel.text = getString(R.string.ortho_load_world)
-                binding.previewColorModeLabel.text = colorModeLabel()
-                renderCurrentSurveyPathOnMap()
-            }
-            PreviewMode.POINT_CLOUD -> {
-                binding.homePointCloudGlView.onResume()
-                binding.osmMap.visibility = View.GONE
-                binding.homePointCloudGlView.visibility = View.VISIBLE
-                binding.previewModeCycleButton.setImageResource(R.drawable.ic_menu_map)
-                binding.previewModeCycleButton.contentDescription = getString(R.string.preview_mode_next_map)
-                binding.previewModeCycleLabel.text = getString(R.string.preview_mode_next_map)
-                binding.previewAssetPrimaryButton.setImageResource(R.drawable.baseline_load_file_24)
-                binding.previewAssetSecondaryButton.setImageResource(R.drawable.ic_baseline_layers_clear_24)
-                binding.previewAssetPrimaryButton.contentDescription = getString(R.string.point_cloud_load)
-                binding.previewAssetSecondaryButton.contentDescription = getString(R.string.point_cloud_reset)
-                binding.previewAssetPrimaryLabel.text = getString(R.string.point_cloud_load)
-                binding.previewAssetSecondaryLabel.text = getString(R.string.point_cloud_reset)
-                binding.previewColorModeLabel.text = colorModeLabel()
-                val pointCloud = current3dPointCloud()
-                if (pointCloud == null) {
-                    binding.homePointCloudGlView.clearPointCloud()
-                } else {
-                    binding.homePointCloudGlView.setPointCloud(pointCloud)
-                    binding.homePointCloudGlView.setPointSize(
-                        if (isSurveyMode()) 4f
-                        else previewAssetsViewModel.previewSettings.value?.pointCloudPointSize ?: 2.5f
-                    )
-                    binding.homePointCloudGlView.setHeightColorModeEnabled(
-                        isSurveyMode() ||
-                            (previewAssetsViewModel.previewSettings.value?.heightColorModeEnabled ?: false)
-                    )
-                    binding.homePointCloudGlView.setPointCloudOpacity(
-                        previewAssetsViewModel.previewSettings.value?.orthoOpacity ?: 0.85f
-                    )
-                }
-                renderTerrainGridStatus()
-                updatePointCloudMissionOverlay()
-            }
-        }
-        updatePreviewDockPlacement()
+        previewModeRenderer.render(activePreviewMode, isSurveyMode(), current3dPointCloud())
     }
-
-    private fun renderPreviewModeButtons() {
-        binding.previewModeOrthoButton.visibility = if (isSurveyMode()) View.GONE else View.VISIBLE
-        val activeColor = ContextCompat.getColor(requireContext(), R.color.ds_color_shell_active)
-        val inactiveColor = ContextCompat.getColor(requireContext(), R.color.ds_color_text_primary)
-        val modes = listOf(
-            binding.previewModeMapButton to PreviewMode.MAP,
-            binding.previewModeOrthoButton to PreviewMode.ORTHO,
-            binding.previewMode3dButton to PreviewMode.POINT_CLOUD
-        )
-        modes.forEach { (button, mode) ->
-            val active = activePreviewMode == mode
-            button.alpha = if (active) 1f else 0.88f
-            button.strokeWidth = if (active) 1 else 0
-            button.cornerRadius = resources.getDimensionPixelSize(R.dimen.preview_mode_segment_radius)
-            button.backgroundTintList = android.content.res.ColorStateList.valueOf(
-                ContextCompat.getColor(
-                    requireContext(),
-                    if (active) R.color.ds_color_shell_selected_surface else android.R.color.transparent
-                )
-            )
-            button.strokeColor = android.content.res.ColorStateList.valueOf(
-                ContextCompat.getColor(
-                    requireContext(),
-                    if (active) R.color.ds_color_shell_active else R.color.ds_color_shell_stroke
-                )
-            )
-            button.setTextColor(if (active) activeColor else inactiveColor)
-            button.iconTint = android.content.res.ColorStateList.valueOf(
-                if (active) activeColor else inactiveColor
-            )
-        }
-    }
-
-    private fun colorModeLabel(): String =
-        getString(
-            if (previewHeightColorModeEnabled) {
-                R.string.preview_original_color_mode
-            } else {
-                R.string.preview_height_color_mode
-            }
-        )
 
     private fun renderTerrainGridStatus() {
         if (isSurveyMode()) {
@@ -2814,35 +2450,11 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun renderHomeOrthoOverlay() {
-        val asset = previewAssetsViewModel.orthoAsset
-        val bounds = asset?.bounds
-        if (asset == null || bounds == null) {
-            removeHomeOrthoOverlay()
-            binding.osmMap.overlayManager.tilesOverlay?.isEnabled = true
-            Toast.makeText(requireContext(), getString(R.string.ortho_empty_state), Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        val existing = homeOrthoOverlay
-        if (existing != null) {
-            mapView.overlays.remove(existing)
-        }
-        val settings = previewAssetsViewModel.previewSettings.value
-        homeOrthoOverlay = OrthoImageOverlay(asset.bitmap, bounds).also { overlay ->
-            overlay.opacity = settings?.orthoOpacity ?: 0.85f
-            mapView.overlays.add(0, overlay)
-        }
-        binding.osmMap.overlayManager.tilesOverlay?.isEnabled = settings?.orthoBackgroundEnabled ?: true
-        focusOrthoOnMap()
-        mapView.invalidate()
+        orthoOverlayController.render()
     }
 
     private fun removeHomeOrthoOverlay() {
-        homeOrthoOverlay?.let { mapView.overlays.remove(it) }
-        homeOrthoOverlay = null
-        if (::mapView.isInitialized) {
-            mapView.invalidate()
-        }
+        if (::orthoOverlayController.isInitialized) orthoOverlayController.clear()
     }
 
     private fun updatePointCloudMissionOverlay() {
@@ -2859,61 +2471,6 @@ class MissionMapFragment : Fragment() {
             activityViewModel.missionArea.value?.vertices.orEmpty()
         }
         val droneLocation = currentOffsetDroneLocation()
-        val originPoints = buildList {
-            if (showingDownloadedMission) {
-                addAll(downloadedPoints)
-            } else {
-                addAll(activityViewModel.surveyPath.value.orEmpty())
-                addAll(activityViewModel.plannedRoutePath.value.orEmpty())
-                addAll(activityViewModel.routeWaypoints.value.orEmpty().map {
-                    LatLng(it.latitude, it.longitude)
-                })
-                addAll(areaVertices)
-            }
-            droneLocation?.let { add(LatLng(it.latitude, it.longitude)) }
-        }
-        val frame = pointCloud?.coordinateFrame ?: originPoints.takeIf { it.isNotEmpty() }?.let { points ->
-            PointCloudCoordinateFrame(
-                originLat = points.map { it.latitude }.average(),
-                originLon = points.map { it.longitude }.average(),
-            )
-        }
-        if (frame == null) {
-            binding.homePointCloudGlView.setMissionOverlay(null)
-            return
-        }
-
-        val horizontalSpan = originPoints.map { point ->
-            frame.latLonToLocal(point.latitude, point.longitude)
-        }.let { localPoints ->
-            if (localPoints.isEmpty()) 0f else max(
-                localPoints.maxOf { it.first }.minus(localPoints.minOf { it.first }),
-                localPoints.maxOf { it.second }.minus(localPoints.minOf { it.second }),
-            ).toFloat()
-        }
-        val displaySpan = max(pointCloud?.bounds?.maxSpan ?: 0f, horizontalSpan).coerceAtLeast(10f)
-        val centeredMaxZ = pointCloud?.let { it.bounds.maxZ - it.bounds.centerZ } ?: 0f
-        val overlayZ = centeredMaxZ + max(displaySpan * 0.02f, MIN_POINT_CLOUD_MISSION_Z_OFFSET)
-        val lineVertices = ArrayList<Float>()
-        val lineColors = ArrayList<Float>()
-        val pointVertices = ArrayList<Float>()
-        val pointColors = ArrayList<Float>()
-        val selectedPointVertices = ArrayList<Float>()
-        val selectedPointColors = ArrayList<Float>()
-        var dronePointVertices = FloatArray(0)
-        var dronePointColors = FloatArray(0)
-
-        addPointCloudClosedLineStrip(
-            source = areaVertices,
-            z = 0f,
-            zValues = pointCloudGroundZValues(areaVertices),
-            color = POINT_CLOUD_POLYGON_COLOR,
-            vertices = lineVertices,
-            colors = lineColors
-        ) { point ->
-            frame.latLonToLocal(point.latitude, point.longitude)
-        }
-
         val pointWorkflow = activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS
         val surveyPoints = when {
             showingDownloadedMission -> downloadedPoints
@@ -2921,333 +2478,43 @@ class MissionMapFragment : Fragment() {
             else -> activityViewModel.surveyPath.value.orEmpty()
         }
         val surveyZValues = when {
-            showingDownloadedMission && downloadedWaypoints.size == surveyPoints.size ->
-                downloadedWaypoints.map { it.altitudeMeters }
+            showingDownloadedMission && downloadedWaypoints.size == surveyPoints.size -> downloadedWaypoints.map { it.altitudeMeters }
             showingDownloadedMission -> null
-            else -> pointCloudSurveyZValues(surveyPoints)
+            else -> PointCloudTerrainStyleMapper.surveyZValues(
+                surveyPoints,
+                activityViewModel.terrainSurveyWaypoints.value.orEmpty(),
+            )
         }
-        addPointCloudOpenLineStrip(
-            source = surveyPoints,
-            z = overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP,
-            zValues = surveyZValues,
-            color = POINT_CLOUD_SURVEY_PATH_COLOR,
-            vertices = lineVertices,
-            colors = lineColors
-        ) { point ->
-            frame.latLonToLocal(point.latitude, point.longitude)
-        }
-        surveyPoints.forEachIndexed { index, point ->
-            addPointCloudMissionVertex(
-                point = point,
-                z = surveyZValues?.getOrNull(index) ?: overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 1.5f,
-                color = if (
-                    selectedTerrainWaypointWorkflow == PlanningWorkflow.AREA &&
-                    selectedSurveyWaypointIndex == index
-                ) POINT_CLOUD_SELECTED_POINT_COLOR else POINT_CLOUD_SURVEY_POINT_COLOR,
-                vertices = pointVertices,
-                colors = pointColors
-            ) {
-                frame.latLonToLocal(it.latitude, it.longitude)
-            }
-        }
-        addPointCloudDirectionArrows(
-            source = surveyPoints,
-            z = overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 1.7f,
-            zValues = surveyZValues,
-            arrowSizeMeters = max(displaySpan * 0.012f, MIN_POINT_CLOUD_ARROW_SIZE_METERS),
-            vertices = lineVertices,
-            colors = lineColors
-        ) { point ->
-            frame.latLonToLocal(point.latitude, point.longitude)
-        }
-
         val terrainRoute = activityViewModel.terrainRouteWaypoints.value.orEmpty()
-        val routePoints = if (showingDownloadedMission || !pointWorkflow) {
-            emptyList()
-        } else {
-            terrainRoute.takeIf { it.size >= 2 }
-                ?.map { LatLng(it.latLon.lat, it.latLon.lon) }
+        val routePoints = if (showingDownloadedMission || !pointWorkflow) emptyList() else {
+            terrainRoute.takeIf { it.size >= 2 }?.map { LatLng(it.latLon.lat, it.latLon.lon) }
                 ?: orderPathForPlannedHome(
                     activityViewModel.plannedRoutePath.value.orEmpty().takeIf { it.size >= 2 }
-                        ?: activityViewModel.routeWaypoints.value.orEmpty().map { waypoint ->
-                            LatLng(waypoint.latitude, waypoint.longitude)
-                        }
+                        ?: activityViewModel.routeWaypoints.value.orEmpty().map { LatLng(it.latitude, it.longitude) }
                 )
         }
         val routeZValues = terrainRoute.takeIf { it.size == routePoints.size && it.isNotEmpty() }
             ?.map { it.displayAltitudeMeters.toFloat() }
-        addPointCloudOpenLineStrip(
-            source = routePoints,
-            z = overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 2f,
-            zValues = routeZValues,
-            color = POINT_CLOUD_ROUTE_COLOR,
-            vertices = lineVertices,
-            colors = lineColors
-        ) { point ->
-            frame.latLonToLocal(point.latitude, point.longitude)
-        }
-        routePoints.takeIf { routeZValues != null }.orEmpty().forEachIndexed { index, point ->
-            addPointCloudMissionVertex(
-                point = point,
-                z = routeZValues?.getOrNull(index) ?: overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 2.2f,
-                color = if (
-                    selectedTerrainWaypointWorkflow == PlanningWorkflow.POINTS &&
-                    selectedSurveyWaypointIndex == index
-                ) POINT_CLOUD_SELECTED_POINT_COLOR else POINT_CLOUD_SURVEY_POINT_COLOR,
-                vertices = pointVertices,
-                colors = pointColors
-            ) { frame.latLonToLocal(it.latitude, it.longitude) }
-        }
-        addPointCloudDirectionArrows(
-            source = routePoints,
-            z = overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 2.3f,
-            zValues = routeZValues,
-            arrowSizeMeters = max(displaySpan * 0.012f, MIN_POINT_CLOUD_ARROW_SIZE_METERS),
-            vertices = lineVertices,
-            colors = lineColors
-        ) { point -> frame.latLonToLocal(point.latitude, point.longitude) }
-
-        val selectedIndex = selectedSurveyWaypointIndex
-        if (selectedIndex != null) {
-            if (selectedTerrainWaypointWorkflow == PlanningWorkflow.AREA) {
-                surveyPoints.getOrNull(selectedIndex)?.let { point ->
-                    addPointCloudMissionVertex(
-                        point = point,
-                        z = surveyZValues?.getOrNull(selectedIndex)
-                            ?: overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 1.5f,
-                        color = POINT_CLOUD_SELECTED_POINT_COLOR,
-                        vertices = selectedPointVertices,
-                        colors = selectedPointColors,
-                    ) { frame.latLonToLocal(it.latitude, it.longitude) }
-                }
-            } else if (routeZValues != null) {
-                routePoints.getOrNull(selectedIndex)?.let { point ->
-                    addPointCloudMissionVertex(
-                        point = point,
-                        z = routeZValues.getOrNull(selectedIndex)
-                            ?: overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 2.2f,
-                        color = POINT_CLOUD_SELECTED_POINT_COLOR,
-                        vertices = selectedPointVertices,
-                        colors = selectedPointColors,
-                    ) { frame.latLonToLocal(it.latitude, it.longitude) }
-                }
-            }
-        }
-
-        droneLocation?.let {
-            val (droneX, droneY) = frame.latLonToLocal(droneLocation.latitude, droneLocation.longitude)
-            val droneZ = overlayZ + POINT_CLOUD_MISSION_LAYER_Z_STEP * 3f
-            addPointCloudDroneGlyph(
-                centerX = droneX,
-                centerY = droneY,
-                z = droneZ,
-                headingDegrees = droneViewModel.droneHeading.value ?: 0.0,
-                sizeMeters = max(displaySpan * 0.022f, MIN_POINT_CLOUD_DRONE_SIZE_METERS),
-                vertices = lineVertices,
-                colors = lineColors,
-            )
-            dronePointVertices = floatArrayOf(droneX.toFloat(), droneY.toFloat(), droneZ)
-            dronePointColors = POINT_CLOUD_DRONE_COLOR.copyOf()
-        }
-
-        if (
-            lineVertices.isEmpty() && pointVertices.isEmpty() && selectedPointVertices.isEmpty() &&
-            dronePointVertices.isEmpty()
-        ) {
-            binding.homePointCloudGlView.setMissionOverlay(null)
-            return
-        }
-
         binding.homePointCloudGlView.setMissionOverlay(
-            PointCloudMissionOverlay(
-                vertices = lineVertices.toFloatArray(),
-                colors = lineColors.toFloatArray(),
-                lineVertexCount = lineVertices.size / VALUES_PER_MISSION_VERTEX,
-                pointVertices = pointVertices.toFloatArray(),
-                pointColors = pointColors.toFloatArray(),
-                pointVertexCount = pointVertices.size / VALUES_PER_MISSION_VERTEX,
-                selectedPointVertices = selectedPointVertices.toFloatArray(),
-                selectedPointColors = selectedPointColors.toFloatArray(),
-                selectedPointVertexCount = selectedPointVertices.size / VALUES_PER_MISSION_VERTEX,
-                dronePointVertices = dronePointVertices,
-                dronePointColors = dronePointColors,
-                dronePointVertexCount = dronePointVertices.size / VALUES_PER_MISSION_VERTEX,
+            pointCloudMissionOverlayBuilder.build(
+                PointCloudMissionOverlayBuilder.Input(
+                    pointCloud = pointCloud,
+                    areaPoints = areaVertices,
+                    areaZValues = PointCloudTerrainStyleMapper.groundZValues(
+                        areaVertices,
+                        previewAssetsViewModel.pointCloudTerrainModel,
+                    ),
+                    surveyPoints = surveyPoints,
+                    surveyZValues = surveyZValues,
+                    routePoints = routePoints,
+                    routeZValues = routeZValues,
+                    droneLocation = droneLocation?.let { LatLng(it.latitude, it.longitude) },
+                    droneHeadingDegrees = droneViewModel.droneHeading.value ?: 0.0,
+                    selectedWorkflow = selectedTerrainWaypointWorkflow,
+                    selectedWaypointIndex = selectedSurveyWaypointIndex,
+                )
             )
         )
-    }
-
-    private fun addPointCloudDroneGlyph(
-        centerX: Double,
-        centerY: Double,
-        z: Float,
-        headingDegrees: Double,
-        sizeMeters: Float,
-        vertices: MutableList<Float>,
-        colors: MutableList<Float>,
-    ) {
-        val heading = Math.toRadians(headingDegrees)
-        val forwardX = sin(heading)
-        val forwardY = cos(heading)
-        val rightX = forwardY
-        val rightY = -forwardX
-        val arm = sizeMeters * 0.5
-
-        fun point(forward: Double, right: Double) = Pair(
-            centerX + forwardX * forward + rightX * right,
-            centerY + forwardY * forward + rightY * right,
-        )
-
-        fun line(from: Pair<Double, Double>, to: Pair<Double, Double>) {
-            addPointCloudLocalVertex(from.first, from.second, z, POINT_CLOUD_DRONE_COLOR, vertices, colors)
-            addPointCloudLocalVertex(to.first, to.second, z, POINT_CLOUD_DRONE_COLOR, vertices, colors)
-        }
-
-        line(point(-arm, -arm), point(arm, arm))
-        line(point(-arm, arm), point(arm, -arm))
-        line(point(0.0, 0.0), point(sizeMeters.toDouble(), 0.0))
-        line(point(sizeMeters.toDouble(), 0.0), point(arm, -arm * 0.4))
-        line(point(sizeMeters.toDouble(), 0.0), point(arm, arm * 0.4))
-    }
-
-    private fun addPointCloudClosedLineStrip(
-        source: List<LatLng>,
-        z: Float,
-        zValues: List<Float>? = null,
-        color: FloatArray,
-        vertices: MutableList<Float>,
-        colors: MutableList<Float>,
-        convert: (LatLng) -> Pair<Double, Double>
-    ) {
-        if (source.size < 3) return
-        addPointCloudOpenLineStrip(
-            source = source + source.first(),
-            z = z,
-            zValues = zValues?.let { it + it.first() },
-            color = color,
-            vertices = vertices,
-            colors = colors,
-            convert = convert
-        )
-    }
-
-    private fun pointCloudGroundZValues(points: List<LatLng>): List<Float>? {
-        val terrainModel = previewAssetsViewModel.pointCloudTerrainModel ?: return null
-        val frame = terrainModel.coordinateFrame ?: return null
-        if (points.isEmpty()) return null
-        return points.map { point ->
-            val (x, y) = frame.latLonToLocal(point.latitude, point.longitude)
-            (terrainModel.terrainHeightAt(x, y) + 0.15).toFloat()
-        }
-    }
-
-    private fun addPointCloudOpenLineStrip(
-        source: List<LatLng>,
-        z: Float,
-        zValues: List<Float>? = null,
-        color: FloatArray,
-        vertices: MutableList<Float>,
-        colors: MutableList<Float>,
-        convert: (LatLng) -> Pair<Double, Double>
-    ) {
-        if (source.size < 2) return
-        source.zipWithNext().forEachIndexed { index, (from, to) ->
-            addPointCloudMissionVertex(from, zValues?.getOrNull(index) ?: z, color, vertices, colors, convert)
-            addPointCloudMissionVertex(to, zValues?.getOrNull(index + 1) ?: z, color, vertices, colors, convert)
-        }
-    }
-
-    private fun addPointCloudMissionVertex(
-        point: LatLng,
-        z: Float,
-        color: FloatArray,
-        vertices: MutableList<Float>,
-        colors: MutableList<Float>,
-        convert: (LatLng) -> Pair<Double, Double>
-    ) {
-        val (x, y) = convert(point)
-        addPointCloudLocalVertex(x, y, z, color, vertices, colors)
-    }
-
-    private fun addPointCloudDirectionArrows(
-        source: List<LatLng>,
-        z: Float,
-        zValues: List<Float>? = null,
-        arrowSizeMeters: Float,
-        vertices: MutableList<Float>,
-        colors: MutableList<Float>,
-        convert: (LatLng) -> Pair<Double, Double>
-    ) {
-        buildSurveyDirectionSegments(source, MAX_POINT_CLOUD_DIRECTION_ARROWS).forEach { segment ->
-            val (fromX, fromY) = convert(segment.from)
-            val (toX, toY) = convert(segment.to)
-            val dx = toX - fromX
-            val dy = toY - fromY
-            val length = sqrt(dx * dx + dy * dy)
-            if (length <= 0.001) return@forEach
-
-            val unitX = dx / length
-            val unitY = dy / length
-            val arrowLength = min(arrowSizeMeters.toDouble(), length * 0.35)
-            val arrowWidth = arrowLength * 0.55
-            val midX = (fromX + toX) / 2.0
-            val midY = (fromY + toY) / 2.0
-            val fromZ = zValues?.getOrNull(source.indexOf(segment.from)) ?: z
-            val toZ = zValues?.getOrNull(source.indexOf(segment.to)) ?: z
-            val arrowZ = (fromZ + toZ) / 2f
-            val tipX = midX + unitX * arrowLength * 0.5
-            val tipY = midY + unitY * arrowLength * 0.5
-            val baseX = midX - unitX * arrowLength * 0.5
-            val baseY = midY - unitY * arrowLength * 0.5
-            val perpX = -unitY
-            val perpY = unitX
-            val leftX = baseX + perpX * arrowWidth * 0.5
-            val leftY = baseY + perpY * arrowWidth * 0.5
-            val rightX = baseX - perpX * arrowWidth * 0.5
-            val rightY = baseY - perpY * arrowWidth * 0.5
-
-            addPointCloudLocalVertex(tipX, tipY, arrowZ, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
-            addPointCloudLocalVertex(leftX, leftY, arrowZ, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
-            addPointCloudLocalVertex(tipX, tipY, arrowZ, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
-            addPointCloudLocalVertex(rightX, rightY, arrowZ, POINT_CLOUD_SURVEY_PATH_COLOR, vertices, colors)
-        }
-    }
-
-    private fun pointCloudSurveyZValues(surveyPoints: List<LatLng>): List<Float>? {
-        val terrainWaypoints = activityViewModel.terrainSurveyWaypoints.value.orEmpty()
-        return terrainWaypoints
-            .takeIf { it.size == surveyPoints.size && it.isNotEmpty() }
-            ?.map { it.displayAltitudeMeters.toFloat() }
-    }
-
-    private fun mapSurveyHeightSegmentColors(surveyPoints: List<LatLng>): List<Int>? {
-        if (!previewHeightColorModeEnabled || surveyPoints.size < 2) return null
-        val heights = activityViewModel.terrainSurveyWaypoints.value.orEmpty()
-            .takeIf { it.size == surveyPoints.size && it.isNotEmpty() }
-            ?.map { it.missionAltitudeMeters }
-            ?: return null
-        val minHeight = heights.minOrNull() ?: return null
-        val maxHeight = heights.maxOrNull() ?: return null
-        val range = (maxHeight - minHeight).coerceAtLeast(0.1)
-        return heights.zipWithNext().map { (from, to) ->
-            val t = ((((from + to) / 2.0) - minHeight) / range).coerceIn(0.0, 1.0).toFloat()
-            Color.HSVToColor(floatArrayOf(220f - 180f * t, 0.9f, 1.0f))
-        }
-    }
-
-    private fun addPointCloudLocalVertex(
-        x: Double,
-        y: Double,
-        z: Float,
-        color: FloatArray,
-        vertices: MutableList<Float>,
-        colors: MutableList<Float>
-    ) {
-        vertices += x.toFloat()
-        vertices += y.toFloat()
-        vertices += z
-        colors += color[0]
-        colors += color[1]
-        colors += color[2]
     }
 
     @Deprecated("Deprecated in Java")
@@ -3255,7 +2522,7 @@ class MissionMapFragment : Fragment() {
         super.onActivityResult(requestCode, resultCode, data)
         if (resultCode != Activity.RESULT_OK) return
         val uri = data?.data ?: return
-        persistPreviewReadPermission(uri, data.flags)
+        previewAssetStore.persistReadPermission(uri, data.flags)
         when (requestCode) {
             REQUEST_HOME_OPEN_TIFF -> loadHomeOrthoImage(uri)
             REQUEST_HOME_OPEN_WORLD -> loadHomeOrthoWorldFile(uri)
@@ -3273,7 +2540,7 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun loadHomeOrthoImage(uri: Uri) {
-        val fileName = queryPreviewDisplayName(uri) ?: getString(R.string.ortho_unknown_image)
+        val fileName = previewAssetStore.displayName(uri) ?: getString(R.string.ortho_unknown_image)
         if (!fileName.lowercase(Locale.US).endsWith(".tif") && !fileName.lowercase(Locale.US).endsWith(".tiff")) {
             Toast.makeText(requireContext(), R.string.ortho_select_tif, Toast.LENGTH_SHORT).show()
             return
@@ -3285,9 +2552,7 @@ class MissionMapFragment : Fragment() {
         previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    requireContext().contentResolver.openInputStream(uri)?.use { stream ->
-                        tiffDecoder.decodePreview(stream, MAX_ORTHO_PREVIEW_DIMENSION_PX)
-                    } ?: error("Could not open image file.")
+                    previewAssetLoader.loadOrthoImage(uri)
                 }
             }
             result.onSuccess { decoded ->
@@ -3299,7 +2564,7 @@ class MissionMapFragment : Fragment() {
                     sourceHeight = decoded.sourceHeight,
                     notifyChange = false
                 )
-                saveHomeOrthoImageReference(uri, fileName)
+                previewAssetStore.saveOrthoImage(uri, fileName)
                 removeHomeOrthoOverlay()
                 Toast.makeText(requireContext(), R.string.ortho_load_world_next, Toast.LENGTH_SHORT).show()
                 renderPreviewMode()
@@ -3314,7 +2579,7 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun loadHomeOrthoWorldFile(uri: Uri) {
-        val fileName = queryPreviewDisplayName(uri) ?: getString(R.string.ortho_unknown_world)
+        val fileName = previewAssetStore.displayName(uri) ?: getString(R.string.ortho_unknown_world)
         if (!fileName.lowercase(Locale.US).endsWith(".tfw") && !fileName.lowercase(Locale.US).endsWith(".wld")) {
             Toast.makeText(requireContext(), R.string.ortho_select_world, Toast.LENGTH_SHORT).show()
             return
@@ -3329,14 +2594,12 @@ class MissionMapFragment : Fragment() {
         previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    requireContext().contentResolver.openInputStream(uri)?.use { stream ->
-                        worldFileParser.parse(stream, asset.sourceWidth, asset.sourceHeight)
-                    } ?: error("Could not open world file.")
+                    previewAssetLoader.loadWorldFile(uri, asset.sourceWidth, asset.sourceHeight)
                 }
             }
             result.onSuccess { bounds ->
                 previewAssetsViewModel.setOrthoBounds(bounds, fileName, uri)
-                saveHomeOrthoWorldReference(uri, fileName)
+                previewAssetStore.saveOrthoWorld(uri, fileName)
                 activePreviewMode = PreviewMode.ORTHO
                 renderPreviewMode()
             }.onFailure { error ->
@@ -3350,8 +2613,8 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun loadHomePointCloud(uri: Uri, activatePreview: Boolean = true) {
-        val fileName = queryPreviewDisplayName(uri) ?: getString(R.string.point_cloud_unknown_file)
-        if (!isSupportedPointCloudFile(fileName)) {
+        val fileName = previewAssetStore.displayName(uri) ?: getString(R.string.point_cloud_unknown_file)
+        if (!previewAssetStore.supportsPointCloud(fileName)) {
             Toast.makeText(requireContext(), R.string.point_cloud_select_ply, Toast.LENGTH_SHORT).show()
             return
         }
@@ -3362,12 +2625,12 @@ class MissionMapFragment : Fragment() {
         previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
             val result = runCatching {
                 withContext(Dispatchers.IO) {
-                    pointCloudImportCache.load(uri, fileName)
+                    previewAssetLoader.loadPointCloud(uri, fileName)
                 }
             }
             result.onSuccess { pointCloud ->
                 previewAssetsViewModel.setPointCloud(pointCloud, fileName, uri)
-                saveHomePointCloudReference(uri, fileName)
+                previewAssetStore.savePointCloud(uri, fileName)
                 if (activatePreview) {
                     activePreviewMode = PreviewMode.POINT_CLOUD
                     binding.homePointCloudGlView.setPointCloud(pointCloud)
@@ -3388,11 +2651,11 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun restorePersistedPreviewAssets() {
-        val preferences = previewPreferences()
-        val imageUri = preferences.getString(KEY_ORTHO_IMAGE_URI, null)?.let(Uri::parse)
-        val imageName = preferences.getString(KEY_ORTHO_IMAGE_NAME, null) ?: getString(R.string.ortho_unknown_image)
-        val worldUri = preferences.getString(KEY_ORTHO_WORLD_URI, null)?.let(Uri::parse)
-        val worldName = preferences.getString(KEY_ORTHO_WORLD_NAME, null)
+        val persistedAssets = previewAssetStore.readPersistedAssets()
+        val imageUri = persistedAssets.orthoImageUri
+        val imageName = persistedAssets.orthoImageName ?: getString(R.string.ortho_unknown_image)
+        val worldUri = persistedAssets.orthoWorldUri
+        val worldName = persistedAssets.orthoWorldName
         if (imageUri == null) {
             restorePointCloudOnDemand(activatePreview = false)
             return
@@ -3403,13 +2666,13 @@ class MissionMapFragment : Fragment() {
             if (previewAssetsViewModel.orthoAsset == null) {
                     val result = runCatching {
                         withContext(Dispatchers.IO) {
-                            val decoded = requireContext().contentResolver.openInputStream(imageUri)?.use { stream ->
-                                tiffDecoder.decodePreview(stream, MAX_ORTHO_PREVIEW_DIMENSION_PX)
-                            } ?: error("Could not open image file.")
+                            val decoded = previewAssetLoader.loadOrthoImage(imageUri)
                             val bounds = if (worldUri != null) {
-                                requireContext().contentResolver.openInputStream(worldUri)?.use { stream ->
-                                    worldFileParser.parse(stream, decoded.sourceWidth, decoded.sourceHeight)
-                                }
+                                previewAssetLoader.loadWorldFile(
+                                    worldUri,
+                                    decoded.sourceWidth,
+                                    decoded.sourceHeight,
+                                )
                             } else {
                                 null
                             }
@@ -3440,8 +2703,7 @@ class MissionMapFragment : Fragment() {
 
     private fun restorePointCloudOnDemand(activatePreview: Boolean = true) {
         if (previewAssetsViewModel.pointCloudAsset != null || previewAssetLoadJob?.isActive == true) return
-        val preferences = previewPreferences()
-        val uri = preferences.getString(KEY_POINT_CLOUD_URI, null)?.let(Uri::parse) ?: return
+        val uri = previewAssetStore.readPersistedAssets().pointCloudUri ?: return
         loadHomePointCloud(uri, activatePreview)
     }
 
@@ -3475,51 +2737,6 @@ class MissionMapFragment : Fragment() {
         }
     }
 
-    private fun queryPreviewDisplayName(uri: Uri): String? {
-        return requireContext().contentResolver.query(uri, null, null, null, null)?.use { cursor ->
-            val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
-            if (cursor.moveToFirst() && nameIndex >= 0) cursor.getString(nameIndex) else null
-        }
-    }
-
-    private fun isSupportedPointCloudFile(fileName: String): Boolean {
-        val lowerName = fileName.lowercase(Locale.US)
-        return SUPPORTED_POINT_CLOUD_EXTENSIONS.any { extension -> lowerName.endsWith(extension) }
-    }
-
-    private fun persistPreviewReadPermission(uri: Uri, flags: Int) {
-        val readFlags = flags and Intent.FLAG_GRANT_READ_URI_PERMISSION
-        if (readFlags == 0) return
-        runCatching {
-            requireContext().contentResolver.takePersistableUriPermission(uri, readFlags)
-        }
-    }
-
-    private fun saveHomeOrthoImageReference(uri: Uri, fileName: String) {
-        previewPreferences().edit()
-            .putString(KEY_ORTHO_IMAGE_URI, uri.toString())
-            .putString(KEY_ORTHO_IMAGE_NAME, fileName)
-            .remove(KEY_ORTHO_WORLD_URI)
-            .remove(KEY_ORTHO_WORLD_NAME)
-            .apply()
-    }
-
-    private fun saveHomeOrthoWorldReference(uri: Uri, fileName: String) {
-        previewPreferences().edit()
-            .putString(KEY_ORTHO_WORLD_URI, uri.toString())
-            .putString(KEY_ORTHO_WORLD_NAME, fileName)
-            .apply()
-    }
-
-    private fun saveHomePointCloudReference(uri: Uri, fileName: String) {
-        previewPreferences().edit()
-            .putString(KEY_POINT_CLOUD_URI, uri.toString())
-            .putString(KEY_POINT_CLOUD_NAME, fileName)
-            .apply()
-    }
-
-    private fun previewPreferences() = requireContext().getSharedPreferences(PREVIEW_PREFS, Context.MODE_PRIVATE)
-
     private fun drawSprayMissionOnMap(distance: Double, angle: Int, generation: Long) {
         terrainSurveyJob?.cancel()
         val shouldClassifyPointCloud = activityViewModel.beginPointCloudCoverageCheck()
@@ -3552,16 +2769,19 @@ class MissionMapFragment : Fragment() {
             )
 
             val generated = withContext(Dispatchers.Default) {
-                val rawBasePath = SurveyPlanner().buildSurveyPath(
+                val rawBasePath = missionPlanningCoordinator.buildAreaPath(
                     polygon = polygonLatLon,
-                    distanceMeters = distance,
-                    angleDeg = angle,
-                    obstacles = obstacles
+                    operationMode = PlanningOperationMode.SPRAY,
+                    obstacles = obstacles,
+                    sprayDistanceMeters = distance,
+                    sprayAngleDegrees = angle,
+                    surveyParams = null,
                 )
-                val generatedBasePath = orderPathForHome(
-                    rawBasePath.map { LatLng(it.lat, it.lon) },
-                    plannedHome,
-                ).map { LatLon(it.latitude, it.longitude) }
+                val generatedBasePath = missionPlanningCoordinator.orderPathForHome(
+                    path = rawBasePath,
+                    home = plannedHome,
+                    operationMode = PlanningOperationMode.SPRAY,
+                )
                 // Membership is classified once, when the operator accepts the area. Parameter
                 // edits may rebuild heights and spacing, but must not make the 3D controls blink.
                 val areaCoverage = if (shouldClassifyPointCloud) {
@@ -3661,10 +2881,13 @@ class MissionMapFragment : Fragment() {
 
         terrainSurveyJob = viewLifecycleOwner.lifecycleScope.launch {
             val pathLatLon = withContext(Dispatchers.Default) {
-                SurveyGridPlanner().buildSurveyPath(
+                missionPlanningCoordinator.buildAreaPath(
                     polygon = polygonLatLon,
-                    params = params,
-                    obstacles = obstacles
+                    operationMode = PlanningOperationMode.SURVEY,
+                    obstacles = obstacles,
+                    sprayDistanceMeters = 0.0,
+                    sprayAngleDegrees = 0,
+                    surveyParams = params,
                 )
             }
             if (generation != missionPlanningGeneration || _binding == null) return@launch
@@ -3732,18 +2955,12 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun missionPathTotalDistance(path: List<LatLng>): Double {
-        val pathDistance = path.zipWithNext().sumOf { (from, to) ->
-            SphericalUtil.computeDistanceBetween(from, to)
-        }
         val homePosition = activityViewModel.plannedHomePosition.value
             ?.takeIf(::isValidDronePosition)
-            ?: return pathDistance
-        val firstPoint = path.firstOrNull() ?: return pathDistance
-        val outboundDistance = SphericalUtil.computeDistanceBetween(
-            LatLng(homePosition.lat, homePosition.lon),
-            firstPoint
+        return missionPlanningCoordinator.totalDistance(
+            path = path.map { LatLon(it.latitude, it.longitude) },
+            home = homePosition,
         )
-        return outboundDistance + pathDistance
     }
 
     private fun showMissionUploadSummaryDialog(onConfirmed: () -> Unit) {
@@ -3864,104 +3081,48 @@ class MissionMapFragment : Fragment() {
     }
 
     override fun onDestroyView() {
-        if (::flightModeUiBinder.isInitialized) flightModeUiBinder.dismiss()
-        if (::armUiBinder.isInitialized) armUiBinder.dismiss()
-        stopMissionSimulation()
-        missionRedrawDebounceJob?.cancel()
-        missionRedrawDebounceJob = null
-        geoPlanningJob?.cancel()
-        geoPlanningJob = null
-        missionSummaryJob?.cancel()
-        missionSummaryJob = null
-        liveGeoUpdateJob?.cancel()
-        liveGeoUpdateJob = null
-        terrainSurveyJob?.cancel()
-        terrainSurveyJob = null
-        previewAssetLoadJob?.cancel()
-        previewAssetLoadJob = null
-        weatherRequestJob?.cancel()
-        weatherRequestJob = null
-        cancelDroneOffsetAdjustment()
-        showShellToolbar()
-        geoZoneOverlayController?.clear()
-        terrainCoverageOverlayController?.clear()
-        osmdroidObstacleEditor.release()
-        geoZoneOverlayController = null
-        terrainCoverageOverlayController = null
-        geoAwarenessChecker = null
-        liveGeoAwarenessStatusBinder = null
-        liveGeoAwarenessChecker = null
-        clearFlightTrace()
-        if (::mapView.isInitialized) mapView.onDetach()
+        viewLifecycleController.onDestroyView {
+            if (::flightModeUiBinder.isInitialized) flightModeUiBinder.dismiss()
+            if (::armUiBinder.isInitialized) armUiBinder.dismiss()
+            stopMissionSimulation()
+            missionRedrawDebounceJob?.cancel()
+            geoPlanningJob?.cancel()
+            missionSummaryJob?.cancel()
+            liveGeoUpdateJob?.cancel()
+            terrainSurveyJob?.cancel()
+            previewAssetLoadJob?.cancel()
+            if (::windWeatherController.isInitialized) windWeatherController.dispose()
+            cancelDroneOffsetAdjustment()
+            geoZoneOverlayController?.clear()
+            terrainCoverageOverlayController?.clear()
+            osmdroidObstacleEditor.release()
+            geoZoneOverlayController = null
+            terrainCoverageOverlayController = null
+            liveGeoAwarenessStatusBinder = null
+            liveGeoAwarenessChecker = null
+            clearFlightTrace()
+        }
         super.onDestroyView()
         _binding = null
     }
 
+
     override fun onResume() {
         super.onResume()
-        hideShellToolbar()
-        esriMapLayers.refreshLabelsEnabled()
-        mapView.onResume()
-        osmdroidMapController.onResume()
-        if (activePreviewMode == PreviewMode.POINT_CLOUD) {
-            binding.homePointCloudGlView.onResume()
-        }
-        binding.root.post {
+        viewLifecycleController.onResume {
             refreshPreviewAssets()
             renderCurrentSurveyPathOnMap()
             redrawAreaMissionIfEditable()
-            if (!focusPreviewAssetOnMapIfRequested()) {
-                centerInitialViewportIfNeeded()
-            }
+            initialViewportController.centerIfNeeded()
         }
     }
 
     override fun onPause() {
-        stopMissionSimulation()
-        cancelDroneOffsetAdjustment()
-        showShellToolbar()
-        binding.homePointCloudGlView.onPause()
-        osmdroidMapController.onPause()
-        mapView.onPause()
+        viewLifecycleController.onPause {
+            stopMissionSimulation()
+            cancelDroneOffsetAdjustment()
+        }
         super.onPause()
-    }
-
-    private fun hideShellToolbar() {
-        requireActivity().findViewById<Toolbar>(R.id.customToolbar)?.navigationIcon = null
-        requireActivity().findViewById<View?>(R.id.appBarMain)?.visibility = View.GONE
-    }
-
-    private fun showShellToolbar() {
-        activity?.findViewById<View?>(R.id.appBarMain)?.visibility = View.VISIBLE
-    }
-
-    private fun centerInitialViewportIfNeeded() {
-        if (_binding == null) return
-        if (hasCenteredToDrone) return
-        if (previewAssetsViewModel.hasPendingMapFocusRequest()) {
-            if (focusPreviewAssetOnMapIfRequested()) return
-        }
-
-        if (osmdroidMapController.hasDronePosition()) {
-            centerOnDroneIfNeeded()
-            return
-        }
-
-        if (initialDroneCenterAttemptCount < MAX_INITIAL_DRONE_CENTER_ATTEMPTS) {
-            initialDroneCenterAttemptCount += 1
-            _binding?.root?.postDelayed({ centerInitialViewportIfNeeded() }, 1000L)
-            return
-        }
-
-        if (hasCenteredInitialViewport) return
-
-        val centered = osmdroidMapController.centerOnUserIfPermitted(showErrors = false)
-        if (centered) {
-            hasCenteredInitialViewport = true
-        } else if (initialCenterAttemptCount < 10) {
-            initialCenterAttemptCount += 1
-            _binding?.root?.postDelayed({ centerInitialViewportIfNeeded() }, 1000L)
-        }
     }
 
     private fun focusPreviewAssetOnMapIfRequested(): Boolean {
@@ -3971,8 +3132,7 @@ class MissionMapFragment : Fragment() {
             PreviewMapFocus.ORTHO -> focusOrthoOnMap() || focusPointCloudOnMap()
         }
         if (centered) {
-            hasCenteredToDrone = true
-            hasCenteredInitialViewport = true
+            initialViewportController.markCenteredToDrone()
         }
         return centered
     }
@@ -4037,40 +3197,13 @@ class MissionMapFragment : Fragment() {
 
     private fun log2(value: Double): Double = ln(value) / ln(2.0)
 
-    private fun centerOnDroneIfNeeded() {
-        if (hasCenteredToDrone) return
-        if (previewAssetsViewModel.hasPendingMapFocusRequest()) {
-            if (focusPreviewAssetOnMapIfRequested()) return
-        }
-
-        if (osmdroidMapController.centerOnDrone()) {
-            hasCenteredToDrone = true
-            hasCenteredInitialViewport = true
-        } else {
-            centerInitialViewportIfNeeded()
-        }
-    }
-
     private fun handleArmedStateChanged(isArmed: Boolean) {
-        if (!wasDroneArmed && isArmed) {
-            val currentPosition = latestRealDronePosition
-            if (currentPosition != null && isValidDronePosition(currentPosition)) {
-                setHomeMarker(currentPosition)
-            } else {
-                pendingHomeMarkerAfterArm = true
-            }
-        } else if (wasDroneArmed && !isArmed) {
-            resetCurrentFlightUgzAuthorizations("disarmed")
-        }
-        wasDroneArmed = isArmed
+        droneMapTrackingController.handleArmedState(isArmed)
     }
 
     private fun syncLatestDroneLocationSnapshot(droneLocation: android.location.Location?) {
         val usableLocation = droneLocation?.takeIf(::isUsableDroneLocation)
-        latestRawDronePosition = usableLocation?.let {
-            LatLon(lat = it.latitude, lon = it.longitude)
-        }
-        latestRealDronePosition = latestRawDronePosition?.let(::applyDroneOffset)
+        droneMapTrackingController.syncLocation(usableLocation)
         latestRealDroneAltitudeMeters = usableLocation?.altitude
         latestRealDroneHorizontalAccuracyMeters = usableLocation
             ?.takeIf { it.hasAccuracy() }
@@ -4080,25 +3213,14 @@ class MissionMapFragment : Fragment() {
             ?.verticalAccuracyMeters
     }
 
-    private fun applyDroneOffset(position: LatLon): LatLon {
-        return LatLon(
-            lat = position.lat + droneOffsetLatitude,
-            lon = position.lon + droneOffsetLongitude
-        )
-    }
-
     private fun currentOffsetDroneLocation(): android.location.Location? {
         val source = droneViewModel.droneLocationLiveData.value?.takeIf(::isUsableDroneLocation) ?: return null
-        return android.location.Location(source).apply {
-            latitude = source.latitude + droneOffsetLatitude
-            longitude = source.longitude + droneOffsetLongitude
-        }
+        return droneMapTrackingController.offsetLocation(source)
     }
 
     private fun resetCurrentFlightUgzAuthorizations(reason: String) {
-        if (authorizedUgzIdsForCurrentFlight.isEmpty()) return
-        val resetIds = authorizedUgzIdsForCurrentFlight.toList()
-        authorizedUgzIdsForCurrentFlight.clear()
+        val resetIds = geoAuthorizationSession.reset().toList()
+        if (resetIds.isEmpty()) return
         geoEventLogger.logSimple(
             type = GeoAwarenessEventType.UGZ_AUTHORIZATION_RESET,
             severity = "INFO",
@@ -4116,20 +3238,7 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun maybeSetPendingHomeMarker(position: LatLon) {
-        if (!pendingHomeMarkerAfterArm) return
-        if (!isValidDronePosition(position)) return
-        setHomeMarker(position)
-        pendingHomeMarkerAfterArm = false
-    }
-
-    private fun setHomeMarker(position: LatLon) {
-        if (homePosition != null) return
-        if (!isValidDronePosition(position)) return
-        if (osmdroidMapController.setHomeMarker(position.lat, position.lon)) {
-            homePosition = position
-            activityViewModel.setPlannedHomePosition(position)
-            Log.d(MAP_FLIGHT_TRACE_TAG, "home marker set lat=${position.lat} lon=${position.lon}")
-        }
+        droneMapTrackingController.capturePendingHome(position)
     }
 
     private fun startPlannedHomePlacement() {
@@ -4143,21 +3252,11 @@ class MissionMapFragment : Fragment() {
             return
         }
 
-        homePlacementMode = true
-        cancelDroneOffsetAdjustment()
-        cancelObstaclePlacement()
-        osmdroidPolygonEditor.setEnabled(false)
-        osmdroidRouteWaypointEditor.setEnabled(false)
-        osmdroidMapController.setSurveyWaypointEditingEnabled(false)
-        osmdroidMapController.setHomePlacementEnabled(true) { selectedPoint ->
-            placePlannedHome(LatLon(lat = selectedPoint.latitude, lon = selectedPoint.longitude))
-        }
+        plannedHomePlacementController.start()
         Toast.makeText(requireContext(), getString(R.string.tap_map_to_place_home), Toast.LENGTH_SHORT).show()
     }
 
     private fun placePlannedHome(plannedHomePosition: LatLon) {
-        homePlacementMode = false
-        osmdroidMapController.setHomePlacementEnabled(false)
         if (!isValidDronePosition(plannedHomePosition)) return
 
         activityViewModel.setPlannedHomePosition(plannedHomePosition)
@@ -4170,73 +3269,30 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun cancelPlannedHomePlacement() {
-        if (!homePlacementMode) return
-        homePlacementMode = false
-        if (::osmdroidMapController.isInitialized) {
-            osmdroidMapController.setHomePlacementEnabled(false)
-        }
+        if (::plannedHomePlacementController.isInitialized) plannedHomePlacementController.cancel()
     }
 
     private fun maybeAppendFlightTrace(position: LatLon) {
-        if (droneViewModel.conStateLiveData.value != true) return
-        if (droneViewModel.armedState.value != true) return
-        appendFlightTracePoint(position)
-    }
-
-    private fun appendFlightTracePoint(position: LatLon) {
-        if (!shouldAppendTracePoint(position)) return
-        osmdroidMapController.appendFlightTracePoint(position.lat, position.lon)
-        lastTracePosition = position
-        flightTracePointCount += 1
-        when {
-            flightTracePointCount == 1 -> Log.d(MAP_FLIGHT_TRACE_TAG, "trace started")
-            flightTracePointCount % 50 == 0 -> Log.d(MAP_FLIGHT_TRACE_TAG, "trace point count=$flightTracePointCount")
-        }
+        droneMapTrackingController.appendTraceIfFlying(
+            position = position,
+            connected = droneViewModel.conStateLiveData.value == true,
+            armed = droneViewModel.armedState.value == true,
+        )
     }
 
     private fun clearFlightTrace() {
-        osmdroidMapController.clearFlightTraceAndHome()
-        homePosition = null
-        pendingHomeMarkerAfterArm = false
-        lastTracePosition = null
-        flightTracePointCount = 0
-    }
-
-    private fun shouldAppendTracePoint(position: LatLon): Boolean {
-        if (!isValidDronePosition(position)) return false
-        val lastPosition = lastTracePosition ?: return true
-        return distanceMeters(lastPosition, position) >= MIN_TRACE_POINT_DISTANCE_METERS
+        droneMapTrackingController.clearTraceAndHome()
     }
 
     private fun isValidDronePosition(position: LatLon): Boolean {
-        return position.lat.isFinite() &&
-            position.lon.isFinite() &&
-            position.lat in -90.0..90.0 &&
-            position.lon in -180.0..180.0 &&
-            (kotlin.math.abs(position.lat) > MIN_VALID_ABS_COORDINATE ||
-                kotlin.math.abs(position.lon) > MIN_VALID_ABS_COORDINATE)
-    }
-
-    private fun distanceMeters(start: LatLon, end: LatLon): Double {
-        val earthRadiusMeters = 6_371_000.0
-        val dLat = Math.toRadians(end.lat - start.lat)
-        val dLon = Math.toRadians(end.lon - start.lon)
-        val startLat = Math.toRadians(start.lat)
-        val endLat = Math.toRadians(end.lat)
-        val a = sin(dLat / 2.0) * sin(dLat / 2.0) +
-            cos(startLat) * cos(endLat) * sin(dLon / 2.0) * sin(dLon / 2.0)
-        return earthRadiusMeters * 2.0 * atan2(sqrt(a), sqrt(1.0 - a))
+        return DroneMapTrackingController.isValidPosition(position)
     }
 
     private fun loadGeoAwarenessZonesIfNeeded(): Boolean {
         if (geoAwarenessZones.isNotEmpty()) {
             if (geoAwarenessHealth == null) {
-                val health = GeoAwarenessHealthEvaluator.evaluate(
-                    datasetInfo = geoZoneDatasetInfo,
-                    zones = geoAwarenessZones,
-                    datasetRecords = activityViewModel.geoZoneDatasetRecords.value.orEmpty(),
-                    validationResult = geoZoneValidationResult,
-                    loadError = geoAwarenessLoadError
+                val health = geoAwarenessDatasetController.ensureHealth(
+                    activityViewModel.geoZoneDatasetRecords.value.orEmpty()
                 )
                 geoAwarenessHealth = health
                 activityViewModel.geoAwarenessHealth.value = health
@@ -4249,33 +3305,26 @@ class MissionMapFragment : Fragment() {
         geoAwarenessDatasetLoadAttempted = true
 
         try {
-            val repository = buildGeoZoneRepository()
-            val loadResult = repository.loadCurrentDataset()
-            applyGeoZoneLoadResult(loadResult, repository.hasImportedDatasets())
-            logDatasetLoaded(loadResult.datasetInfo)
-            logDatasetValidation(loadResult.validationResult, loadResult.datasetInfo)
-            logMultiDatasetLoadedIfNeeded(loadResult)
-            geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
+            val outcome = geoAwarenessDatasetController.loadCurrent()
+            val loadResult = outcome.result
+            applyGeoZoneLoadOutcome(outcome)
+            geoAwarenessEventTracker.datasetLoaded(loadResult.datasetInfo)
+            geoAwarenessEventTracker.datasetValidation(loadResult.validationResult, loadResult.datasetInfo)
+            geoAwarenessEventTracker.multiDatasetLoaded(loadResult)
+            geoAwarenessHealth?.let(geoAwarenessEventTracker::healthEvaluation)
             return true
         } catch (error: Exception) {
             Log.e(GEO_ZONE_TOGGLE_TAG, "Failed to load geo-awareness zones", error)
-            geoAwarenessZones = emptyList()
-            geoZoneDatasetInfo = null
-            geoAwarenessLoadError = error
-            geoZoneValidationResult = null
-            geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
-                datasetInfo = null,
-                zones = emptyList(),
-                datasetRecords = emptyList(),
-                loadError = error
-              )
+            applyGeoAwarenessSnapshot(
+                geoAwarenessDatasetController.recordFailure(error, emptyList())
+            )
               activityViewModel.geoZoneDatasetInfo.value = null
               activityViewModel.geoZoneValidationResult.value = null
               activityViewModel.geoZoneDatasetRecords.value = emptyList()
               activityViewModel.geoZoneImportedActive.value = false
               activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
-              logDatasetLoadFailed(error)
-            geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
+              geoAwarenessEventTracker.datasetLoadFailed(error)
+            geoAwarenessHealth?.let(geoAwarenessEventTracker::healthEvaluation)
         }
 
         return false
@@ -4297,69 +3346,53 @@ class MissionMapFragment : Fragment() {
     private fun reloadCurrentGeoAwarenessDataset() {
         if (geoZoneReloadInProgress) return
         geoZoneReloadInProgress = true
-        val appContext = requireContext().applicationContext
         lifecycleScope.launch {
             try {
-                val reloadResult = withContext(Dispatchers.IO) {
-                    val repository = GeoZoneRepository(
-                        importedFileDataSource = GeoZoneImportedFileDataSource(appContext)
-                    )
-                    repository.loadCurrentDataset() to repository.hasImportedDatasets()
+                val outcome = withContext(Dispatchers.IO) {
+                    geoAwarenessDatasetController.reloadCurrent()
                 }
-                val (loadResult, importedActive) = reloadResult
+                val loadResult = outcome.result
                 if (_binding == null) return@launch
                 geoAwarenessDatasetLoadAttempted = true
-                applyGeoZoneLoadResult(loadResult, importedActive)
-                logMultiDatasetLoadedIfNeeded(loadResult)
+                applyGeoZoneLoadOutcome(outcome)
+                geoAwarenessEventTracker.multiDatasetLoaded(loadResult)
                 renderGeoAwarenessLayerIfVisible()
                 updateGeoAwarenessPlanningStatus()
                 updateLiveGeoAwarenessFromActiveSource()
-                geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
+                geoAwarenessHealth?.let(geoAwarenessEventTracker::healthEvaluation)
             } catch (error: Exception) {
                 geoAwarenessDatasetLoadAttempted = true
                 Log.e(GEO_ZONE_TOGGLE_TAG, "Failed to reload geo-awareness dataset", error)
-                geoAwarenessLoadError = error
-                geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
-                    datasetInfo = geoZoneDatasetInfo,
-                    zones = geoAwarenessZones,
-                    datasetRecords = activityViewModel.geoZoneDatasetRecords.value.orEmpty(),
-                    validationResult = geoZoneValidationResult,
-                    loadError = error
+                applyGeoAwarenessSnapshot(
+                    geoAwarenessDatasetController.recordFailure(
+                        error,
+                        activityViewModel.geoZoneDatasetRecords.value.orEmpty(),
+                    )
                 )
                 activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
-                geoAwarenessHealth?.let { logHealthEvaluationIfNeeded(it) }
+                geoAwarenessHealth?.let(geoAwarenessEventTracker::healthEvaluation)
             } finally {
                 geoZoneReloadInProgress = false
             }
         }
     }
 
-    private fun buildGeoZoneRepository(): GeoZoneRepository {
-        val appContext = requireContext().applicationContext
-        return GeoZoneRepository(
-            importedFileDataSource = GeoZoneImportedFileDataSource(appContext)
-        )
-    }
-
-    private fun applyGeoZoneLoadResult(
-        result: com.example.droneservicesapp.domain.geoawareness.GeoZoneLoadResult,
-        importedActive: Boolean
-    ) {
-        geoAwarenessZones = result.zones
-        geoZoneDatasetInfo = result.datasetInfo
-        geoZoneValidationResult = result.validationResult
-        geoAwarenessLoadError = null
-        geoAwarenessHealth = GeoAwarenessHealthEvaluator.evaluate(
-            datasetInfo = result.datasetInfo,
-            zones = result.zones,
-            datasetRecords = result.datasetRecords,
-            validationResult = result.validationResult
-        )
+    private fun applyGeoZoneLoadOutcome(outcome: GeoAwarenessDatasetController.LoadOutcome) {
+        val result = outcome.result
+        applyGeoAwarenessSnapshot(outcome.snapshot)
         activityViewModel.geoZoneDatasetInfo.value = result.datasetInfo
         activityViewModel.geoZoneValidationResult.value = result.validationResult
         activityViewModel.geoZoneDatasetRecords.value = result.datasetRecords
-        activityViewModel.geoZoneImportedActive.value = importedActive
+        activityViewModel.geoZoneImportedActive.value = outcome.snapshot.importedActive
         activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
+    }
+
+    private fun applyGeoAwarenessSnapshot(snapshot: GeoAwarenessDatasetController.Snapshot) {
+        geoAwarenessZones = snapshot.zones
+        geoZoneDatasetInfo = snapshot.datasetInfo
+        geoZoneValidationResult = snapshot.validationResult
+        geoAwarenessLoadError = snapshot.loadError
+        geoAwarenessHealth = snapshot.health
     }
 
     private fun renderGeoAwarenessLayerIfVisible() {
@@ -4414,9 +3447,9 @@ class MissionMapFragment : Fragment() {
             return
         }
 
-        latestGeoAwarenessResult = calculateGeoAwarenessPlanningResult()
+        latestGeoAwarenessResult = evaluateGeoAwarenessPlanningResult()
         ensureGeoAwarenessHealth()
-        logPlanningStatusIfNeeded(latestGeoAwarenessResult)
+        geoAwarenessEventTracker.planningStatus(latestGeoAwarenessResult)
         Log.d(
             GEO_PLANNING_STATUS_TAG,
             "Planning geo-awareness updated: conflicts=${latestGeoAwarenessResult.conflicts.size} highest=${latestGeoAwarenessResult.highestRestriction} canUpload=${latestGeoAwarenessResult.canUpload}"
@@ -4425,49 +3458,24 @@ class MissionMapFragment : Fragment() {
 
     private fun scheduleGeoAwarenessPlanningStatusUpdate() {
         if (_binding == null) return
-
-        val missionPolygon = activityViewModel.missionArea.value?.vertices
-            ?.takeIf { it.isNotEmpty() }
-            ?.map { LatLon(lat = it.latitude, lon = it.longitude) }
-        val surveyPath = activityViewModel.surveyPath.value.orEmpty()
-            .map { LatLon(lat = it.latitude, lon = it.longitude) }
-        val pointRoutePath = activityViewModel.plannedRoutePath.value.orEmpty()
-            .takeIf { it.isNotEmpty() }
-            ?.map { LatLon(lat = it.latitude, lon = it.longitude) }
-            ?: activityViewModel.routeWaypoints.value.orEmpty()
-                .map { LatLon(lat = it.latitude, lon = it.longitude) }
-        val planningPath = if (activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS) {
-            pointRoutePath
-        } else {
-            surveyPath
-        }
-        val altitudeContext = GeoAltitudeContext(
-            aglMeters = activityViewModel.flightAltProgress.value?.toDouble()
-        )
-
-        if (missionPolygon.isNullOrEmpty() && planningPath.isEmpty()) {
+        val input = geoAwarenessPlanningInput()
+        if (!input.hasGeometry) {
             geoPlanningJob?.cancel()
             latestGeoAwarenessResult = GeoAwarenessResult.clear()
             return
         }
         if (!loadGeoAwarenessZonesIfNeeded()) return
-        val checker = geoAwarenessChecker ?: return
-        val zones = geoAwarenessZones.toList()
+        val snapshot = input.copy(zones = geoAwarenessZones.toList())
 
         geoPlanningJob?.cancel()
         geoPlanningJob = viewLifecycleOwner.lifecycleScope.launch {
             val result = withContext(Dispatchers.Default) {
-                checker.checkMission(
-                    missionPolygon = missionPolygon,
-                    surveyPath = planningPath,
-                    altitudeContext = altitudeContext,
-                    zones = zones
-                )
+                geoAwarenessPlanningController.evaluate(snapshot)
             }
             if (_binding == null) return@launch
             latestGeoAwarenessResult = result
             ensureGeoAwarenessHealth()
-            logPlanningStatusIfNeeded(result)
+            geoAwarenessEventTracker.planningStatus(result)
             Log.d(
                 GEO_PLANNING_STATUS_TAG,
                 "Planning geo-awareness updated: conflicts=${result.conflicts.size} " +
@@ -4476,7 +3484,7 @@ class MissionMapFragment : Fragment() {
         }
     }
 
-    private fun calculateGeoAwarenessPlanningResult(): GeoAwarenessResult {
+    private fun geoAwarenessPlanningInput(): GeoAwarenessPlanningController.Input {
         val missionPolygon = activityViewModel.missionArea.value?.vertices
             ?.takeIf { it.isNotEmpty() }
             ?.map { LatLon(lat = it.latitude, lon = it.longitude) }
@@ -4496,41 +3504,18 @@ class MissionMapFragment : Fragment() {
         } else {
             surveyPath
         }
-        val altitudeMeters = activityViewModel.flightAltProgress.value?.toDouble()
-        // TODO: Confirm altitude source unit is meters.
-
-        if (missionPolygon.isNullOrEmpty() && planningPath.isEmpty()) {
-            return GeoAwarenessResult.clear()
-        }
-
-        if (!loadGeoAwarenessZonesIfNeeded()) {
-            return GeoAwarenessResult.clear()
-        }
-
-        return geoAwarenessChecker?.checkMission(
+        return GeoAwarenessPlanningController.Input(
             missionPolygon = missionPolygon,
-            surveyPath = planningPath,
-            altitudeContext = GeoAltitudeContext(aglMeters = altitudeMeters),
-            zones = geoAwarenessZones
-        ) ?: GeoAwarenessResult.clear()
+            planningPath = planningPath,
+            aglAltitudeMeters = activityViewModel.flightAltProgress.value?.toDouble(),
+            zones = geoAwarenessZones,
+        )
     }
 
-    private fun formatConflictType(conflictType: GeoConflictType): String {
-        return when (conflictType) {
-            GeoConflictType.MISSION_AREA_INTERSECTS_ZONE -> "Mission area intersects zone"
-            GeoConflictType.SURVEY_PATH_INTERSECTS_ZONE -> "Survey path intersects zone"
-            GeoConflictType.WAYPOINT_INSIDE_ZONE -> "Waypoint inside zone"
-        }
-    }
-
-    private fun restrictionRank(restriction: GeoZoneRestriction): Int {
-        return when (restriction) {
-            GeoZoneRestriction.PROHIBITED -> 4
-            GeoZoneRestriction.REQ_AUTHORISATION -> 3
-            GeoZoneRestriction.CONDITIONAL -> 2
-            GeoZoneRestriction.INFORMATION -> 1
-            GeoZoneRestriction.UNKNOWN -> 0
-        }
+    private fun evaluateGeoAwarenessPlanningResult(): GeoAwarenessResult {
+        val input = geoAwarenessPlanningInput()
+        if (!input.hasGeometry || !loadGeoAwarenessZonesIfNeeded()) return GeoAwarenessResult.clear()
+        return geoAwarenessPlanningController.evaluate(input.copy(zones = geoAwarenessZones))
     }
 
     private fun ensureGeoAwarenessHealth(): GeoAwarenessHealth {
@@ -4538,22 +3523,18 @@ class MissionMapFragment : Fragment() {
             loadGeoAwarenessZonesIfNeeded()
         }
 
-        val health = GeoAwarenessHealthEvaluator.evaluate(
-            datasetInfo = geoZoneDatasetInfo,
-            zones = geoAwarenessZones,
-            datasetRecords = activityViewModel.geoZoneDatasetRecords.value.orEmpty(),
-            validationResult = geoZoneValidationResult,
-            loadError = geoAwarenessLoadError
+        val health = geoAwarenessDatasetController.ensureHealth(
+            activityViewModel.geoZoneDatasetRecords.value.orEmpty()
         )
         geoAwarenessHealth = health
         activityViewModel.geoAwarenessHealth.value = health
-        logHealthEvaluationIfNeeded(health)
+        geoAwarenessEventTracker.healthEvaluation(health)
         return health
     }
 
     private fun handleGeoAwarenessBeforeUpload(onAllowed: () -> Unit) {
         val result = try {
-            calculateGeoAwarenessPlanningResult().also { latestGeoAwarenessResult = it }
+            evaluateGeoAwarenessPlanningResult().also { latestGeoAwarenessResult = it }
         } catch (error: Exception) {
             Log.w(GEO_UPLOAD_GUARD_TAG, "Geo-awareness result unavailable; proceeding with existing unavailable policy", error)
             onAllowed()
@@ -4561,22 +3542,20 @@ class MissionMapFragment : Fragment() {
         }
         val health = ensureGeoAwarenessHealth()
 
-        if (!result.hasConflicts) {
-            Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: clear, proceeding")
-            geoEventLogger.logSimple(
-                type = GeoAwarenessEventType.UPLOAD_GUARD_CLEAR,
-                severity = "INFO",
-                message = "Geo upload guard clear, proceeding",
-                datasetTitle = geoZoneDatasetInfo?.title,
-                datasetVersion = geoZoneDatasetInfo?.version,
-                healthState = health.state.name
-            )
-            onAllowed()
-            return
-        }
-
-        when {
-            !result.canUpload -> {
+        when (val decision = GeoUploadGuardPolicy.decide(result, geoAuthorizationSession)) {
+            GeoUploadGuardPolicy.Decision.AllowClear -> {
+                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: clear, proceeding")
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.UPLOAD_GUARD_CLEAR,
+                    severity = "INFO",
+                    message = "Geo upload guard clear, proceeding",
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = health.state.name
+                )
+                onAllowed()
+            }
+            GeoUploadGuardPolicy.Decision.Block -> {
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: blocked conflicts=${result.conflicts.size}")
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.UPLOAD_BLOCKED,
@@ -4595,7 +3574,7 @@ class MissionMapFragment : Fragment() {
                 )
                 showGeoAwarenessBlockedDialog(result)
             }
-            result.highestRestriction == GeoZoneRestriction.PROHIBITED -> {
+            GeoUploadGuardPolicy.Decision.RequireProhibitedAcknowledgement -> {
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: prohibited acknowledgement required conflicts=${result.conflicts.size}")
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.UPLOAD_ACK_REQUIRED,
@@ -4633,30 +3612,25 @@ class MissionMapFragment : Fragment() {
                     onAllowed()
                 }
             }
-            result.requiresAcknowledgement -> {
-                val authorizationZones = authorizationRequiredZones(result)
-                val unconfirmedAuthorizationZones = authorizationZones
-                    .filter { it.id !in authorizedUgzIdsForCurrentFlight }
-                    .distinctBy { it.id }
-                if (unconfirmedAuthorizationZones.isEmpty()) {
-                    Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: authorization already confirmed for current flight")
-                    geoEventLogger.logSimple(
-                        type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
-                        severity = "INFO",
-                        message = "Geo upload authorization already confirmed for current flight",
-                        category = "MISSION",
-                        datasetTitle = geoZoneDatasetInfo?.title,
-                        datasetVersion = geoZoneDatasetInfo?.version,
-                        healthState = health.state.name,
-                        zoneIds = authorizationZones.map { it.id }.distinct(),
-                        zoneNames = authorizationZones.map { it.name }.distinct(),
-                        restriction = GeoZoneRestriction.REQ_AUTHORISATION.name,
-                        details = mapOf("authorizationScope" to "current_flight")
-                    )
-                    onAllowed()
-                    return
-                }
-
+            is GeoUploadGuardPolicy.Decision.AllowPreviouslyAuthorized -> {
+                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: authorization already confirmed for current flight")
+                geoEventLogger.logSimple(
+                    type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
+                    severity = "INFO",
+                    message = "Geo upload authorization already confirmed for current flight",
+                    category = "MISSION",
+                    datasetTitle = geoZoneDatasetInfo?.title,
+                    datasetVersion = geoZoneDatasetInfo?.version,
+                    healthState = health.state.name,
+                    zoneIds = decision.zones.map { it.id },
+                    zoneNames = decision.zones.map { it.name },
+                    restriction = GeoZoneRestriction.REQ_AUTHORISATION.name,
+                    details = mapOf("authorizationScope" to "current_flight")
+                )
+                onAllowed()
+            }
+            is GeoUploadGuardPolicy.Decision.RequireAuthorization -> {
+                val unconfirmedAuthorizationZones = decision.zones
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: authorization confirmation required conflicts=${result.conflicts.size}")
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.UPLOAD_ACK_REQUIRED,
@@ -4690,8 +3664,8 @@ class MissionMapFragment : Fragment() {
                     altitudeMeters = latestRealDroneAltitudeMeters
                 )
                 showGeoAwarenessAcknowledgementDialog(result, health) {
-                    val confirmedZones = authorizationRequiredZones(result).distinctBy { it.id }
-                    authorizedUgzIdsForCurrentFlight += confirmedZones.map { it.id }
+                    val confirmedZones = geoAuthorizationSession.requiredZones(result)
+                    geoAuthorizationSession.confirm(confirmedZones)
                     Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after acknowledgement")
                     geoEventLogger.logSimple(
                         type = GeoAwarenessEventType.UGZ_AUTHORIZATION_CONFIRMED,
@@ -4732,7 +3706,7 @@ class MissionMapFragment : Fragment() {
                     onAllowed()
                 }
             }
-            else -> {
+            GeoUploadGuardPolicy.Decision.ShowNotice -> {
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: notice conflicts=${result.conflicts.size}")
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.UPLOAD_CONTINUED_WITH_WARNING,
@@ -4758,15 +3732,7 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun showGeoAwarenessBlockedDialog(result: GeoAwarenessResult) {
-        val message = buildString {
-            appendLine(getString(R.string.geo_dialog_blocked_body))
-            appendLine()
-            append(buildGeoConflictSummary(result))
-        }
-        showGeoAwarenessDialog(
-            title = getString(R.string.geo_dialog_upload_blocked),
-            message = message
-        )
+        geoAwarenessDialogController.showBlocked(result)
     }
 
     private fun showGeoAwarenessProhibitedAcknowledgementDialog(
@@ -4774,44 +3740,14 @@ class MissionMapFragment : Fragment() {
         health: GeoAwarenessHealth,
         onAcknowledged: () -> Unit
     ) {
-        val prohibitedZones = result.conflicts
-            .map { it.zone }
-            .filter { it.restriction == GeoZoneRestriction.PROHIBITED }
-            .distinctBy { it.id }
-        val message = buildString {
-            appendLine(getString(R.string.geo_dialog_prohibited_body))
-            appendLine()
-            prohibitedZones.forEach { zone ->
-                appendLine("- ${zone.name}")
-                appendLine("  ${getString(R.string.geo_dialog_zone_id, zone.id)}")
-                zone.authorities.firstOrNull()?.let { authority ->
-                    appendLine("  ${getString(R.string.geo_dialog_authority, authority.name ?: getString(R.string.geo_dialog_not_specified))}")
-                    appendLine("  ${getString(R.string.geo_dialog_purpose, authority.purpose ?: getString(R.string.geo_dialog_not_specified))}")
-                }
-            }
-            appendLine()
-            append(buildGeoConflictSummary(result))
-        }
-        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle(R.string.geo_dialog_prohibited_title)
-            .setMessage(message)
-            .setPositiveButton(R.string.geo_dialog_acknowledge_upload) { _, _ ->
-                onAcknowledged()
-            }
-            .setNegativeButton(R.string.cancel) { _, _ ->
+        geoAwarenessDialogController.showProhibitedAcknowledgement(
+            result = result,
+            onAcknowledged = onAcknowledged,
+            onCancelled = {
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled prohibited zone warning")
-                geoEventLogger.logSimple(
-                    type = GeoAwarenessEventType.UPLOAD_CANCELLED,
-                    severity = "INFO",
-                    message = "User cancelled prohibited geo-zone upload warning",
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name
-                )
-            }
-            .show()
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
+                logGeoUploadCancellation(health, "User cancelled prohibited geo-zone upload warning")
+            },
+        )
     }
 
     private fun showGeoAwarenessAcknowledgementDialog(
@@ -4819,48 +3755,14 @@ class MissionMapFragment : Fragment() {
         health: GeoAwarenessHealth,
         onAcknowledged: () -> Unit
     ) {
-        val authorizationZones = authorizationRequiredZones(result).distinctBy { it.id }
-        val message = buildString {
-            appendLine(getString(R.string.geo_dialog_authorization_body))
-            appendLine()
-            authorizationZones.forEach { zone ->
-                appendLine("- ${zone.name}")
-                appendLine("  ${getString(R.string.geo_dialog_zone_id, zone.id)}")
-                zone.authorities.firstOrNull()?.let { authority ->
-                    appendLine("  ${getString(R.string.geo_dialog_authority, authority.name ?: getString(R.string.geo_dialog_not_specified))}")
-                    appendLine("  ${getString(R.string.geo_dialog_purpose, authority.purpose ?: getString(R.string.geo_dialog_not_specified))}")
-                }
-            }
-            appendLine()
-            append(buildGeoConflictSummary(result))
-        }
-        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle(R.string.geo_dialog_authorization_title)
-            .setMessage(message)
-            .setPositiveButton(R.string.geo_dialog_confirm_authorization) { _, _ ->
-                onAcknowledged()
-            }
-            .setNegativeButton(R.string.cancel) { _, _ ->
+        geoAwarenessDialogController.showAuthorizationAcknowledgement(
+            result = result,
+            onAcknowledged = onAcknowledged,
+            onCancelled = {
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled")
-                geoEventLogger.logSimple(
-                    type = GeoAwarenessEventType.UPLOAD_CANCELLED,
-                    severity = "INFO",
-                    message = "User cancelled geo upload acknowledgement",
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name
-                )
-            }
-            .show()
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
-    }
-
-    private fun authorizationRequiredZones(result: GeoAwarenessResult): List<GeoZone> {
-        return result.conflicts
-            .map { it.zone }
-            .filter { it.restriction == GeoZoneRestriction.REQ_AUTHORISATION }
-            .distinctBy { it.id }
+                logGeoUploadCancellation(health, "User cancelled geo upload acknowledgement")
+            },
+        )
     }
 
     private fun showGeoAwarenessNoticeDialog(
@@ -4868,438 +3770,36 @@ class MissionMapFragment : Fragment() {
         health: GeoAwarenessHealth,
         onContinue: () -> Unit
     ) {
-        val message = buildString {
-            appendLine(getString(R.string.geo_dialog_notice_body))
-            appendLine()
-            append(buildGeoConflictSummary(result))
-        }
-        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle(R.string.geo_dialog_notice_title)
-            .setMessage(message)
-            .setPositiveButton(R.string.continue_action) { _, _ ->
+        geoAwarenessDialogController.showNotice(
+            result = result,
+            onContinue = {
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
                     severity = "INFO",
                     message = "User continued after geo upload warning",
                     datasetTitle = geoZoneDatasetInfo?.title,
                     datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name
+                    healthState = health.state.name,
                 )
                 onContinue()
-            }
-            .setNegativeButton(R.string.cancel) { _, _ ->
+            },
+            onCancelled = {
                 Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled")
-                geoEventLogger.logSimple(
-                    type = GeoAwarenessEventType.UPLOAD_CANCELLED,
-                    severity = "INFO",
-                    message = "User cancelled geo upload warning",
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name
-                )
-            }
-            .show()
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
-    }
-
-    private fun showGeoAwarenessHealthAcknowledgementDialog(
-        health: GeoAwarenessHealth,
-        onContinue: () -> Unit
-    ) {
-        val message = buildString {
-            appendLine(getString(R.string.geo_dialog_current_state, health.state))
-            appendLine(health.message)
-            appendLine(buildGeoHealthNotice(health))
-            appendLine(getString(R.string.geo_dialog_verify_dagr))
-        }
-        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle(R.string.geo_dialog_health_title)
-            .setMessage(message)
-            .setPositiveButton(R.string.continue_action) { _, _ ->
-                geoEventLogger.logSimple(
-                    type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
-                    severity = "INFO",
-                    message = "User acknowledged geo-awareness health warning",
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name
-                )
-                onContinue()
-            }
-            .setNegativeButton(R.string.cancel) { _, _ ->
-                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled")
-                geoEventLogger.logSimple(
-                    type = GeoAwarenessEventType.UPLOAD_CANCELLED,
-                    severity = "INFO",
-                    message = "User cancelled geo-awareness health warning",
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name
-                )
-            }
-            .show()
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
-    }
-
-    private fun buildGeoConflictSummary(
-        result: GeoAwarenessResult,
-        maxItems: Int = 5
-    ): String {
-        val orderedConflicts = result.conflicts.sortedWith(
-            compareByDescending<GeoZoneConflict> { restrictionRank(it.restriction) }
-                .thenBy { it.zone.name }
-                .thenBy { it.conflictType.name }
+                logGeoUploadCancellation(health, "User cancelled geo upload warning")
+            },
         )
-        val visibleConflicts = orderedConflicts.take(maxItems)
-        val remainingCount = orderedConflicts.size - visibleConflicts.size
-
-        return buildString {
-            appendLine(getString(R.string.geo_summary_highest_restriction, result.highestRestriction))
-            appendLine(getString(R.string.geo_summary_upload_allowed, getString(if (result.canUpload) R.string.answer_yes else R.string.answer_no)))
-            appendLine(getString(R.string.geo_summary_ack_required, getString(if (result.requiresAcknowledgement) R.string.answer_yes else R.string.answer_no)))
-            appendLine()
-            visibleConflicts.forEach { conflict ->
-                appendLine("- ${conflict.zone.name}")
-                appendLine("  ${getString(R.string.geo_summary_restriction, conflict.restriction)}")
-                appendLine("  ${getString(R.string.geo_summary_type, formatConflictType(conflict.conflictType))}")
-                appendLine("  ${getString(R.string.geo_summary_message, conflict.message ?: getString(R.string.geo_summary_no_message))}")
-            }
-            if (remainingCount > 0) {
-                append(getString(R.string.geo_summary_more, remainingCount))
-            }
-        }
     }
 
-    private fun buildGeoHealthNotice(health: GeoAwarenessHealth): String {
-        return when (health.state) {
-            GeoAwarenessHealthState.STALE -> getString(R.string.geo_health_stale)
-            GeoAwarenessHealthState.DEGRADED -> getString(R.string.geo_health_degraded)
-            GeoAwarenessHealthState.UNAVAILABLE -> getString(R.string.geo_health_unavailable)
-            GeoAwarenessHealthState.AVAILABLE -> getString(R.string.geo_health_available)
-        }
-    }
-
-    private fun logDatasetLoaded(info: GeoZoneDatasetInfo) {
+    private fun logGeoUploadCancellation(health: GeoAwarenessHealth, message: String) {
         geoEventLogger.logSimple(
-            type = GeoAwarenessEventType.DATASET_LOADED,
+            type = GeoAwarenessEventType.UPLOAD_CANCELLED,
             severity = "INFO",
-            message = "Geo-awareness dataset loaded",
-            datasetTitle = info.title,
-            datasetVersion = info.version,
-            details = mapOf(
-                "zoneCount" to info.zoneCount.toString(),
-                "circleGeometryCount" to info.circleGeometryCount.toString(),
-                "polygonGeometryCount" to info.polygonGeometryCount.toString(),
-                "validNonDummyDataset" to (info.zoneCount > 0 && !info.isDummy).toString(),
-                "dummy" to info.isDummy.toString()
-            )
-        )
-    }
-
-    private fun logDatasetLoadFailed(error: Throwable) {
-        geoEventLogger.logSimple(
-            type = GeoAwarenessEventType.DATASET_LOAD_FAILED,
-            severity = "ERROR",
-            message = "Geo-awareness dataset failed to load: ${error::class.java.simpleName}: ${error.message}",
-            details = mapOf(
-                "errorClass" to error::class.java.name,
-                "errorMessage" to (error.message ?: "unknown")
-            )
-        )
-    }
-
-    private fun logDatasetValidation(
-        result: GeoZoneValidationResult,
-        info: GeoZoneDatasetInfo
-    ) {
-        val details = mapOf(
-            "errorCount" to result.errorCount.toString(),
-            "warningCount" to result.warningCount.toString(),
-            "infoCount" to result.infoCount.toString(),
-            "issueCodes" to result.issues.take(10).joinToString(",") { it.code }
-        )
-        when {
-            result.hasErrors -> geoEventLogger.logSimple(
-                type = GeoAwarenessEventType.DATASET_VALIDATION_FAILED,
-                severity = "ERROR",
-                message = "Geo-awareness dataset validation failed",
-                datasetTitle = info.title,
-                datasetVersion = info.version,
-                healthState = geoAwarenessHealth?.state?.name,
-                details = details
-            )
-            result.hasWarnings -> geoEventLogger.logSimple(
-                type = GeoAwarenessEventType.DATASET_VALIDATED,
-                severity = "WARNING",
-                message = "Geo-awareness dataset validation completed with warnings",
-                datasetTitle = info.title,
-                datasetVersion = info.version,
-                healthState = geoAwarenessHealth?.state?.name,
-                details = details
-            )
-            else -> geoEventLogger.logSimple(
-                type = GeoAwarenessEventType.DATASET_VALIDATED,
-                severity = "INFO",
-                message = "Geo-awareness dataset validation passed",
-                datasetTitle = info.title,
-                datasetVersion = info.version,
-                healthState = geoAwarenessHealth?.state?.name,
-                details = details
-            )
-        }
-    }
-
-    private fun logMultiDatasetLoadedIfNeeded(
-        result: com.example.droneservicesapp.domain.geoawareness.GeoZoneLoadResult
-    ) {
-        if (result.datasetRecords.size <= 1) {
-            return
-        }
-        geoEventLogger.logSimple(
-            type = GeoAwarenessEventType.MULTI_DATASET_LOADED,
-            severity = if (result.validationResult.hasWarnings) "WARNING" else "INFO",
-            message = "Multiple geo-zone datasets loaded",
-            datasetTitle = result.datasetInfo.title,
-            datasetVersion = result.datasetInfo.version,
-            healthState = geoAwarenessHealth?.state?.name,
-            details = mapOf(
-                "datasetCount" to result.datasetRecords.size.toString(),
-                "totalZones" to result.datasetInfo.zoneCount.toString(),
-                "totalWarnings" to result.validationResult.warningCount.toString(),
-                "totalErrors" to result.validationResult.errorCount.toString()
-            )
-        )
-    }
-
-    private fun logHealthEvaluationIfNeeded(health: GeoAwarenessHealth) {
-        val signature = "${health.state}|${health.message}"
-        val severity = when (health.state) {
-            GeoAwarenessHealthState.AVAILABLE -> "INFO"
-            GeoAwarenessHealthState.UNAVAILABLE -> "ERROR"
-            else -> "WARNING"
-        }
-
-        if (lastHealthLogSignature != signature) {
-            geoEventLogger.logSimple(
-                type = GeoAwarenessEventType.HEALTH_EVALUATED,
-                severity = severity,
-                message = health.message,
-                datasetTitle = geoZoneDatasetInfo?.title,
-                datasetVersion = geoZoneDatasetInfo?.version,
-                healthState = health.state.name
-            )
-            lastHealthLogSignature = signature
-        }
-
-        if (lastHealthState != null && lastHealthState != health.state) {
-            geoEventLogger.logSimple(
-                type = GeoAwarenessEventType.HEALTH_CHANGED,
-                severity = severity,
-                message = "Geo-awareness health changed to ${health.state}",
-                datasetTitle = geoZoneDatasetInfo?.title,
-                datasetVersion = geoZoneDatasetInfo?.version,
-                healthState = health.state.name,
-                details = mapOf(
-                    "previousState" to lastHealthState!!.name,
-                    "newState" to health.state.name
-                )
-            )
-        }
-        lastHealthState = health.state
-    }
-
-    private fun logPlanningStatusIfNeeded(result: GeoAwarenessResult) {
-        val sortedZoneIds = result.conflicts.map { it.zone.id }.distinct().sorted()
-        val planningSignature = buildString {
-            append(result.conflicts.size)
-            append('|')
-            append(result.highestRestriction.name)
-            append('|')
-            append(result.canUpload)
-            append('|')
-            append(result.requiresAcknowledgement)
-            append('|')
-            append(sortedZoneIds.joinToString(","))
-        }
-        if (planningSignature != lastPlanningLogSignature) {
-            geoEventLogger.logSimple(
-                type = GeoAwarenessEventType.PLANNING_CHECKED,
-                severity = if (result.hasConflicts) "WARNING" else "INFO",
-                message = if (result.hasConflicts) "Planning geo-awareness check found conflicts" else "Planning geo-awareness check clear",
-                datasetTitle = geoZoneDatasetInfo?.title,
-                datasetVersion = geoZoneDatasetInfo?.version,
-                healthState = geoAwarenessHealth?.state?.name,
-                zoneIds = sortedZoneIds,
-                zoneNames = result.conflicts.map { it.zone.name }.distinct().sorted(),
-                restriction = result.highestRestriction.name,
-                details = mapOf(
-                    "conflicts" to result.conflicts.size.toString(),
-                    "highestRestriction" to result.highestRestriction.name,
-                    "canUpload" to result.canUpload.toString(),
-                    "requiresAcknowledgement" to result.requiresAcknowledgement.toString()
-                )
-            )
-            lastPlanningLogSignature = planningSignature
-        }
-
-        if (result.hasConflicts && planningSignature != lastConflictLogSignature) {
-            geoEventLogger.logSimple(
-                type = GeoAwarenessEventType.PLANNING_CONFLICT_DETECTED,
-                severity = "WARNING",
-                message = "Planning geo-awareness conflict detected",
-                datasetTitle = geoZoneDatasetInfo?.title,
-                datasetVersion = geoZoneDatasetInfo?.version,
-                healthState = geoAwarenessHealth?.state?.name,
-                zoneIds = sortedZoneIds,
-                zoneNames = result.conflicts.map { it.zone.name }.distinct().sorted(),
-                restriction = result.highestRestriction.name
-            )
-            lastConflictLogSignature = planningSignature
-        } else if (!result.hasConflicts) {
-            lastConflictLogSignature = null
-        }
-    }
-
-    private fun logLiveStatusIfNeeded(
-        zones: List<GeoZone>,
-        latitude: Double?,
-        longitude: Double?,
-        altitudeMeters: Double?
-    ) {
-        val currentZoneMap = zones.associateBy(::buildLiveZoneIdentity)
-        if (currentZoneMap.keys == lastLiveZoneIdentityMap.keys) {
-            return
-        }
-
-        val entered = currentZoneMap
-            .filterKeys { it !in lastLiveZoneIdentityMap }
-            .values
-            .toList()
-        val exited = lastLiveZoneIdentityMap
-            .filterKeys { it !in currentZoneMap }
-            .values
-            .toList()
-        if (entered.isNotEmpty()) {
-            geoIncidentLogger.logZoneEntered(
-                zones = entered,
-                latitude = latitude,
-                longitude = longitude,
-                altitudeMeters = altitudeMeters,
-                datasetTitle = geoZoneDatasetInfo?.title,
-                datasetVersion = geoZoneDatasetInfo?.version,
-                healthState = geoAwarenessHealth?.state?.name,
-                source = "live_drone",
-                details = liveVerificationDetails("alert_active")
-            )
-        }
-
-        if (exited.isNotEmpty()) {
-            geoIncidentLogger.logZoneExited(
-                zones = exited,
-                latitude = latitude,
-                longitude = longitude,
-                altitudeMeters = altitudeMeters,
-                datasetTitle = geoZoneDatasetInfo?.title,
-                datasetVersion = geoZoneDatasetInfo?.version,
-                healthState = geoAwarenessHealth?.state?.name,
-                source = "live_drone",
-                details = liveVerificationDetails("alert_cleared")
-            )
-        }
-
-        lastLiveZoneIdentityMap = currentZoneMap
-    }
-
-    private fun logLiveProximityIfNeeded(
-        proximity: LiveGeoAwarenessProximityResult,
-        latitude: Double?,
-        longitude: Double?,
-        altitudeMeters: Double?
-    ) {
-        val identity = buildLiveProximityIdentity(proximity)
-        if (identity == lastLiveProximityIdentity) return
-        lastLiveProximityIdentity = identity
-        geoIncidentLogger.logApproachWarning(
-            zone = proximity.nearestZone,
-            latitude = latitude,
-            longitude = longitude,
-            altitudeMeters = altitudeMeters,
+            message = message,
             datasetTitle = geoZoneDatasetInfo?.title,
             datasetVersion = geoZoneDatasetInfo?.version,
-            healthState = geoAwarenessHealth?.state?.name,
-            source = "live_drone",
-            details = liveVerificationDetails("approach_warning") + proximityEvidenceDetails(proximity)
+            healthState = health.state.name,
         )
     }
-
-    private fun liveVerificationDetails(alertStatus: String): Map<String, String> {
-        return buildMap {
-            put("verificationSchema", "prEN4709-003-7.1-live-behaviour-v1")
-            put("utcTimeMillis", System.currentTimeMillis().toString())
-            put("alertStatus", alertStatus)
-            latestRealDroneAltitudeMeters?.let { put("heightAglOrRelativeMeters", it.toString()) }
-            latestRealDroneAltitudeAmslMeters?.let { put("altitudeAmslMeters", it.toString()) }
-            latestRealDroneHorizontalAccuracyMeters?.let { put("horizontalPositionAccuracyMeters", it.toString()) }
-            latestRealDroneVerticalAccuracyMeters?.let { put("verticalPositionAccuracyMeters", it.toString()) }
-            latestRealDroneGroundSpeedMetersPerSecond?.let { put("groundSpeedMetersPerSecond", it.toString()) }
-            latestRealDroneVerticalSpeedMetersPerSecond?.let { put("verticalSpeedMetersPerSecond", it.toString()) }
-            latestRealDroneHeadingDegrees?.let { put("headingDegrees", it.toString()) }
-            put("altitudeReferenceSupport", "AGL_from_relative_altitude_or_mission_height;AMSL_from_GLOBAL_POSITION_INT.alt")
-        }
-    }
-
-    private fun proximityEvidenceDetails(proximity: LiveGeoAwarenessProximityResult): Map<String, String> {
-        return buildMap {
-            put("approachWarningSchema", "prEN4709-003-3-second-approach-warning-v1")
-            put("nearestZoneId", proximity.nearestZone.id)
-            put("nearestZoneName", proximity.nearestZone.name)
-            put("nearestZoneRestriction", proximity.restriction.name)
-            put("timeApplicabilityActive", "true")
-            put("timeApplicabilityRule", "inactive future/expired non-permanent UGZ windows are excluded before warning evaluation")
-            put("timeApplicabilityPermanent", proximity.nearestZone.applicability.any { it.permanent }.toString())
-            proximity.nearestZone.applicability.mapNotNull { it.startDateTime }.minOrNull()
-                ?.let { put("timeApplicabilityStartUtc", it) }
-            proximity.nearestZone.applicability.mapNotNull { it.endDateTime }.maxOrNull()
-                ?.let { put("timeApplicabilityEndUtc", it) }
-            put("distanceToBoundaryMeters", proximity.distanceMeters.toString())
-            put("configuredDistanceThresholdMeters", proximity.configuredThresholdMeters.toString())
-            put("effectiveWarningThresholdMeters", proximity.effectiveThresholdMeters.toString())
-            put("requiredWarningTimeSeconds", proximity.requiredWarningSeconds.toString())
-            proximity.minimumWarningDistanceMeters?.let { put("minimumSpeedBasedWarningDistanceMeters", it.toString()) }
-            proximity.groundSpeedMetersPerSecond?.let { put("groundSpeedMetersPerSecond", it.toString()) }
-            proximity.headingDegrees?.let { put("headingDegrees", it.toString()) }
-            proximity.closingSpeedMetersPerSecond?.let { put("closingSpeedMetersPerSecond", it.toString()) }
-            proximity.timeToBoundarySeconds?.let { put("timeToBoundarySeconds", it.toString()) }
-            proximity.verticalDistanceMeters?.let { put("verticalDistanceToBoundaryMeters", it.toString()) }
-            proximity.verticalClosingSpeedMetersPerSecond?.let { put("verticalClosingSpeedMetersPerSecond", it.toString()) }
-            proximity.verticalTimeToBoundarySeconds?.let { put("verticalTimeToBoundarySeconds", it.toString()) }
-            proximity.verticalBoundaryReference?.let { put("verticalBoundaryReference", it.name) }
-            proximity.warningMeetsRequiredTime?.let { put("warningMeetsRequiredTime", it.toString()) }
-            put("warningMode", proximity.warningMode)
-            put("verticalRelevance", proximity.verticalRelevance.toString())
-            put("triggerRule", "horizontal distanceToBoundaryMeters <= configuredDistanceThresholdMeters OR horizontal timeToBoundarySeconds <= requiredWarningTimeSeconds when closingSpeedMetersPerSecond > 0 OR verticalDistanceToBoundaryMeters <= verticalWarningBufferMeters OR verticalTimeToBoundarySeconds <= requiredWarningTimeSeconds when verticalClosingSpeedMetersPerSecond > 0")
-        }
-    }
-
-    private fun buildLiveZoneIdentity(zone: GeoZone): String {
-        return "${zone.id}|${zone.name}|${zone.restriction.name}"
-    }
-
-    private fun buildLiveProximityIdentity(proximity: LiveGeoAwarenessProximityResult): String {
-        return "${proximity.nearestZone.id}|${proximity.nearestZone.name}|${proximity.restriction.name}"
-    }
-
-    private fun showGeoAwarenessDialog(title: String, message: String) {
-        val dialog = AlertDialog.Builder(requireContext(), R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle(title)
-            .setMessage(message)
-            .setPositiveButton(android.R.string.ok, null)
-            .show()
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(android.graphics.Color.parseColor("#212121"))
-    }
-
     private fun updateLiveGeoAwarenessStatus(
         dronePosition: LatLon?,
         droneAltitudeMeters: Double?
@@ -5310,7 +3810,6 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoZones = emptyList()
             latestLiveGeoProximity = null
             latestLiveGeoThreats = emptyList()
-            lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindDegraded(reason)
             updateTopLiveGeoStatus(getString(R.string.live_geo_degraded), "#FFB26B")
             return
@@ -5320,7 +3819,6 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoZones = emptyList()
             latestLiveGeoProximity = null
             latestLiveGeoThreats = emptyList()
-            lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("No drone position")
             updateTopLiveGeoStatus(getString(R.string.live_geo_unknown_status), "#AAB5C6")
             return
@@ -5330,7 +3828,6 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoZones = emptyList()
             latestLiveGeoProximity = null
             latestLiveGeoThreats = emptyList()
-            lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
             updateTopLiveGeoStatus(getString(R.string.live_geo_unknown_status), "#AAB5C6")
             return
@@ -5339,7 +3836,6 @@ class MissionMapFragment : Fragment() {
             latestLiveGeoZones = emptyList()
             latestLiveGeoProximity = null
             latestLiveGeoThreats = emptyList()
-            lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
             updateTopLiveGeoStatus(getString(R.string.live_geo_unknown_status), "#AAB5C6")
             return
@@ -5354,7 +3850,7 @@ class MissionMapFragment : Fragment() {
             zones = geoAwarenessZones
         ).orEmpty()
 
-        logLiveStatusIfNeeded(
+        geoAwarenessEventTracker.liveStatus(
             zones = insideZones,
             latitude = dronePosition.lat,
             longitude = dronePosition.lon,
@@ -5378,42 +3874,47 @@ class MissionMapFragment : Fragment() {
 
         if (insideZones.isEmpty() && nearestZone == null) {
             latestLiveGeoThreats = emptyList()
-            lastLiveProximityIdentity = null
             liveGeoAwarenessStatusBinder?.bindClear()
             updateTopLiveGeoStatus(getString(R.string.live_geo_clear_status), "#48D26D")
         } else {
             nearestZone?.let { proximity ->
-                logLiveProximityIfNeeded(
+                geoAwarenessEventTracker.liveProximity(
                     proximity = proximity,
                     latitude = dronePosition.lat,
                     longitude = dronePosition.lon,
                     altitudeMeters = droneAltitudeMeters
                 )
             }
-            val insideThreatRows = insideZones.map { zone -> zone.toInsideThreatUiModel(dronePosition) }
+            val insideThreatRows = insideZones.map { zone -> liveGeoThreatPresenter.inside(zone, dronePosition) }
             val dedupedNearThreats = nearThreats.filterNot { proximity ->
                 insideZones.any { inside -> inside.id == proximity.nearestZone.id }
             }
-            val threatRows = (insideThreatRows + dedupedNearThreats.map { it.toThreatUiModel(dronePosition) })
+            val altitudes = LiveGeoThreatPresenter.Altitudes(
+                aglMeters = latestRealDroneAltitudeMeters,
+                amslMeters = latestRealDroneAltitudeAmslMeters,
+            )
+            val threatRows = (insideThreatRows + dedupedNearThreats.map {
+                liveGeoThreatPresenter.proximity(it, dronePosition, altitudes)
+            })
                 .take(3)
             val remainingCount = (insideThreatRows.size + dedupedNearThreats.size - threatRows.size).coerceAtLeast(0)
             latestLiveGeoThreats = nearThreats
-            val highestInside = insideZones.maxByOrNull { restrictionPriority(it.restriction) }
+            val highestInside = insideZones.maxByOrNull { liveGeoThreatPresenter.restrictionPriority(it.restriction) }
             val statusRestriction = highestInside?.restriction ?: nearestZone?.restriction
             val statusLabel = when {
-                highestInside != null -> getString(R.string.live_geo_inside_status, restrictionShortLabel(highestInside.restriction))
+                highestInside != null -> getString(R.string.live_geo_inside_status, liveGeoThreatPresenter.restrictionLabel(highestInside.restriction))
                 threatRows.size > 1 -> getString(R.string.live_geo_multiple)
-                statusRestriction != null -> nearRestrictionBadgeLabel(statusRestriction)
+                statusRestriction != null -> liveGeoThreatPresenter.nearRestrictionLabel(statusRestriction)
                 else -> getString(R.string.live_geo_clear_status)
             }
-            val statusColor = statusRestriction?.let(::restrictionColorHex) ?: "#48D26D"
+            val statusColor = statusRestriction?.let(liveGeoThreatPresenter::restrictionColor) ?: "#48D26D"
             liveGeoAwarenessStatusBinder?.bindThreatSummary(
                 statusLabel = statusLabel,
                 statusColor = statusColor,
                 threats = threatRows,
                 remainingCount = remainingCount,
                 headingDegrees = latestRealDroneHeadingDegrees,
-                borderColor = highestInside?.restriction?.let(::restrictionColorHex) ?: "#00000000"
+                borderColor = highestInside?.restriction?.let(liveGeoThreatPresenter::restrictionColor) ?: "#00000000"
             )
             updateTopLiveGeoStatus(statusLabel, statusColor)
         }
@@ -5520,7 +4021,7 @@ class MissionMapFragment : Fragment() {
             else -> error("Unhandled live geo-awareness detail state")
         }
 
-        showGeoAwarenessDialog(title, message)
+        geoAwarenessDialogController.showMessage(title, message)
     }
 
     private fun isUsableDroneLocation(location: android.location.Location): Boolean {
@@ -5568,173 +4069,4 @@ class MissionMapFragment : Fragment() {
         }
     }
 
-    private fun horizontalDirectionLabel(
-        fromPosition: LatLon,
-        zone: GeoZone
-    ): String? {
-        val target = representativePoint(zone) ?: return null
-        val bearing = bearingDegrees(fromPosition, target)
-        return compassDirectionLabel(bearing)
-    }
-
-    private fun representativePoint(zone: GeoZone): LatLon? {
-        val geometry = zone.geometries.firstOrNull() ?: return null
-        return when (geometry) {
-            is com.example.droneservicesapp.domain.geoawareness.GeoZoneGeometry.Circle -> geometry.center
-            is com.example.droneservicesapp.domain.geoawareness.GeoZoneGeometry.Polygon -> {
-                val outerRing = geometry.rings.firstOrNull().orEmpty()
-                if (outerRing.isEmpty()) return null
-                val lat = outerRing.map { it.lat }.average()
-                val lon = outerRing.map { it.lon }.average()
-                LatLon(lat = lat, lon = lon)
-            }
-        }
-    }
-
-    private fun bearingDegrees(from: LatLon, to: LatLon): Double {
-        val startLat = Math.toRadians(from.lat)
-        val endLat = Math.toRadians(to.lat)
-        val deltaLon = Math.toRadians(to.lon - from.lon)
-        val y = sin(deltaLon) * cos(endLat)
-        val x = cos(startLat) * sin(endLat) - sin(startLat) * cos(endLat) * cos(deltaLon)
-        val bearing = Math.toDegrees(atan2(y, x))
-        return (bearing + 360.0) % 360.0
-    }
-
-    private fun compassDirectionLabel(bearingDegrees: Double): String {
-        val directions = listOf("N", "NE", "E", "SE", "S", "SW", "W", "NW")
-        val index = (((bearingDegrees + 22.5) % 360.0) / 45.0).toInt()
-        return directions[index]
-    }
-
-    private fun verticalRelationLabel(proximity: LiveGeoAwarenessProximityResult): String {
-        val zone = proximity.nearestZone
-        val geometry = zone.geometries.firstOrNull() ?: return "ABOVE"
-        val aglAltitude = latestRealDroneAltitudeMeters
-        val amslAltitude = latestRealDroneAltitudeAmslMeters
-        val lowerAltitude = when (geometry.lowerVerticalReference) {
-            com.example.droneservicesapp.domain.geoawareness.GeoVerticalReference.AGL -> aglAltitude
-            com.example.droneservicesapp.domain.geoawareness.GeoVerticalReference.AMSL -> amslAltitude
-            com.example.droneservicesapp.domain.geoawareness.GeoVerticalReference.UNKNOWN -> aglAltitude ?: amslAltitude
-        }
-        val lowerLimit = geometry.lowerLimitMeters
-        val upperAltitude = when (geometry.upperVerticalReference) {
-            com.example.droneservicesapp.domain.geoawareness.GeoVerticalReference.AGL -> aglAltitude
-            com.example.droneservicesapp.domain.geoawareness.GeoVerticalReference.AMSL -> amslAltitude
-            com.example.droneservicesapp.domain.geoawareness.GeoVerticalReference.UNKNOWN -> aglAltitude ?: amslAltitude
-        }
-        val upperLimit = geometry.upperLimitMeters
-        return when {
-            lowerLimit != null && lowerAltitude != null && lowerAltitude < lowerLimit -> "ABOVE"
-            upperLimit != null && upperAltitude != null && upperAltitude > upperLimit -> "BELOW"
-            else -> "ABOVE"
-        }
-    }
-
-    private fun LiveGeoAwarenessProximityResult.toThreatUiModel(dronePosition: LatLon): LiveGeoThreatUiModel {
-        val isVertical = warningMode.startsWith("VERTICAL")
-        val direction = horizontalDirectionLabel(dronePosition, nearestZone) ?: "--"
-        val distance = "H: ${formatLiveGeoDistance(distanceMeters)}"
-        val altitude = if (isVertical) "V: ${formatLiveGeoDistance(verticalDistanceMeters)}" else "V: --"
-        val zoneIsAboveDrone = verticalRelationLabel(this) == "ABOVE"
-        val normalizedRatio = (distanceMeters / effectiveThresholdMeters)
-            .takeIf { it.isFinite() }
-            ?.coerceIn(0.0, 1.0)
-            ?.toFloat()
-            ?: 1f
-        val radialRatio = 0.25f + (normalizedRatio * 0.75f)
-        return LiveGeoThreatUiModel(
-            label = restrictionShortLabel(restriction),
-            colorHex = restrictionColorHex(restriction),
-            directionText = direction,
-            distanceText = distance,
-            altitudeText = altitude,
-            verticalArrowText = when {
-                !isVertical -> ""
-                zoneIsAboveDrone -> "\u2191"
-                else -> "\u2193"
-            },
-            radialDistanceRatio = radialRatio,
-            bearingDegrees = representativePoint(nearestZone)?.let { bearingDegrees(dronePosition, it) },
-            verticalIndicator = when {
-                !isVertical -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.NONE
-                zoneIsAboveDrone -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.UP
-                else -> com.example.droneservicesapp.ui.home.geoawareness.VerticalIndicator.DOWN
-            },
-            showCompassMarker = true
-        )
-    }
-
-    private fun GeoZone.toInsideThreatUiModel(dronePosition: LatLon): LiveGeoThreatUiModel {
-        return LiveGeoThreatUiModel(
-            label = restrictionShortLabel(restriction),
-            colorHex = restrictionColorHex(restriction),
-            directionText = horizontalDirectionLabel(dronePosition, this) ?: getString(R.string.live_geo_inside_short),
-            distanceText = getString(R.string.live_geo_horizontal_inside),
-            altitudeText = getString(R.string.live_geo_vertical_inside),
-            radialDistanceRatio = 0.18f,
-            bearingDegrees = null,
-            showCompassMarker = false,
-            isInsideZone = true
-        )
-    }
-
-    private fun restrictionShortLabel(restriction: GeoZoneRestriction): String {
-        return when (restriction) {
-            GeoZoneRestriction.PROHIBITED -> getString(R.string.geo_restriction_prohibited)
-            GeoZoneRestriction.REQ_AUTHORISATION -> getString(R.string.geo_restriction_authorization)
-            GeoZoneRestriction.CONDITIONAL -> getString(R.string.geo_restriction_conditional)
-            GeoZoneRestriction.INFORMATION -> getString(R.string.geo_restriction_information)
-            GeoZoneRestriction.UNKNOWN -> getString(R.string.geo_restriction_unknown)
-        }
-    }
-
-    private fun restrictionBadgeLabel(restriction: GeoZoneRestriction): String {
-        return when (restriction) {
-            GeoZoneRestriction.PROHIBITED -> getString(R.string.geo_restriction_prohibited)
-            GeoZoneRestriction.REQ_AUTHORISATION -> getString(R.string.geo_restriction_authorization)
-            GeoZoneRestriction.CONDITIONAL -> getString(R.string.geo_restriction_conditional)
-            GeoZoneRestriction.INFORMATION -> getString(R.string.geo_restriction_information)
-            GeoZoneRestriction.UNKNOWN -> getString(R.string.geo_restriction_unknown)
-        }
-    }
-
-    private fun nearRestrictionBadgeLabel(restriction: GeoZoneRestriction): String {
-        return when (restriction) {
-            GeoZoneRestriction.PROHIBITED -> getString(R.string.geo_restriction_near_prohibited)
-            GeoZoneRestriction.REQ_AUTHORISATION -> getString(R.string.geo_restriction_near_authorization)
-            GeoZoneRestriction.CONDITIONAL -> getString(R.string.geo_restriction_near_conditional)
-            GeoZoneRestriction.INFORMATION -> getString(R.string.geo_restriction_information)
-            GeoZoneRestriction.UNKNOWN -> getString(R.string.geo_restriction_near_unknown)
-        }
-    }
-
-    private fun restrictionColorHex(restriction: GeoZoneRestriction): String {
-        return when (restriction) {
-            GeoZoneRestriction.PROHIBITED -> "#FF4F45"
-            GeoZoneRestriction.REQ_AUTHORISATION -> "#FF972E"
-            GeoZoneRestriction.CONDITIONAL -> "#F4C73D"
-            GeoZoneRestriction.INFORMATION -> "#4C9DFF"
-            GeoZoneRestriction.UNKNOWN -> "#8D6E63"
-        }
-    }
-
-    private fun restrictionPriority(restriction: GeoZoneRestriction): Int {
-        return when (restriction) {
-            GeoZoneRestriction.PROHIBITED -> 4
-            GeoZoneRestriction.REQ_AUTHORISATION -> 3
-            GeoZoneRestriction.CONDITIONAL -> 2
-            GeoZoneRestriction.INFORMATION -> 1
-            GeoZoneRestriction.UNKNOWN -> 0
-        }
-    }
-
-    private fun formatLiveGeoDistance(distanceMeters: Double?): String {
-        val value = distanceMeters?.takeIf { it.isFinite() } ?: return "--"
-        return if (value >= 1000.0) {
-            String.format(Locale.US, "%.1f km", value / 1000.0)
-        } else {
-            "${value.toInt().coerceAtLeast(0)} m"
-        }
-    }
 }
