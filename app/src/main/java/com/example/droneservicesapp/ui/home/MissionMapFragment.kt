@@ -6,23 +6,18 @@ import android.net.Uri
 import android.os.Bundle
 import android.os.SystemClock
 import android.graphics.Color
-import android.graphics.Typeface
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
-import android.view.ViewGroup.MarginLayoutParams
 import android.view.ViewGroup
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
 import androidx.core.view.GravityCompat
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
@@ -82,6 +77,8 @@ import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel.Service
 import com.example.droneservicesapp.ui.home.components.EsriMapLayers
 import com.example.droneservicesapp.ui.home.components.OsmdroidMapController
 import com.example.droneservicesapp.ui.home.components.MissionSimulationController
+import com.example.droneservicesapp.ui.home.components.MissionMapUiActionController
+import com.example.droneservicesapp.ui.home.components.PlanningWorkflowUiController
 import com.example.droneservicesapp.ui.home.components.DroneMapTrackingController
 import com.example.droneservicesapp.ui.home.components.PlannedHomePlacementController
 import com.example.droneservicesapp.ui.home.components.WindWeatherController
@@ -234,6 +231,8 @@ class MissionMapFragment : Fragment() {
     private val homePlacementMode: Boolean
         get() = ::plannedHomePlacementController.isInitialized && plannedHomePlacementController.isActive
     private lateinit var missionSimulationController: MissionSimulationController
+    private lateinit var missionMapUiActionController: MissionMapUiActionController
+    private lateinit var planningWorkflowUiController: PlanningWorkflowUiController
 
     companion object {
         private const val DEFAULT_MAP_ZOOM = 18.0
@@ -322,7 +321,7 @@ class MissionMapFragment : Fragment() {
         initControllers()
         bindUiButtons()
         bindPreviewAssetButtons()
-        applyMapInsets()
+        missionMapUiActionController.applyMapInsets()
         observeDroneViewModel()
         observeMapState()
         observeHomeTelemetry()
@@ -444,6 +443,12 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun initControllers() {
+        missionMapUiActionController = MissionMapUiActionController(requireView(), binding)
+        planningWorkflowUiController = PlanningWorkflowUiController(
+            context = requireContext(),
+            root = requireView(),
+            viewModel = activityViewModel,
+        )
         missionSimulationController = MissionSimulationController(
             flightSpeedMetersPerSecond = { activityViewModel.flightSpeed.value ?: 5.0 },
             missionObstacles = { activityViewModel.missionObstacles.value.orEmpty() },
@@ -535,263 +540,217 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun bindUiButtons() {
-        homeMapChromeBinder.bindActions(
-            onDownloadOffline = {
-                downloadCurrentViewOffline(minZoom = OFFLINE_MIN_ZOOM, maxZoom = OFFLINE_MAX_ZOOM)
-            },
-            onCenterOnUser = {
-                if (mapViewModel.homeMapUiState.value?.interactionState?.isDrawingEnabled != true) {
-                    osmdroidMapController.centerOnUserIfPermitted()
-                }
-            },
-            onCenterOnDrone = {
-                if (droneViewModel.conStateLiveData.value == true) {
-                    osmdroidMapController.centerOnDrone()
-                } else {
-                    Toast.makeText(context, getString(R.string.no_conn_msg), Toast.LENGTH_LONG).show()
-                }
-            },
-            onToggleObstacles = {
-                cancelDroneOffsetAdjustment()
-                toggleObstaclePanel()
-            },
-            onStartDroneOffset = {
-                startDroneOffsetAdjustment()
-            },
-            onCyclePreviewMode = {
-                cyclePreviewMode()
-            },
-            onOpenSettings = {
-                requireActivity()
-                    .findViewById<DrawerLayout>(R.id.drawer_layout)
-                    .openDrawer(GravityCompat.START)
-            },
-            onTogglePlanning = {
-                cancelDroneOffsetAdjustment()
-                hideObstaclePanel()
-                mapViewModel.togglePlanningPanelVisible()
-            }
-        )
-
-        requireView().findViewById<com.google.android.material.button.MaterialButton>(R.id.right_panel_load_button)
-            .setOnClickListener {
-                if (missionFileStore.listMissionFiles().isEmpty()) {
-                    Toast.makeText(requireContext(), getString(R.string.no_saved_missions_yet), Toast.LENGTH_LONG).show()
+        missionMapUiActionController.bindChrome(
+            chromeBinder = homeMapChromeBinder,
+            actions = MissionMapUiActionController.Actions(
+                downloadOffline = { downloadCurrentViewOffline(OFFLINE_MIN_ZOOM, OFFLINE_MAX_ZOOM) },
+                centerOnUser = {
+                    if (mapViewModel.homeMapUiState.value?.interactionState?.isDrawingEnabled != true) {
+                        osmdroidMapController.centerOnUserIfPermitted()
+                    }
+                },
+                centerOnDrone = ::centerOnDroneOrShowDisconnected,
+                toggleObstacles = {
+                    cancelDroneOffsetAdjustment()
+                    toggleObstaclePanel()
+                },
+                startDroneOffset = ::startDroneOffsetAdjustment,
+                cyclePreviewMode = ::cyclePreviewMode,
+                openSettings = {
+                    requireActivity().findViewById<DrawerLayout>(R.id.drawer_layout)
+                        .openDrawer(GravityCompat.START)
+                },
+                togglePlanning = {
+                    cancelDroneOffsetAdjustment()
+                    hideObstaclePanel()
+                    mapViewModel.togglePlanningPanelVisible()
+                },
+                loadMission = ::openSavedMissionList,
+                addHome = ::startPlannedHomePlacement,
+                simulate = ::toggleMissionSimulation,
+                resumeMission = missionParamsController::resumeServiceMission,
+                closePanel = mapViewModel::dismissSidePanels,
+                acceptGeometry = ::acceptActiveMissionGeometry,
+                declineGeometry = {
+                    clearActiveMissionGeometry()
                     activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
-                } else {
-                    activityViewModel.mapState.postValue(MainActivityViewModel.MapState.LoadMissionFromFile)
-                }
-            }
-
-        requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_add_home_button)
-            ?.setOnClickListener {
-                startPlannedHomePlacement()
-            }
-
-        requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_simulate_button)
-            ?.setOnClickListener {
-                when (missionSimulationController.state) {
-                    MissionSimulationController.State.FLYING -> stopMissionSimulation()
-                    MissionSimulationController.State.WAITING_FOR_SERVICE -> missionSimulationController.resume()
-                    else -> startMissionSimulation()
-                }
-            }
-
-        requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_resume_mission_button)
-            ?.setOnClickListener { missionParamsController.resumeServiceMission() }
-
-        requireView().findViewById<com.google.android.material.button.MaterialButton?>(R.id.right_panel_close_button)
-            ?.setOnClickListener {
-                mapViewModel.dismissSidePanels()
-            }
-
-        binding.homeDrawAcceptButton.setOnClickListener {
-            val workflow = activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA
-            val hasValidGeometry = when (workflow) {
-                PlanningWorkflow.AREA -> activityViewModel.missionArea.value?.vertices.orEmpty().size >= 3
-                PlanningWorkflow.POINTS -> activityViewModel.routeWaypoints.value.orEmpty().size >= 2
-            }
-            if (!hasValidGeometry) {
-                Toast.makeText(
-                    requireContext(),
-                    getString(
-                        if (workflow == PlanningWorkflow.POINTS) R.string.route_requires_two_points
-                        else R.string.wrong_schema_msg
-                    ),
-                    Toast.LENGTH_LONG
-                ).show()
-            } else {
-                activityViewModel.mapState.value = MainActivityViewModel.MapState.SetFlightParams
-            }
-        }
-
-        binding.homeDrawDeclineButton.setOnClickListener {
-            clearActiveMissionGeometry()
-            activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
-        }
-
-        bindWorkflowToggle()
-
-        requireView().findViewById<TextView>(R.id.right_panel_draw_area_button).setOnClickListener {
-            if (activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS) {
-                hideObstaclePanel()
-                mapViewModel.setPlanningPanelVisible(false)
-                clearPointMissionGeometry()
-                activityViewModel.mapState.value = MainActivityViewModel.MapState.Draw
-                Toast.makeText(requireContext(), getString(R.string.tap_map_to_add_points), Toast.LENGTH_SHORT).show()
-            } else {
-                startAreaDrawing()
-            }
-        }
-
-        requireView().findViewById<TextView>(R.id.right_panel_clear_area_button).setOnClickListener {
-            clearActiveMissionGeometry()
-            activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
-        }
-
-        requireView().findViewById<View?>(R.id.right_panel_add_obstacle_button)?.setOnClickListener {
-            if (selectedObstacleMode == OsmdroidObstacleEditor.Mode.POLYGON && obstaclePlacementMode) {
-                if (osmdroidObstacleEditor.finishPolygon()) {
-                    obstaclePlacementMode = false
+                },
+                drawGeometry = ::startActiveGeometryDrawing,
+                clearGeometry = {
+                    clearActiveMissionGeometry()
+                    activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
+                },
+                addObstacle = ::toggleObstaclePlacement,
+                clearObstacles = ::clearMissionObstacles,
+                selectCircleObstacle = { selectObstacleMode(OsmdroidObstacleEditor.Mode.CIRCLE) },
+                selectPolygonObstacle = { selectObstacleMode(OsmdroidObstacleEditor.Mode.POLYGON) },
+                obstacleRadiusChanged = {
+                    activityViewModel.updateObstacleRadius(it)
                     renderObstacleControls()
-                }
-            } else {
-                if (activePreviewMode == PreviewMode.POINT_CLOUD) {
-                    activePreviewMode = PreviewMode.MAP
-                    renderPreviewMode()
-                }
-                obstaclePlacementMode = true
-                if (selectedObstacleMode == OsmdroidObstacleEditor.Mode.CIRCLE) {
-                    osmdroidObstacleEditor.startCirclePlacement(activityViewModel.obstacleRadiusMeters.value ?: 5.0)
-                    Toast.makeText(requireContext(), R.string.obstacle_place_circle_prompt, Toast.LENGTH_SHORT).show()
-                } else {
-                    osmdroidObstacleEditor.startPolygonPlacement()
-                    Toast.makeText(requireContext(), R.string.obstacle_place_polygon_prompt, Toast.LENGTH_SHORT).show()
-                }
-                osmdroidPolygonEditor.setEnabled(false)
-                renderObstacleControls()
-            }
-        }
-
-        requireView().findViewById<View?>(R.id.right_panel_clear_obstacles_button)?.setOnClickListener {
-            obstaclePlacementMode = false
-            osmdroidObstacleEditor.cancelPlacement()
-            activityViewModel.clearMissionObstacles()
-            renderObstacleControls()
-        }
-
-        requireView().findViewById<TextView?>(R.id.right_panel_obstacle_circle_button)?.setOnClickListener {
-            selectedObstacleMode = OsmdroidObstacleEditor.Mode.CIRCLE
-            obstaclePlacementMode = false
-            osmdroidObstacleEditor.cancelPlacement()
-            renderObstacleControls()
-        }
-
-        requireView().findViewById<TextView?>(R.id.right_panel_obstacle_polygon_button)?.setOnClickListener {
-            selectedObstacleMode = OsmdroidObstacleEditor.Mode.POLYGON
-            obstaclePlacementMode = false
-            osmdroidObstacleEditor.cancelPlacement()
-            renderObstacleControls()
-        }
-
-        requireView().findViewById<SeekBar?>(R.id.right_panel_obstacle_radius_seekbar)?.apply {
-            progress = ((activityViewModel.obstacleRadiusMeters.value ?: 5.0).toInt() - 2).coerceIn(0, max)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(seekBar: SeekBar?, progress: Int, fromUser: Boolean) {
-                    if (!fromUser) return
-                    activityViewModel.updateObstacleRadius(progress + 2)
-                    renderObstacleControls()
-                }
-
-                override fun onStartTrackingTouch(seekBar: SeekBar?) {}
-                override fun onStopTrackingTouch(seekBar: SeekBar?) {}
-            })
-        }
-
+                },
+                deleteWaypoint = ::deleteSelectedSurveyWaypoint,
+                cancelWaypoint = ::cancelSurveyWaypointSelection,
+                decreaseWaypointHeight = { adjustSelectedSurveyWaypointHeight(-1.0) },
+                increaseWaypointHeight = { adjustSelectedSurveyWaypointHeight(1.0) },
+                applyWaypointHeight = ::applySelectedWaypointHeightField,
+            ),
+            initialObstacleRadiusMeters = (activityViewModel.obstacleRadiusMeters.value ?: 5.0).toInt(),
+        )
+        planningWorkflowUiController.bind(viewLifecycleOwner) { onPlanningWorkflowChanged() }
         renderAddHomeButton()
-
-        binding.surveyWaypointDeleteButton.setOnClickListener {
-            val selectedIndex = selectedSurveyWaypointIndex ?: return@setOnClickListener
-            if (selectedTerrainWaypointWorkflow == PlanningWorkflow.POINTS) {
-                activityViewModel.removeTerrainRouteWaypoint(selectedIndex)
-                osmdroidRouteWaypointEditor.clearTerrainWaypointSelection()
-                updateFlightDistance(currentMissionPath())
-            } else {
-                activityViewModel.removeSurveyWaypoint(selectedIndex)
-                osmdroidMapController.clearSelectedSurveyWaypoint()
-                updateFlightDistance(activityViewModel.surveyPath.value.orEmpty())
-                renderCurrentSurveyPathOnMap()
-            }
-            Toast.makeText(requireContext(), getString(R.string.survey_waypoint_deleted), Toast.LENGTH_SHORT).show()
-        }
-
-        binding.surveyWaypointCancelButton.setOnClickListener {
-            osmdroidMapController.clearSelectedSurveyWaypoint()
-            osmdroidRouteWaypointEditor.clearTerrainWaypointSelection()
-            onTerrainWaypointSelected(selectedTerrainWaypointWorkflow, null)
-        }
-        binding.surveyWaypointHeightMinusButton.setOnClickListener {
-            adjustSelectedSurveyWaypointHeight(deltaMeters = -1.0)
-        }
-        binding.surveyWaypointHeightPlusButton.setOnClickListener {
-            adjustSelectedSurveyWaypointHeight(deltaMeters = 1.0)
-        }
-        binding.surveyWaypointHeightLabel.setOnEditorActionListener { _, _, _ ->
-            applySelectedWaypointHeightField()
-            binding.surveyWaypointHeightLabel.clearFocus()
-            true
-        }
-        binding.surveyWaypointHeightLabel.setOnFocusChangeListener { _, hasFocus ->
-            if (!hasFocus) applySelectedWaypointHeightField()
-        }
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
     }
-
     private fun bindPreviewAssetButtons() {
-        binding.previewModeMapButton.setOnClickListener {
-            activePreviewMode = PreviewMode.MAP
-            renderPreviewMode()
+        missionMapUiActionController.bindPreview(
+            MissionMapUiActionController.PreviewActions(
+                selectMode = ::selectPreviewMode,
+                primary = {
+                    when (activePreviewMode) {
+                        PreviewMode.MAP -> Unit
+                        PreviewMode.ORTHO -> openPreviewFilePicker(REQUEST_HOME_OPEN_TIFF)
+                        PreviewMode.POINT_CLOUD -> openPreviewFilePicker(REQUEST_HOME_OPEN_PLY)
+                    }
+                },
+                secondary = {
+                    when (activePreviewMode) {
+                        PreviewMode.MAP -> Unit
+                        PreviewMode.ORTHO -> openPreviewFilePicker(REQUEST_HOME_OPEN_WORLD)
+                        PreviewMode.POINT_CLOUD -> binding.homePointCloudGlView.resetCamera()
+                    }
+                },
+                toggleHeightColors = {
+                    previewAssetsViewModel.updateSettings {
+                        copy(heightColorModeEnabled = !heightColorModeEnabled)
+                    }
+                },
+                backgroundChanged = { checked ->
+                    if (activePreviewMode == PreviewMode.ORTHO) {
+                        binding.osmMap.overlayManager.tilesOverlay?.isEnabled = checked
+                        binding.osmMap.invalidate()
+                    }
+                },
+                opacityChanged = { opacity ->
+                    orthoOverlayController.setOpacity(opacity)
+                    binding.homePointCloudGlView.setPointCloudOpacity(opacity)
+                    binding.osmMap.invalidate()
+                },
+            )
+        )
+    }
+    private fun centerOnDroneOrShowDisconnected() {
+        if (droneViewModel.conStateLiveData.value == true) osmdroidMapController.centerOnDrone()
+        else Toast.makeText(context, R.string.no_conn_msg, Toast.LENGTH_LONG).show()
+    }
+
+    private fun openSavedMissionList() {
+        if (missionFileStore.listMissionFiles().isEmpty()) {
+            Toast.makeText(requireContext(), R.string.no_saved_missions_yet, Toast.LENGTH_LONG).show()
+            activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
+        } else activityViewModel.mapState.postValue(MainActivityViewModel.MapState.LoadMissionFromFile)
+    }
+
+    private fun toggleMissionSimulation() {
+        when (missionSimulationController.state) {
+            MissionSimulationController.State.FLYING -> stopMissionSimulation()
+            MissionSimulationController.State.WAITING_FOR_SERVICE -> missionSimulationController.resume()
+            else -> startMissionSimulation()
         }
-        binding.previewModeOrthoButton.setOnClickListener {
-            activePreviewMode = PreviewMode.ORTHO
-            renderPreviewMode()
+    }
+
+    private fun acceptActiveMissionGeometry() {
+        val workflow = activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA
+        val valid = when (workflow) {
+            PlanningWorkflow.AREA -> activityViewModel.missionArea.value?.vertices.orEmpty().size >= 3
+            PlanningWorkflow.POINTS -> activityViewModel.routeWaypoints.value.orEmpty().size >= 2
         }
-        binding.previewMode3dButton.setOnClickListener {
-            activePreviewMode = PreviewMode.POINT_CLOUD
-            if (!isSurveyMode()) restorePointCloudOnDemand()
-            renderPreviewMode()
-        }
-        binding.previewAssetPrimaryButton.setOnClickListener {
-            when (activePreviewMode) {
-                PreviewMode.MAP -> Unit
-                PreviewMode.ORTHO -> openPreviewFilePicker(REQUEST_HOME_OPEN_TIFF)
-                PreviewMode.POINT_CLOUD -> openPreviewFilePicker(REQUEST_HOME_OPEN_PLY)
+        if (valid) activityViewModel.mapState.value = MainActivityViewModel.MapState.SetFlightParams
+        else Toast.makeText(
+            requireContext(),
+            if (workflow == PlanningWorkflow.POINTS) R.string.route_requires_two_points else R.string.wrong_schema_msg,
+            Toast.LENGTH_LONG,
+        ).show()
+    }
+
+    private fun startActiveGeometryDrawing() {
+        if (activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS) {
+            hideObstaclePanel()
+            mapViewModel.setPlanningPanelVisible(false)
+            clearPointMissionGeometry()
+            activityViewModel.mapState.value = MainActivityViewModel.MapState.Draw
+            Toast.makeText(requireContext(), R.string.tap_map_to_add_points, Toast.LENGTH_SHORT).show()
+        } else startAreaDrawing()
+    }
+
+    private fun toggleObstaclePlacement() {
+        if (selectedObstacleMode == OsmdroidObstacleEditor.Mode.POLYGON && obstaclePlacementMode) {
+            if (osmdroidObstacleEditor.finishPolygon()) obstaclePlacementMode = false
+        } else {
+            if (activePreviewMode == PreviewMode.POINT_CLOUD) selectPreviewMode(PreviewMode.MAP)
+            obstaclePlacementMode = true
+            if (selectedObstacleMode == OsmdroidObstacleEditor.Mode.CIRCLE) {
+                osmdroidObstacleEditor.startCirclePlacement(activityViewModel.obstacleRadiusMeters.value ?: 5.0)
+                Toast.makeText(requireContext(), R.string.obstacle_place_circle_prompt, Toast.LENGTH_SHORT).show()
+            } else {
+                osmdroidObstacleEditor.startPolygonPlacement()
+                Toast.makeText(requireContext(), R.string.obstacle_place_polygon_prompt, Toast.LENGTH_SHORT).show()
             }
+            osmdroidPolygonEditor.setEnabled(false)
         }
-        binding.previewAssetSecondaryButton.setOnClickListener {
-            when (activePreviewMode) {
-                PreviewMode.MAP -> Unit
-                PreviewMode.ORTHO -> openPreviewFilePicker(REQUEST_HOME_OPEN_WORLD)
-                PreviewMode.POINT_CLOUD -> binding.homePointCloudGlView.resetCamera()
-            }
+        renderObstacleControls()
+    }
+
+    private fun clearMissionObstacles() {
+        obstaclePlacementMode = false
+        osmdroidObstacleEditor.cancelPlacement()
+        activityViewModel.clearMissionObstacles()
+        renderObstacleControls()
+    }
+
+    private fun selectObstacleMode(mode: OsmdroidObstacleEditor.Mode) {
+        selectedObstacleMode = mode
+        obstaclePlacementMode = false
+        osmdroidObstacleEditor.cancelPlacement()
+        renderObstacleControls()
+    }
+
+    private fun deleteSelectedSurveyWaypoint() {
+        val index = selectedSurveyWaypointIndex ?: return
+        if (selectedTerrainWaypointWorkflow == PlanningWorkflow.POINTS) {
+            activityViewModel.removeTerrainRouteWaypoint(index)
+            osmdroidRouteWaypointEditor.clearTerrainWaypointSelection()
+            updateFlightDistance(currentMissionPath())
+        } else {
+            activityViewModel.removeSurveyWaypoint(index)
+            osmdroidMapController.clearSelectedSurveyWaypoint()
+            updateFlightDistance(activityViewModel.surveyPath.value.orEmpty())
+            renderCurrentSurveyPathOnMap()
         }
-        binding.previewAssetTertiaryButton.setOnClickListener {}
-        binding.previewColorModeButton.setOnClickListener {
-            previewAssetsViewModel.updateSettings {
-                copy(heightColorModeEnabled = !heightColorModeEnabled)
-            }
-        }
-        binding.previewBackgroundSwitch.setOnCheckedChangeListener { _, isChecked ->
-            if (activePreviewMode == PreviewMode.ORTHO) {
-                binding.osmMap.overlayManager.tilesOverlay?.isEnabled = isChecked
-                binding.osmMap.invalidate()
-            }
-        }
-        binding.previewOpacitySlider.addOnChangeListener { _, value, _ ->
-            orthoOverlayController.setOpacity(value)
-            binding.homePointCloudGlView.setPointCloudOpacity(value)
-            binding.osmMap.invalidate()
-        }
+        Toast.makeText(requireContext(), R.string.survey_waypoint_deleted, Toast.LENGTH_SHORT).show()
+    }
+
+    private fun cancelSurveyWaypointSelection() {
+        osmdroidMapController.clearSelectedSurveyWaypoint()
+        osmdroidRouteWaypointEditor.clearTerrainWaypointSelection()
+        onTerrainWaypointSelected(selectedTerrainWaypointWorkflow, null)
+    }
+
+    private fun selectPreviewMode(mode: PreviewMode) {
+        activePreviewMode = mode
+        if (mode == PreviewMode.POINT_CLOUD && !isSurveyMode()) restorePointCloudOnDemand()
+        renderPreviewMode()
+    }
+
+    private fun onPlanningWorkflowChanged() {
+        obstaclePlacementMode = false
+        osmdroidObstacleEditor.cancelPlacement()
+        stopMissionSimulation()
+        renderObstacleControls()
+        updateRouteSummary()
+        updateRouteEditorEnabled()
+        updateSurveyWaypointEditorEnabled()
+        updateGeoAwarenessPlanningStatus()
+        updateMissionSummaryCard()
+        updateTerrainCoverageOverlay()
     }
 
     private fun observePreviewSettings() {
@@ -832,18 +791,18 @@ class MissionMapFragment : Fragment() {
             cancelObstaclePlacement()
         }
         panel.visibility = if (show) View.VISIBLE else View.GONE
-        setObstacleDockSelected(show)
+        missionMapUiActionController.setDockButtonSelected(R.id.utility_obstacles_button, show)
     }
 
     private fun hideObstaclePanel() {
         requireView().findViewById<View>(R.id.home_obstacle_panel).visibility = View.GONE
-        setObstacleDockSelected(false)
+        missionMapUiActionController.setDockButtonSelected(R.id.utility_obstacles_button, false)
         cancelObstaclePlacement()
     }
 
     private fun cancelDroneOffsetAdjustment() {
         osmdroidMapController.cancelDroneOffsetAdjustment()
-        setOffsetDockSelected(false)
+        missionMapUiActionController.setDockButtonSelected(R.id.utility_offset_button, false)
     }
 
     private fun startDroneOffsetAdjustment() {
@@ -857,40 +816,12 @@ class MissionMapFragment : Fragment() {
             droneMapTrackingController.updateOffset(latitudeOffset, longitudeOffset)
             syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
             updateLiveGeoAwarenessFromActiveSource()
-            setOffsetDockSelected(false)
+            missionMapUiActionController.setDockButtonSelected(R.id.utility_offset_button, false)
             Toast.makeText(requireContext(), getString(R.string.drone_offset_applied), Toast.LENGTH_SHORT).show()
         }
         if (started) {
-            setOffsetDockSelected(true)
+            missionMapUiActionController.setDockButtonSelected(R.id.utility_offset_button, true)
             Toast.makeText(requireContext(), getString(R.string.drone_offset_drag_prompt), Toast.LENGTH_LONG).show()
-        }
-    }
-
-    private fun setObstacleDockSelected(selected: Boolean) {
-        setDockButtonSelected(R.id.utility_obstacles_button, selected)
-    }
-
-    private fun setOffsetDockSelected(selected: Boolean) {
-        setDockButtonSelected(R.id.utility_offset_button, selected)
-    }
-
-    private fun setDockButtonSelected(buttonId: Int, selected: Boolean) {
-        val button = view?.findViewById<View>(buttonId) ?: return
-        button.isSelected = selected
-        val color = ContextCompat.getColor(
-            requireContext(),
-            if (selected) R.color.ds_color_shell_active else R.color.ds_color_shell_unselected
-        )
-        when (button) {
-            is ImageView -> button.setColorFilter(color)
-            is ViewGroup -> {
-                for (index in 0 until button.childCount) {
-                    when (val child = button.getChildAt(index)) {
-                        is ImageView -> child.setColorFilter(color)
-                        is TextView -> child.setTextColor(color)
-                    }
-                }
-            }
         }
     }
 
@@ -924,152 +855,15 @@ class MissionMapFragment : Fragment() {
         if (::osmdroidRouteWaypointEditor.isInitialized) osmdroidRouteWaypointEditor.clear()
     }
 
-    private fun bindWorkflowToggle() {
-        val areaButton = requireView().findViewById<TextView>(R.id.right_panel_area_button)
-        val pointsButton = requireView().findViewById<TextView>(R.id.right_panel_points_button)
-
-        listOf(areaButton, pointsButton).forEach { button ->
-            button.includeFontPadding = false
-            button.gravity = android.view.Gravity.CENTER
-        }
-
-        areaButton.setOnClickListener {
-            activityViewModel.setPlanningWorkflow(PlanningWorkflow.AREA)
-            activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
-        }
-
-        pointsButton.setOnClickListener {
-            activityViewModel.setPlanningWorkflow(PlanningWorkflow.POINTS)
-            activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
-        }
-
-        activityViewModel.activePlanningWorkflow.observe(viewLifecycleOwner) { workflow ->
-            obstaclePlacementMode = false
-            osmdroidObstacleEditor.cancelPlacement()
-            stopMissionSimulation()
-            renderWorkflowSelection(workflow)
-            updateRouteEditorEnabled()
-            updateSurveyWaypointEditorEnabled()
-            updateGeoAwarenessPlanningStatus()
-            updateMissionSummaryCard()
-            updateTerrainCoverageOverlay()
-        }
-    }
-
-    private fun applyMapInsets() {
-        val dockBottomMargin = (binding.homeBottomUtilityDock.layoutParams as MarginLayoutParams).bottomMargin
-        val drawBottomMargin = (binding.homeDrawActionBar.layoutParams as MarginLayoutParams).bottomMargin
-        val planningLabelBottomMargin = (binding.homeBottomPlanningLabel.layoutParams as MarginLayoutParams).bottomMargin
-
-        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
-            val bottomInset = insets.getInsets(
-                WindowInsetsCompat.Type.systemBars() or WindowInsetsCompat.Type.displayCutout()
-            ).bottom
-
-            updateBottomMargin(binding.homeBottomUtilityDock, dockBottomMargin + bottomInset)
-            updateBottomMargin(binding.homeDrawActionBar, drawBottomMargin + bottomInset)
-            updateBottomMargin(binding.homeBottomPlanningLabel, planningLabelBottomMargin + bottomInset)
-
-            insets
-        }
-        ViewCompat.requestApplyInsets(binding.root)
-    }
-
-    private fun updateBottomMargin(view: View, marginBottom: Int) {
-        val layoutParams = view.layoutParams as? MarginLayoutParams ?: return
-        if (layoutParams.bottomMargin == marginBottom) {
-            return
-        }
-        layoutParams.bottomMargin = marginBottom
-        view.layoutParams = layoutParams
-    }
-
     private fun renderWorkflowSelection(workflow: PlanningWorkflow) {
-        val areaButton = requireView().findViewById<TextView>(R.id.right_panel_area_button)
-        val pointsButton = requireView().findViewById<TextView>(R.id.right_panel_points_button)
-        val drawButton = requireView().findViewById<TextView>(R.id.right_panel_draw_area_button)
-        val obstacleButton = requireView().findViewById<TextView?>(R.id.right_panel_add_obstacle_button)
-        val obstacleModeRow = requireView().findViewById<View?>(R.id.right_panel_obstacle_mode_row)
-        val obstacleRadiusLabel = requireView().findViewById<View?>(R.id.right_panel_obstacle_radius_label)
-        val obstacleRadiusSeekbar = requireView().findViewById<View?>(R.id.right_panel_obstacle_radius_seekbar)
-        val clearObstaclesButton = requireView().findViewById<View?>(R.id.right_panel_clear_obstacles_button)
-        val routeSummary = requireView().findViewById<TextView?>(R.id.right_panel_route_summary)
-        val selectedTextColor = if (resources.getBoolean(R.bool.config_tablet_planning_dock)) {
-            R.color.ds_color_shell_active
-        } else {
-            R.color.ds_color_shell_selected_content
-        }
-
-        fun styleWorkflowButton(button: TextView, selected: Boolean) {
-            button.setBackgroundResource(
-                if (selected) R.drawable.bg_ds_panel_pill_active
-                else R.drawable.bg_ds_panel_pill_inactive
-            )
-            button.setTextColor(
-                ContextCompat.getColor(
-                    requireContext(),
-                    if (selected) selectedTextColor else R.color.ds_color_text_primary
-                )
-            )
-            button.setTypeface(button.typeface, if (selected) Typeface.BOLD else Typeface.NORMAL)
-            button.includeFontPadding = false
-            button.gravity = android.view.Gravity.CENTER
-        }
-
-        val isPoints = workflow == PlanningWorkflow.POINTS
-        areaButton.setText(R.string.area)
-        areaButton.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_draw_area_24, 0, 0, 0)
-        areaButton.compoundDrawablePadding = resources.getDimensionPixelSize(R.dimen.ds_space_sm)
-        styleWorkflowButton(areaButton, !isPoints)
-        areaButton.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
-        pointsButton.setCompoundDrawablesWithIntrinsicBounds(R.drawable.ic_points_24, 0, 0, 0)
-        pointsButton.compoundDrawablePadding = resources.getDimensionPixelSize(R.dimen.ds_space_sm)
-        styleWorkflowButton(pointsButton, isPoints)
-        pointsButton.gravity = android.view.Gravity.START or android.view.Gravity.CENTER_VERTICAL
-        listOf(areaButton to !isPoints, pointsButton to isPoints).forEach { (button, selected) ->
-            val iconColor = ContextCompat.getColor(
-                requireContext(),
-                if (selected) selectedTextColor else R.color.ds_color_text_primary
-            )
-            button.compoundDrawables.forEach { drawable ->
-                drawable?.mutate()?.setTint(iconColor)
-            }
-        }
-        drawButton.visibility = View.VISIBLE
-        updateGeometryActionState()
-        obstacleButton?.visibility = View.VISIBLE
-        obstacleModeRow?.visibility = View.VISIBLE
-        obstacleRadiusLabel?.visibility = View.VISIBLE
-        obstacleRadiusSeekbar?.visibility = View.VISIBLE
-        clearObstaclesButton?.visibility = View.VISIBLE
-        routeSummary?.visibility = if (isPoints) View.VISIBLE else View.GONE
+        planningWorkflowUiController.render(workflow)
         renderObstacleControls()
         updateRouteSummary()
     }
 
     private fun updateGeometryActionState() {
-        val workflow = activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA
-        val hasGeometry = when (workflow) {
-            PlanningWorkflow.AREA ->
-                activityViewModel.missionArea.value?.vertices.orEmpty().isNotEmpty() ||
-                    activityViewModel.surveyPath.value.orEmpty().isNotEmpty()
-            PlanningWorkflow.POINTS ->
-                activityViewModel.routeWaypoints.value.orEmpty().isNotEmpty() ||
-                    activityViewModel.plannedRoutePath.value.orEmpty().isNotEmpty() ||
-                    activityViewModel.terrainRouteWaypoints.value.orEmpty().isNotEmpty()
-        }
-        view?.findViewById<TextView?>(R.id.right_panel_draw_area_button)?.setText(
-            when (workflow) {
-                PlanningWorkflow.AREA -> if (hasGeometry) R.string.redraw_area else R.string.draw_area
-                PlanningWorkflow.POINTS -> if (hasGeometry) R.string.redraw_route else R.string.draw_route
-            }
-        )
-        view?.findViewById<View?>(R.id.right_panel_clear_area_button)?.apply {
-            isEnabled = hasGeometry
-            alpha = if (hasGeometry) 1f else 0.45f
-        }
+        planningWorkflowUiController.updateGeometryActionState()
     }
-
     private fun isWorkflowSelectionActive(): Boolean {
         return when (activityViewModel.mapState.value) {
             MainActivityViewModel.MapState.Draw,
@@ -1079,44 +873,12 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun renderObstacleControls() {
-        val circleButton = requireView().findViewById<TextView?>(R.id.right_panel_obstacle_circle_button) ?: return
-        val polygonButton = requireView().findViewById<TextView?>(R.id.right_panel_obstacle_polygon_button) ?: return
-        val addButton = requireView().findViewById<TextView?>(R.id.right_panel_add_obstacle_button)
-        val radiusLabel = requireView().findViewById<TextView?>(R.id.right_panel_obstacle_radius_label)
-        val radiusSeekbar = requireView().findViewById<SeekBar?>(R.id.right_panel_obstacle_radius_seekbar)
-        val isPolygon = selectedObstacleMode == OsmdroidObstacleEditor.Mode.POLYGON
-
-        fun style(button: TextView, selected: Boolean) {
-            button.setBackgroundResource(
-                if (selected) R.drawable.bg_ds_panel_pill_active
-                else R.drawable.bg_ds_panel_pill_inactive
-            )
-            button.setTextColor(
-                ContextCompat.getColor(
-                    requireContext(),
-                    if (selected) R.color.ds_color_shell_selected_content else R.color.ds_color_text_primary
-                )
-            )
-            button.setTypeface(button.typeface, if (selected) Typeface.BOLD else Typeface.NORMAL)
-        }
-
-        style(circleButton, !isPolygon)
-        style(polygonButton, isPolygon)
-        val radius = (activityViewModel.obstacleRadiusMeters.value ?: 5.0).toInt().coerceIn(2, 100)
-        radiusLabel?.text = getString(R.string.obstacle_radius_format, radius)
-        radiusLabel?.visibility = if (!isPolygon) View.VISIBLE else View.GONE
-        radiusSeekbar?.visibility = if (!isPolygon) View.VISIBLE else View.GONE
-        if (radiusSeekbar != null && radiusSeekbar.progress != radius - 2) {
-            radiusSeekbar.progress = radius - 2
-        }
-        addButton?.text = if (isPolygon && obstaclePlacementMode) {
-            getString(R.string.finish_forbidden_polygon)
-        } else {
-            getString(R.string.add_forbidden_area)
-        }
-        renderObstacleList(activityViewModel.missionObstacles.value.orEmpty())
+        planningWorkflowUiController.renderObstacleControls(
+            mode = selectedObstacleMode,
+            placementActive = obstaclePlacementMode,
+            radiusMeters = (activityViewModel.obstacleRadiusMeters.value ?: 5.0).toInt(),
+        )
     }
-
     private fun renderObstacleList(obstacles: List<MissionObstacle>) {
         val list = view?.findViewById<LinearLayout?>(R.id.right_panel_obstacle_list) ?: return
         list.removeAllViews()
