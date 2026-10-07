@@ -11,7 +11,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.ImageView
-import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -47,8 +46,6 @@ import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessProximit
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
-import com.example.droneservicesapp.domain.model.MissionObstacle
-import com.example.droneservicesapp.domain.model.MissionObstacleShape
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.planning.MissionResourcePlan
@@ -118,7 +115,6 @@ import com.example.droneservicesapp.ui.common.RtkTonePlayer
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.SphericalUtil
 import io.dronefleet.mavlink.common.MavLandedState
-import io.dronefleet.mavlink.common.MissionItemInt
 import org.osmdroid.tileprovider.cachemanager.CacheManager
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
@@ -210,9 +206,6 @@ class MissionMapFragment : Fragment() {
     private var lastRtkStreamingActive: Boolean? = null
     private var isDrawingModeActive = false
     private var geoZoneReloadInProgress: Boolean = false
-    private var obstaclePlacementMode: Boolean = false
-    private var selectedObstacleMode: OsmdroidObstacleEditor.Mode = OsmdroidObstacleEditor.Mode.CIRCLE
-    private var lastRenderedDownloadedMissionSignature: String? = null
     private var geoPlanningJob: Job? = null
     private var liveGeoUpdateJob: Job? = null
     private var lastLiveGeoUpdateUptimeMs = 0L
@@ -357,7 +350,8 @@ class MissionMapFragment : Fragment() {
             context = requireContext(),
             binding = binding,
             assetsViewModel = previewAssetsViewModel,
-            renderMapPath = ::renderCurrentSurveyPathOnMap,
+            // initializeMapView runs before initControllers; defer the lateinit lookup until render time.
+            renderMapPath = { missionMapRenderer.renderCurrentPath() },
             renderOrtho = ::renderHomeOrthoOverlay,
             clearOrtho = ::removeHomeOrthoOverlay,
             renderTerrainStatus = ::renderTerrainGridStatus,
@@ -380,8 +374,8 @@ class MissionMapFragment : Fragment() {
             onDisarmed = { resetCurrentFlightUgzAuthorizations("disarmed") },
         )
         osmdroidMapController.setSurveyWaypointEditCallbacks(
-            onSelected = { index -> onSurveyWaypointSelected(index) },
-            onMoved = { index, point -> onSurveyWaypointMoved(index, point) }
+            onSelected = { index -> missionEditorCoordinator.selectSurvey(index) },
+            onMoved = { index, point -> missionEditorCoordinator.moveSurvey(index, point) }
         )
 
         osmdroidPolygonEditor = OsmdroidPolygonEditor(requireActivity(), activityViewModel, mapView)
@@ -390,7 +384,7 @@ class MissionMapFragment : Fragment() {
         osmdroidRouteWaypointEditor = OsmdroidRouteWaypointEditor(requireContext(), activityViewModel, mapView)
         osmdroidRouteWaypointEditor.init()
         osmdroidRouteWaypointEditor.setTerrainWaypointSelectionCallback { index ->
-            onTerrainWaypointSelected(PlanningWorkflow.POINTS, index)
+            missionEditorCoordinator.select(PlanningWorkflow.POINTS, index, activePreviewMode)
         }
         esriMapLayers.bringAttributionToFront()
         binding.homePointCloudGlView.setOnMissionPointClickListener { index, x, y ->
@@ -401,10 +395,10 @@ class MissionMapFragment : Fragment() {
             if (workflow == PlanningWorkflow.POINTS) {
                 osmdroidRouteWaypointEditor.selectTerrainWaypoint(selectedIndex)
             } else {
-                onTerrainWaypointSelected(PlanningWorkflow.AREA, selectedIndex)
+                missionEditorCoordinator.select(PlanningWorkflow.AREA, selectedIndex, activePreviewMode)
             }
             if (selectedIndex != null) {
-                positionHeightEditorNearViewPoint(binding.homePointCloudGlView, x, y)
+                missionEditorCoordinator.positionNearViewPoint(binding.homePointCloudGlView, x, y)
             }
         }
 
@@ -416,7 +410,7 @@ class MissionMapFragment : Fragment() {
             routeWaypointEditor = osmdroidRouteWaypointEditor,
             beforePlacement = {
                 cancelDroneOffsetAdjustment()
-                cancelObstaclePlacement()
+                missionEditorCoordinator.cancelObstaclePlacement()
             },
             onHomePlaced = ::placePlannedHome,
         )
@@ -490,11 +484,15 @@ class MissionMapFragment : Fragment() {
             binding = binding,
             viewModel = activityViewModel,
             mapController = osmdroidMapController,
+            polygonEditor = osmdroidPolygonEditor,
             routeEditor = osmdroidRouteWaypointEditor,
+            obstacleEditor = osmdroidObstacleEditor,
             terrainSampler = terrainMissionCoordinator::resampleWaypoint,
+            shouldReversePointRoute = pointRouteCoordinator::shouldReverse,
             updateDistance = ::updateFlightDistance,
-            renderPath = ::renderCurrentSurveyPathOnMap,
+            renderPath = missionMapRenderer::renderCurrentPath,
             updatePointCloudOverlay = ::updatePointCloudMissionOverlay,
+            applyObstacleControls = planningWorkflowUiController::renderObstacleControls,
         )
         missionGenerationCoordinator = MissionGenerationCoordinator(
             scope = viewLifecycleOwner.lifecycleScope,
@@ -538,7 +536,7 @@ class MissionMapFragment : Fragment() {
             viewModel = activityViewModel,
             eventLogger = operatorEventLogger,
             cancelPlanning = ::cancelPendingMissionPlanning,
-            cancelObstaclePlacement = ::cancelObstaclePlacement,
+            cancelObstaclePlacement = { missionEditorCoordinator.cancelObstaclePlacement() },
             clearEditors = {
                 osmdroidPolygonEditor.clear()
                 osmdroidMapController.clearSurveyPath()
@@ -605,7 +603,7 @@ class MissionMapFragment : Fragment() {
             droneLocationProvider = ::currentOffsetDroneLocation,
             beforeUploadGuard = { onAllowed ->
                 handleGeoAwarenessBeforeUpload {
-                    showMissionUploadSummaryDialog(onAllowed)
+                    missionSummaryPresenter.showUploadSummary(onAllowed)
                 }
             },
             beforeMissionUpload = ::stopMissionSimulation,
@@ -628,7 +626,7 @@ class MissionMapFragment : Fragment() {
             missionSaveController = missionSaveController,
             missionLoadController = missionLoadController,
             onEnterIdle = {
-                renderDownloadedMission(droneViewModel.missionItems.value.orEmpty(), force = true)
+                missionMapRenderer.renderDownloaded(droneViewModel.missionItems.value.orEmpty(), force = true)
                 droneViewModel.downloadMissionNew(force = true)
             }
         )
@@ -675,19 +673,29 @@ class MissionMapFragment : Fragment() {
                     clearActiveMissionGeometry()
                     activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
                 },
-                addObstacle = ::toggleObstaclePlacement,
-                clearObstacles = ::clearMissionObstacles,
-                selectCircleObstacle = { selectObstacleMode(OsmdroidObstacleEditor.Mode.CIRCLE) },
-                selectPolygonObstacle = { selectObstacleMode(OsmdroidObstacleEditor.Mode.POLYGON) },
+                addObstacle = {
+                    missionEditorCoordinator.toggleObstaclePlacement(activePreviewMode) {
+                        selectPreviewMode(PreviewMode.MAP)
+                    }
+                },
+                clearObstacles = missionEditorCoordinator::clearObstacles,
+                selectCircleObstacle = {
+                    missionEditorCoordinator.selectObstacleMode(OsmdroidObstacleEditor.Mode.CIRCLE)
+                },
+                selectPolygonObstacle = {
+                    missionEditorCoordinator.selectObstacleMode(OsmdroidObstacleEditor.Mode.POLYGON)
+                },
                 obstacleRadiusChanged = {
                     activityViewModel.updateObstacleRadius(it)
-                    renderObstacleControls()
+                    missionEditorCoordinator.renderObstacleControls()
                 },
-                deleteWaypoint = ::deleteSelectedSurveyWaypoint,
-                cancelWaypoint = ::cancelSurveyWaypointSelection,
-                decreaseWaypointHeight = { adjustSelectedSurveyWaypointHeight(-1.0) },
-                increaseWaypointHeight = { adjustSelectedSurveyWaypointHeight(1.0) },
-                applyWaypointHeight = ::applySelectedWaypointHeightField,
+                deleteWaypoint = {
+                    missionEditorCoordinator.deleteSelected { updateFlightDistance(currentMissionPath()) }
+                },
+                cancelWaypoint = missionEditorCoordinator::cancelSelection,
+                decreaseWaypointHeight = { missionEditorCoordinator.adjustHeight(-1.0) },
+                increaseWaypointHeight = { missionEditorCoordinator.adjustHeight(1.0) },
+                applyWaypointHeight = missionEditorCoordinator::applyHeightField,
             ),
             initialObstacleRadiusMeters = (activityViewModel.obstacleRadiusMeters.value ?: 5.0).toInt(),
         )
@@ -776,45 +784,6 @@ class MissionMapFragment : Fragment() {
         } else startAreaDrawing()
     }
 
-    private fun toggleObstaclePlacement() {
-        if (selectedObstacleMode == OsmdroidObstacleEditor.Mode.POLYGON && obstaclePlacementMode) {
-            if (osmdroidObstacleEditor.finishPolygon()) obstaclePlacementMode = false
-        } else {
-            if (activePreviewMode == PreviewMode.POINT_CLOUD) selectPreviewMode(PreviewMode.MAP)
-            obstaclePlacementMode = true
-            if (selectedObstacleMode == OsmdroidObstacleEditor.Mode.CIRCLE) {
-                osmdroidObstacleEditor.startCirclePlacement(activityViewModel.obstacleRadiusMeters.value ?: 5.0)
-                Toast.makeText(requireContext(), R.string.obstacle_place_circle_prompt, Toast.LENGTH_SHORT).show()
-            } else {
-                osmdroidObstacleEditor.startPolygonPlacement()
-                Toast.makeText(requireContext(), R.string.obstacle_place_polygon_prompt, Toast.LENGTH_SHORT).show()
-            }
-            osmdroidPolygonEditor.setEnabled(false)
-        }
-        renderObstacleControls()
-    }
-
-    private fun clearMissionObstacles() {
-        obstaclePlacementMode = false
-        osmdroidObstacleEditor.cancelPlacement()
-        activityViewModel.clearMissionObstacles()
-        renderObstacleControls()
-    }
-
-    private fun selectObstacleMode(mode: OsmdroidObstacleEditor.Mode) {
-        selectedObstacleMode = mode
-        obstaclePlacementMode = false
-        osmdroidObstacleEditor.cancelPlacement()
-        renderObstacleControls()
-    }
-
-    private fun deleteSelectedSurveyWaypoint() {
-        missionEditorCoordinator.deleteSelected { updateFlightDistance(currentMissionPath()) }
-    }
-
-    private fun cancelSurveyWaypointSelection() {
-        missionEditorCoordinator.cancelSelection()
-    }
     private fun selectPreviewMode(mode: PreviewMode) {
         activePreviewMode = mode
         if (mode == PreviewMode.POINT_CLOUD && !isSurveyMode()) restorePointCloudOnDemand()
@@ -822,16 +791,15 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun onPlanningWorkflowChanged() {
-        obstaclePlacementMode = false
-        osmdroidObstacleEditor.cancelPlacement()
+        missionEditorCoordinator.cancelObstaclePlacement(render = false)
         stopMissionSimulation()
-        renderObstacleControls()
+        missionEditorCoordinator.renderObstacleControls()
         updateRouteSummary()
-        updateRouteEditorEnabled()
-        updateSurveyWaypointEditorEnabled()
+        missionEditorCoordinator.updateRouteEnabled(homePlacementMode)
+        missionEditorCoordinator.updateSurveyEnabled()
         updateGeoAwarenessPlanningStatus()
-        updateMissionSummaryCard()
-        updateTerrainCoverageOverlay()
+        missionSummaryPresenter.renderCard()
+        missionMapRenderer.renderCoverage()
     }
 
     private fun observePreviewSettings() {
@@ -850,13 +818,13 @@ class MissionMapFragment : Fragment() {
             if (activePreviewMode == PreviewMode.ORTHO) {
                 binding.osmMap.overlayManager.tilesOverlay?.isEnabled = settings.orthoBackgroundEnabled
             }
-            renderCurrentSurveyPathOnMap()
+            missionMapRenderer.renderCurrentPath()
             updatePointCloudMissionOverlay()
             renderPreviewMode()
             },
             onAssetVersion = {
             refreshPreviewAssets()
-            renderCurrentSurveyPathOnMap()
+            missionMapRenderer.renderCurrentPath()
             redrawAreaMissionIfEditable()
             },
         )
@@ -870,9 +838,9 @@ class MissionMapFragment : Fragment() {
         val show = panel.visibility != View.VISIBLE
         if (show) {
             mapViewModel.setPlanningPanelVisible(false)
-            renderObstacleControls()
+            missionEditorCoordinator.renderObstacleControls()
         } else {
-            cancelObstaclePlacement()
+            missionEditorCoordinator.cancelObstaclePlacement()
         }
         panel.visibility = if (show) View.VISIBLE else View.GONE
         missionMapUiActionController.setDockButtonSelected(R.id.utility_obstacles_button, show)
@@ -881,7 +849,7 @@ class MissionMapFragment : Fragment() {
     private fun hideObstaclePanel() {
         requireView().findViewById<View>(R.id.home_obstacle_panel).visibility = View.GONE
         missionMapUiActionController.setDockButtonSelected(R.id.utility_obstacles_button, false)
-        cancelObstaclePlacement()
+        missionEditorCoordinator.cancelObstaclePlacement()
     }
 
     private fun cancelDroneOffsetAdjustment() {
@@ -941,7 +909,7 @@ class MissionMapFragment : Fragment() {
 
     private fun renderWorkflowSelection(workflow: PlanningWorkflow) {
         planningWorkflowUiController.render(workflow)
-        renderObstacleControls()
+        missionEditorCoordinator.renderObstacleControls()
         updateRouteSummary()
     }
 
@@ -956,25 +924,12 @@ class MissionMapFragment : Fragment() {
         }
     }
 
-    private fun renderObstacleControls() {
-        planningWorkflowUiController.renderObstacleControls(
-            mode = selectedObstacleMode,
-            placementActive = obstaclePlacementMode,
-            radiusMeters = (activityViewModel.obstacleRadiusMeters.value ?: 5.0).toInt(),
-        )
-    }
-    private fun renderObstacleList(obstacles: List<MissionObstacle>) {
-        missionMapRenderer.renderObstacleList(obstacles)
-    }
     private fun updateRouteSummary() {
         val routeSummary = requireView().findViewById<TextView?>(R.id.right_panel_route_summary) ?: return
         val waypoints = activityViewModel.routeWaypoints.value.orEmpty()
         routeSummary.text = getString(R.string.route_summary_format, waypoints.size)
     }
 
-    private fun updateMissionSummaryCard() {
-        missionSummaryPresenter.renderCard()
-    }
     private fun currentMissionPath(): List<LatLng> {
         return when (activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA) {
             PlanningWorkflow.AREA -> activityViewModel.surveyPath.value.orEmpty()
@@ -994,10 +949,6 @@ class MissionMapFragment : Fragment() {
 
     private fun orderPathForHome(path: List<LatLng>, home: LatLon?): List<LatLng> {
         return pointRouteCoordinator.orderForHome(path, home)
-    }
-
-    private fun pointRouteShouldReverse(terrainPath: List<TerrainWaypoint>): Boolean {
-        return pointRouteCoordinator.shouldReverse(terrainPath)
     }
 
     private fun buildMissionResourcePlan(
@@ -1080,41 +1031,6 @@ class MissionMapFragment : Fragment() {
         if (::missionSimulationController.isInitialized) missionSimulationController.stopIfActive()
     }
 
-    private fun updateRouteEditorEnabled() {
-        missionEditorCoordinator.updateRouteEnabled(homePlacementMode)
-    }
-
-    private fun updateSurveyWaypointEditorEnabled() {
-        missionEditorCoordinator.updateSurveyEnabled()
-    }
-
-    private fun onSurveyWaypointSelected(index: Int?) {
-        missionEditorCoordinator.selectSurvey(index)
-    }
-
-    private fun onTerrainWaypointSelected(workflow: PlanningWorkflow, index: Int?) {
-        missionEditorCoordinator.select(workflow, index, activePreviewMode)
-    }
-
-    private fun positionHeightEditorNearViewPoint(source: View, x: Float, y: Float) {
-        missionEditorCoordinator.positionNearViewPoint(source, x, y)
-    }
-
-    private fun onSurveyWaypointMoved(index: Int, point: LatLng) {
-        missionEditorCoordinator.moveSurvey(index, point)
-    }
-
-    private fun adjustSelectedSurveyWaypointHeight(deltaMeters: Double) {
-        missionEditorCoordinator.adjustHeight(deltaMeters)
-    }
-
-    private fun updateSelectedSurveyWaypointHeightLabel() {
-        missionEditorCoordinator.refreshHeightLabel()
-    }
-
-    private fun applySelectedWaypointHeightField() {
-        missionEditorCoordinator.applyHeightField()
-    }
     private fun updateRouteDistance(waypoints: List<com.example.droneservicesapp.domain.model.RouteWaypoint>) {
         if (waypoints.size < 2) {
             activityViewModel.flightDistance.postValue(0)
@@ -1218,9 +1134,9 @@ class MissionMapFragment : Fragment() {
             val vertices = missionArea?.vertices ?: emptyList()
             val hasRoute = activityViewModel.routeWaypoints.value.orEmpty().size >= 2
             mapViewModel.setMissionAreaAvailable(vertices.size >= 3 || hasRoute)
-            osmdroidPolygonEditor.setVertices(vertices)
+            missionEditorCoordinator.syncPolygonVertices(vertices)
             updateGeoAwarenessPlanningStatus()
-            updateMissionSummaryCard()
+            missionSummaryPresenter.renderCard()
             updatePointCloudMissionOverlay()
         }
 
@@ -1235,27 +1151,16 @@ class MissionMapFragment : Fragment() {
                 redrawAreaMissionIfEditable()
             } else if (position != null && activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS) {
                 generatePointRouteTerrainPath()
-                osmdroidRouteWaypointEditor.setWaypoints(
-                    activityViewModel.routeWaypoints.value.orEmpty(),
-                    plannedPath = activityViewModel.plannedRoutePath.value.orEmpty(),
-                    terrainPath = activityViewModel.terrainRouteWaypoints.value.orEmpty(),
-                    reverseDirection = pointRouteShouldReverse(
-                        activityViewModel.terrainRouteWaypoints.value.orEmpty()
-                    )
-                )
+                missionEditorCoordinator.syncRouteWaypoints()
             }
             updateCurrentFlightDistance()
-            updateMissionSummaryCard()
+            missionSummaryPresenter.renderCard()
         }
 
         missionMapObserverCoordinator.observe(activityViewModel.missionObstacles) { obstacles ->
             stopMissionSimulationIfActive()
-            if (selectedObstacleMode == OsmdroidObstacleEditor.Mode.CIRCLE) {
-                obstaclePlacementMode = false
-                osmdroidObstacleEditor.cancelPlacement()
-            }
-            osmdroidObstacleEditor.renderObstacles(obstacles.orEmpty())
-            renderObstacleControls()
+            missionEditorCoordinator.onObstaclesChanged(obstacles.orEmpty())
+            missionMapRenderer.renderObstacleList(obstacles.orEmpty())
             if (
                 activityViewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
                 activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
@@ -1269,7 +1174,7 @@ class MissionMapFragment : Fragment() {
 
         missionMapObserverCoordinator.observe(droneViewModel.missionItems) { missionItems ->
             previewAssetsViewModel.retainDroneMission(missionItems.orEmpty())
-            renderDownloadedMission(missionItems.orEmpty())
+            missionMapRenderer.renderDownloaded(missionItems.orEmpty())
             updatePointCloudMissionOverlay()
         }
 
@@ -1309,23 +1214,17 @@ class MissionMapFragment : Fragment() {
         }
     }
 
-    private fun renderDownloadedMission(
-        missionItems: List<MissionItemInt>,
-        force: Boolean = false,
-    ) {
-        missionMapRenderer.renderDownloaded(missionItems, force)
-    }
     private fun observeMapState() {
         missionMapObserverCoordinator.bindParameterObservers(
             MissionMapObserverCoordinator.Actions(
                 stopSimulation = ::stopMissionSimulationIfActive,
                 scheduleAreaRedraw = { scheduleAreaMissionRedraw() },
                 flightAltitudeChanged = ::onFlightAltitudeChanged,
-                surveyHeightChanged = ::updateSelectedSurveyWaypointHeightLabel,
+                surveyHeightChanged = missionEditorCoordinator::refreshHeightLabel,
                 surveyGridChanged = ::onSurveyGridParametersChanged,
                 planningModeChanged = ::onPlanningOperationModeChanged,
-                updateTerrainOverlay = ::updateTerrainCoverageOverlay,
-                updateMissionSummary = ::updateMissionSummaryCard,
+                updateTerrainOverlay = missionMapRenderer::renderCoverage,
+                updateMissionSummary = missionSummaryPresenter::renderCard,
                 renderPreview = ::renderPreviewMode,
             )
         )
@@ -1334,11 +1233,11 @@ class MissionMapFragment : Fragment() {
             val hasPolygon = (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
             val hasRoute = activityViewModel.routeWaypoints.value.orEmpty().size >= 2
             mapViewModel.setMissionAreaAvailable(hasPolygon || hasRoute || !surveyPath.isNullOrEmpty())
-            updateSurveyWaypointEditorEnabled()
+            missionEditorCoordinator.updateSurveyEnabled()
             scheduleGeoAwarenessPlanningStatusUpdate()
-            updateMissionSummaryCard()
+            missionSummaryPresenter.renderCard()
             updatePointCloudMissionOverlay()
-            updateTerrainCoverageOverlay()
+            missionMapRenderer.renderCoverage()
         }
 
         missionMapObserverCoordinator.observe(activityViewModel.terrainSurveyWaypoints) {
@@ -1348,14 +1247,7 @@ class MissionMapFragment : Fragment() {
 
         missionMapObserverCoordinator.observe(activityViewModel.routeWaypoints) { waypoints ->
             stopMissionSimulationIfActive()
-            osmdroidRouteWaypointEditor.setWaypoints(
-                waypoints.orEmpty(),
-                plannedPath = activityViewModel.plannedRoutePath.value.orEmpty(),
-                terrainPath = activityViewModel.terrainRouteWaypoints.value.orEmpty(),
-                reverseDirection = pointRouteShouldReverse(
-                    activityViewModel.terrainRouteWaypoints.value.orEmpty()
-                )
-            )
+            missionEditorCoordinator.syncRouteWaypoints()
             val hasPolygon = (activityViewModel.missionArea.value?.vertices?.size ?: 0) >= 3
             val hasSurveyPath = !activityViewModel.surveyPath.value.isNullOrEmpty()
             mapViewModel.setMissionAreaAvailable(hasPolygon || hasSurveyPath || waypoints.orEmpty().size >= 2)
@@ -1363,47 +1255,35 @@ class MissionMapFragment : Fragment() {
                 updateRouteDistance(waypoints.orEmpty())
             }
             updateRouteSummary()
-            updateMissionSummaryCard()
+            missionSummaryPresenter.renderCard()
             updateGeoAwarenessPlanningStatus()
             updatePointCloudMissionOverlay()
-            updateSurveyWaypointEditorEnabled()
+            missionEditorCoordinator.updateSurveyEnabled()
             generatePointRouteTerrainPath()
-            updateTerrainCoverageOverlay()
+            missionMapRenderer.renderCoverage()
         }
 
-        missionMapObserverCoordinator.observe(activityViewModel.terrainRouteWaypoints) { terrainWaypoints ->
+        missionMapObserverCoordinator.observe(activityViewModel.terrainRouteWaypoints) {
             stopMissionSimulationIfActive()
-            osmdroidRouteWaypointEditor.setWaypoints(
-                activityViewModel.routeWaypoints.value.orEmpty(),
-                plannedPath = activityViewModel.plannedRoutePath.value.orEmpty(),
-                terrainPath = terrainWaypoints.orEmpty(),
-                reverseDirection = pointRouteShouldReverse(terrainWaypoints.orEmpty())
-            )
-            updateMissionSummaryCard()
+            missionEditorCoordinator.syncRouteWaypoints()
+            missionSummaryPresenter.renderCard()
             updatePointCloudMissionOverlay()
-            updateTerrainCoverageOverlay()
+            missionMapRenderer.renderCoverage()
         }
 
-        missionMapObserverCoordinator.observe(activityViewModel.plannedRoutePath) { plannedPath ->
+        missionMapObserverCoordinator.observe(activityViewModel.plannedRoutePath) {
             stopMissionSimulationIfActive()
-            osmdroidRouteWaypointEditor.setWaypoints(
-                activityViewModel.routeWaypoints.value.orEmpty(),
-                plannedPath = plannedPath.orEmpty(),
-                terrainPath = activityViewModel.terrainRouteWaypoints.value.orEmpty(),
-                reverseDirection = pointRouteShouldReverse(
-                    activityViewModel.terrainRouteWaypoints.value.orEmpty()
-                )
-            )
-            updateMissionSummaryCard()
+            missionEditorCoordinator.syncRouteWaypoints()
+            missionSummaryPresenter.renderCard()
             updatePointCloudMissionOverlay()
-            updateTerrainCoverageOverlay()
+            missionMapRenderer.renderCoverage()
         }
 
         missionMapObserverCoordinator.observe(activityViewModel.mapState) { mapState ->
             mapViewModel.updateFromMapState(mapState)
             renderWorkflowSelection(activityViewModel.activePlanningWorkflow.value ?: PlanningWorkflow.AREA)
-            updateRouteEditorEnabled()
-            updateSurveyWaypointEditorEnabled()
+            missionEditorCoordinator.updateRouteEnabled(homePlacementMode)
+            missionEditorCoordinator.updateSurveyEnabled()
             if (mapState == MainActivityViewModel.MapState.SetFlightParams) {
                 hideObstaclePanel()
             }
@@ -1416,7 +1296,7 @@ class MissionMapFragment : Fragment() {
                     redrawAreaMissionOnMap()
                 }
             }
-            updateMissionSummaryCard()
+            missionSummaryPresenter.renderCard()
         }
 
         missionMapObserverCoordinator.observe(activityViewModel.mapAction) { event ->
@@ -1431,7 +1311,7 @@ class MissionMapFragment : Fragment() {
         }
         if (points) {
             updateGeoAwarenessPlanningStatus()
-            updateMissionSummaryCard()
+            missionSummaryPresenter.renderCard()
         }
         if (activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY) {
             redrawAreaMissionIfEditable(debounced = true)
@@ -1452,12 +1332,6 @@ class MissionMapFragment : Fragment() {
         ) redrawAreaMissionOnMap()
     }
 
-    private fun cancelObstaclePlacement() {
-        obstaclePlacementMode = false
-        osmdroidObstacleEditor.cancelPlacement()
-        renderObstacleControls()
-    }
-
     private fun observeHomeTelemetry() {
         missionPresentationObserver.bindHomeTelemetry(homeTelemetryViewModel, homeMapTelemetryBinder)
     }
@@ -1471,13 +1345,11 @@ class MissionMapFragment : Fragment() {
     private fun renderHomeMapUiState(state: HomeMapUiState) {
         isDrawingModeActive = state.interactionState.isDrawingEnabled
         geoZoneOverlayController?.setZoneDetailsEnabled(!state.interactionState.isDrawingEnabled)
-        osmdroidPolygonEditor.setEnabled(
-            state.interactionState.isDrawingEnabled &&
-                activityViewModel.activePlanningWorkflow.value != PlanningWorkflow.POINTS &&
-                !obstaclePlacementMode &&
-                !homePlacementMode
+        missionEditorCoordinator.updatePolygonEnabled(
+            state.interactionState.isDrawingEnabled,
+            homePlacementMode,
         )
-        updateRouteEditorEnabled()
+        missionEditorCoordinator.updateRouteEnabled(homePlacementMode)
         homeMapChromeBinder.renderShell(state.shellState)
         homeMapChromeBinder.renderInteraction(state.interactionState)
         homeMapChromeBinder.renderOverlayControls(state.overlayControlsState)
@@ -1684,9 +1556,6 @@ class MissionMapFragment : Fragment() {
         missionGenerationCoordinator.redrawIfEditable(debounced)
     }
 
-    private fun renderCurrentSurveyPathOnMap() {
-        missionMapRenderer.renderCurrentPath()
-    }
     private fun isSurveyMode(): Boolean =
         (activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY) ==
             PlanningOperationMode.SURVEY
@@ -2053,12 +1922,6 @@ class MissionMapFragment : Fragment() {
         )
     }
 
-    private fun showMissionUploadSummaryDialog(onConfirmed: () -> Unit) {
-        missionSummaryPresenter.showUploadSummary(onConfirmed)
-    }
-    private fun updateTerrainCoverageOverlay() {
-        missionMapRenderer.renderCoverage()
-    }
     override fun onDestroyView() {
         viewLifecycleController.onDestroyView {
             if (::flightModeUiBinder.isInitialized) flightModeUiBinder.dismiss()
@@ -2066,7 +1929,7 @@ class MissionMapFragment : Fragment() {
             stopMissionSimulation()
             missionGenerationCoordinator.cancel()
             geoPlanningJob?.cancel()
-            missionSummaryJob?.cancel()
+            missionSummaryPresenter.dispose()
             liveGeoUpdateJob?.cancel()
             terrainMissionCoordinator.cancel()
             previewAssetLoadJob?.cancel()
@@ -2090,7 +1953,7 @@ class MissionMapFragment : Fragment() {
         super.onResume()
         viewLifecycleController.onResume {
             refreshPreviewAssets()
-            renderCurrentSurveyPathOnMap()
+            missionMapRenderer.renderCurrentPath()
             redrawAreaMissionIfEditable()
             initialViewportController.centerIfNeeded()
         }

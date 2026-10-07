@@ -6,6 +6,7 @@ import android.widget.Toast
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
+import com.example.droneservicesapp.domain.model.MissionObstacle
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
@@ -21,16 +22,95 @@ class MissionEditorCoordinator(
     private val binding: FragmentHomeMapsBinding,
     private val viewModel: MainActivityViewModel,
     private val mapController: OsmdroidMapController,
+    private val polygonEditor: OsmdroidPolygonEditor,
     private val routeEditor: OsmdroidRouteWaypointEditor,
+    private val obstacleEditor: OsmdroidObstacleEditor,
     private val terrainSampler: (LatLng) -> TerrainWaypoint?,
+    private val shouldReversePointRoute: (List<TerrainWaypoint>) -> Boolean,
     private val updateDistance: (List<LatLng>) -> Unit,
     private val renderPath: () -> Unit,
     private val updatePointCloudOverlay: () -> Unit,
+    private val applyObstacleControls: (OsmdroidObstacleEditor.Mode, Boolean, Int) -> Unit,
 ) {
     var selectedIndex: Int? = null
         private set
     var selectedWorkflow: PlanningWorkflow = PlanningWorkflow.AREA
         private set
+    private var obstaclePlacementActive = false
+    private var obstacleMode = OsmdroidObstacleEditor.Mode.CIRCLE
+
+    fun toggleObstaclePlacement(previewMode: PreviewMode, selectMapPreview: () -> Unit) {
+        if (obstacleMode == OsmdroidObstacleEditor.Mode.POLYGON && obstaclePlacementActive) {
+            if (obstacleEditor.finishPolygon()) obstaclePlacementActive = false
+        } else {
+            if (previewMode == PreviewMode.POINT_CLOUD) selectMapPreview()
+            obstaclePlacementActive = true
+            if (obstacleMode == OsmdroidObstacleEditor.Mode.CIRCLE) {
+                obstacleEditor.startCirclePlacement(viewModel.obstacleRadiusMeters.value ?: 5.0)
+                Toast.makeText(context, R.string.obstacle_place_circle_prompt, Toast.LENGTH_SHORT).show()
+            } else {
+                obstacleEditor.startPolygonPlacement()
+                Toast.makeText(context, R.string.obstacle_place_polygon_prompt, Toast.LENGTH_SHORT).show()
+            }
+            polygonEditor.setEnabled(false)
+        }
+        renderObstacleControls()
+    }
+
+    fun clearObstacles() {
+        cancelObstaclePlacement(render = false)
+        viewModel.clearMissionObstacles()
+        renderObstacleControls()
+    }
+
+    fun selectObstacleMode(mode: OsmdroidObstacleEditor.Mode) {
+        obstacleMode = mode
+        cancelObstaclePlacement(render = false)
+        renderObstacleControls()
+    }
+
+    fun cancelObstaclePlacement(render: Boolean = true) {
+        obstaclePlacementActive = false
+        obstacleEditor.cancelPlacement()
+        if (render) renderObstacleControls()
+    }
+
+    fun onObstaclesChanged(obstacles: List<MissionObstacle>) {
+        if (obstacleMode == OsmdroidObstacleEditor.Mode.CIRCLE) {
+            cancelObstaclePlacement(render = false)
+        }
+        obstacleEditor.renderObstacles(obstacles)
+        renderObstacleControls()
+    }
+
+    fun renderObstacleControls() {
+        applyObstacleControls(
+            obstacleMode,
+            obstaclePlacementActive,
+            (viewModel.obstacleRadiusMeters.value ?: 5.0).toInt(),
+        )
+    }
+
+    fun syncPolygonVertices(vertices: List<LatLng>) = polygonEditor.setVertices(vertices)
+
+    fun syncRouteWaypoints() {
+        val terrainPath = viewModel.terrainRouteWaypoints.value.orEmpty()
+        routeEditor.setWaypoints(
+            viewModel.routeWaypoints.value.orEmpty(),
+            plannedPath = viewModel.plannedRoutePath.value.orEmpty(),
+            terrainPath = terrainPath,
+            reverseDirection = shouldReversePointRoute(terrainPath),
+        )
+    }
+
+    fun updatePolygonEnabled(isDrawingEnabled: Boolean, homePlacementActive: Boolean) {
+        polygonEditor.setEnabled(
+            isDrawingEnabled &&
+                viewModel.activePlanningWorkflow.value != PlanningWorkflow.POINTS &&
+                !obstaclePlacementActive &&
+                !homePlacementActive
+        )
+    }
 
     fun updateRouteEnabled(homePlacementActive: Boolean) {
         val points = viewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS

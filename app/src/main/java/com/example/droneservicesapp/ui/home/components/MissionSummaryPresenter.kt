@@ -62,7 +62,6 @@ class MissionSummaryPresenter(
         val altitude = if (mode == PlanningOperationMode.SURVEY) viewModel.surveyHeightAboveTerrain.value ?: 0.0
             else viewModel.flightAltProgress.value ?: 0.0
         val spraying = mode == PlanningOperationMode.SPRAY
-        val speed = (viewModel.flightSpeed.value ?: 5.0).coerceAtLeast(0.1)
         val sprayRate = if (spraying) viewModel.sprayFlowLitersPerMinute() else 0.0
         renderJob?.cancel()
         renderJob = scope.launch {
