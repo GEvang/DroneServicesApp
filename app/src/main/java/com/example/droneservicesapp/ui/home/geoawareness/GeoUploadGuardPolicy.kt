@@ -4,7 +4,7 @@ import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessResult
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
 
-/** Pure upload-guard decision policy; dialogs and audit logging remain presentation concerns. */
+/** Pure upload-guard decision policy; the upload controller owns dialogs and audit logging. */
 object GeoUploadGuardPolicy {
     sealed interface Decision {
         object AllowClear : Decision

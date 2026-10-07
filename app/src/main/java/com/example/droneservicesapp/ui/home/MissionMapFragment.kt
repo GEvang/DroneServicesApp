@@ -4,13 +4,11 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
-import android.os.SystemClock
 import android.graphics.Color
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.ImageView
 import android.widget.TextView
 import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
@@ -35,15 +33,6 @@ import com.example.droneservicesapp.data.pointcloud.PointCloudData
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.data.weather.OpenMeteoWindRepository
-import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
-import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessResult
-import com.example.droneservicesapp.domain.geoawareness.GeoAltitudeContext
-import com.example.droneservicesapp.domain.geoawareness.GeoZone
-import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
-import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
-import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessChecker
-import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessProximityResult
-import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
@@ -55,7 +44,6 @@ import com.example.droneservicesapp.domain.planning.MissionServiceStop
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
 import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
 import com.example.droneservicesapp.mavserver.DroneViewModel
-import com.example.droneservicesapp.mavserver.GpsFixQuality
 import com.example.droneservicesapp.mavserver.TelemetryMapping
 import com.example.droneservicesapp.ui.home.binders.HomeMapChromeBinder
 import com.example.droneservicesapp.ui.home.binders.HomeMapModeEffectsBinder
@@ -93,11 +81,10 @@ import com.example.droneservicesapp.ui.home.geoawareness.GeoZoneOverlayControlle
 import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessDatasetController
 import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessPlanningController
 import com.example.droneservicesapp.ui.home.geoawareness.GeoAuthorizationSession
-import com.example.droneservicesapp.ui.home.geoawareness.GeoUploadGuardPolicy
-import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoAwarenessPanelBinder
-import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoThreatPresenter
 import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessEventTracker
 import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessDialogController
+import com.example.droneservicesapp.ui.home.geoawareness.GeoAwarenessUploadController
+import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoAwarenessController
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
@@ -123,7 +110,6 @@ import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.math.PI
@@ -158,7 +144,8 @@ class MissionMapFragment : Fragment() {
     private lateinit var geoAwarenessDatasetController: GeoAwarenessDatasetController
     private val geoAwarenessPlanningController = GeoAwarenessPlanningController()
     private val geoAuthorizationSession = GeoAuthorizationSession()
-    private lateinit var liveGeoThreatPresenter: LiveGeoThreatPresenter
+    private lateinit var geoAwarenessUploadController: GeoAwarenessUploadController
+    private lateinit var liveGeoAwarenessController: LiveGeoAwarenessController
     private lateinit var homeMapChromeBinder: HomeMapChromeBinder
     private lateinit var homeMapPanelsBinder: HomeMapPanelsBinder
     private lateinit var homeMapModeEffectsBinder: HomeMapModeEffectsBinder
@@ -177,21 +164,8 @@ class MissionMapFragment : Fragment() {
     private lateinit var osmdroidRouteWaypointEditor: OsmdroidRouteWaypointEditor
     private lateinit var missionFileStore: MissionFileStore
     private val windWeatherRepository = OpenMeteoWindRepository()
-    private var geoAwarenessZones: List<GeoZone> = emptyList()
-    private var geoAwarenessDatasetLoadAttempted = false
-    private var geoZoneDatasetInfo: GeoZoneDatasetInfo? = null
-    private var geoAwarenessHealth: GeoAwarenessHealth? = null
-    private var geoAwarenessLoadError: Throwable? = null
-    private var geoZoneValidationResult: GeoZoneValidationResult? = null
-    private var geoZoneOverlayController: GeoZoneOverlayController? = null
+    private lateinit var geoZoneOverlayController: GeoZoneOverlayController
     private var terrainCoverageOverlayController: TerrainCoverageOverlayController? = null
-    private var latestGeoAwarenessResult: GeoAwarenessResult = GeoAwarenessResult.clear()
-    private var liveGeoAwarenessChecker: LiveGeoAwarenessChecker? = null
-    private var latestLiveGeoZones: List<GeoZone> = emptyList()
-    private var latestLiveGeoProximity: LiveGeoAwarenessProximityResult? = null
-    private var latestLiveGeoThreats: List<LiveGeoAwarenessProximityResult> = emptyList()
-    private var liveGeoAwarenessStatusBinder: LiveGeoAwarenessPanelBinder? = null
-    private var latestLiveDronePosition: LatLon? = null
     private val latestRawDronePosition: LatLon?
         get() = droneMapTrackingController.rawPosition
     private val latestRealDronePosition: LatLon?
@@ -205,11 +179,6 @@ class MissionMapFragment : Fragment() {
     private var latestRealDroneHeadingDegrees: Double? = null
     private var lastRtkStreamingActive: Boolean? = null
     private var isDrawingModeActive = false
-    private var geoZoneReloadInProgress: Boolean = false
-    private var geoPlanningJob: Job? = null
-    private var liveGeoUpdateJob: Job? = null
-    private var lastLiveGeoUpdateUptimeMs = 0L
-    private var lastTopLiveGeoStatusSignature: String? = null
     private var previewAssetLoadJob: Job? = null
     private var activePreviewMode: PreviewMode = PreviewMode.MAP
     private lateinit var orthoOverlayController: OrthoOverlayController
@@ -241,14 +210,9 @@ class MissionMapFragment : Fragment() {
         private const val DEFAULT_MAP_LON = 24.4721854
         private const val OFFLINE_MIN_ZOOM = 14
         private const val OFFLINE_MAX_ZOOM = 18
-        private const val GEO_ZONE_TOGGLE_TAG = "GeoZoneToggle"
-        private const val GEO_PLANNING_STATUS_TAG = "GeoPlanningStatus"
-        private const val GEO_UPLOAD_GUARD_TAG = "GeoUploadGuard"
-        private const val LIVE_GEO_AWARENESS_TAG = "LiveGeoAwareness"
         private const val MAP_FLIGHT_TRACE_TAG = "MapFlightTrace"
         private const val TERRAIN_GRID_TAG = "TerrainGrid"
         private const val MIN_VALID_ABS_COORDINATE = 1e-4
-        private const val DEFAULT_NEAR_ZONE_THRESHOLD_METERS = 100.0
         private const val MAX_INITIAL_DRONE_CENTER_ATTEMPTS = 20
         private const val PREVIEW_MAP_FIT_PADDING_PX = 96
         private const val MIN_PREVIEW_MAP_SPAN_METERS = 10.0
@@ -260,7 +224,6 @@ class MissionMapFragment : Fragment() {
         private const val MAX_MERCATOR_LATITUDE = 85.05112878
         private const val MIN_PREVIEW_MAP_ZOOM = 2.0
         private const val MAX_PREVIEW_MAP_ZOOM = 21.0
-        private const val LIVE_GEO_UPDATE_INTERVAL_MS = 500L
         private const val REQUEST_HOME_OPEN_TIFF = 3301
         private const val REQUEST_HOME_OPEN_WORLD = 3302
         private const val REQUEST_HOME_OPEN_PLY = 3303
@@ -286,16 +249,15 @@ class MissionMapFragment : Fragment() {
         )
         operatorEventLogger = OperatorFlightEventLogger(geoEventLogger)
         geoAwarenessDatasetController = GeoAwarenessDatasetController(requireContext())
-        liveGeoThreatPresenter = LiveGeoThreatPresenter(requireContext())
         geoAwarenessDialogController = GeoAwarenessDialogController(requireContext(), geoAuthorizationSession)
         geoAwarenessEventTracker = GeoAwarenessEventTracker(
             eventLogger = geoEventLogger,
             incidentLogger = geoIncidentLogger,
             metadata = {
                 GeoAwarenessEventTracker.Metadata(
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = geoAwarenessHealth?.state?.name,
+                    datasetTitle = if (::liveGeoAwarenessController.isInitialized) liveGeoAwarenessController.datasetInfo?.title else null,
+                    datasetVersion = if (::liveGeoAwarenessController.isInitialized) liveGeoAwarenessController.datasetInfo?.version else null,
+                    healthState = if (::liveGeoAwarenessController.isInitialized) liveGeoAwarenessController.health?.state?.name else null,
                 )
             },
             telemetry = {
@@ -371,7 +333,7 @@ class MissionMapFragment : Fragment() {
         droneMapTrackingController = DroneMapTrackingController(
             mapController = osmdroidMapController,
             onHomeCaptured = activityViewModel::setPlannedHomePosition,
-            onDisarmed = { resetCurrentFlightUgzAuthorizations("disarmed") },
+            onDisarmed = { geoAwarenessUploadController.resetCurrentFlightAuthorizations("disarmed") },
         )
         osmdroidMapController.setSurveyWaypointEditCallbacks(
             onSelected = { index -> missionEditorCoordinator.selectSurvey(index) },
@@ -434,13 +396,35 @@ class MissionMapFragment : Fragment() {
         terrainCoverageOverlayController = TerrainCoverageOverlayController(requireContext(), mapView)
 
         geoZoneOverlayController = GeoZoneOverlayController(requireContext(), mapView)
-        liveGeoAwarenessChecker = LiveGeoAwarenessChecker()
-        requireView().findViewById<View?>(R.id.liveGeoAwarenessPanel)?.visibility = View.GONE
-        liveGeoAwarenessStatusBinder = null
-        loadGeoAwarenessZonesIfNeeded()
-        renderGeoAwarenessLayerIfVisible()
-        updateTopLiveGeoStatus(getString(R.string.live_geo_unknown_status), "#AAB5C6")
-        updateGeoAwarenessPlanningStatus()
+        liveGeoAwarenessController = LiveGeoAwarenessController(
+            context = requireContext(),
+            root = binding.root,
+            scope = viewLifecycleOwner.lifecycleScope,
+            viewModel = activityViewModel,
+            datasetController = geoAwarenessDatasetController,
+            planningController = geoAwarenessPlanningController,
+            overlayController = geoZoneOverlayController,
+            eventLogger = geoEventLogger,
+            eventTracker = geoAwarenessEventTracker,
+            dialogController = geoAwarenessDialogController,
+            telemetry = {
+                LiveGeoAwarenessController.Telemetry(
+                    position = latestRealDronePosition,
+                    altitudeAglMeters = latestRealDroneAltitudeMeters,
+                    altitudeAmslMeters = latestRealDroneAltitudeAmslMeters,
+                    groundSpeedMetersPerSecond = latestRealDroneGroundSpeedMetersPerSecond,
+                    verticalSpeedMetersPerSecond = latestRealDroneVerticalSpeedMetersPerSecond,
+                    headingDegrees = latestRealDroneHeadingDegrees,
+                    connected = droneViewModel.conStateLiveData.value == true,
+                    gpsFixQuality = TelemetryMapping.gpsFixQuality(
+                        droneViewModel.gpsFixType.value,
+                        isConnected = droneViewModel.conStateLiveData.value == true,
+                    ),
+                )
+            },
+            isActive = { _binding != null },
+        )
+        liveGeoAwarenessController.initialize()
     }
 
     private fun initControllers() {
@@ -530,6 +514,20 @@ class MissionMapFragment : Fragment() {
             stopSimulation = ::stopMissionSimulation,
             setServiceMarkers = osmdroidMapController::setMissionServiceMarkers,
         )
+        geoAwarenessUploadController = GeoAwarenessUploadController(
+            eventLogger = geoEventLogger,
+            dialogController = geoAwarenessDialogController,
+            authorizationSession = geoAuthorizationSession,
+            evaluatePlanningResult = liveGeoAwarenessController::evaluatePlanningResult,
+            ensureHealth = liveGeoAwarenessController::ensureHealth,
+            datasetInfo = { liveGeoAwarenessController.datasetInfo },
+            telemetry = {
+                GeoAwarenessUploadController.Telemetry(
+                    position = latestRealDronePosition,
+                    altitudeMeters = latestRealDroneAltitudeMeters,
+                )
+            },
+        )
         missionMapActionHandler = MissionMapActionHandler(
             context = requireContext(),
             root = requireView(),
@@ -602,7 +600,7 @@ class MissionMapFragment : Fragment() {
             droneViewModel = droneViewModel,
             droneLocationProvider = ::currentOffsetDroneLocation,
             beforeUploadGuard = { onAllowed ->
-                handleGeoAwarenessBeforeUpload {
+                geoAwarenessUploadController.handleBeforeUpload {
                     missionSummaryPresenter.showUploadSummary(onAllowed)
                 }
             },
@@ -797,7 +795,7 @@ class MissionMapFragment : Fragment() {
         updateRouteSummary()
         missionEditorCoordinator.updateRouteEnabled(homePlacementMode)
         missionEditorCoordinator.updateSurveyEnabled()
-        updateGeoAwarenessPlanningStatus()
+        liveGeoAwarenessController.updatePlanningStatus()
         missionSummaryPresenter.renderCard()
         missionMapRenderer.renderCoverage()
     }
@@ -867,7 +865,7 @@ class MissionMapFragment : Fragment() {
         val started = osmdroidMapController.startDroneOffsetAdjustment { latitudeOffset, longitudeOffset ->
             droneMapTrackingController.updateOffset(latitudeOffset, longitudeOffset)
             syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
-            updateLiveGeoAwarenessFromActiveSource()
+            liveGeoAwarenessController.updateLiveFromActiveSource()
             missionMapUiActionController.setDockButtonSelected(R.id.utility_offset_button, false)
             Toast.makeText(requireContext(), getString(R.string.drone_offset_applied), Toast.LENGTH_SHORT).show()
         }
@@ -1074,7 +1072,7 @@ class MissionMapFragment : Fragment() {
                 initialViewportController.centerIfNeeded()
             }
 
-            updateLiveGeoAwarenessFromActiveSource()
+            liveGeoAwarenessController.updateLiveFromActiveSource()
             updatePointCloudMissionOverlay()
         }
 
@@ -1082,13 +1080,13 @@ class MissionMapFragment : Fragment() {
             if (it != true && missionSimulationController.usesLiveDroneHome) stopMissionSimulationIfActive()
             syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
             renderAddHomeButton()
-            updateLiveGeoAwarenessFromActiveSource()
+            liveGeoAwarenessController.updateLiveFromActiveSource()
             updatePointCloudMissionOverlay()
         }
 
         missionMapObserverCoordinator.observe(droneViewModel.gpsFixType) {
             syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
-            updateLiveGeoAwarenessFromActiveSource()
+            liveGeoAwarenessController.updateLiveFromActiveSource()
         }
 
         missionMapObserverCoordinator.observe(droneViewModel.droneHeading) { droneHeading ->
@@ -1109,7 +1107,7 @@ class MissionMapFragment : Fragment() {
 
         missionMapObserverCoordinator.observe(droneViewModel.droneAltitudeAmslMeters) { altitudeAmslMeters ->
             latestRealDroneAltitudeAmslMeters = altitudeAmslMeters
-            updateLiveGeoAwarenessFromActiveSource()
+            liveGeoAwarenessController.updateLiveFromActiveSource()
         }
 
         missionMapObserverCoordinator.observe(droneViewModel.armedState) { armed ->
@@ -1135,7 +1133,7 @@ class MissionMapFragment : Fragment() {
             val hasRoute = activityViewModel.routeWaypoints.value.orEmpty().size >= 2
             mapViewModel.setMissionAreaAvailable(vertices.size >= 3 || hasRoute)
             missionEditorCoordinator.syncPolygonVertices(vertices)
-            updateGeoAwarenessPlanningStatus()
+            liveGeoAwarenessController.updatePlanningStatus()
             missionSummaryPresenter.renderCard()
             updatePointCloudMissionOverlay()
         }
@@ -1234,7 +1232,7 @@ class MissionMapFragment : Fragment() {
             val hasRoute = activityViewModel.routeWaypoints.value.orEmpty().size >= 2
             mapViewModel.setMissionAreaAvailable(hasPolygon || hasRoute || !surveyPath.isNullOrEmpty())
             missionEditorCoordinator.updateSurveyEnabled()
-            scheduleGeoAwarenessPlanningStatusUpdate()
+            liveGeoAwarenessController.schedulePlanningStatusUpdate()
             missionSummaryPresenter.renderCard()
             updatePointCloudMissionOverlay()
             missionMapRenderer.renderCoverage()
@@ -1256,7 +1254,7 @@ class MissionMapFragment : Fragment() {
             }
             updateRouteSummary()
             missionSummaryPresenter.renderCard()
-            updateGeoAwarenessPlanningStatus()
+            liveGeoAwarenessController.updatePlanningStatus()
             updatePointCloudMissionOverlay()
             missionEditorCoordinator.updateSurveyEnabled()
             generatePointRouteTerrainPath()
@@ -1310,7 +1308,7 @@ class MissionMapFragment : Fragment() {
             savePreference(getString(R.string.survey_altitude_pref), altitude.toInt().toString())
         }
         if (points) {
-            updateGeoAwarenessPlanningStatus()
+            liveGeoAwarenessController.updatePlanningStatus()
             missionSummaryPresenter.renderCard()
         }
         if (activityViewModel.planningOperationMode.value == PlanningOperationMode.SPRAY) {
@@ -1344,7 +1342,7 @@ class MissionMapFragment : Fragment() {
 
     private fun renderHomeMapUiState(state: HomeMapUiState) {
         isDrawingModeActive = state.interactionState.isDrawingEnabled
-        geoZoneOverlayController?.setZoneDetailsEnabled(!state.interactionState.isDrawingEnabled)
+        liveGeoAwarenessController.setZoneDetailsEnabled(!state.interactionState.isDrawingEnabled)
         missionEditorCoordinator.updatePolygonEnabled(
             state.interactionState.isDrawingEnabled,
             homePlacementMode,
@@ -1928,20 +1926,15 @@ class MissionMapFragment : Fragment() {
             if (::armUiBinder.isInitialized) armUiBinder.dismiss()
             stopMissionSimulation()
             missionGenerationCoordinator.cancel()
-            geoPlanningJob?.cancel()
             missionSummaryPresenter.dispose()
-            liveGeoUpdateJob?.cancel()
             terrainMissionCoordinator.cancel()
             previewAssetLoadJob?.cancel()
             if (::windWeatherController.isInitialized) windWeatherController.dispose()
             cancelDroneOffsetAdjustment()
-            geoZoneOverlayController?.clear()
+            liveGeoAwarenessController.dispose()
             terrainCoverageOverlayController?.clear()
             osmdroidObstacleEditor.release()
-            geoZoneOverlayController = null
             terrainCoverageOverlayController = null
-            liveGeoAwarenessStatusBinder = null
-            liveGeoAwarenessChecker = null
             clearFlightTrace()
         }
         super.onDestroyView()
@@ -2060,25 +2053,6 @@ class MissionMapFragment : Fragment() {
         return droneMapTrackingController.offsetLocation(source)
     }
 
-    private fun resetCurrentFlightUgzAuthorizations(reason: String) {
-        val resetIds = geoAuthorizationSession.reset().toList()
-        if (resetIds.isEmpty()) return
-        geoEventLogger.logSimple(
-            type = GeoAwarenessEventType.UGZ_AUTHORIZATION_RESET,
-            severity = "INFO",
-            message = "UGZ authorization confirmations reset",
-            category = "GEO",
-            datasetTitle = geoZoneDatasetInfo?.title,
-            datasetVersion = geoZoneDatasetInfo?.version,
-            healthState = geoAwarenessHealth?.state?.name,
-            zoneIds = resetIds,
-            details = mapOf(
-                "reason" to reason,
-                "resetScope" to "current_flight"
-            )
-        )
-    }
-
     private fun maybeSetPendingHomeMarker(position: LatLon) {
         droneMapTrackingController.capturePendingHome(position)
     }
@@ -2130,736 +2104,13 @@ class MissionMapFragment : Fragment() {
         return DroneMapTrackingController.isValidPosition(position)
     }
 
-    private fun loadGeoAwarenessZonesIfNeeded(): Boolean {
-        if (geoAwarenessZones.isNotEmpty()) {
-            if (geoAwarenessHealth == null) {
-                val health = geoAwarenessDatasetController.ensureHealth(
-                    activityViewModel.geoZoneDatasetRecords.value.orEmpty()
-                )
-                geoAwarenessHealth = health
-                activityViewModel.geoAwarenessHealth.value = health
-            }
-            return true
-        }
-        if (geoAwarenessDatasetLoadAttempted) {
-            return geoAwarenessLoadError == null
-        }
-        geoAwarenessDatasetLoadAttempted = true
-
-        try {
-            val outcome = geoAwarenessDatasetController.loadCurrent()
-            val loadResult = outcome.result
-            applyGeoZoneLoadOutcome(outcome)
-            geoAwarenessEventTracker.datasetLoaded(loadResult.datasetInfo)
-            geoAwarenessEventTracker.datasetValidation(loadResult.validationResult, loadResult.datasetInfo)
-            geoAwarenessEventTracker.multiDatasetLoaded(loadResult)
-            geoAwarenessHealth?.let(geoAwarenessEventTracker::healthEvaluation)
-            return true
-        } catch (error: Exception) {
-            Log.e(GEO_ZONE_TOGGLE_TAG, "Failed to load geo-awareness zones", error)
-            applyGeoAwarenessSnapshot(
-                geoAwarenessDatasetController.recordFailure(error, emptyList())
-            )
-              activityViewModel.geoZoneDatasetInfo.value = null
-              activityViewModel.geoZoneValidationResult.value = null
-              activityViewModel.geoZoneDatasetRecords.value = emptyList()
-              activityViewModel.geoZoneImportedActive.value = false
-              activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
-              geoAwarenessEventTracker.datasetLoadFailed(error)
-            geoAwarenessHealth?.let(geoAwarenessEventTracker::healthEvaluation)
-        }
-
-        return false
-    }
-
     private fun observeGeoAwarenessSharedState() {
         missionPresentationObserver.bindGeoState(
             layerVisible = activityViewModel.geoAwarenessLayerVisible,
             reloadToken = activityViewModel.geoZoneReloadToken,
-            renderLayer = ::renderGeoAwarenessLayerIfVisible,
-            reload = ::reloadCurrentGeoAwarenessDataset,
+            renderLayer = liveGeoAwarenessController::renderLayerIfVisible,
+            reload = liveGeoAwarenessController::reloadCurrentDataset,
         )
-    }
-
-    private fun reloadCurrentGeoAwarenessDataset() {
-        if (geoZoneReloadInProgress) return
-        geoZoneReloadInProgress = true
-        lifecycleScope.launch {
-            try {
-                val outcome = withContext(Dispatchers.IO) {
-                    geoAwarenessDatasetController.reloadCurrent()
-                }
-                val loadResult = outcome.result
-                if (_binding == null) return@launch
-                geoAwarenessDatasetLoadAttempted = true
-                applyGeoZoneLoadOutcome(outcome)
-                geoAwarenessEventTracker.multiDatasetLoaded(loadResult)
-                renderGeoAwarenessLayerIfVisible()
-                updateGeoAwarenessPlanningStatus()
-                updateLiveGeoAwarenessFromActiveSource()
-                geoAwarenessHealth?.let(geoAwarenessEventTracker::healthEvaluation)
-            } catch (error: Exception) {
-                geoAwarenessDatasetLoadAttempted = true
-                Log.e(GEO_ZONE_TOGGLE_TAG, "Failed to reload geo-awareness dataset", error)
-                applyGeoAwarenessSnapshot(
-                    geoAwarenessDatasetController.recordFailure(
-                        error,
-                        activityViewModel.geoZoneDatasetRecords.value.orEmpty(),
-                    )
-                )
-                activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
-                geoAwarenessHealth?.let(geoAwarenessEventTracker::healthEvaluation)
-            } finally {
-                geoZoneReloadInProgress = false
-            }
-        }
-    }
-
-    private fun applyGeoZoneLoadOutcome(outcome: GeoAwarenessDatasetController.LoadOutcome) {
-        val result = outcome.result
-        applyGeoAwarenessSnapshot(outcome.snapshot)
-        activityViewModel.geoZoneDatasetInfo.value = result.datasetInfo
-        activityViewModel.geoZoneValidationResult.value = result.validationResult
-        activityViewModel.geoZoneDatasetRecords.value = result.datasetRecords
-        activityViewModel.geoZoneImportedActive.value = outcome.snapshot.importedActive
-        activityViewModel.geoAwarenessHealth.value = geoAwarenessHealth
-    }
-
-    private fun applyGeoAwarenessSnapshot(snapshot: GeoAwarenessDatasetController.Snapshot) {
-        geoAwarenessZones = snapshot.zones
-        geoZoneDatasetInfo = snapshot.datasetInfo
-        geoZoneValidationResult = snapshot.validationResult
-        geoAwarenessLoadError = snapshot.loadError
-        geoAwarenessHealth = snapshot.health
-    }
-
-    private fun renderGeoAwarenessLayerIfVisible() {
-        if (activityViewModel.geoAwarenessLayerVisible.value != true) {
-            geoZoneOverlayController?.clear()
-            geoEventLogger.logSimple(
-                type = GeoAwarenessEventType.GEO_LAYER_HIDDEN,
-                severity = "INFO",
-                message = "Geo-awareness layer hidden",
-                datasetTitle = geoZoneDatasetInfo?.title,
-                datasetVersion = geoZoneDatasetInfo?.version,
-                healthState = geoAwarenessHealth?.state?.name
-            )
-            return
-        }
-
-        if (!loadGeoAwarenessZonesIfNeeded()) {
-            return
-        }
-
-        geoZoneOverlayController?.renderZones(geoAwarenessZones)
-        geoEventLogger.logSimple(
-            type = GeoAwarenessEventType.GEO_LAYER_SHOWN,
-            severity = "INFO",
-            message = "Geo-awareness layer shown",
-            datasetTitle = geoZoneDatasetInfo?.title,
-            datasetVersion = geoZoneDatasetInfo?.version,
-            healthState = geoAwarenessHealth?.state?.name
-        )
-        Log.d(GEO_ZONE_TOGGLE_TAG, "Geo-awareness layer shown")
-    }
-
-    private fun toggleGeoAwarenessLayer() {
-        if (activityViewModel.geoAwarenessLayerVisible.value == true) {
-            geoZoneOverlayController?.clear()
-            activityViewModel.geoAwarenessLayerVisible.value = false
-            Log.d(GEO_ZONE_TOGGLE_TAG, "Geo-awareness layer hidden")
-            return
-        }
-
-        if (!loadGeoAwarenessZonesIfNeeded()) {
-            return
-        }
-
-        geoZoneOverlayController?.renderZones(geoAwarenessZones)
-        activityViewModel.geoAwarenessLayerVisible.value = true
-        Log.d(GEO_ZONE_TOGGLE_TAG, "Geo-awareness layer shown")
-    }
-
-    private fun updateGeoAwarenessPlanningStatus() {
-        if (_binding == null) {
-            return
-        }
-
-        latestGeoAwarenessResult = evaluateGeoAwarenessPlanningResult()
-        ensureGeoAwarenessHealth()
-        geoAwarenessEventTracker.planningStatus(latestGeoAwarenessResult)
-        Log.d(
-            GEO_PLANNING_STATUS_TAG,
-            "Planning geo-awareness updated: conflicts=${latestGeoAwarenessResult.conflicts.size} highest=${latestGeoAwarenessResult.highestRestriction} canUpload=${latestGeoAwarenessResult.canUpload}"
-        )
-    }
-
-    private fun scheduleGeoAwarenessPlanningStatusUpdate() {
-        if (_binding == null) return
-        val input = geoAwarenessPlanningInput()
-        if (!input.hasGeometry) {
-            geoPlanningJob?.cancel()
-            latestGeoAwarenessResult = GeoAwarenessResult.clear()
-            return
-        }
-        if (!loadGeoAwarenessZonesIfNeeded()) return
-        val snapshot = input.copy(zones = geoAwarenessZones.toList())
-
-        geoPlanningJob?.cancel()
-        geoPlanningJob = viewLifecycleOwner.lifecycleScope.launch {
-            val result = withContext(Dispatchers.Default) {
-                geoAwarenessPlanningController.evaluate(snapshot)
-            }
-            if (_binding == null) return@launch
-            latestGeoAwarenessResult = result
-            ensureGeoAwarenessHealth()
-            geoAwarenessEventTracker.planningStatus(result)
-            Log.d(
-                GEO_PLANNING_STATUS_TAG,
-                "Planning geo-awareness updated: conflicts=${result.conflicts.size} " +
-                    "highest=${result.highestRestriction} canUpload=${result.canUpload}"
-            )
-        }
-    }
-
-    private fun geoAwarenessPlanningInput(): GeoAwarenessPlanningController.Input {
-        val missionPolygon = activityViewModel.missionArea.value?.vertices
-            ?.takeIf { it.isNotEmpty() }
-            ?.map { LatLon(lat = it.latitude, lon = it.longitude) }
-        val surveyPath = activityViewModel.surveyPath.value
-            ?.takeIf { it.isNotEmpty() }
-            ?.map { LatLon(lat = it.latitude, lon = it.longitude) }
-            .orEmpty()
-        val pointRoutePath = activityViewModel.plannedRoutePath.value.orEmpty()
-            .takeIf { it.isNotEmpty() }
-            ?.map { LatLon(lat = it.latitude, lon = it.longitude) }
-            ?: activityViewModel.routeWaypoints.value
-                ?.takeIf { it.isNotEmpty() }
-                ?.map { LatLon(lat = it.latitude, lon = it.longitude) }
-                .orEmpty()
-        val planningPath = if (activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS) {
-            pointRoutePath
-        } else {
-            surveyPath
-        }
-        return GeoAwarenessPlanningController.Input(
-            missionPolygon = missionPolygon,
-            planningPath = planningPath,
-            aglAltitudeMeters = activityViewModel.flightAltProgress.value?.toDouble(),
-            zones = geoAwarenessZones,
-        )
-    }
-
-    private fun evaluateGeoAwarenessPlanningResult(): GeoAwarenessResult {
-        val input = geoAwarenessPlanningInput()
-        if (!input.hasGeometry || !loadGeoAwarenessZonesIfNeeded()) return GeoAwarenessResult.clear()
-        return geoAwarenessPlanningController.evaluate(input.copy(zones = geoAwarenessZones))
-    }
-
-    private fun ensureGeoAwarenessHealth(): GeoAwarenessHealth {
-        if (geoAwarenessZones.isEmpty() && geoZoneDatasetInfo == null && geoAwarenessLoadError == null) {
-            loadGeoAwarenessZonesIfNeeded()
-        }
-
-        val health = geoAwarenessDatasetController.ensureHealth(
-            activityViewModel.geoZoneDatasetRecords.value.orEmpty()
-        )
-        geoAwarenessHealth = health
-        activityViewModel.geoAwarenessHealth.value = health
-        geoAwarenessEventTracker.healthEvaluation(health)
-        return health
-    }
-
-    private fun handleGeoAwarenessBeforeUpload(onAllowed: () -> Unit) {
-        val result = try {
-            evaluateGeoAwarenessPlanningResult().also { latestGeoAwarenessResult = it }
-        } catch (error: Exception) {
-            Log.w(GEO_UPLOAD_GUARD_TAG, "Geo-awareness result unavailable; proceeding with existing unavailable policy", error)
-            onAllowed()
-            return
-        }
-        val health = ensureGeoAwarenessHealth()
-
-        when (val decision = GeoUploadGuardPolicy.decide(result, geoAuthorizationSession)) {
-            GeoUploadGuardPolicy.Decision.AllowClear -> {
-                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: clear, proceeding")
-                geoEventLogger.logSimple(
-                    type = GeoAwarenessEventType.UPLOAD_GUARD_CLEAR,
-                    severity = "INFO",
-                    message = "Geo upload guard clear, proceeding",
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name
-                )
-                onAllowed()
-            }
-            GeoUploadGuardPolicy.Decision.Block -> {
-                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: blocked conflicts=${result.conflicts.size}")
-                geoEventLogger.logSimple(
-                    type = GeoAwarenessEventType.UPLOAD_BLOCKED,
-                    severity = "BLOCKED",
-                    message = "Geo upload blocked",
-                    category = "MISSION",
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name,
-                    zoneIds = result.conflicts.map { it.zone.id }.distinct(),
-                    zoneNames = result.conflicts.map { it.zone.name }.distinct(),
-                    restriction = result.highestRestriction.name,
-                    latitude = latestRealDronePosition?.lat,
-                    longitude = latestRealDronePosition?.lon,
-                    altitudeMeters = latestRealDroneAltitudeMeters
-                )
-                showGeoAwarenessBlockedDialog(result)
-            }
-            GeoUploadGuardPolicy.Decision.RequireProhibitedAcknowledgement -> {
-                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: prohibited acknowledgement required conflicts=${result.conflicts.size}")
-                geoEventLogger.logSimple(
-                    type = GeoAwarenessEventType.UPLOAD_ACK_REQUIRED,
-                    severity = "WARNING",
-                    message = "Geo upload requires prohibited zone acknowledgement",
-                    category = "MISSION",
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name,
-                    zoneIds = result.conflicts.map { it.zone.id }.distinct(),
-                    zoneNames = result.conflicts.map { it.zone.name }.distinct(),
-                    restriction = GeoZoneRestriction.PROHIBITED.name,
-                    latitude = latestRealDronePosition?.lat,
-                    longitude = latestRealDronePosition?.lon,
-                    altitudeMeters = latestRealDroneAltitudeMeters
-                )
-                showGeoAwarenessProhibitedAcknowledgementDialog(result, health) {
-                    Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after prohibited zone warning")
-                    geoEventLogger.logSimple(
-                        type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
-                        severity = "INFO",
-                        message = "User acknowledged prohibited geo-zone upload warning",
-                        category = "MISSION",
-                        datasetTitle = geoZoneDatasetInfo?.title,
-                        datasetVersion = geoZoneDatasetInfo?.version,
-                        healthState = health.state.name,
-                        zoneIds = result.conflicts.map { it.zone.id }.distinct(),
-                        zoneNames = result.conflicts.map { it.zone.name }.distinct(),
-                        restriction = GeoZoneRestriction.PROHIBITED.name,
-                        latitude = latestRealDronePosition?.lat,
-                        longitude = latestRealDronePosition?.lon,
-                        altitudeMeters = latestRealDroneAltitudeMeters,
-                        details = mapOf("pilotAcknowledgement" to "prohibited_zone_warning_seen")
-                    )
-                    onAllowed()
-                }
-            }
-            is GeoUploadGuardPolicy.Decision.AllowPreviouslyAuthorized -> {
-                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: authorization already confirmed for current flight")
-                geoEventLogger.logSimple(
-                    type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
-                    severity = "INFO",
-                    message = "Geo upload authorization already confirmed for current flight",
-                    category = "MISSION",
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name,
-                    zoneIds = decision.zones.map { it.id },
-                    zoneNames = decision.zones.map { it.name },
-                    restriction = GeoZoneRestriction.REQ_AUTHORISATION.name,
-                    details = mapOf("authorizationScope" to "current_flight")
-                )
-                onAllowed()
-            }
-            is GeoUploadGuardPolicy.Decision.RequireAuthorization -> {
-                val unconfirmedAuthorizationZones = decision.zones
-                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: authorization confirmation required conflicts=${result.conflicts.size}")
-                geoEventLogger.logSimple(
-                    type = GeoAwarenessEventType.UPLOAD_ACK_REQUIRED,
-                    severity = "WARNING",
-                    message = "Geo upload requires acknowledgement",
-                    category = "MISSION",
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name,
-                    zoneIds = unconfirmedAuthorizationZones.map { it.id },
-                    zoneNames = unconfirmedAuthorizationZones.map { it.name },
-                    restriction = GeoZoneRestriction.REQ_AUTHORISATION.name,
-                    latitude = latestRealDronePosition?.lat,
-                    longitude = latestRealDronePosition?.lon,
-                    altitudeMeters = latestRealDroneAltitudeMeters,
-                    details = mapOf("authorizationScope" to "current_flight")
-                )
-                geoEventLogger.logSimple(
-                    type = GeoAwarenessEventType.UGZ_AUTHORIZATION_REQUIRED,
-                    severity = "WARNING",
-                    message = "Geo upload requires UGZ authorization confirmation",
-                    category = "MISSION",
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name,
-                    zoneIds = unconfirmedAuthorizationZones.map { it.id },
-                    zoneNames = unconfirmedAuthorizationZones.map { it.name },
-                    restriction = GeoZoneRestriction.REQ_AUTHORISATION.name,
-                    latitude = latestRealDronePosition?.lat,
-                    longitude = latestRealDronePosition?.lon,
-                    altitudeMeters = latestRealDroneAltitudeMeters
-                )
-                showGeoAwarenessAcknowledgementDialog(result, health) {
-                    val confirmedZones = geoAuthorizationSession.requiredZones(result)
-                    geoAuthorizationSession.confirm(confirmedZones)
-                    Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after acknowledgement")
-                    geoEventLogger.logSimple(
-                        type = GeoAwarenessEventType.UGZ_AUTHORIZATION_CONFIRMED,
-                        severity = "INFO",
-                        message = "Pilot declared UGZ authorization completed",
-                        category = "MISSION",
-                        datasetTitle = geoZoneDatasetInfo?.title,
-                        datasetVersion = geoZoneDatasetInfo?.version,
-                        healthState = health.state.name,
-                        zoneIds = confirmedZones.map { it.id },
-                        zoneNames = confirmedZones.map { it.name },
-                        restriction = GeoZoneRestriction.REQ_AUTHORISATION.name,
-                        latitude = latestRealDronePosition?.lat,
-                        longitude = latestRealDronePosition?.lon,
-                        altitudeMeters = latestRealDroneAltitudeMeters,
-                        details = mapOf(
-                            "confirmationScope" to "current_flight",
-                            "pilotDeclaration" to "authorization_or_notification_completed",
-                            "resetCondition" to "disarm_or_end_of_flight"
-                        )
-                    )
-                    geoEventLogger.logSimple(
-                        type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
-                        severity = "INFO",
-                        message = "User acknowledged geo upload warning",
-                        category = "MISSION",
-                        datasetTitle = geoZoneDatasetInfo?.title,
-                        datasetVersion = geoZoneDatasetInfo?.version,
-                        healthState = health.state.name,
-                        zoneIds = confirmedZones.map { it.id },
-                        zoneNames = confirmedZones.map { it.name },
-                        restriction = GeoZoneRestriction.REQ_AUTHORISATION.name,
-                        latitude = latestRealDronePosition?.lat,
-                        longitude = latestRealDronePosition?.lon,
-                        altitudeMeters = latestRealDroneAltitudeMeters,
-                        details = mapOf("authorizationScope" to "current_flight")
-                    )
-                    onAllowed()
-                }
-            }
-            GeoUploadGuardPolicy.Decision.ShowNotice -> {
-                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: notice conflicts=${result.conflicts.size}")
-                geoEventLogger.logSimple(
-                    type = GeoAwarenessEventType.UPLOAD_CONTINUED_WITH_WARNING,
-                    severity = "WARNING",
-                    message = "Geo upload warning shown",
-                    category = "MISSION",
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name,
-                    zoneIds = result.conflicts.map { it.zone.id }.distinct(),
-                    zoneNames = result.conflicts.map { it.zone.name }.distinct(),
-                    restriction = result.highestRestriction.name,
-                    latitude = latestRealDronePosition?.lat,
-                    longitude = latestRealDronePosition?.lon,
-                    altitudeMeters = latestRealDroneAltitudeMeters
-                )
-                showGeoAwarenessNoticeDialog(result, health) {
-                    Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user proceeded after notice")
-                    onAllowed()
-                }
-            }
-        }
-    }
-
-    private fun showGeoAwarenessBlockedDialog(result: GeoAwarenessResult) {
-        geoAwarenessDialogController.showBlocked(result)
-    }
-
-    private fun showGeoAwarenessProhibitedAcknowledgementDialog(
-        result: GeoAwarenessResult,
-        health: GeoAwarenessHealth,
-        onAcknowledged: () -> Unit
-    ) {
-        geoAwarenessDialogController.showProhibitedAcknowledgement(
-            result = result,
-            onAcknowledged = onAcknowledged,
-            onCancelled = {
-                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled prohibited zone warning")
-                logGeoUploadCancellation(health, "User cancelled prohibited geo-zone upload warning")
-            },
-        )
-    }
-
-    private fun showGeoAwarenessAcknowledgementDialog(
-        result: GeoAwarenessResult,
-        health: GeoAwarenessHealth,
-        onAcknowledged: () -> Unit
-    ) {
-        geoAwarenessDialogController.showAuthorizationAcknowledgement(
-            result = result,
-            onAcknowledged = onAcknowledged,
-            onCancelled = {
-                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled")
-                logGeoUploadCancellation(health, "User cancelled geo upload acknowledgement")
-            },
-        )
-    }
-
-    private fun showGeoAwarenessNoticeDialog(
-        result: GeoAwarenessResult,
-        health: GeoAwarenessHealth,
-        onContinue: () -> Unit
-    ) {
-        geoAwarenessDialogController.showNotice(
-            result = result,
-            onContinue = {
-                geoEventLogger.logSimple(
-                    type = GeoAwarenessEventType.UPLOAD_ACKNOWLEDGED,
-                    severity = "INFO",
-                    message = "User continued after geo upload warning",
-                    datasetTitle = geoZoneDatasetInfo?.title,
-                    datasetVersion = geoZoneDatasetInfo?.version,
-                    healthState = health.state.name,
-                )
-                onContinue()
-            },
-            onCancelled = {
-                Log.d(GEO_UPLOAD_GUARD_TAG, "Geo upload guard: user cancelled")
-                logGeoUploadCancellation(health, "User cancelled geo upload warning")
-            },
-        )
-    }
-
-    private fun logGeoUploadCancellation(health: GeoAwarenessHealth, message: String) {
-        geoEventLogger.logSimple(
-            type = GeoAwarenessEventType.UPLOAD_CANCELLED,
-            severity = "INFO",
-            message = message,
-            datasetTitle = geoZoneDatasetInfo?.title,
-            datasetVersion = geoZoneDatasetInfo?.version,
-            healthState = health.state.name,
-        )
-    }
-    private fun updateLiveGeoAwarenessStatus(
-        dronePosition: LatLon?,
-        droneAltitudeMeters: Double?
-    ) {
-        latestLiveDronePosition = dronePosition
-
-        liveGeoAwarenessDegradedReason()?.let { reason ->
-            latestLiveGeoZones = emptyList()
-            latestLiveGeoProximity = null
-            latestLiveGeoThreats = emptyList()
-            liveGeoAwarenessStatusBinder?.bindDegraded(reason)
-            updateTopLiveGeoStatus(getString(R.string.live_geo_degraded), "#FFB26B")
-            return
-        }
-
-        if (dronePosition == null) {
-            latestLiveGeoZones = emptyList()
-            latestLiveGeoProximity = null
-            latestLiveGeoThreats = emptyList()
-            liveGeoAwarenessStatusBinder?.bindUnknown("No drone position")
-            updateTopLiveGeoStatus(getString(R.string.live_geo_unknown_status), "#AAB5C6")
-            return
-        }
-
-        if (!loadGeoAwarenessZonesIfNeeded()) {
-            latestLiveGeoZones = emptyList()
-            latestLiveGeoProximity = null
-            latestLiveGeoThreats = emptyList()
-            liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
-            updateTopLiveGeoStatus(getString(R.string.live_geo_unknown_status), "#AAB5C6")
-            return
-        }
-        if (geoAwarenessZones.isEmpty()) {
-            latestLiveGeoZones = emptyList()
-            latestLiveGeoProximity = null
-            latestLiveGeoThreats = emptyList()
-            liveGeoAwarenessStatusBinder?.bindUnknown("Geo-zones unavailable")
-            updateTopLiveGeoStatus(getString(R.string.live_geo_unknown_status), "#AAB5C6")
-            return
-        }
-
-        val insideZones = liveGeoAwarenessChecker?.checkDronePosition(
-            dronePosition = dronePosition,
-            altitudeContext = GeoAltitudeContext(
-                aglMeters = droneAltitudeMeters,
-                amslMeters = latestRealDroneAltitudeAmslMeters
-            ),
-            zones = geoAwarenessZones
-        ).orEmpty()
-
-        geoAwarenessEventTracker.liveStatus(
-            zones = insideZones,
-            latitude = dronePosition.lat,
-            longitude = dronePosition.lon,
-            altitudeMeters = droneAltitudeMeters
-        )
-        latestLiveGeoZones = insideZones
-        val nearThreats = liveGeoAwarenessChecker?.findZonesWithinThreshold(
-            position = dronePosition,
-            zones = geoAwarenessZones,
-            thresholdMeters = DEFAULT_NEAR_ZONE_THRESHOLD_METERS,
-            altitudeContext = GeoAltitudeContext(
-                aglMeters = droneAltitudeMeters,
-                amslMeters = latestRealDroneAltitudeAmslMeters
-            ),
-            groundSpeedMetersPerSecond = latestRealDroneGroundSpeedMetersPerSecond?.toDouble(),
-            headingDegrees = latestRealDroneHeadingDegrees,
-            verticalSpeedMetersPerSecond = latestRealDroneVerticalSpeedMetersPerSecond?.toDouble()
-        ).orEmpty()
-        val nearestZone = nearThreats.firstOrNull()
-        latestLiveGeoProximity = nearestZone
-
-        if (insideZones.isEmpty() && nearestZone == null) {
-            latestLiveGeoThreats = emptyList()
-            liveGeoAwarenessStatusBinder?.bindClear()
-            updateTopLiveGeoStatus(getString(R.string.live_geo_clear_status), "#48D26D")
-        } else {
-            nearestZone?.let { proximity ->
-                geoAwarenessEventTracker.liveProximity(
-                    proximity = proximity,
-                    latitude = dronePosition.lat,
-                    longitude = dronePosition.lon,
-                    altitudeMeters = droneAltitudeMeters
-                )
-            }
-            val insideThreatRows = insideZones.map { zone -> liveGeoThreatPresenter.inside(zone, dronePosition) }
-            val dedupedNearThreats = nearThreats.filterNot { proximity ->
-                insideZones.any { inside -> inside.id == proximity.nearestZone.id }
-            }
-            val altitudes = LiveGeoThreatPresenter.Altitudes(
-                aglMeters = latestRealDroneAltitudeMeters,
-                amslMeters = latestRealDroneAltitudeAmslMeters,
-            )
-            val threatRows = (insideThreatRows + dedupedNearThreats.map {
-                liveGeoThreatPresenter.proximity(it, dronePosition, altitudes)
-            })
-                .take(3)
-            val remainingCount = (insideThreatRows.size + dedupedNearThreats.size - threatRows.size).coerceAtLeast(0)
-            latestLiveGeoThreats = nearThreats
-            val highestInside = insideZones.maxByOrNull { liveGeoThreatPresenter.restrictionPriority(it.restriction) }
-            val statusRestriction = highestInside?.restriction ?: nearestZone?.restriction
-            val statusLabel = when {
-                highestInside != null -> getString(R.string.live_geo_inside_status, liveGeoThreatPresenter.restrictionLabel(highestInside.restriction))
-                threatRows.size > 1 -> getString(R.string.live_geo_multiple)
-                statusRestriction != null -> liveGeoThreatPresenter.nearRestrictionLabel(statusRestriction)
-                else -> getString(R.string.live_geo_clear_status)
-            }
-            val statusColor = statusRestriction?.let(liveGeoThreatPresenter::restrictionColor) ?: "#48D26D"
-            liveGeoAwarenessStatusBinder?.bindThreatSummary(
-                statusLabel = statusLabel,
-                statusColor = statusColor,
-                threats = threatRows,
-                remainingCount = remainingCount,
-                headingDegrees = latestRealDroneHeadingDegrees,
-                borderColor = highestInside?.restriction?.let(liveGeoThreatPresenter::restrictionColor) ?: "#00000000"
-            )
-            updateTopLiveGeoStatus(statusLabel, statusColor)
-        }
-
-        Log.d(
-            LIVE_GEO_AWARENESS_TAG,
-            "Live geo-awareness updated: inside=${insideZones.size} highest=${insideZones.firstOrNull()?.restriction}"
-        )
-    }
-
-    private fun updateTopLiveGeoStatus(label: String, colorHex: String) {
-        val signature = "$label|$colorHex"
-        if (lastTopLiveGeoStatusSignature == signature) return
-        lastTopLiveGeoStatusSignature = signature
-        val statusView = view?.findViewById<TextView?>(R.id.top_live_geo_status_text) ?: return
-        val color = android.graphics.Color.parseColor(colorHex)
-        statusView.text = label
-        statusView.setTextColor(color)
-        view?.findViewById<ImageView?>(R.id.top_live_geo_icon)?.apply {
-            setImageResource(
-                if (label == getString(R.string.live_geo_clear_status)) {
-                    R.drawable.ic_baseline_check_circle_outline_24
-                } else {
-                    R.drawable.ic_status_warning_24
-                }
-            )
-            setColorFilter(color)
-        }
-    }
-
-    private fun showLiveGeoAwarenessDetails() {
-        val title: String
-        val message: String
-
-        when {
-            latestLiveDronePosition == null -> {
-                title = getString(R.string.live_geo_details_title)
-                message = getString(R.string.live_geo_no_position)
-            }
-            latestLiveGeoZones.isNotEmpty() -> {
-                val visibleZones = latestLiveGeoZones.take(5)
-                val remainingCount = latestLiveGeoZones.size - visibleZones.size
-                title = getString(R.string.live_geo_warning_title)
-                message = buildString {
-                    appendLine(getString(R.string.live_geo_inside_loaded))
-                    appendLine()
-                    visibleZones.forEach { zone ->
-                        appendLine("- ${zone.name}")
-                        appendLine("  ${getString(R.string.live_geo_restriction, zone.restriction)}")
-                        appendLine("  ${getString(R.string.live_geo_message, zone.message ?: getString(R.string.geo_summary_no_message))}")
-                    }
-                    if (remainingCount > 0) {
-                        appendLine(getString(R.string.geo_summary_more, remainingCount))
-                    }
-                    append(getString(R.string.live_geo_verify_authority))
-                }
-            }
-            latestLiveGeoProximity != null -> {
-                val proximity = latestLiveGeoProximity!!
-                title = getString(R.string.live_geo_nearby_title)
-                message = buildString {
-                    appendLine(getString(R.string.live_geo_nearest_zone, proximity.nearestZone.name))
-                    appendLine(getString(R.string.live_geo_restriction, proximity.restriction))
-                    appendLine(getString(R.string.live_geo_distance, proximity.distanceMeters.toInt().coerceAtLeast(0)))
-                    appendLine(getString(R.string.live_geo_configured_threshold, proximity.configuredThresholdMeters.toInt()))
-                    appendLine(getString(R.string.live_geo_effective_threshold, proximity.effectiveThresholdMeters.toInt()))
-                    appendLine(getString(R.string.live_geo_warning_time, proximity.requiredWarningSeconds))
-                    proximity.groundSpeedMetersPerSecond?.let { speed ->
-                        appendLine(getString(R.string.live_geo_ground_speed, "%.2f".format(Locale.US, speed)))
-                    }
-                    proximity.closingSpeedMetersPerSecond?.let { speed ->
-                        appendLine(getString(R.string.live_geo_closing_speed, "%.2f".format(Locale.US, speed)))
-                    }
-                    proximity.timeToBoundarySeconds?.let { seconds ->
-                        appendLine(getString(R.string.live_geo_boundary_time, "%.2f".format(Locale.US, seconds)))
-                    }
-                    proximity.verticalDistanceMeters?.let { distance ->
-                        appendLine(getString(R.string.live_geo_vertical_distance, "%.2f".format(Locale.US, distance)))
-                    }
-                    proximity.verticalClosingSpeedMetersPerSecond?.let { speed ->
-                        appendLine(getString(R.string.live_geo_vertical_speed, "%.2f".format(Locale.US, speed)))
-                    }
-                    proximity.verticalTimeToBoundarySeconds?.let { seconds ->
-                        appendLine(getString(R.string.live_geo_vertical_time, "%.2f".format(Locale.US, seconds)))
-                    }
-                    appendLine(getString(R.string.live_geo_warning_mode, proximity.warningMode))
-                    if (!geoZoneDatasetInfo?.title.isNullOrBlank()) {
-                        appendLine(getString(R.string.live_geo_dataset, geoZoneDatasetInfo?.title, geoZoneDatasetInfo?.version ?: getString(R.string.settings_unavailable)))
-                    }
-                    if (!proximity.nearestZone.message.isNullOrBlank()) {
-                        appendLine(getString(R.string.live_geo_message, proximity.nearestZone.message))
-                    }
-                    appendLine()
-                    append(getString(R.string.live_geo_outside_near))
-                }
-            }
-            latestLiveGeoZones.isEmpty() -> {
-                title = getString(R.string.live_geo_details_title)
-                message = buildString {
-                    appendLine(getString(R.string.live_geo_outside_all))
-                    append(getString(R.string.live_geo_verify_before_flight))
-                }
-            }
-            else -> error("Unhandled live geo-awareness detail state")
-        }
-
-        geoAwarenessDialogController.showMessage(title, message)
     }
 
     private fun isUsableDroneLocation(location: android.location.Location): Boolean {
@@ -2871,40 +2122,6 @@ class MissionMapFragment : Fragment() {
         }
         return kotlin.math.abs(location.latitude) > MIN_VALID_ABS_COORDINATE ||
             kotlin.math.abs(location.longitude) > MIN_VALID_ABS_COORDINATE
-    }
-
-    private fun updateLiveGeoAwarenessFromActiveSource() {
-        if (_binding == null) return
-        val elapsed = SystemClock.uptimeMillis() - lastLiveGeoUpdateUptimeMs
-        if (elapsed >= LIVE_GEO_UPDATE_INTERVAL_MS && liveGeoUpdateJob == null) {
-            lastLiveGeoUpdateUptimeMs = SystemClock.uptimeMillis()
-            updateLiveGeoAwarenessStatus(latestRealDronePosition, latestRealDroneAltitudeMeters)
-            return
-        }
-        if (liveGeoUpdateJob != null) return
-        liveGeoUpdateJob = viewLifecycleOwner.lifecycleScope.launch {
-            delay((LIVE_GEO_UPDATE_INTERVAL_MS - elapsed).coerceAtLeast(0L))
-            liveGeoUpdateJob = null
-            if (_binding == null) return@launch
-            lastLiveGeoUpdateUptimeMs = SystemClock.uptimeMillis()
-            updateLiveGeoAwarenessStatus(latestRealDronePosition, latestRealDroneAltitudeMeters)
-        }
-    }
-
-    private fun liveGeoAwarenessDegradedReason(): String? {
-        if (droneViewModel.conStateLiveData.value != true) {
-            return getString(R.string.live_geo_degraded_no_link)
-        }
-        return when (TelemetryMapping.gpsFixQuality(droneViewModel.gpsFixType.value, isConnected = true)) {
-            GpsFixQuality.DISCONNECTED,
-            GpsFixQuality.NO_GPS,
-            GpsFixQuality.UNKNOWN -> getString(R.string.live_geo_degraded_gps)
-            GpsFixQuality.FIX_2D,
-            GpsFixQuality.FIX_3D,
-            GpsFixQuality.DGPS,
-            GpsFixQuality.RTK_FLOAT,
-            GpsFixQuality.RTK_FIXED -> null
-        }
     }
 
 }
