@@ -1,8 +1,6 @@
 package com.example.droneservicesapp.ui.home.components
 
 import android.content.Context
-import android.util.Log
-import android.widget.Toast
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.LatLon
@@ -17,7 +15,6 @@ import com.example.droneservicesapp.domain.planning.MissionPlanningCoordinator
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
-import java.util.Locale
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -125,20 +122,6 @@ class TerrainMissionCoordinator(
             canopyRadiusMeters = smoothing,
         ) + height
         return TerrainWaypoint(LatLon(point.latitude, point.longitude), altitude, altitude)
-    }
-
-    fun warmGrid(showToast: Boolean, renderStatus: () -> Unit, redrawMission: () -> Unit) {
-        val model = previewAssets.pointCloudTerrainModel ?: return
-        scope.launch {
-            val summary = withContext(Dispatchers.Default) { model.terrainGridSummary() }
-            previewAssets.setPointCloudTerrainSummary(summary)
-            Log.d("TerrainGrid", "cells=${summary.cellCount} points=${summary.pointCount} cellSize=${String.format(Locale.US, "%.2f", summary.cellSizeMeters)}m georef=${summary.isGeoreferenced}")
-            if (showToast) {
-                Toast.makeText(context, "Terrain grid ready: ${summary.cellCount} cells, ${if (summary.isGeoreferenced) "georeferenced" else "not georeferenced"}", Toast.LENGTH_LONG).show()
-            }
-            renderStatus()
-            redrawMission()
-        }
     }
 
     fun renderCoverage(overlay: TerrainCoverageOverlayController?) {

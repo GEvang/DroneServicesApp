@@ -1,8 +1,6 @@
 package com.example.droneservicesapp.ui.home
 
-import android.app.Activity
 import android.content.Intent
-import android.net.Uri
 import android.os.Bundle
 import android.graphics.Color
 import android.util.Log
@@ -29,7 +27,6 @@ import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventL
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
 import com.example.droneservicesapp.data.geoawareness.logging.OperatorFlightEventLogger
 import com.example.droneservicesapp.data.diagnostics.DiagnosticLog
-import com.example.droneservicesapp.data.pointcloud.PointCloudData
 import com.example.droneservicesapp.data.rtk.RtkForwardingState
 import com.example.droneservicesapp.data.storage.MissionFileStore
 import com.example.droneservicesapp.data.weather.OpenMeteoWindRepository
@@ -64,6 +61,9 @@ import com.example.droneservicesapp.ui.home.components.MissionMapActionHandler
 import com.example.droneservicesapp.ui.home.components.MissionPresentationObserver
 import com.example.droneservicesapp.ui.home.components.MissionGenerationCoordinator
 import com.example.droneservicesapp.ui.home.components.TerrainMissionCoordinator
+import com.example.droneservicesapp.ui.home.components.TerrainPreviewCoordinator
+import com.example.droneservicesapp.ui.home.components.PreviewMapFocusController
+import com.example.droneservicesapp.ui.home.components.PreviewWorkflowController
 import com.example.droneservicesapp.ui.home.components.MissionSummaryPresenter
 import com.example.droneservicesapp.ui.home.components.MissionMapRenderer
 import com.example.droneservicesapp.ui.home.components.MissionEditorCoordinator
@@ -91,12 +91,9 @@ import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
 import com.example.droneservicesapp.ui.preview.OrthoOverlayController
 import com.example.droneservicesapp.ui.preview.PreviewMode
 import com.example.droneservicesapp.ui.preview.PreviewModeRenderer
-import com.example.droneservicesapp.ui.preview.PointCloudMissionOverlayBuilder
-import com.example.droneservicesapp.ui.preview.PointCloudTerrainStyleMapper
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
 import com.example.droneservicesapp.ui.preview.PreviewAssetStore
 import com.example.droneservicesapp.ui.preview.PreviewAssetLoader
-import com.example.droneservicesapp.ui.preview.PreviewMapFocus
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.example.droneservicesapp.ui.common.RtkTonePlayer
 import com.google.android.gms.maps.model.LatLng
@@ -106,19 +103,9 @@ import org.osmdroid.tileprovider.cachemanager.CacheManager
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
-import java.util.Locale
 import java.util.concurrent.atomic.AtomicInteger
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import kotlin.math.PI
-import kotlin.math.abs
-import kotlin.math.ln
-import kotlin.math.max
-import kotlin.math.min
 import kotlin.math.sqrt
-import kotlin.math.tan
 
 class MissionMapFragment : Fragment() {
     private var _binding: FragmentHomeMapsBinding? = null
@@ -128,8 +115,6 @@ class MissionMapFragment : Fragment() {
     private lateinit var droneViewModel: DroneViewModel
     private lateinit var activityViewModel: MainActivityViewModel
     private val previewAssetsViewModel: PreviewAssetsViewModel by activityViewModels()
-    private lateinit var previewAssetStore: PreviewAssetStore
-    private lateinit var previewAssetLoader: PreviewAssetLoader
     private lateinit var homeTelemetryViewModel: HomeTelemetryViewModel
     private lateinit var mapViewModel: MissionMapViewModel
 
@@ -179,16 +164,15 @@ class MissionMapFragment : Fragment() {
     private var latestRealDroneHeadingDegrees: Double? = null
     private var lastRtkStreamingActive: Boolean? = null
     private var isDrawingModeActive = false
-    private var previewAssetLoadJob: Job? = null
-    private var activePreviewMode: PreviewMode = PreviewMode.MAP
     private lateinit var orthoOverlayController: OrthoOverlayController
     private lateinit var previewModeRenderer: PreviewModeRenderer
-    private val pointCloudMissionOverlayBuilder = PointCloudMissionOverlayBuilder()
+    private lateinit var previewMapFocusController: PreviewMapFocusController
+    private lateinit var terrainPreviewCoordinator: TerrainPreviewCoordinator
+    private lateinit var previewWorkflowController: PreviewWorkflowController
     private val selectedSurveyWaypointIndex: Int?
         get() = missionEditorCoordinator.selectedIndex
     private val selectedTerrainWaypointWorkflow: PlanningWorkflow
         get() = missionEditorCoordinator.selectedWorkflow
-    private var previewHeightColorModeEnabled: Boolean = false
     private val homePlacementMode: Boolean
         get() = ::plannedHomePlacementController.isInitialized && plannedHomePlacementController.isActive
     private lateinit var missionSimulationController: MissionSimulationController
@@ -211,22 +195,8 @@ class MissionMapFragment : Fragment() {
         private const val OFFLINE_MIN_ZOOM = 14
         private const val OFFLINE_MAX_ZOOM = 18
         private const val MAP_FLIGHT_TRACE_TAG = "MapFlightTrace"
-        private const val TERRAIN_GRID_TAG = "TerrainGrid"
         private const val MIN_VALID_ABS_COORDINATE = 1e-4
         private const val MAX_INITIAL_DRONE_CENTER_ATTEMPTS = 20
-        private const val PREVIEW_MAP_FIT_PADDING_PX = 96
-        private const val MIN_PREVIEW_MAP_SPAN_METERS = 10.0
-        private const val TILE_SIZE_PX = 256.0
-        private const val MIN_MAP_VIEWPORT_PX = 320
-        private const val MIN_PREVIEW_BOUNDS_SPAN_DEGREES = 0.000001
-        private const val MIN_PREVIEW_MERCATOR_SPAN = 0.000001
-        private const val MIN_MERCATOR_LATITUDE = -85.05112878
-        private const val MAX_MERCATOR_LATITUDE = 85.05112878
-        private const val MIN_PREVIEW_MAP_ZOOM = 2.0
-        private const val MAX_PREVIEW_MAP_ZOOM = 21.0
-        private const val REQUEST_HOME_OPEN_TIFF = 3301
-        private const val REQUEST_HOME_OPEN_WORLD = 3302
-        private const val REQUEST_HOME_OPEN_PLY = 3303
     }
 
     override fun onCreateView(
@@ -241,8 +211,6 @@ class MissionMapFragment : Fragment() {
         homeTelemetryViewModel = ViewModelProvider(requireActivity())[HomeTelemetryViewModel::class.java]
         mapViewModel = ViewModelProvider(this)[MissionMapViewModel::class.java]
         missionFileStore = MissionFileStore(requireContext())
-        previewAssetStore = PreviewAssetStore(requireContext())
-        previewAssetLoader = PreviewAssetLoader(requireContext())
         geoEventLogger = GeoAwarenessEventLogger(requireContext().applicationContext)
         val geoIncidentLogger = GeoIncidentLogger(
             GeoIncidentEncryptedLogStore(requireContext().applicationContext)
@@ -282,7 +250,7 @@ class MissionMapFragment : Fragment() {
         initializeMapView(view)
         initControllers()
         bindUiButtons()
-        bindPreviewAssetButtons()
+        previewWorkflowController.bindActions()
         missionMapUiActionController.applyMapInsets()
         observeDroneViewModel()
         observeMapState()
@@ -292,11 +260,10 @@ class MissionMapFragment : Fragment() {
         observePreviewSettings()
 
         mapViewModel.restoreFromMapState(activityViewModel.mapState.value ?: MainActivityViewModel.MapState.Idle)
-        activePreviewMode = PreviewMode.MAP
-        renderPreviewMode()
+        previewWorkflowController.selectMode(PreviewMode.MAP)
         binding.root.post {
             if (_binding != null) {
-                restorePersistedPreviewAssets()
+                previewWorkflowController.restorePersistedAssets()
             }
         }
     }
@@ -306,7 +273,7 @@ class MissionMapFragment : Fragment() {
         orthoOverlayController = OrthoOverlayController(
             mapView = mapView,
             assetsViewModel = previewAssetsViewModel,
-            focusOverlay = ::focusOrthoOnMap,
+            focusOverlay = { previewMapFocusController.focusOrtho() },
         )
         previewModeRenderer = PreviewModeRenderer(
             context = requireContext(),
@@ -316,8 +283,8 @@ class MissionMapFragment : Fragment() {
             renderMapPath = { missionMapRenderer.renderCurrentPath() },
             renderOrtho = ::renderHomeOrthoOverlay,
             clearOrtho = ::removeHomeOrthoOverlay,
-            renderTerrainStatus = ::renderTerrainGridStatus,
-            renderMissionOverlay = ::updatePointCloudMissionOverlay,
+            renderTerrainStatus = { terrainPreviewCoordinator.renderStatus() },
+            renderMissionOverlay = { terrainPreviewCoordinator.renderMissionOverlay() },
             updateDockPlacement = ::updatePreviewDockPlacement,
         )
         mapView.setBuiltInZoomControls(false)
@@ -346,7 +313,7 @@ class MissionMapFragment : Fragment() {
         osmdroidRouteWaypointEditor = OsmdroidRouteWaypointEditor(requireContext(), activityViewModel, mapView)
         osmdroidRouteWaypointEditor.init()
         osmdroidRouteWaypointEditor.setTerrainWaypointSelectionCallback { index ->
-            missionEditorCoordinator.select(PlanningWorkflow.POINTS, index, activePreviewMode)
+            missionEditorCoordinator.select(PlanningWorkflow.POINTS, index, previewWorkflowController.mode)
         }
         esriMapLayers.bringAttributionToFront()
         binding.homePointCloudGlView.setOnMissionPointClickListener { index, x, y ->
@@ -357,7 +324,7 @@ class MissionMapFragment : Fragment() {
             if (workflow == PlanningWorkflow.POINTS) {
                 osmdroidRouteWaypointEditor.selectTerrainWaypoint(selectedIndex)
             } else {
-                missionEditorCoordinator.select(PlanningWorkflow.AREA, selectedIndex, activePreviewMode)
+                missionEditorCoordinator.select(PlanningWorkflow.AREA, selectedIndex, previewWorkflowController.mode)
             }
             if (selectedIndex != null) {
                 missionEditorCoordinator.positionNearViewPoint(binding.homePointCloudGlView, x, y)
@@ -376,11 +343,16 @@ class MissionMapFragment : Fragment() {
             },
             onHomePlaced = ::placePlannedHome,
         )
+        previewMapFocusController = PreviewMapFocusController(
+            mapView = mapView,
+            assets = previewAssetsViewModel,
+            onFocused = { initialViewportController.markCenteredToDrone() },
+        )
         initialViewportController = InitialMapViewportController(
             rootViewProvider = { _binding?.root },
             mapController = osmdroidMapController,
-            hasPendingPreviewFocus = previewAssetsViewModel::hasPendingMapFocusRequest,
-            focusPendingPreview = ::focusPreviewAssetOnMapIfRequested,
+            hasPendingPreviewFocus = previewMapFocusController::hasPendingRequest,
+            focusPendingPreview = previewMapFocusController::focusPendingAsset,
             centerOnDrone = osmdroidMapController::centerOnDrone,
             maxDroneAttempts = MAX_INITIAL_DRONE_CENTER_ATTEMPTS,
         )
@@ -390,7 +362,9 @@ class MissionMapFragment : Fragment() {
             mapController = osmdroidMapController,
             pointCloudView = binding.homePointCloudGlView,
             refreshMapLabels = esriMapLayers::refreshLabelsEnabled,
-            isPointCloudVisible = { activePreviewMode == PreviewMode.POINT_CLOUD },
+            isPointCloudVisible = {
+                ::previewWorkflowController.isInitialized && previewWorkflowController.mode == PreviewMode.POINT_CLOUD
+            },
         )
 
         terrainCoverageOverlayController = TerrainCoverageOverlayController(requireContext(), mapView)
@@ -450,6 +424,45 @@ class MissionMapFragment : Fragment() {
             previewAssets = previewAssetsViewModel,
             planner = missionPlanningCoordinator,
         )
+        terrainPreviewCoordinator = TerrainPreviewCoordinator(
+            context = requireContext(),
+            scope = viewLifecycleOwner.lifecycleScope,
+            binding = binding,
+            viewModel = activityViewModel,
+            droneViewModel = droneViewModel,
+            previewAssets = previewAssetsViewModel,
+            currentPointCloud = {
+                if (isSurveyMode()) droneViewModel.terrainPreview.value?.pointCloud
+                else previewAssetsViewModel.pointCloudAsset?.pointCloud
+            },
+            currentDroneLocation = ::currentOffsetDroneLocation,
+            currentMode = { previewWorkflowController.mode },
+            isSurveyMode = ::isSurveyMode,
+            selectedWorkflow = { missionEditorCoordinator.selectedWorkflow },
+            selectedWaypointIndex = { missionEditorCoordinator.selectedIndex },
+            orderPointRoute = ::orderPathForPlannedHome,
+            redrawMission = ::redrawAreaMissionIfEditable,
+            isActive = { _binding != null },
+        )
+        previewWorkflowController = PreviewWorkflowController(
+            context = requireContext(),
+            scope = viewLifecycleOwner.lifecycleScope,
+            binding = binding,
+            assets = previewAssetsViewModel,
+            store = PreviewAssetStore(requireContext()),
+            loader = PreviewAssetLoader(requireContext()),
+            orthoOverlay = orthoOverlayController,
+            modeRenderer = previewModeRenderer,
+            terrainPreview = terrainPreviewCoordinator,
+            uiActions = missionMapUiActionController,
+            isSurveyMode = ::isSurveyMode,
+            surveyPointCloud = { droneViewModel.terrainPreview.value?.pointCloud },
+            renderMapPath = { missionMapRenderer.renderCurrentPath() },
+            redrawMission = ::redrawAreaMissionIfEditable,
+            generatePointRoute = ::generatePointRouteTerrainPath,
+            launchFilePicker = { intent, requestCode -> startActivityForResult(intent, requestCode) },
+            isActive = { _binding != null },
+        )
         missionMapRenderer = MissionMapRenderer(
             context = requireContext(),
             obstacleList = requireView().findViewById(R.id.right_panel_obstacle_list),
@@ -460,7 +473,7 @@ class MissionMapFragment : Fragment() {
             obstacleEditor = osmdroidObstacleEditor,
             terrainCoordinator = terrainMissionCoordinator,
             coverageOverlay = { terrainCoverageOverlayController },
-            heightColorsEnabled = { previewHeightColorModeEnabled },
+            heightColorsEnabled = { previewWorkflowController.heightColorsEnabled },
             removeObstacle = activityViewModel::removeMissionObstacle,
         )
         missionEditorCoordinator = MissionEditorCoordinator(
@@ -475,7 +488,7 @@ class MissionMapFragment : Fragment() {
             shouldReversePointRoute = pointRouteCoordinator::shouldReverse,
             updateDistance = ::updateFlightDistance,
             renderPath = missionMapRenderer::renderCurrentPath,
-            updatePointCloudOverlay = ::updatePointCloudMissionOverlay,
+            updatePointCloudOverlay = previewWorkflowController::renderMissionOverlay,
             applyObstacleControls = planningWorkflowUiController::renderObstacleControls,
         )
         missionGenerationCoordinator = MissionGenerationCoordinator(
@@ -646,7 +659,7 @@ class MissionMapFragment : Fragment() {
                     toggleObstaclePanel()
                 },
                 startDroneOffset = ::startDroneOffsetAdjustment,
-                cyclePreviewMode = ::cyclePreviewMode,
+                cyclePreviewMode = previewWorkflowController::cycleMode,
                 openSettings = {
                     requireActivity().findViewById<DrawerLayout>(R.id.drawer_layout)
                         .openDrawer(GravityCompat.START)
@@ -672,8 +685,8 @@ class MissionMapFragment : Fragment() {
                     activityViewModel.mapState.value = MainActivityViewModel.MapState.Idle
                 },
                 addObstacle = {
-                    missionEditorCoordinator.toggleObstaclePlacement(activePreviewMode) {
-                        selectPreviewMode(PreviewMode.MAP)
+                    missionEditorCoordinator.toggleObstaclePlacement(previewWorkflowController.mode) {
+                        previewWorkflowController.selectMode(PreviewMode.MAP)
                     }
                 },
                 clearObstacles = missionEditorCoordinator::clearObstacles,
@@ -700,43 +713,6 @@ class MissionMapFragment : Fragment() {
         planningWorkflowUiController.bind(viewLifecycleOwner) { onPlanningWorkflowChanged() }
         renderAddHomeButton()
         activityViewModel.mapState.postValue(MainActivityViewModel.MapState.Idle)
-    }
-    private fun bindPreviewAssetButtons() {
-        missionMapUiActionController.bindPreview(
-            MissionMapUiActionController.PreviewActions(
-                selectMode = ::selectPreviewMode,
-                primary = {
-                    when (activePreviewMode) {
-                        PreviewMode.MAP -> Unit
-                        PreviewMode.ORTHO -> openPreviewFilePicker(REQUEST_HOME_OPEN_TIFF)
-                        PreviewMode.POINT_CLOUD -> openPreviewFilePicker(REQUEST_HOME_OPEN_PLY)
-                    }
-                },
-                secondary = {
-                    when (activePreviewMode) {
-                        PreviewMode.MAP -> Unit
-                        PreviewMode.ORTHO -> openPreviewFilePicker(REQUEST_HOME_OPEN_WORLD)
-                        PreviewMode.POINT_CLOUD -> binding.homePointCloudGlView.resetCamera()
-                    }
-                },
-                toggleHeightColors = {
-                    previewAssetsViewModel.updateSettings {
-                        copy(heightColorModeEnabled = !heightColorModeEnabled)
-                    }
-                },
-                backgroundChanged = { checked ->
-                    if (activePreviewMode == PreviewMode.ORTHO) {
-                        binding.osmMap.overlayManager.tilesOverlay?.isEnabled = checked
-                        binding.osmMap.invalidate()
-                    }
-                },
-                opacityChanged = { opacity ->
-                    orthoOverlayController.setOpacity(opacity)
-                    binding.homePointCloudGlView.setPointCloudOpacity(opacity)
-                    binding.osmMap.invalidate()
-                },
-            )
-        )
     }
     private fun centerOnDroneOrShowDisconnected() {
         if (droneViewModel.conStateLiveData.value == true) osmdroidMapController.centerOnDrone()
@@ -782,12 +758,6 @@ class MissionMapFragment : Fragment() {
         } else startAreaDrawing()
     }
 
-    private fun selectPreviewMode(mode: PreviewMode) {
-        activePreviewMode = mode
-        if (mode == PreviewMode.POINT_CLOUD && !isSurveyMode()) restorePointCloudOnDemand()
-        renderPreviewMode()
-    }
-
     private fun onPlanningWorkflowChanged() {
         missionEditorCoordinator.cancelObstaclePlacement(render = false)
         stopMissionSimulation()
@@ -803,32 +773,12 @@ class MissionMapFragment : Fragment() {
     private fun observePreviewSettings() {
         missionPresentationObserver.bindPreviewAssets(
             viewModel = previewAssetsViewModel,
-            onSettings = { settings ->
-            previewHeightColorModeEnabled = settings.heightColorModeEnabled
-            binding.previewBackgroundSwitch.isChecked = settings.orthoBackgroundEnabled
-            if (binding.previewOpacitySlider.value != settings.orthoOpacity) {
-                binding.previewOpacitySlider.value = settings.orthoOpacity
-            }
-            binding.homePointCloudGlView.setPointCloudOpacity(settings.orthoOpacity)
-            binding.homePointCloudGlView.setPointSize(settings.pointCloudPointSize)
-            binding.homePointCloudGlView.setHeightColorModeEnabled(settings.heightColorModeEnabled)
-            orthoOverlayController.setOpacity(settings.orthoOpacity)
-            if (activePreviewMode == PreviewMode.ORTHO) {
-                binding.osmMap.overlayManager.tilesOverlay?.isEnabled = settings.orthoBackgroundEnabled
-            }
-            missionMapRenderer.renderCurrentPath()
-            updatePointCloudMissionOverlay()
-            renderPreviewMode()
-            },
-            onAssetVersion = {
-            refreshPreviewAssets()
-            missionMapRenderer.renderCurrentPath()
-            redrawAreaMissionIfEditable()
-            },
+            onSettings = previewWorkflowController::applySettings,
+            onAssetVersion = previewWorkflowController::onAssetsChanged,
         )
-        missionPresentationObserver.bind(droneViewModel.terrainPreview) {
-            if (isSurveyMode()) renderPreviewMode()
-        }
+        missionPresentationObserver.bind(
+            droneViewModel.terrainPreview,
+        ) { previewWorkflowController.onTerrainPreviewChanged() }
     }
 
     private fun toggleObstaclePanel() {
@@ -1007,8 +957,7 @@ class MissionMapFragment : Fragment() {
             Toast.makeText(requireContext(), R.string.simulation_requires_path, Toast.LENGTH_SHORT).show()
             return
         }
-        activePreviewMode = PreviewMode.MAP
-        renderPreviewMode()
+        previewWorkflowController.selectMode(PreviewMode.MAP)
         missionSimulationController.start(missionPath, home, useLiveDroneHome = connected)
     }
 
@@ -1073,7 +1022,7 @@ class MissionMapFragment : Fragment() {
             }
 
             liveGeoAwarenessController.updateLiveFromActiveSource()
-            updatePointCloudMissionOverlay()
+            previewWorkflowController.renderMissionOverlay()
         }
 
         missionMapObserverCoordinator.observe(droneViewModel.conStateLiveData) {
@@ -1081,7 +1030,7 @@ class MissionMapFragment : Fragment() {
             syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
             renderAddHomeButton()
             liveGeoAwarenessController.updateLiveFromActiveSource()
-            updatePointCloudMissionOverlay()
+            previewWorkflowController.renderMissionOverlay()
         }
 
         missionMapObserverCoordinator.observe(droneViewModel.gpsFixType) {
@@ -1094,7 +1043,7 @@ class MissionMapFragment : Fragment() {
                 latestRealDroneHeadingDegrees = heading
                 osmdroidMapController.updateDroneHeadingDegrees(heading.toFloat())
             }
-            updatePointCloudMissionOverlay()
+            previewWorkflowController.renderMissionOverlay()
         }
 
         missionMapObserverCoordinator.observe(droneViewModel.droneGroundSpeedMetersPerSecond) { speed ->
@@ -1135,7 +1084,7 @@ class MissionMapFragment : Fragment() {
             missionEditorCoordinator.syncPolygonVertices(vertices)
             liveGeoAwarenessController.updatePlanningStatus()
             missionSummaryPresenter.renderCard()
-            updatePointCloudMissionOverlay()
+            previewWorkflowController.renderMissionOverlay()
         }
 
         missionMapObserverCoordinator.observe(activityViewModel.plannedHomePosition) { position ->
@@ -1173,7 +1122,7 @@ class MissionMapFragment : Fragment() {
         missionMapObserverCoordinator.observe(droneViewModel.missionItems) { missionItems ->
             previewAssetsViewModel.retainDroneMission(missionItems.orEmpty())
             missionMapRenderer.renderDownloaded(missionItems.orEmpty())
-            updatePointCloudMissionOverlay()
+            previewWorkflowController.renderMissionOverlay()
         }
 
         missionMapObserverCoordinator.observe(droneViewModel.missionDownloadProgressPercent) { progress ->
@@ -1223,7 +1172,7 @@ class MissionMapFragment : Fragment() {
                 planningModeChanged = ::onPlanningOperationModeChanged,
                 updateTerrainOverlay = missionMapRenderer::renderCoverage,
                 updateMissionSummary = missionSummaryPresenter::renderCard,
-                renderPreview = ::renderPreviewMode,
+                renderPreview = previewWorkflowController::render,
             )
         )
         missionMapObserverCoordinator.observe(activityViewModel.surveyPath) { surveyPath ->
@@ -1234,13 +1183,13 @@ class MissionMapFragment : Fragment() {
             missionEditorCoordinator.updateSurveyEnabled()
             liveGeoAwarenessController.schedulePlanningStatusUpdate()
             missionSummaryPresenter.renderCard()
-            updatePointCloudMissionOverlay()
+            previewWorkflowController.renderMissionOverlay()
             missionMapRenderer.renderCoverage()
         }
 
         missionMapObserverCoordinator.observe(activityViewModel.terrainSurveyWaypoints) {
             stopMissionSimulationIfActive()
-            updatePointCloudMissionOverlay()
+            previewWorkflowController.renderMissionOverlay()
         }
 
         missionMapObserverCoordinator.observe(activityViewModel.routeWaypoints) { waypoints ->
@@ -1255,7 +1204,7 @@ class MissionMapFragment : Fragment() {
             updateRouteSummary()
             missionSummaryPresenter.renderCard()
             liveGeoAwarenessController.updatePlanningStatus()
-            updatePointCloudMissionOverlay()
+            previewWorkflowController.renderMissionOverlay()
             missionEditorCoordinator.updateSurveyEnabled()
             generatePointRouteTerrainPath()
             missionMapRenderer.renderCoverage()
@@ -1265,7 +1214,7 @@ class MissionMapFragment : Fragment() {
             stopMissionSimulationIfActive()
             missionEditorCoordinator.syncRouteWaypoints()
             missionSummaryPresenter.renderCard()
-            updatePointCloudMissionOverlay()
+            previewWorkflowController.renderMissionOverlay()
             missionMapRenderer.renderCoverage()
         }
 
@@ -1273,7 +1222,7 @@ class MissionMapFragment : Fragment() {
             stopMissionSimulationIfActive()
             missionEditorCoordinator.syncRouteWaypoints()
             missionSummaryPresenter.renderCard()
-            updatePointCloudMissionOverlay()
+            previewWorkflowController.renderMissionOverlay()
             missionMapRenderer.renderCoverage()
         }
 
@@ -1558,79 +1507,6 @@ class MissionMapFragment : Fragment() {
         (activityViewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY) ==
             PlanningOperationMode.SURVEY
 
-    private fun current3dPointCloud(): PointCloudData? =
-        if (isSurveyMode()) {
-            droneViewModel.terrainPreview.value?.pointCloud
-        } else {
-            previewAssetsViewModel.pointCloudAsset?.pointCloud
-        }
-
-    private fun cyclePreviewMode() {
-        activePreviewMode = if (isSurveyMode()) {
-            when (activePreviewMode) {
-                PreviewMode.MAP, PreviewMode.ORTHO -> PreviewMode.POINT_CLOUD
-                PreviewMode.POINT_CLOUD -> PreviewMode.MAP
-            }
-        } else {
-            when (activePreviewMode) {
-                PreviewMode.MAP -> PreviewMode.ORTHO
-                PreviewMode.ORTHO -> PreviewMode.POINT_CLOUD
-                PreviewMode.POINT_CLOUD -> PreviewMode.MAP
-            }
-        }
-        if (activePreviewMode == PreviewMode.POINT_CLOUD && !isSurveyMode()) restorePointCloudOnDemand()
-        renderPreviewMode()
-    }
-
-    private fun refreshPreviewAssets() {
-        val pointCloud = current3dPointCloud()
-        if (pointCloud == null) {
-            binding.homePointCloudGlView.clearPointCloud()
-        }
-        if (previewAssetsViewModel.orthoAsset == null) removeHomeOrthoOverlay()
-        renderPreviewMode()
-    }
-
-    private fun renderPreviewMode() {
-        if (_binding == null) return
-        if (isSurveyMode() && activePreviewMode == PreviewMode.ORTHO) activePreviewMode = PreviewMode.MAP
-        previewModeRenderer.render(activePreviewMode, isSurveyMode(), current3dPointCloud())
-    }
-
-    private fun renderTerrainGridStatus() {
-        if (isSurveyMode()) {
-            val terrain = droneViewModel.terrainPreview.value
-            binding.previewTerrainStatus.visibility = View.VISIBLE
-            binding.previewTerrainStatus.text = if (terrain == null) {
-                getString(R.string.terrain_3d_not_ready)
-            } else {
-                getString(
-                    R.string.terrain_3d_ready,
-                    terrain.fileNames.joinToString(),
-                    terrain.pointCloud.displayedPointCount,
-                    terrain.gridSpacingMeters,
-                )
-            }
-            return
-        }
-        val summary = previewAssetsViewModel.pointCloudTerrainSummary
-        binding.previewTerrainStatus.visibility = View.VISIBLE
-        binding.previewTerrainStatus.text = when {
-            previewAssetsViewModel.pointCloudAsset == null -> "Terrain --"
-            summary == null -> "Terrain building"
-            !summary.isGeoreferenced -> "Terrain no GPS"
-            else -> "Terrain ${formatCompactCount(summary.cellCount)}"
-        }
-    }
-
-    private fun formatCompactCount(value: Int): String {
-        return when {
-            value >= 1_000_000 -> String.format(Locale.US, "%.1fM", value / 1_000_000.0)
-            value >= 1_000 -> String.format(Locale.US, "%.1fk", value / 1_000.0)
-            else -> value.toString()
-        }
-    }
-
     private fun renderHomeOrthoOverlay() {
         orthoOverlayController.render()
     }
@@ -1639,264 +1515,10 @@ class MissionMapFragment : Fragment() {
         if (::orthoOverlayController.isInitialized) orthoOverlayController.clear()
     }
 
-    private fun updatePointCloudMissionOverlay() {
-        if (_binding == null) return
-        if (activePreviewMode != PreviewMode.POINT_CLOUD) return
-        val pointCloud = current3dPointCloud()
-        val downloadedPoints = previewAssetsViewModel.retainedDroneMissionPath.value.orEmpty()
-        val downloadedWaypoints = previewAssetsViewModel.retainedDroneMissionWaypoints.value.orEmpty()
-        val showingDownloadedMission =
-            activityViewModel.mapState.value == MainActivityViewModel.MapState.Idle && downloadedPoints.isNotEmpty()
-        val areaVertices = if (showingDownloadedMission) {
-            emptyList()
-        } else {
-            activityViewModel.missionArea.value?.vertices.orEmpty()
-        }
-        val droneLocation = currentOffsetDroneLocation()
-        val pointWorkflow = activityViewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS
-        val surveyPoints = when {
-            showingDownloadedMission -> downloadedPoints
-            pointWorkflow -> emptyList()
-            else -> activityViewModel.surveyPath.value.orEmpty()
-        }
-        val surveyZValues = when {
-            showingDownloadedMission && downloadedWaypoints.size == surveyPoints.size -> downloadedWaypoints.map { it.altitudeMeters }
-            showingDownloadedMission -> null
-            else -> PointCloudTerrainStyleMapper.surveyZValues(
-                surveyPoints,
-                activityViewModel.terrainSurveyWaypoints.value.orEmpty(),
-            )
-        }
-        val terrainRoute = activityViewModel.terrainRouteWaypoints.value.orEmpty()
-        val routePoints = if (showingDownloadedMission || !pointWorkflow) emptyList() else {
-            terrainRoute.takeIf { it.size >= 2 }?.map { LatLng(it.latLon.lat, it.latLon.lon) }
-                ?: orderPathForPlannedHome(
-                    activityViewModel.plannedRoutePath.value.orEmpty().takeIf { it.size >= 2 }
-                        ?: activityViewModel.routeWaypoints.value.orEmpty().map { LatLng(it.latitude, it.longitude) }
-                )
-        }
-        val routeZValues = terrainRoute.takeIf { it.size == routePoints.size && it.isNotEmpty() }
-            ?.map { it.displayAltitudeMeters.toFloat() }
-        binding.homePointCloudGlView.setMissionOverlay(
-            pointCloudMissionOverlayBuilder.build(
-                PointCloudMissionOverlayBuilder.Input(
-                    pointCloud = pointCloud,
-                    areaPoints = areaVertices,
-                    areaZValues = PointCloudTerrainStyleMapper.groundZValues(
-                        areaVertices,
-                        previewAssetsViewModel.pointCloudTerrainModel,
-                    ),
-                    surveyPoints = surveyPoints,
-                    surveyZValues = surveyZValues,
-                    routePoints = routePoints,
-                    routeZValues = routeZValues,
-                    droneLocation = droneLocation?.let { LatLng(it.latitude, it.longitude) },
-                    droneHeadingDegrees = droneViewModel.droneHeading.value ?: 0.0,
-                    selectedWorkflow = selectedTerrainWaypointWorkflow,
-                    selectedWaypointIndex = selectedSurveyWaypointIndex,
-                )
-            )
-        )
-    }
-
     @Deprecated("Deprecated in Java")
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
         super.onActivityResult(requestCode, resultCode, data)
-        if (resultCode != Activity.RESULT_OK) return
-        val uri = data?.data ?: return
-        previewAssetStore.persistReadPermission(uri, data.flags)
-        when (requestCode) {
-            REQUEST_HOME_OPEN_TIFF -> loadHomeOrthoImage(uri)
-            REQUEST_HOME_OPEN_WORLD -> loadHomeOrthoWorldFile(uri)
-            REQUEST_HOME_OPEN_PLY -> loadHomePointCloud(uri)
-        }
-    }
-
-    private fun openPreviewFilePicker(requestCode: Int) {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "*/*"
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-        }
-        startActivityForResult(intent, requestCode)
-    }
-
-    private fun loadHomeOrthoImage(uri: Uri) {
-        val fileName = previewAssetStore.displayName(uri) ?: getString(R.string.ortho_unknown_image)
-        if (!fileName.lowercase(Locale.US).endsWith(".tif") && !fileName.lowercase(Locale.US).endsWith(".tiff")) {
-            Toast.makeText(requireContext(), R.string.ortho_select_tif, Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        previewAssetsViewModel.clearOrtho()
-        removeHomeOrthoOverlay()
-        previewAssetLoadJob?.cancel()
-        previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
-            val result = runCatching {
-                withContext(Dispatchers.IO) {
-                    previewAssetLoader.loadOrthoImage(uri)
-                }
-            }
-            result.onSuccess { decoded ->
-                previewAssetsViewModel.setOrthoImage(
-                    bitmap = decoded.bitmap,
-                    bitmapFileName = fileName,
-                    bitmapUri = uri,
-                    sourceWidth = decoded.sourceWidth,
-                    sourceHeight = decoded.sourceHeight,
-                    notifyChange = false
-                )
-                previewAssetStore.saveOrthoImage(uri, fileName)
-                removeHomeOrthoOverlay()
-                Toast.makeText(requireContext(), R.string.ortho_load_world_next, Toast.LENGTH_SHORT).show()
-                renderPreviewMode()
-            }.onFailure { error ->
-                Toast.makeText(
-                    requireContext(),
-                    getString(R.string.ortho_load_failed, error.message ?: error.javaClass.simpleName),
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-    }
-
-    private fun loadHomeOrthoWorldFile(uri: Uri) {
-        val fileName = previewAssetStore.displayName(uri) ?: getString(R.string.ortho_unknown_world)
-        if (!fileName.lowercase(Locale.US).endsWith(".tfw") && !fileName.lowercase(Locale.US).endsWith(".wld")) {
-            Toast.makeText(requireContext(), R.string.ortho_select_world, Toast.LENGTH_SHORT).show()
-            return
-        }
-        val asset = previewAssetsViewModel.orthoAsset
-        if (asset == null) {
-            Toast.makeText(requireContext(), R.string.ortho_load_image_first, Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        previewAssetLoadJob?.cancel()
-        previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
-            val result = runCatching {
-                withContext(Dispatchers.IO) {
-                    previewAssetLoader.loadWorldFile(uri, asset.sourceWidth, asset.sourceHeight)
-                }
-            }
-            result.onSuccess { bounds ->
-                previewAssetsViewModel.setOrthoBounds(bounds, fileName, uri)
-                previewAssetStore.saveOrthoWorld(uri, fileName)
-                activePreviewMode = PreviewMode.ORTHO
-                renderPreviewMode()
-            }.onFailure { error ->
-                Toast.makeText(
-                    requireContext(),
-                    getString(R.string.ortho_load_failed, error.message ?: error.javaClass.simpleName),
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-    }
-
-    private fun loadHomePointCloud(uri: Uri, activatePreview: Boolean = true) {
-        val fileName = previewAssetStore.displayName(uri) ?: getString(R.string.point_cloud_unknown_file)
-        if (!previewAssetStore.supportsPointCloud(fileName)) {
-            Toast.makeText(requireContext(), R.string.point_cloud_select_ply, Toast.LENGTH_SHORT).show()
-            return
-        }
-
-        previewAssetsViewModel.clearPointCloud()
-        binding.homePointCloudGlView.clearPointCloud()
-        previewAssetLoadJob?.cancel()
-        previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
-            val result = runCatching {
-                withContext(Dispatchers.IO) {
-                    previewAssetLoader.loadPointCloud(uri, fileName)
-                }
-            }
-            result.onSuccess { pointCloud ->
-                previewAssetsViewModel.setPointCloud(pointCloud, fileName, uri)
-                previewAssetStore.savePointCloud(uri, fileName)
-                if (activatePreview) {
-                    activePreviewMode = PreviewMode.POINT_CLOUD
-                    binding.homePointCloudGlView.setPointCloud(pointCloud)
-                    binding.homePointCloudGlView.setHeightColorModeEnabled(previewHeightColorModeEnabled)
-                }
-                warmPointCloudTerrainGrid(showToast = activatePreview)
-                generatePointRouteTerrainPath()
-                updatePointCloudMissionOverlay()
-                renderPreviewMode()
-            }.onFailure { error ->
-                Toast.makeText(
-                    requireContext(),
-                    getString(R.string.point_cloud_load_failed, error.message ?: error.javaClass.simpleName),
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-    }
-
-    private fun restorePersistedPreviewAssets() {
-        val persistedAssets = previewAssetStore.readPersistedAssets()
-        val imageUri = persistedAssets.orthoImageUri
-        val imageName = persistedAssets.orthoImageName ?: getString(R.string.ortho_unknown_image)
-        val worldUri = persistedAssets.orthoWorldUri
-        val worldName = persistedAssets.orthoWorldName
-        if (imageUri == null) {
-            restorePointCloudOnDemand(activatePreview = false)
-            return
-        }
-
-        previewAssetLoadJob?.cancel()
-        previewAssetLoadJob = viewLifecycleOwner.lifecycleScope.launch {
-            if (previewAssetsViewModel.orthoAsset == null) {
-                    val result = runCatching {
-                        withContext(Dispatchers.IO) {
-                            val decoded = previewAssetLoader.loadOrthoImage(imageUri)
-                            val bounds = if (worldUri != null) {
-                                previewAssetLoader.loadWorldFile(
-                                    worldUri,
-                                    decoded.sourceWidth,
-                                    decoded.sourceHeight,
-                                )
-                            } else {
-                                null
-                            }
-                            decoded to bounds
-                        }
-                    }
-                    result.onSuccess { (decoded, bounds) ->
-                        previewAssetsViewModel.setOrthoImage(
-                            bitmap = decoded.bitmap,
-                            bitmapFileName = imageName,
-                            bitmapUri = imageUri,
-                            sourceWidth = decoded.sourceWidth,
-                            sourceHeight = decoded.sourceHeight,
-                            notifyChange = bounds == null
-                        )
-                        if (bounds != null && worldUri != null && worldName != null) {
-                            previewAssetsViewModel.setOrthoBounds(bounds, worldName, worldUri)
-                            if (activePreviewMode == PreviewMode.ORTHO) renderPreviewMode()
-                        }
-                    }
-            }
-            // The terrain model is planning data, not just a 3D-view asset. Restore it in the
-            // background so map and ortho planning can classify an accepted area immediately.
-            previewAssetLoadJob = null
-            restorePointCloudOnDemand(activatePreview = false)
-        }
-    }
-
-    private fun restorePointCloudOnDemand(activatePreview: Boolean = true) {
-        if (previewAssetsViewModel.pointCloudAsset != null || previewAssetLoadJob?.isActive == true) return
-        val uri = previewAssetStore.readPersistedAssets().pointCloudUri ?: return
-        loadHomePointCloud(uri, activatePreview)
-    }
-
-    private fun warmPointCloudTerrainGrid(showToast: Boolean) {
-        terrainMissionCoordinator.warmGrid(
-            showToast = showToast,
-            renderStatus = {
-                if (activePreviewMode == PreviewMode.POINT_CLOUD) renderTerrainGridStatus()
-            },
-            redrawMission = { redrawAreaMissionIfEditable() },
-        )
+        previewWorkflowController.handleActivityResult(requestCode, resultCode, data)
     }
     private fun renderSurveyPath(
         pathLatLon: List<LatLon>,
@@ -1928,7 +1550,7 @@ class MissionMapFragment : Fragment() {
             missionGenerationCoordinator.cancel()
             missionSummaryPresenter.dispose()
             terrainMissionCoordinator.cancel()
-            previewAssetLoadJob?.cancel()
+            previewWorkflowController.dispose()
             if (::windWeatherController.isInitialized) windWeatherController.dispose()
             cancelDroneOffsetAdjustment()
             liveGeoAwarenessController.dispose()
@@ -1945,7 +1567,7 @@ class MissionMapFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         viewLifecycleController.onResume {
-            refreshPreviewAssets()
+            previewWorkflowController.refreshAssets()
             missionMapRenderer.renderCurrentPath()
             redrawAreaMissionIfEditable()
             initialViewportController.centerIfNeeded()
@@ -1959,78 +1581,6 @@ class MissionMapFragment : Fragment() {
         }
         super.onPause()
     }
-
-    private fun focusPreviewAssetOnMapIfRequested(): Boolean {
-        val focus = previewAssetsViewModel.consumeMapFocusRequest() ?: return false
-        val centered = when (focus) {
-            PreviewMapFocus.POINT_CLOUD -> focusPointCloudOnMap() || focusOrthoOnMap()
-            PreviewMapFocus.ORTHO -> focusOrthoOnMap() || focusPointCloudOnMap()
-        }
-        if (centered) {
-            initialViewportController.markCenteredToDrone()
-        }
-        return centered
-    }
-
-    private fun focusOrthoOnMap(): Boolean {
-        val bounds = previewAssetsViewModel.orthoAsset?.bounds ?: return false
-        focusPreviewBoundsOnMap(bounds.minLat, bounds.maxLat, bounds.minLon, bounds.maxLon)
-        mapView.invalidate()
-        return true
-    }
-
-    private fun focusPointCloudOnMap(): Boolean {
-        val pointCloud = previewAssetsViewModel.pointCloudAsset?.pointCloud ?: return false
-        val frame = pointCloud.coordinateFrame ?: return false
-        val halfSpanX = (pointCloud.bounds.spanX / 2f).toDouble().coerceAtLeast(MIN_PREVIEW_MAP_SPAN_METERS)
-        val halfSpanY = (pointCloud.bounds.spanY / 2f).toDouble().coerceAtLeast(MIN_PREVIEW_MAP_SPAN_METERS)
-        val corners = listOf(
-            frame.localToLatLon(-halfSpanX, -halfSpanY),
-            frame.localToLatLon(halfSpanX, halfSpanY)
-        )
-        val minLat = corners.minOf { it.first }
-        val maxLat = corners.maxOf { it.first }
-        val minLon = corners.minOf { it.second }
-        val maxLon = corners.maxOf { it.second }
-        focusPreviewBoundsOnMap(minLat, maxLat, minLon, maxLon)
-        mapView.invalidate()
-        return true
-    }
-
-    private fun focusPreviewBoundsOnMap(
-        minLat: Double,
-        maxLat: Double,
-        minLon: Double,
-        maxLon: Double
-    ) {
-        val centerLat = (minLat + maxLat) / 2.0
-        val centerLon = (minLon + maxLon) / 2.0
-        mapView.controller.setZoom(calculateSafePreviewZoom(minLat, maxLat, minLon, maxLon))
-        mapView.controller.setCenter(GeoPoint(centerLat, centerLon))
-    }
-
-    private fun calculateSafePreviewZoom(
-        minLat: Double,
-        maxLat: Double,
-        minLon: Double,
-        maxLon: Double
-    ): Double {
-        val lonSpan = (maxLon - minLon).coerceAtLeast(MIN_PREVIEW_BOUNDS_SPAN_DEGREES)
-        val mercatorSpan = abs(mercatorY(maxLat) - mercatorY(minLat))
-            .coerceAtLeast(MIN_PREVIEW_MERCATOR_SPAN)
-        val mapWidth = max(mapView.width - PREVIEW_MAP_FIT_PADDING_PX * 2, MIN_MAP_VIEWPORT_PX)
-        val mapHeight = max(mapView.height - PREVIEW_MAP_FIT_PADDING_PX * 2, MIN_MAP_VIEWPORT_PX)
-        val lonZoom = log2(mapWidth * 360.0 / (TILE_SIZE_PX * lonSpan))
-        val latZoom = log2(mapHeight * 2.0 * PI / (TILE_SIZE_PX * mercatorSpan))
-        return min(lonZoom, latZoom).coerceIn(MIN_PREVIEW_MAP_ZOOM, MAX_PREVIEW_MAP_ZOOM)
-    }
-
-    private fun mercatorY(latitude: Double): Double {
-        val radians = Math.toRadians(latitude.coerceIn(MIN_MERCATOR_LATITUDE, MAX_MERCATOR_LATITUDE))
-        return ln(tan(PI / 4.0 + radians / 2.0))
-    }
-
-    private fun log2(value: Double): Double = ln(value) / ln(2.0)
 
     private fun handleArmedStateChanged(isArmed: Boolean) {
         droneMapTrackingController.handleArmedState(isArmed)
