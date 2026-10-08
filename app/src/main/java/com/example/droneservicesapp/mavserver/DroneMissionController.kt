@@ -21,6 +21,7 @@ internal class DroneMissionController(
     private val uploadProgressPercent: MutableLiveData<Int>,
     private val downloadProgressPercent: MutableLiveData<Int>,
     private val repoDisposables: CompositeDisposable,
+    private val isConnected: () -> Boolean,
     private val onUploadSucceeded: () -> Unit,
 ) {
     private val uploadLock = Any()
@@ -43,6 +44,17 @@ internal class DroneMissionController(
         logTag: String,
         force: Boolean = false,
     ) {
+        if (!isConnected()) {
+            downloadProgressPercent.postValue(-1)
+            Log.d(logTag, "Skipping mission download because the autopilot link is not healthy")
+            DiagnosticLog.event(
+                "mission",
+                "download_skipped",
+                "INFO",
+                mapOf("reason" to "autopilot_disconnected"),
+            )
+            return
+        }
         synchronized(uploadLock) {
             val now = System.currentTimeMillis()
             if (!force && now - lastDownloadAttemptMs < debounceMs) return

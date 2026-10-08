@@ -37,7 +37,6 @@ class PreviewWorkflowController(
     private val uiActions: MissionMapUiActionController,
     private val isSurveyMode: () -> Boolean,
     private val surveyPointCloud: () -> PointCloudData?,
-    private val renderMapPath: () -> Unit,
     private val redrawMission: () -> Unit,
     private val generatePointRoute: () -> Unit,
     private val launchFilePicker: (Intent, Int) -> Unit,
@@ -136,14 +135,12 @@ class PreviewWorkflowController(
         if (mode == PreviewMode.ORTHO) {
             binding.osmMap.overlayManager.tilesOverlay?.isEnabled = settings.orthoBackgroundEnabled
         }
-        renderMapPath()
         terrainPreview.renderMissionOverlay()
         render()
     }
 
     fun onAssetsChanged() {
         refreshAssets()
-        renderMapPath()
         redrawMission()
     }
 

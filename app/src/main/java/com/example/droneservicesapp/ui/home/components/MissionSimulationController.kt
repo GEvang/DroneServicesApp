@@ -3,6 +3,7 @@ package com.example.droneservicesapp.ui.home.components
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
+import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.MissionObstacle
 import com.example.droneservicesapp.domain.planning.MissionResourcePlan
@@ -209,6 +210,12 @@ class MissionSimulationController(
         internal const val SIMULATION_SPEED_MULTIPLIER = 20.0
         internal const val MIN_SIMULATION_DURATION_MS = 4_000L
         internal const val MAX_SIMULATION_DURATION_MS = 60_000L
+
+        fun serviceDescriptionResource(stop: MissionServiceStop): Int = when {
+            stop.requiresBattery && stop.requiresTankRefill -> R.string.service_change_battery_and_refill_tank
+            stop.requiresBattery -> R.string.service_change_battery
+            else -> R.string.service_refill_tank
+        }
 
         internal fun calculateCumulativeDistances(path: List<LatLng>): List<Double> {
             val cumulative = MutableList(path.size) { 0.0 }

@@ -163,6 +163,7 @@ class DroneViewModel : ViewModel() {
             uploadProgressPercent = stateStore.uploadProgressPercent,
             downloadProgressPercent = stateStore.missionDownloadProgressPercent,
             repoDisposables = repoDisposables,
+            isConnected = ::isMavlinkSessionHealthy,
             onUploadSucceeded = {
                 terrainController.onMissionUploadSucceeded()
                 downloadMissionNew(force = true)
