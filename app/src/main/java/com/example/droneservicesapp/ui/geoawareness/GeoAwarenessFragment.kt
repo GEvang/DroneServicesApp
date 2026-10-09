@@ -1,6 +1,5 @@
 package com.example.droneservicesapp.ui.geoawareness
 
-import android.content.res.ColorStateList
 import android.net.Uri
 import android.provider.OpenableColumns
 import android.content.Intent
@@ -18,7 +17,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.FileProvider
-import androidx.core.content.ContextCompat
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
@@ -37,11 +35,9 @@ import com.example.droneservicesapp.databinding.FragmentGeoAwarenessBinding
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
 import com.example.droneservicesapp.domain.geoawareness.GeoAltitudeContext
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthEvaluator
-import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthState
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
-import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetStalenessPolicy
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetSourceType
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneGeometry
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneLoadResult
@@ -107,6 +103,9 @@ class GeoAwarenessFragment : Fragment() {
     private var lastGeoZoneReloadToken: Long? = null
     private var liveStatusJob: Job? = null
     private lateinit var verificationStatusStore: GeoAwarenessVerificationStatusStore
+    private val uiActionController = GeoAwarenessUiActionController()
+    private lateinit var datasetListRenderer: GeoAwarenessDatasetListRenderer
+    private lateinit var statusPresenter: GeoAwarenessStatusPresenter
     private val importDatasetLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             handleImportedDatasetUri(uri)
@@ -136,6 +135,8 @@ class GeoAwarenessFragment : Fragment() {
         droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
         geoEventLogger = GeoAwarenessEventLogger(requireContext().applicationContext)
         verificationStatusStore = GeoAwarenessVerificationStatusStore(requireContext().applicationContext)
+        datasetListRenderer = GeoAwarenessDatasetListRenderer(requireContext())
+        statusPresenter = GeoAwarenessStatusPresenter(requireContext())
 
         requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
         liveStatusBinder = LiveGeoAwarenessStatusViewBinder(
@@ -147,44 +148,24 @@ class GeoAwarenessFragment : Fragment() {
             showLiveGeoDetails()
         })
 
-        binding.geoAwarenessFlightLogsSectionTitle.isVisible = false
-        binding.geoAwarenessFlightLogsSection.isVisible = false
-        binding.geoAwarenessLogsSectionTitle.isVisible = false
-        binding.geoAwarenessLogsSection.isVisible = false
-        binding.geoAwarenessClearLogsButton.isVisible = false
-        binding.geoAwarenessInternalSectionTitle.isVisible = true
-        binding.geoAwarenessInternalSection.isVisible = true
-        binding.geoAwarenessOverlaySwitch.setOnCheckedChangeListener { _, isChecked ->
-            if (activityViewModel.geoAwarenessLayerVisible.value != isChecked) {
-                activityViewModel.geoAwarenessLayerVisible.value = isChecked
-            }
-        }
-        binding.geoAwarenessImportDatasetButton.setOnClickListener {
-            launchImportDatasetPicker()
-        }
-        binding.geoAwarenessResetDatasetButton.setOnClickListener {
-            confirmRemoveAllImportedDatasets()
-        }
-        binding.geoAwarenessRefreshStatusButton.setOnClickListener {
-            refreshGeoAwarenessStatus(manual = true)
-        }
-        binding.geoAwarenessValidationDetailsButton.setOnClickListener {
-            showValidationDetails()
-        }
-        binding.geoAwarenessNoticeSectionTitle.isVisible = false
-        binding.geoAwarenessValidationSection.isVisible = false
-        binding.geoAwarenessExportLogsButton.setOnClickListener {
-            exportGeoAwarenessLogs()
-        }
-        binding.geoAwarenessViewDetailedLogsButton.setOnClickListener {
-            showDetailedLogsPreview()
-        }
-        binding.geoAwarenessExportEvidenceButton.setOnClickListener {
-            exportEvidencePackage()
-        }
-        binding.geoAwarenessExportEncryptedIncidentsButton.setOnClickListener {
-            exportEncryptedIncidentLogs()
-        }
+        uiActionController.bind(
+            binding = binding,
+            actions = GeoAwarenessUiActionController.Actions(
+                overlayVisibilityChanged = { checked ->
+                    if (activityViewModel.geoAwarenessLayerVisible.value != checked) {
+                        activityViewModel.geoAwarenessLayerVisible.value = checked
+                    }
+                },
+                importDataset = ::launchImportDatasetPicker,
+                removeAllDatasets = ::confirmRemoveAllImportedDatasets,
+                refreshStatus = { refreshGeoAwarenessStatus(manual = true) },
+                showValidation = ::showValidationDetails,
+                exportLogs = ::exportGeoAwarenessLogs,
+                showDetailedLogs = ::showDetailedLogsPreview,
+                exportEvidence = ::exportEvidencePackage,
+                exportEncryptedIncidents = ::exportEncryptedIncidentLogs,
+            ),
+        )
         updateCurrentSourceSummary()
         renderDatasetRecords()
         renderValidationStatus(activityViewModel.geoZoneValidationResult.value)
@@ -409,299 +390,36 @@ class GeoAwarenessFragment : Fragment() {
 
     private fun updateCurrentSourceSummary() {
         if (_binding == null) return
-        val sourceLabel = if (importedDatasetActive) {
-            getString(R.string.geo_awareness_current_source_imported)
-        } else {
-            getString(R.string.geo_awareness_current_source_none)
-        }
-        binding.geoAwarenessCurrentSource.text =
-            getString(R.string.geo_awareness_current_source_label) + " " + sourceLabel
-        binding.geoAwarenessLoadedDatasetsSummary.text =
-            getString(R.string.geo_awareness_loaded_datasets_label) + " " + datasetRecords.size
-        binding.geoAwarenessTotalZonesSummary.text =
-            getString(R.string.geo_awareness_total_zones_label) + " " + (datasetInfo?.zoneCount ?: datasetRecords.sumOf { it.zoneCount })
-        val validation = validationResult ?: GeoZoneValidationResult.ok()
-        binding.geoAwarenessTotalValidationSummary.text =
-            getString(R.string.geo_awareness_total_validation_label) + " Errors ${validation.errorCount} | Warnings ${validation.warningCount}"
+        statusPresenter.renderSource(
+            binding,
+            GeoAwarenessStatusPresenter.SourceState(
+                importedActive = importedDatasetActive,
+                datasetInfo = datasetInfo,
+                records = datasetRecords,
+                validation = validationResult,
+            ),
+        )
     }
 
     private fun renderDatasetRecords() {
         if (_binding == null) return
-        val container = binding.geoAwarenessDatasetRecordsContainer
-        container.removeAllViews()
-        if (datasetRecords.isEmpty()) {
-            container.addView(createPanelText(getString(R.string.geo_awareness_dataset_list_empty)).apply {
-                setPadding(0, 0, 0, 0)
-            })
-            return
-        }
-
-        datasetRecords.forEachIndexed { index, record ->
-            container.addView(createDatasetRecordView(record, topMarginDp = if (index == 0) 0 else 12))
-        }
+        datasetListRenderer.render(
+            binding.geoAwarenessDatasetRecordsContainer,
+            datasetRecords,
+            GeoAwarenessDatasetListRenderer.Actions(
+                update = ::launchUpdateDatasetPicker,
+                remove = ::confirmRemoveDataset,
+                validationDetails = ::showValidationDetails,
+            ),
+        )
     }
 
-    private fun createDatasetRecordView(record: GeoZoneDatasetRecord, topMarginDp: Int): View {
-        val wrapper = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = (10 * resources.displayMetrics.density)
-                setColor(Color.parseColor("#7010151C"))
-                setStroke((1 * resources.displayMetrics.density).toInt(), Color.parseColor("#2EFFFFFF"))
-            }
-            setPadding(
-                (12 * resources.displayMetrics.density).toInt(),
-                (12 * resources.displayMetrics.density).toInt(),
-                (12 * resources.displayMetrics.density).toInt(),
-                (12 * resources.displayMetrics.density).toInt()
-            )
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = (topMarginDp * resources.displayMetrics.density).toInt()
-            }
-        }
-        val validationLabel = when {
-            record.validationResult.hasErrors -> getString(R.string.geo_awareness_validation_errors)
-            record.validationResult.hasWarnings -> getString(R.string.geo_awareness_validation_warnings)
-            else -> getString(R.string.geo_awareness_validation_ok)
-        }
-        wrapper.addView(LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = android.view.Gravity.CENTER_VERTICAL
-            addView(createStatusValue(record.displayName).apply {
-                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-            })
-            addView(createValidationPill(record.validationResult, validationLabel))
-        })
-        wrapper.addView(createPanelText(getString(R.string.geo_source, when (record.sourceType) {
-            GeoZoneDatasetSourceType.BUNDLED_ASSET -> getString(R.string.geo_awareness_dataset_source_bundled_row)
-            GeoZoneDatasetSourceType.IMPORTED_FILE -> getString(R.string.geo_awareness_dataset_source_imported_row)
-        })).apply {
-            setPadding(0, (10 * resources.displayMetrics.density).toInt(), 0, 0)
-        })
-        wrapper.addView(createDatasetMetaGrid(record))
-        wrapper.addView(createDatasetValidationDetailsButton(record))
-        if (record.sourceType == GeoZoneDatasetSourceType.IMPORTED_FILE) {
-            wrapper.addView(createPanelText("${getString(R.string.geo_awareness_updated_label)} ${record.ageDescription ?: GeoZoneDatasetStalenessPolicy.ageDescription(record.updatedAtMillis)}"))
-            wrapper.addView(createPanelText(
-                text = "${getString(R.string.geo_awareness_stale_label)} ${if (record.isStale) getString(R.string.geo_awareness_yes) else getString(R.string.geo_awareness_no)}",
-                textColor = if (record.isStale) Color.parseColor("#FFB74D") else Color.parseColor("#C5D0E6")
-            ))
-        }
-        if (record.sourceType == GeoZoneDatasetSourceType.IMPORTED_FILE && record.storageFileName != null) {
-            wrapper.addView(createPanelText(getString(R.string.geo_actions)).apply {
-                setPadding(0, (12 * resources.displayMetrics.density).toInt(), 0, 0)
-            })
-            val actionsRow = LinearLayout(requireContext()).apply {
-                orientation = LinearLayout.HORIZONTAL
-                layoutParams = LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply {
-                    topMargin = (8 * resources.displayMetrics.density).toInt()
-                }
-            }
-            actionsRow.addView(createDatasetActionButton(
-                text = getString(R.string.geo_awareness_update_dataset),
-                backgroundColor = ContextCompat.getColor(requireContext(), R.color.ds_color_shell_selected_surface),
-                textColor = ContextCompat.getColor(requireContext(), R.color.ds_color_shell_selected_content),
-                onClick = { launchUpdateDatasetPicker(record) }
-            ))
-            actionsRow.addView(createDatasetActionButton(
-                text = getString(R.string.geo_awareness_remove_dataset),
-                backgroundColor = ContextCompat.getColor(requireContext(), R.color.ds_color_shell_danger),
-                textColor = ContextCompat.getColor(requireContext(), R.color.ds_color_text_primary),
-                onClick = { confirmRemoveDataset(record) },
-                marginStartDp = 8
-            ))
-            wrapper.addView(actionsRow)
-        }
-        return wrapper
-    }
-
-    private fun createDatasetActionButton(
-        text: String,
-        backgroundColor: Int,
-        textColor: Int,
-        strokeColor: Int? = null,
-        marginStartDp: Int = 0,
-        onClick: () -> Unit
-    ): com.google.android.material.button.MaterialButton {
-        return com.google.android.material.button.MaterialButton(requireContext()).apply {
-            this.text = text
-            minWidth = 0
-            insetTop = 0
-            insetBottom = 0
-            backgroundTintList = ColorStateList.valueOf(backgroundColor)
-            setTextColor(textColor)
-            cornerRadius = resources.getDimensionPixelSize(R.dimen.ds_radius_round)
-            strokeColor?.let {
-                this.strokeColor = ColorStateList.valueOf(it)
-                strokeWidth = (1 * resources.displayMetrics.density).toInt()
-            }
-            setOnClickListener { onClick() }
-            layoutParams = LinearLayout.LayoutParams(
-                0,
-                (44 * resources.displayMetrics.density).toInt(),
-                1f
-            ).apply {
-                marginStart = (marginStartDp * resources.displayMetrics.density).toInt()
-            }
-        }
-    }
-
-    private fun createDatasetMetaGrid(record: GeoZoneDatasetRecord): LinearLayout {
-        val grid = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = (10 * resources.displayMetrics.density).toInt()
-            }
-        }
-        grid.addView(createDatasetMetaRow(
-            "Version",
-            record.datasetInfo.version ?: "N/A",
-            "Zones",
-            record.zoneCount.toString()
-        ))
-        grid.addView(createDatasetMetaRow(
-            "Country",
-            record.datasetInfo.country ?: "N/A",
-            "Type",
-            if (record.datasetInfo.isDummy) "Test / dummy" else "Validated JSON"
-        ))
-        grid.addView(createDatasetMetaRow(
-            "Errors",
-            record.validationResult.errorCount.toString(),
-            "Warnings",
-            record.validationResult.warningCount.toString()
-        ))
-        return grid
-    }
-
-    private fun createDatasetMetaRow(
-        leftLabel: String,
-        leftValue: String,
-        rightLabel: String,
-        rightValue: String
-    ): LinearLayout {
-        return LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = (4 * resources.displayMetrics.density).toInt()
-            }
-            addView(createDatasetMetaCell(leftLabel, leftValue).apply {
-                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-            })
-            addView(createDatasetMetaCell(rightLabel, rightValue).apply {
-                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply {
-                    marginStart = (8 * resources.displayMetrics.density).toInt()
-                }
-            })
-        }
-    }
-
-    private fun createDatasetMetaCell(label: String, value: String): LinearLayout {
-        return LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = (8 * resources.displayMetrics.density)
-                setColor(Color.parseColor("#661B2430"))
-                setStroke((1 * resources.displayMetrics.density).toInt(), Color.parseColor("#1FFFFFFF"))
-            }
-            setPadding(
-                (10 * resources.displayMetrics.density).toInt(),
-                (8 * resources.displayMetrics.density).toInt(),
-                (10 * resources.displayMetrics.density).toInt(),
-                (8 * resources.displayMetrics.density).toInt()
-            )
-            addView(TextView(requireContext()).apply {
-                text = label
-                setTextColor(Color.parseColor("#8FA0B8"))
-                textSize = 11f
-                setTypeface(typeface, android.graphics.Typeface.BOLD)
-            })
-            addView(TextView(requireContext()).apply {
-                text = value
-                setTextColor(Color.parseColor("#EAF1FF"))
-                textSize = 13f
-                maxLines = 2
-            })
-        }
-    }
-
-    private fun createValidationPill(
-        result: GeoZoneValidationResult,
-        label: String
-    ): TextView {
-        val (backgroundColor, textColor) = when {
-            result.hasErrors -> Color.parseColor("#B71C1C") to Color.WHITE
-            result.hasWarnings -> Color.parseColor("#E65100") to Color.WHITE
-            else -> Color.parseColor("#2E7D32") to Color.WHITE
-        }
-        return TextView(requireContext()).apply {
-            text = label
-            setTextColor(textColor)
-            textSize = 12f
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-            setPadding(
-                (10 * resources.displayMetrics.density).toInt(),
-                (6 * resources.displayMetrics.density).toInt(),
-                (10 * resources.displayMetrics.density).toInt(),
-                (6 * resources.displayMetrics.density).toInt()
-            )
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = (16 * resources.displayMetrics.density)
-                setColor(backgroundColor)
-            }
-        }
-    }
-
-    private fun createDatasetValidationDetailsButton(record: GeoZoneDatasetRecord): com.google.android.material.button.MaterialButton {
-        return com.google.android.material.button.MaterialButton(requireContext()).apply {
-            text = getString(R.string.geo_awareness_view_validation_details)
-            minWidth = 0
-            insetTop = 0
-            insetBottom = 0
-            backgroundTintList = ColorStateList.valueOf(ContextCompat.getColor(requireContext(), R.color.ds_color_shell_selected_surface))
-            setTextColor(ContextCompat.getColor(requireContext(), R.color.ds_color_shell_selected_content))
-            cornerRadius = resources.getDimensionPixelSize(R.dimen.ds_radius_round)
-            setOnClickListener { showValidationDetails(record) }
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                (40 * resources.displayMetrics.density).toInt()
-            ).apply {
-                topMargin = (10 * resources.displayMetrics.density).toInt()
-            }
-        }
-    }
-
-    private fun createStatusValue(text: String): TextView = TextView(requireContext()).apply {
-        this.text = text
-        setTextColor(Color.parseColor("#EAF1FF"))
-        textSize = 15f
-        setTypeface(typeface, android.graphics.Typeface.BOLD)
-    }
+    private fun createStatusValue(text: String): TextView = datasetListRenderer.statusValue(text)
 
     private fun createPanelText(
         text: String,
         textColor: Int = Color.parseColor("#C5D0E6")
-    ): TextView = TextView(requireContext()).apply {
-        this.text = text
-        setTextColor(textColor)
-        textSize = 13f
-        setPadding(0, (4 * resources.displayMetrics.density).toInt(), 0, 0)
-    }
+    ): TextView = datasetListRenderer.panelText(text, textColor)
 
     private fun renderHealthStatus(health: GeoAwarenessHealth?) {
         val resolvedHealth = health ?: GeoAwarenessHealthEvaluator.evaluate(
@@ -713,38 +431,7 @@ class GeoAwarenessFragment : Fragment() {
         )
         geoAwarenessHealth = resolvedHealth
 
-        val (label, backgroundColor, textColor) = when (resolvedHealth.state) {
-            GeoAwarenessHealthState.AVAILABLE -> Triple(
-                getString(R.string.geo_awareness_health_available),
-                Color.parseColor("#2E7D32"),
-                Color.WHITE
-            )
-            GeoAwarenessHealthState.DEGRADED -> Triple(
-                getString(R.string.geo_awareness_health_degraded),
-                Color.parseColor("#E65100"),
-                Color.WHITE
-            )
-            GeoAwarenessHealthState.STALE -> Triple(
-                getString(R.string.geo_awareness_health_stale),
-                Color.parseColor("#EF6C00"),
-                Color.WHITE
-            )
-            GeoAwarenessHealthState.UNAVAILABLE -> Triple(
-                getString(R.string.geo_awareness_health_unavailable),
-                Color.parseColor("#B71C1C"),
-                Color.WHITE
-            )
-        }
-
-        binding.geoAwarenessHealthChip.text = getString(R.string.geo_awareness_health_label) + " " + label
-        binding.geoAwarenessHealthChip.setTextColor(textColor)
-        binding.geoAwarenessHealthChip.background = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = (18 * resources.displayMetrics.density)
-            setColor(backgroundColor)
-            setStroke((1 * resources.displayMetrics.density).toInt(), Color.parseColor("#33FFFFFF"))
-        }
-        binding.geoAwarenessHealthMessage.text = resolvedHealth.message
+        statusPresenter.renderHealth(binding, resolvedHealth)
     }
 
     private fun showVerificationChecklistDialog() {
@@ -1092,25 +779,7 @@ class GeoAwarenessFragment : Fragment() {
 
     private fun renderValidationStatus(result: GeoZoneValidationResult?) {
         if (_binding == null) return
-        val resolved = result ?: GeoZoneValidationResult.ok()
-        val (label, backgroundColor) = when {
-            resolved.hasErrors -> getString(R.string.geo_awareness_validation_errors) to Color.parseColor("#B71C1C")
-            resolved.hasWarnings -> getString(R.string.geo_awareness_validation_warnings) to Color.parseColor("#EF6C00")
-            else -> getString(R.string.geo_awareness_validation_ok) to Color.parseColor("#2E7D32")
-        }
-        binding.geoAwarenessValidationChip.text = getString(R.string.geo_validation_status, label)
-        binding.geoAwarenessValidationChip.background = GradientDrawable().apply {
-            shape = GradientDrawable.RECTANGLE
-            cornerRadius = (18 * resources.displayMetrics.density)
-            setColor(backgroundColor)
-            setStroke((1 * resources.displayMetrics.density).toInt(), Color.parseColor("#33FFFFFF"))
-        }
-        binding.geoAwarenessValidationCounts.text = getString(
-            R.string.geo_validation_counts,
-            resolved.errorCount,
-            resolved.warningCount,
-            resolved.infoCount,
-        )
+        statusPresenter.renderValidation(binding, result)
     }
 
     private fun refreshEventLogCount() {
@@ -1994,14 +1663,8 @@ class GeoAwarenessFragment : Fragment() {
 
     private fun setDatasetBusyState(isBusy: Boolean, message: String = getString(R.string.geo_loading_dataset)) {
         if (_binding == null) return
-        binding.geoAwarenessLoadingOverlay.visibility = if (isBusy) View.VISIBLE else View.GONE
-        binding.geoAwarenessLoadingText.text = message
-        binding.geoAwarenessImportDatasetButton.isEnabled = !isBusy
-        binding.geoAwarenessResetDatasetButton.isEnabled = !isBusy
-        binding.geoAwarenessRefreshStatusButton.isEnabled = !isBusy
-        binding.geoAwarenessImportDatasetButton.alpha = if (isBusy) 0.6f else 1f
-        binding.geoAwarenessResetDatasetButton.alpha = if (isBusy) 0.6f else 1f
-        binding.geoAwarenessRefreshStatusButton.alpha = if (isBusy) 0.6f else 1f
+        statusPresenter.renderBusy(binding, isBusy, message)
+        datasetListRenderer.setBusy(isBusy)
     }
 
     private fun showValidationDetails() {
@@ -2087,6 +1750,10 @@ class GeoAwarenessFragment : Fragment() {
     override fun onDestroyView() {
         liveStatusJob?.cancel()
         liveStatusJob = null
+        uiActionController.clear()
+        if (::datasetListRenderer.isInitialized) {
+            datasetListRenderer.clear()
+        }
         liveStatusBinder = null
         super.onDestroyView()
         _binding = null
