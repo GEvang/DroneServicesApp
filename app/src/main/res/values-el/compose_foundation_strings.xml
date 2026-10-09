@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="compose_foundation_title">Υπηρεσίες Drone</string>
+    <string name="compose_foundation_ready">Η βάση Jetpack Compose είναι έτοιμη</string>
+</resources>
