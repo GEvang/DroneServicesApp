@@ -3,17 +3,14 @@ package com.example.droneservicesapp.ui.geoawareness
 import android.net.Uri
 import android.content.Intent
 import android.graphics.Color
-import android.graphics.drawable.GradientDrawable
 import android.location.Location
 import android.os.Bundle
 import android.widget.LinearLayout
-import android.widget.ScrollView
 import android.widget.TextView
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.appcompat.app.AlertDialog
 import androidx.core.content.FileProvider
 import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
@@ -25,7 +22,6 @@ import com.example.droneservicesapp.data.geoawareness.incident.GeoIncidentEncryp
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEvent
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
-import com.example.droneservicesapp.data.geoawareness.verification.GeoAwarenessVerificationStatusStore
 import com.example.droneservicesapp.databinding.FragmentGeoAwarenessBinding
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
 import com.example.droneservicesapp.domain.geoawareness.GeoAltitudeContext
@@ -36,12 +32,6 @@ import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneLoadResult
 import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessChecker
 import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessProximityResult
-import com.example.droneservicesapp.domain.geoawareness.testing.GeoAwarenessTestRunResult
-import com.example.droneservicesapp.domain.geoawareness.testing.GeoAwarenessTestRunner
-import com.example.droneservicesapp.domain.geoawareness.testing.GeoAwarenessTestStatus
-import com.example.droneservicesapp.domain.geoawareness.verification.GeoAwarenessVerificationCase
-import com.example.droneservicesapp.domain.geoawareness.verification.GeoAwarenessVerificationChecklist
-import com.example.droneservicesapp.domain.geoawareness.verification.GeoAwarenessVerificationStatus
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.mavserver.DroneViewModel
@@ -80,15 +70,16 @@ class GeoAwarenessFragment : Fragment() {
     private var datasetRecords: List<GeoZoneDatasetRecord> = emptyList()
     private lateinit var geoEventLogger: GeoAwarenessEventLogger
     private var liveStatusBinder: LiveGeoAwarenessStatusViewBinder? = null
-    private var lastTestRunResult: GeoAwarenessTestRunResult? = null
     private var liveStatusJob: Job? = null
-    private lateinit var verificationStatusStore: GeoAwarenessVerificationStatusStore
     private val uiActionController = GeoAwarenessUiActionController()
     private lateinit var datasetListRenderer: GeoAwarenessDatasetListRenderer
     private lateinit var statusPresenter: GeoAwarenessStatusPresenter
     private lateinit var datasetStateCoordinator: GeoAwarenessDatasetStateCoordinator
     private lateinit var datasetWorkflowController: GeoAwarenessDatasetWorkflowController
     private lateinit var datasetDialogController: GeoAwarenessDatasetDialogController
+    private lateinit var validationPresenter: GeoAwarenessValidationPresenter
+    private lateinit var verificationController: GeoAwarenessVerificationController
+    private lateinit var verificationDialogController: GeoAwarenessVerificationDialogController
     private val datasetAuditFormatter = GeoAwarenessDatasetAuditFormatter()
     private val observerCoordinator = GeoAwarenessObserverCoordinator()
     private val datasetPickerController = GeoAwarenessDatasetPickerController(this) { selection ->
@@ -118,10 +109,10 @@ class GeoAwarenessFragment : Fragment() {
         activityViewModel = ViewModelProvider(requireActivity())[MainActivityViewModel::class.java]
         droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
         geoEventLogger = GeoAwarenessEventLogger(requireContext().applicationContext)
-        verificationStatusStore = GeoAwarenessVerificationStatusStore(requireContext().applicationContext)
         datasetListRenderer = GeoAwarenessDatasetListRenderer(requireContext())
         statusPresenter = GeoAwarenessStatusPresenter(requireContext())
-        datasetDialogController = GeoAwarenessDatasetDialogController(requireContext())
+        validationPresenter = GeoAwarenessValidationPresenter(requireContext())
+        datasetDialogController = GeoAwarenessDatasetDialogController(requireContext(), validationPresenter)
         datasetStateCoordinator = GeoAwarenessDatasetStateCoordinator(
             context = requireContext(),
             scope = viewLifecycleOwner.lifecycleScope,
@@ -155,6 +146,14 @@ class GeoAwarenessFragment : Fragment() {
                 onAuditLogChanged = ::refreshEventLogCount,
             ),
         )
+        verificationController = GeoAwarenessVerificationController(
+            context = requireContext(),
+            scope = viewLifecycleOwner.lifecycleScope,
+            repositoryProvider = datasetWorkflowController::repositoryForEvidenceExport,
+            eventLogger = geoEventLogger,
+            onAuditLogChanged = ::refreshEventLogCount,
+        )
+        verificationDialogController = GeoAwarenessVerificationDialogController(requireContext(), verificationController)
 
         requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
         liveStatusBinder = LiveGeoAwarenessStatusViewBinder(
@@ -182,6 +181,7 @@ class GeoAwarenessFragment : Fragment() {
                 showDetailedLogs = ::showDetailedLogsPreview,
                 exportEvidence = ::exportEvidencePackage,
                 exportEncryptedIncidents = ::exportEncryptedIncidentLogs,
+                showVerification = verificationDialogController::show,
             ),
         )
         updateCurrentSourceSummary()
@@ -373,349 +373,6 @@ class GeoAwarenessFragment : Fragment() {
         statusPresenter.renderHealth(binding, resolvedHealth)
     }
 
-    private fun showVerificationChecklistDialog() {
-        val context = requireContext()
-        val root = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(
-                (20 * resources.displayMetrics.density).toInt(),
-                (8 * resources.displayMetrics.density).toInt(),
-                (20 * resources.displayMetrics.density).toInt(),
-                0
-            )
-        }
-        val summaryView = TextView(context).apply {
-            setTextColor(Color.parseColor("#21304A"))
-            textSize = 14f
-        }
-        val resetButton = com.google.android.material.button.MaterialButton(
-            context,
-            null,
-            R.attr.materialButtonOutlinedStyle
-        ).apply {
-            text = getString(R.string.geo_awareness_verification_reset)
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                (44 * resources.displayMetrics.density).toInt()
-            ).apply {
-                topMargin = (12 * resources.displayMetrics.density).toInt()
-                bottomMargin = (12 * resources.displayMetrics.density).toInt()
-            }
-        }
-        val scrollView = ScrollView(context).apply {
-            isFillViewport = true
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                (420 * resources.displayMetrics.density).toInt()
-            )
-        }
-        val content = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-        }
-        scrollView.addView(content)
-        root.addView(summaryView)
-        root.addView(resetButton)
-        root.addView(scrollView)
-
-        fun renderChecklist() {
-            val statuses = verificationStatusStore.getAllStatuses()
-            val passedCount = statuses.values.count { it == GeoAwarenessVerificationStatus.PASS }
-            val failedCount = statuses.values.count { it == GeoAwarenessVerificationStatus.FAIL }
-            val blockedCount = statuses.values.count { it == GeoAwarenessVerificationStatus.BLOCKED }
-            val notRunCount = statuses.values.count { it == GeoAwarenessVerificationStatus.NOT_RUN }
-            summaryView.text = buildString {
-                appendLine("${getString(R.string.geo_awareness_verification_total)} ${GeoAwarenessVerificationChecklist.cases.size}")
-                appendLine("${getString(R.string.geo_awareness_verification_passed)} $passedCount")
-                appendLine("${getString(R.string.geo_awareness_verification_failed)} $failedCount")
-                appendLine("${getString(R.string.geo_awareness_verification_blocked)} $blockedCount")
-                append("${getString(R.string.geo_awareness_verification_not_run)} $notRunCount")
-            }
-            content.removeAllViews()
-            GeoAwarenessVerificationChecklist.cases
-                .groupBy { it.category }
-                .forEach { (category, cases) ->
-                    content.addView(createStatusValue(category))
-                    cases.forEach { verificationCase ->
-                        content.addView(
-                            createVerificationCaseView(
-                                verificationCase = verificationCase,
-                                status = statuses[verificationCase.id] ?: GeoAwarenessVerificationStatus.NOT_RUN,
-                                onStatusChanged = { newStatus ->
-                                    updateVerificationCaseStatus(verificationCase, newStatus)
-                                    renderChecklist()
-                                }
-                            )
-                        )
-                    }
-                }
-        }
-
-        resetButton.setOnClickListener {
-            val resetDialog = AlertDialog.Builder(context, R.style.Theme_DroneServicesApp_AlertDialog)
-                .setTitle(getString(R.string.geo_awareness_verification_checklist))
-                .setMessage(R.string.geo_reset_checklist_question)
-                .setPositiveButton(R.string.geo_reset) { _, _ ->
-                    verificationStatusStore.resetAll()
-                    geoEventLogger.logSimple(
-                        type = GeoAwarenessEventType.VERIFICATION_CHECKLIST_RESET,
-                        severity = "INFO",
-                        message = "Geo-awareness verification checklist statuses reset"
-                    )
-                    refreshEventLogCount()
-                    renderChecklist()
-                }
-                .setNegativeButton(R.string.cancel, null)
-                .show()
-            resetDialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(Color.parseColor("#212121"))
-            resetDialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(Color.parseColor("#212121"))
-        }
-
-        renderChecklist()
-        val dialog = AlertDialog.Builder(context, R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle(getString(R.string.geo_awareness_verification_checklist))
-            .setView(root)
-            .setPositiveButton(android.R.string.ok, null)
-            .show()
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(Color.parseColor("#212121"))
-    }
-
-    private fun createVerificationCaseView(
-        verificationCase: GeoAwarenessVerificationCase,
-        status: GeoAwarenessVerificationStatus,
-        onStatusChanged: (GeoAwarenessVerificationStatus) -> Unit
-    ): View {
-        val wrapper = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = (10 * resources.displayMetrics.density).toInt()
-            }
-            setPadding(
-                (12 * resources.displayMetrics.density).toInt(),
-                (12 * resources.displayMetrics.density).toInt(),
-                (12 * resources.displayMetrics.density).toInt(),
-                (12 * resources.displayMetrics.density).toInt()
-            )
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = 18f * resources.displayMetrics.density
-                setColor(Color.parseColor("#EEF3FB"))
-                setStroke((1 * resources.displayMetrics.density).toInt(), Color.parseColor("#CCD8EA"))
-            }
-        }
-        wrapper.addView(createStatusValue("${verificationCase.id}  ${verificationCase.title}").apply {
-            setTextColor(Color.parseColor("#21304A"))
-        })
-        wrapper.addView(createVerificationStatusChip(status))
-        wrapper.addView(createPanelText(getString(R.string.geo_current_status, verificationStatusLabel(status)), Color.parseColor("#42536F")))
-        wrapper.addView(com.google.android.material.button.MaterialButton(requireContext(), null, R.attr.materialButtonOutlinedStyle).apply {
-            text = getString(R.string.geo_awareness_verification_details)
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                (40 * resources.displayMetrics.density).toInt()
-            ).apply {
-                topMargin = (10 * resources.displayMetrics.density).toInt()
-            }
-            setOnClickListener { showVerificationCaseDetails(verificationCase, status) }
-        })
-        wrapper.addView(createVerificationStatusButtonRow(
-            first = GeoAwarenessVerificationStatus.NOT_RUN,
-            second = GeoAwarenessVerificationStatus.PASS,
-            current = status,
-            onStatusChanged = onStatusChanged
-        ))
-        wrapper.addView(createVerificationStatusButtonRow(
-            first = GeoAwarenessVerificationStatus.FAIL,
-            second = GeoAwarenessVerificationStatus.BLOCKED,
-            current = status,
-            onStatusChanged = onStatusChanged
-        ))
-        return wrapper
-    }
-
-    private fun createVerificationStatusChip(status: GeoAwarenessVerificationStatus): TextView {
-        return TextView(requireContext()).apply {
-            text = verificationStatusLabel(status)
-            setTextColor(Color.WHITE)
-            textSize = 12f
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = 18f * resources.displayMetrics.density
-                setColor(verificationStatusColor(status))
-            }
-            setPadding(
-                (12 * resources.displayMetrics.density).toInt(),
-                (6 * resources.displayMetrics.density).toInt(),
-                (12 * resources.displayMetrics.density).toInt(),
-                (6 * resources.displayMetrics.density).toInt()
-            )
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = (8 * resources.displayMetrics.density).toInt()
-            }
-        }
-    }
-
-    private fun createVerificationStatusButtonRow(
-        first: GeoAwarenessVerificationStatus,
-        second: GeoAwarenessVerificationStatus,
-        current: GeoAwarenessVerificationStatus,
-        onStatusChanged: (GeoAwarenessVerificationStatus) -> Unit
-    ): View {
-        return LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = (8 * resources.displayMetrics.density).toInt()
-            }
-            addView(createVerificationStatusButton(first, current, onStatusChanged))
-            addView(createVerificationStatusButton(second, current, onStatusChanged).apply {
-                (layoutParams as LinearLayout.LayoutParams).marginStart = (10 * resources.displayMetrics.density).toInt()
-            })
-        }
-    }
-
-    private fun createVerificationStatusButton(
-        status: GeoAwarenessVerificationStatus,
-        current: GeoAwarenessVerificationStatus,
-        onStatusChanged: (GeoAwarenessVerificationStatus) -> Unit
-    ): com.google.android.material.button.MaterialButton {
-        return com.google.android.material.button.MaterialButton(
-            requireContext(),
-            null,
-            R.attr.materialButtonOutlinedStyle
-        ).apply {
-            text = verificationStatusLabel(status)
-            isEnabled = status != current
-            layoutParams = LinearLayout.LayoutParams(
-                0,
-                (40 * resources.displayMetrics.density).toInt(),
-                1f
-            )
-            setOnClickListener { onStatusChanged(status) }
-        }
-    }
-
-    private fun updateVerificationCaseStatus(
-        verificationCase: GeoAwarenessVerificationCase,
-        newStatus: GeoAwarenessVerificationStatus
-    ) {
-        val previousStatus = verificationStatusStore.getStatus(verificationCase.id)
-        if (previousStatus == newStatus) {
-            return
-        }
-        verificationStatusStore.setStatus(verificationCase.id, newStatus)
-        geoEventLogger.logSimple(
-            type = GeoAwarenessEventType.VERIFICATION_CASE_STATUS_CHANGED,
-            severity = "INFO",
-            message = "Geo-awareness verification case status changed",
-            details = mapOf(
-                "caseId" to verificationCase.id,
-                "caseTitle" to verificationCase.title,
-                "previousStatus" to previousStatus.name,
-                "newStatus" to newStatus.name
-            )
-        )
-        refreshEventLogCount()
-    }
-
-    private fun showVerificationCaseDetails(
-        verificationCase: GeoAwarenessVerificationCase,
-        status: GeoAwarenessVerificationStatus
-    ) {
-        val message = buildString {
-            appendLine(getString(R.string.geo_verification_status, verificationStatusLabel(status)))
-            appendLine()
-            appendLine(getString(R.string.geo_verification_purpose))
-            appendLine(verificationCase.purpose)
-            appendLine()
-            appendLine(getString(R.string.geo_verification_preconditions))
-            if (verificationCase.preconditions.isEmpty()) {
-                appendLine("- ${getString(R.string.geo_none)}")
-            } else {
-                verificationCase.preconditions.forEach { appendLine("- $it") }
-            }
-            appendLine()
-            appendLine(getString(R.string.geo_verification_steps))
-            verificationCase.steps.forEach { appendLine("- $it") }
-            appendLine()
-            appendLine(getString(R.string.geo_verification_expected))
-            appendLine(verificationCase.expectedResult)
-            appendLine()
-            appendLine(getString(R.string.geo_verification_evidence))
-            verificationCase.evidenceToCapture.forEach { appendLine("- $it") }
-        }
-        showReadableDialog("${verificationCase.id} ${verificationCase.title}", message.trim())
-    }
-
-    private fun verificationStatusLabel(status: GeoAwarenessVerificationStatus): String = when (status) {
-        GeoAwarenessVerificationStatus.NOT_RUN -> getString(R.string.geo_awareness_verification_status_not_run)
-        GeoAwarenessVerificationStatus.PASS -> getString(R.string.geo_awareness_verification_status_pass)
-        GeoAwarenessVerificationStatus.FAIL -> getString(R.string.geo_awareness_verification_status_fail)
-        GeoAwarenessVerificationStatus.BLOCKED -> getString(R.string.geo_awareness_verification_status_blocked)
-    }
-
-    private fun verificationStatusColor(status: GeoAwarenessVerificationStatus): Int = when (status) {
-        GeoAwarenessVerificationStatus.NOT_RUN -> Color.parseColor("#616161")
-        GeoAwarenessVerificationStatus.PASS -> Color.parseColor("#2E7D32")
-        GeoAwarenessVerificationStatus.FAIL -> Color.parseColor("#B71C1C")
-        GeoAwarenessVerificationStatus.BLOCKED -> Color.parseColor("#EF6C00")
-    }
-
-    private fun createTestResultView(
-        id: String,
-        name: String,
-        status: GeoAwarenessTestStatus,
-        message: String
-    ): View {
-        val wrapper = LinearLayout(requireContext()).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            )
-        }
-        val statusColor = when (status) {
-            GeoAwarenessTestStatus.PASS -> Color.parseColor("#2E7D32")
-            GeoAwarenessTestStatus.WARNING -> Color.parseColor("#EF6C00")
-            GeoAwarenessTestStatus.FAIL -> Color.parseColor("#B71C1C")
-            GeoAwarenessTestStatus.SKIPPED -> Color.parseColor("#616161")
-        }
-        wrapper.addView(createStatusValue("$id  $name"))
-        wrapper.addView(TextView(requireContext()).apply {
-            text = status.name
-            setTextColor(Color.WHITE)
-            textSize = 12f
-            setTypeface(typeface, android.graphics.Typeface.BOLD)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = 18f * resources.displayMetrics.density
-                setColor(statusColor)
-            }
-            setPadding(
-                (12 * resources.displayMetrics.density).toInt(),
-                (6 * resources.displayMetrics.density).toInt(),
-                (12 * resources.displayMetrics.density).toInt(),
-                (6 * resources.displayMetrics.density).toInt()
-            )
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply {
-                topMargin = (8 * resources.displayMetrics.density).toInt()
-            }
-        })
-        wrapper.addView(createPanelText(message))
-        return wrapper
-    }
-
     private fun renderValidationStatus(result: GeoZoneValidationResult?) {
         if (_binding == null) return
         statusPresenter.renderValidation(binding, result)
@@ -806,8 +463,8 @@ class GeoAwarenessFragment : Fragment() {
                 context = requireContext().applicationContext,
                 eventLogger = geoEventLogger,
                 repository = datasetWorkflowController.repositoryForEvidenceExport(),
-                verificationStatusStore = verificationStatusStore,
-                latestDiagnosticsResultProvider = { lastTestRunResult }
+                verificationStatusStore = verificationController.statusStoreForEvidenceExport(),
+                latestDiagnosticsResultProvider = { verificationController.lastTestRunResult }
             )
             val zipFile = exporter.exportEvidencePackage()
             val uri = FileProvider.getUriForFile(
@@ -1075,18 +732,15 @@ class GeoAwarenessFragment : Fragment() {
 
     private fun showValidationDetails() {
         val result = validationResult ?: GeoZoneValidationResult.ok()
-        showReadableDialog(getString(R.string.geo_dataset_validation), formatValidationDetails(result))
+        showReadableDialog(getString(R.string.geo_dataset_validation), validationPresenter.details(result))
     }
 
     private fun showValidationDetails(record: GeoZoneDatasetRecord) {
         showReadableDialog(
             title = getString(R.string.geo_dataset_validation_named, record.displayName),
-            message = formatValidationDetails(record.validationResult)
+            message = validationPresenter.datasetDetails(record)
         )
     }
-
-    private fun formatValidationDetails(result: GeoZoneValidationResult): String =
-        datasetDialogController.formatValidationDetails(result)
 
     private fun showReadableDialog(title: String, message: String) {
         datasetDialogController.readable(title, message)
@@ -1120,6 +774,12 @@ class GeoAwarenessFragment : Fragment() {
     override fun onDestroyView() {
         liveStatusJob?.cancel()
         liveStatusJob = null
+        if (::verificationDialogController.isInitialized) {
+            verificationDialogController.dismiss()
+        }
+        if (::verificationController.isInitialized) {
+            verificationController.clear()
+        }
         datasetPickerController.clear()
         if (::datasetWorkflowController.isInitialized) {
             datasetWorkflowController.clear()

@@ -16,6 +16,7 @@ class GeoAwarenessUiActionController {
         val showDetailedLogs: () -> Unit,
         val exportEvidence: () -> Unit,
         val exportEncryptedIncidents: () -> Unit,
+        val showVerification: () -> Unit,
     )
 
     private var binding: FragmentGeoAwarenessBinding? = null
@@ -34,6 +35,7 @@ class GeoAwarenessUiActionController {
         binding.geoAwarenessViewDetailedLogsButton.setOnClickListener { actions.showDetailedLogs() }
         binding.geoAwarenessExportEvidenceButton.setOnClickListener { actions.exportEvidence() }
         binding.geoAwarenessExportEncryptedIncidentsButton.setOnClickListener { actions.exportEncryptedIncidents() }
+        binding.geoAwarenessInternalSection.setOnClickListener { actions.showVerification() }
     }
 
     fun clear() {
@@ -47,6 +49,7 @@ class GeoAwarenessUiActionController {
             geoAwarenessViewDetailedLogsButton.setOnClickListener(null)
             geoAwarenessExportEvidenceButton.setOnClickListener(null)
             geoAwarenessExportEncryptedIncidentsButton.setOnClickListener(null)
+            geoAwarenessInternalSection.setOnClickListener(null)
         }
         binding = null
     }
