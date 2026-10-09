@@ -97,15 +97,15 @@ class GeoAwarenessFragment : Fragment() {
     private var liveStatusBinder: LiveGeoAwarenessStatusViewBinder? = null
     private var pendingDatasetPickerMode: DatasetPickerMode = DatasetPickerMode.IMPORT_NEW
     private var pendingDatasetFileNameToUpdate: String? = null
-    private var lastStaleSignature: String? = null
     private var lastTestRunResult: GeoAwarenessTestRunResult? = null
-    private var datasetLoadInProgress: Boolean = false
-    private var lastGeoZoneReloadToken: Long? = null
+    private var datasetMutationInProgress: Boolean = false
     private var liveStatusJob: Job? = null
     private lateinit var verificationStatusStore: GeoAwarenessVerificationStatusStore
     private val uiActionController = GeoAwarenessUiActionController()
     private lateinit var datasetListRenderer: GeoAwarenessDatasetListRenderer
     private lateinit var statusPresenter: GeoAwarenessStatusPresenter
+    private lateinit var datasetStateCoordinator: GeoAwarenessDatasetStateCoordinator
+    private val observerCoordinator = GeoAwarenessObserverCoordinator()
     private val importDatasetLauncher = registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         if (uri != null) {
             handleImportedDatasetUri(uri)
@@ -137,6 +137,23 @@ class GeoAwarenessFragment : Fragment() {
         verificationStatusStore = GeoAwarenessVerificationStatusStore(requireContext().applicationContext)
         datasetListRenderer = GeoAwarenessDatasetListRenderer(requireContext())
         statusPresenter = GeoAwarenessStatusPresenter(requireContext())
+        datasetStateCoordinator = GeoAwarenessDatasetStateCoordinator(
+            context = requireContext(),
+            scope = viewLifecycleOwner.lifecycleScope,
+            sharedState = activityViewModel,
+            eventLogger = geoEventLogger,
+            callbacks = GeoAwarenessDatasetStateCoordinator.Callbacks(
+                onSnapshot = ::applyDatasetSnapshot,
+                onBusyChanged = { busy, message ->
+                    if (_binding != null && !datasetMutationInProgress) {
+                        setDatasetBusyState(busy, message ?: getString(R.string.geo_loading_dataset))
+                    }
+                },
+                onRefreshSucceeded = ::handleDatasetRefreshSuccess,
+                onFailure = ::handleDatasetStateFailure,
+                onAuditLogChanged = ::refreshEventLogCount,
+            ),
+        )
 
         requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
         liveStatusBinder = LiveGeoAwarenessStatusViewBinder(
@@ -180,60 +197,46 @@ class GeoAwarenessFragment : Fragment() {
                 loadError = geoAwarenessLoadError
             )
         )
-        loadDatasetIfNeededAsync()
+        datasetStateCoordinator.loadIfNeeded()
     }
 
     override fun onResume() {
         super.onResume()
-        loadDatasetIfNeededAsync()
+        datasetStateCoordinator.loadIfNeeded()
         updateLiveStatus()
     }
 
     private fun observeSharedState() {
-        activityViewModel.geoAwarenessLayerVisible.observe(viewLifecycleOwner) { visible ->
-            binding.geoAwarenessOverlaySwitch.isChecked = visible ?: true
-        }
-
-            activityViewModel.geoZoneDatasetInfo.observe(viewLifecycleOwner) { info ->
-            if (info != null) {
-                datasetInfo = info
-                updateCurrentSourceSummary()
-            }
-        }
-
-        activityViewModel.geoZoneValidationResult.observe(viewLifecycleOwner) { result ->
-            validationResult = result
-            renderValidationStatus(result)
-        }
-
-        activityViewModel.geoZoneDatasetRecords.observe(viewLifecycleOwner) { records ->
-            datasetRecords = records ?: emptyList()
-            renderDatasetRecords()
-            updateCurrentSourceSummary()
-        }
-
-        activityViewModel.geoZoneImportedActive.observe(viewLifecycleOwner) { imported ->
-            importedDatasetActive = imported == true
-            updateCurrentSourceSummary()
-        }
-
-        activityViewModel.geoAwarenessHealth.observe(viewLifecycleOwner) { health ->
-            geoAwarenessHealth = health
-            renderHealthStatus(health)
-        }
-
-        activityViewModel.geoZoneReloadToken.observe(viewLifecycleOwner) { token ->
-            if (token == null || token <= 0L || token == lastGeoZoneReloadToken) {
-                return@observe
-            }
-            lastGeoZoneReloadToken = token
-            if (!datasetLoadInProgress) {
-                geoZones = emptyList()
-                datasetInfo = null
-                loadDatasetIfNeededAsync(forceReload = true)
-            }
-        }
-
+        observerCoordinator.observe(
+            owner = viewLifecycleOwner,
+            state = activityViewModel,
+            callbacks = GeoAwarenessObserverCoordinator.Callbacks(
+                onOverlayVisibility = { binding.geoAwarenessOverlaySwitch.isChecked = it },
+                onDatasetInfo = { info ->
+                    datasetInfo = info
+                    updateCurrentSourceSummary()
+                },
+                onValidation = { result ->
+                    validationResult = result
+                    renderValidationStatus(result)
+                    updateCurrentSourceSummary()
+                },
+                onRecords = { records ->
+                    datasetRecords = records
+                    renderDatasetRecords()
+                    updateCurrentSourceSummary()
+                },
+                onImportedActive = { imported ->
+                    importedDatasetActive = imported
+                    updateCurrentSourceSummary()
+                },
+                onHealth = { health ->
+                    geoAwarenessHealth = health
+                    renderHealthStatus(health)
+                },
+                onReloadToken = datasetStateCoordinator::handleReloadToken,
+            ),
+        )
     }
 
     private fun observeDroneLocation() {
@@ -267,125 +270,60 @@ class GeoAwarenessFragment : Fragment() {
         }
     }
 
-    private fun loadDatasetIfNeeded() {
-        if (geoZones.isNotEmpty() && datasetInfo != null) {
-            return
-        }
-
-        val sharedInfo = activityViewModel.geoZoneDatasetInfo.value
-        val sharedValidation = activityViewModel.geoZoneValidationResult.value
-        val sharedRecords = activityViewModel.geoZoneDatasetRecords.value.orEmpty()
-        if (sharedInfo != null && geoZones.isNotEmpty()) {
-            datasetInfo = sharedInfo
-            validationResult = sharedValidation
-            datasetRecords = sharedRecords
-            return
-        }
-
-        loadDatasetIfNeededAsync()
+    private fun applyDatasetSnapshot(snapshot: GeoAwarenessDatasetStateCoordinator.Snapshot) {
+        if (_binding == null) return
+        datasetInfo = snapshot.datasetInfo
+        geoZones = snapshot.zones
+        datasetRecords = snapshot.records
+        validationResult = snapshot.validation
+        geoAwarenessHealth = snapshot.health
+        importedDatasetActive = snapshot.importedActive
+        geoAwarenessLoadError = snapshot.loadError
+        updateCurrentSourceSummary()
+        renderDatasetRecords()
+        renderValidationStatus(snapshot.validation)
+        renderHealthStatus(snapshot.health)
+        updateLiveStatus()
     }
 
-    private fun loadDatasetIfNeededAsync(forceReload: Boolean = false) {
-        if (datasetLoadInProgress || _binding == null) return
-        if (!forceReload && geoZones.isNotEmpty() && datasetInfo != null) return
-        val sharedInfo = activityViewModel.geoZoneDatasetInfo.value
-        if (!forceReload && sharedInfo != null && activityViewModel.geoZoneDatasetRecords.value != null) {
-            datasetInfo = sharedInfo
-            validationResult = activityViewModel.geoZoneValidationResult.value
-            datasetRecords = activityViewModel.geoZoneDatasetRecords.value.orEmpty()
-            importedDatasetActive = activityViewModel.geoZoneImportedActive.value == true
-            updateCurrentSourceSummary()
-            renderDatasetRecords()
-            renderValidationStatus(validationResult)
-            activityViewModel.geoAwarenessHealth.value?.let(::renderHealthStatus)
-            return
-        }
+    private fun handleDatasetStateFailure(error: Throwable, manualRefresh: Boolean) {
+        if (_binding == null || !manualRefresh) return
+        showReadableDialog(
+            getString(R.string.geo_refresh_failed),
+            error.message ?: getString(R.string.geo_refresh_failed_message),
+        )
+    }
 
-        datasetLoadInProgress = true
-        setDatasetBusyState(true, "Loading geo-zone dataset...")
-        val appContext = requireContext().applicationContext
-        lifecycleScope.launch {
-            try {
-                val (loadResult, importedActive) = withContext(Dispatchers.IO) {
-                    val repository = GeoZoneRepository(
-                        importedFileDataSource = GeoZoneImportedFileDataSource(appContext)
-                    )
-                    repository.loadCurrentDataset() to repository.hasImportedDatasets()
-                }
-                if (_binding != null) {
-                    applyLoadedDataset(loadResult, importedActive)
-                }
-            } catch (error: Exception) {
-                if (_binding != null) {
-                    applyDatasetLoadError(error)
-                }
-            } finally {
-                datasetLoadInProgress = false
-                if (_binding != null) {
-                    setDatasetBusyState(false)
-                }
-            }
-        }
+    private fun handleDatasetRefreshSuccess(loadResult: GeoZoneLoadResult) {
+        if (_binding == null) return
+        geoEventLogger.logSimple(
+            type = GeoAwarenessEventType.DATASET_STATUS_REFRESHED,
+            severity = "INFO",
+            message = "Geo-zone dataset status refreshed",
+            datasetTitle = loadResult.datasetInfo.title,
+            datasetVersion = loadResult.datasetInfo.version,
+            healthState = geoAwarenessHealth?.state?.name,
+            details = mapOf(
+                "activeDatasetCount" to loadResult.datasetRecords.size.toString(),
+                "totalZones" to loadResult.datasetInfo.zoneCount.toString(),
+                "staleDatasetCount" to loadResult.datasetRecords.count { it.isStale }.toString(),
+                "errorCount" to loadResult.validationResult.errorCount.toString(),
+                "warningCount" to loadResult.validationResult.warningCount.toString(),
+            ) + standardDatasetLogDetails(
+                operation = "status_refresh",
+                loadResult = loadResult,
+                requestedUri = "not_applicable",
+                originalFileName = null,
+            ),
+        )
+        refreshEventLogCount()
+        Toast.makeText(requireContext(), R.string.geo_status_refreshed, Toast.LENGTH_SHORT).show()
     }
 
     private fun syncLatestDroneLocationSnapshot(location: Location?) {
         val usableLocation = location?.takeIf(::isUsableDroneLocation)
         latestRealDronePosition = usableLocation?.let { LatLon(lat = it.latitude, lon = it.longitude) }
         latestRealDroneAltitudeMeters = usableLocation?.altitude
-    }
-
-    private fun applyDatasetLoadError(error: Throwable) {
-        datasetInfo = null
-        geoZones = emptyList()
-        geoAwarenessLoadError = error
-        val health = GeoAwarenessHealthEvaluator.evaluate(
-            datasetInfo = null,
-            zones = emptyList(),
-            datasetRecords = emptyList(),
-            loadError = error
-        )
-        geoAwarenessHealth = health
-        activityViewModel.geoAwarenessHealth.value = health
-        validationResult = null
-        activityViewModel.geoZoneValidationResult.value = null
-        datasetRecords = emptyList()
-        activityViewModel.geoZoneDatasetRecords.value = emptyList()
-        importedDatasetActive = false
-        activityViewModel.geoZoneImportedActive.value = false
-        updateCurrentSourceSummary()
-        renderDatasetRecords()
-        renderValidationStatus(null)
-        renderHealthStatus(health)
-    }
-
-    private fun applyLoadedDataset(
-        loadResult: com.example.droneservicesapp.domain.geoawareness.GeoZoneLoadResult,
-        importedActive: Boolean
-    ) {
-        geoZones = loadResult.zones
-        datasetInfo = loadResult.datasetInfo
-        validationResult = loadResult.validationResult
-        importedDatasetActive = importedActive
-        datasetRecords = loadResult.datasetRecords
-        geoAwarenessLoadError = null
-        val health = GeoAwarenessHealthEvaluator.evaluate(
-            datasetInfo = loadResult.datasetInfo,
-            zones = loadResult.zones,
-            datasetRecords = loadResult.datasetRecords,
-            validationResult = loadResult.validationResult
-        )
-        geoAwarenessHealth = health
-        activityViewModel.geoZoneDatasetInfo.value = loadResult.datasetInfo
-        activityViewModel.geoZoneValidationResult.value = loadResult.validationResult
-        activityViewModel.geoZoneDatasetRecords.value = loadResult.datasetRecords
-        activityViewModel.geoAwarenessHealth.value = health
-        activityViewModel.geoZoneImportedActive.value = importedActive
-        updateCurrentSourceSummary()
-        renderDatasetRecords()
-        renderValidationStatus(loadResult.validationResult)
-        renderHealthStatus(health)
-        logStaleDatasetsIfNeeded(loadResult.datasetRecords, health, manualRefresh = false)
-        updateLiveStatus()
     }
 
     private fun updateCurrentSourceSummary() {
@@ -988,7 +926,7 @@ class GeoAwarenessFragment : Fragment() {
             return
         }
 
-        loadDatasetIfNeeded()
+        datasetStateCoordinator.loadIfNeeded()
         if (geoZones.isEmpty()) {
             liveStatusJob?.cancel()
             latestLiveZones = emptyList()
@@ -1144,8 +1082,8 @@ class GeoAwarenessFragment : Fragment() {
     }
 
     private fun handleDatasetImport(uri: Uri, originalFileName: String?) {
-        if (datasetLoadInProgress) return
-        datasetLoadInProgress = true
+        if (datasetMutationInProgress || datasetStateCoordinator.isLoading) return
+        datasetMutationInProgress = true
         setDatasetBusyState(true, "Importing geo-zone dataset...")
         geoEventLogger.logSimple(
             type = GeoAwarenessEventType.DATASET_IMPORT_STARTED,
@@ -1164,8 +1102,7 @@ class GeoAwarenessFragment : Fragment() {
                     buildRepository(appContext).importDataset(rawJson, originalFileName)
                 }
                 if (_binding == null) return@launch
-                applyLoadedDataset(loadResult, importedActive = true)
-                lastGeoZoneReloadToken = activityViewModel.notifyGeoZoneDatasetReloaded()
+                datasetStateCoordinator.acceptMutationResult(loadResult, importedActive = true)
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.DATASET_IMPORT_SUCCEEDED,
                     severity = "INFO",
@@ -1201,7 +1138,7 @@ class GeoAwarenessFragment : Fragment() {
                     showImportFailure(error, null)
                 }
             } finally {
-                datasetLoadInProgress = false
+                datasetMutationInProgress = false
                 if (_binding != null) {
                     setDatasetBusyState(false)
                 }
@@ -1212,8 +1149,8 @@ class GeoAwarenessFragment : Fragment() {
     private fun handleDatasetUpdate(uri: Uri, originalFileName: String?) {
         val storageFileName = pendingDatasetFileNameToUpdate
             ?: throw IllegalStateException("No imported dataset selected for update.")
-        if (datasetLoadInProgress) return
-        datasetLoadInProgress = true
+        if (datasetMutationInProgress || datasetStateCoordinator.isLoading) return
+        datasetMutationInProgress = true
         setDatasetBusyState(true, "Updating geo-zone dataset...")
         geoEventLogger.logSimple(
             type = GeoAwarenessEventType.DATASET_UPDATE_STARTED,
@@ -1236,8 +1173,7 @@ class GeoAwarenessFragment : Fragment() {
                 }
                 if (_binding == null) return@launch
                 val (loadResult, importedActive) = updateResult
-                applyLoadedDataset(loadResult, importedActive = importedActive)
-                lastGeoZoneReloadToken = activityViewModel.notifyGeoZoneDatasetReloaded()
+                datasetStateCoordinator.acceptMutationResult(loadResult, importedActive = importedActive)
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.DATASET_UPDATE_SUCCEEDED,
                     severity = "INFO",
@@ -1268,7 +1204,7 @@ class GeoAwarenessFragment : Fragment() {
             } finally {
                 pendingDatasetPickerMode = DatasetPickerMode.IMPORT_NEW
                 pendingDatasetFileNameToUpdate = null
-                datasetLoadInProgress = false
+                datasetMutationInProgress = false
                 if (_binding != null) {
                     setDatasetBusyState(false)
                 }
@@ -1294,8 +1230,7 @@ class GeoAwarenessFragment : Fragment() {
             val repository = buildRepository()
             val removedCount = datasetRecords.count { it.sourceType == GeoZoneDatasetSourceType.IMPORTED_FILE }
             val loadResult = repository.removeAllImportedDatasets()
-            applyLoadedDataset(loadResult, importedActive = false)
-            lastGeoZoneReloadToken = activityViewModel.notifyGeoZoneDatasetReloaded()
+            datasetStateCoordinator.acceptMutationResult(loadResult, importedActive = false)
             if (removedCount > 0) {
                 geoEventLogger.logSimple(
                     type = GeoAwarenessEventType.ALL_IMPORTED_DATASETS_REMOVED,
@@ -1332,8 +1267,7 @@ class GeoAwarenessFragment : Fragment() {
         try {
             val repository = buildRepository()
             val loadResult = repository.removeImportedDataset(fileName)
-            applyLoadedDataset(loadResult, importedActive = repository.hasImportedDatasets())
-            lastGeoZoneReloadToken = activityViewModel.notifyGeoZoneDatasetReloaded()
+            datasetStateCoordinator.acceptMutationResult(loadResult, importedActive = repository.hasImportedDatasets())
             geoEventLogger.logSimple(
                 type = GeoAwarenessEventType.DATASET_REMOVED,
                 severity = "INFO",
@@ -1355,56 +1289,8 @@ class GeoAwarenessFragment : Fragment() {
     }
 
     private fun refreshGeoAwarenessStatus(manual: Boolean) {
-        if (datasetLoadInProgress) return
-        datasetLoadInProgress = true
-        setDatasetBusyState(true, getString(R.string.geo_refreshing))
-        val appContext = requireContext().applicationContext
-        lifecycleScope.launch {
-            try {
-                val (loadResult, importedActive) = withContext(Dispatchers.IO) {
-                    val repository = GeoZoneRepository(
-                        importedFileDataSource = GeoZoneImportedFileDataSource(appContext)
-                    )
-                    repository.loadCurrentDataset() to repository.hasImportedDatasets()
-                }
-                if (_binding == null) return@launch
-                applyLoadedDataset(loadResult, importedActive = importedActive)
-                geoAwarenessHealth?.let { logStaleDatasetsIfNeeded(loadResult.datasetRecords, it, manualRefresh = true) }
-                lastGeoZoneReloadToken = activityViewModel.notifyGeoZoneDatasetReloaded()
-                if (manual) {
-                    geoEventLogger.logSimple(
-                        type = GeoAwarenessEventType.DATASET_STATUS_REFRESHED,
-                        severity = "INFO",
-                        message = "Geo-zone dataset status refreshed",
-                        datasetTitle = loadResult.datasetInfo.title,
-                        datasetVersion = loadResult.datasetInfo.version,
-                        healthState = geoAwarenessHealth?.state?.name,
-                        details = mapOf(
-                            "activeDatasetCount" to loadResult.datasetRecords.size.toString(),
-                            "totalZones" to loadResult.datasetInfo.zoneCount.toString(),
-                            "staleDatasetCount" to loadResult.datasetRecords.count { it.isStale }.toString(),
-                            "errorCount" to loadResult.validationResult.errorCount.toString(),
-                            "warningCount" to loadResult.validationResult.warningCount.toString()
-                        ) + standardDatasetLogDetails(
-                            operation = "status_refresh",
-                            loadResult = loadResult,
-                            requestedUri = "not_applicable",
-                            originalFileName = null
-                        )
-                    )
-                    Toast.makeText(requireContext(), R.string.geo_status_refreshed, Toast.LENGTH_SHORT).show()
-                }
-            } catch (error: Exception) {
-                if (_binding != null) {
-                    showReadableDialog(getString(R.string.geo_refresh_failed), error.message ?: getString(R.string.geo_refresh_failed_message))
-                }
-            } finally {
-                datasetLoadInProgress = false
-                if (_binding != null) {
-                    setDatasetBusyState(false)
-                }
-            }
-        }
+        if (datasetMutationInProgress) return
+        datasetStateCoordinator.refresh(manual)
     }
 
     private fun readUtf8FromUri(uri: Uri): String {
@@ -1621,40 +1507,6 @@ class GeoAwarenessFragment : Fragment() {
         showReadableDialog(getString(R.string.geo_update_failed), summary.trim())
     }
 
-    private fun logStaleDatasetsIfNeeded(
-        records: List<GeoZoneDatasetRecord>,
-        health: GeoAwarenessHealth,
-        manualRefresh: Boolean
-    ) {
-        val staleRecords = records.filter { it.isStale }
-        val signature = staleRecords.joinToString("|") { "${it.datasetId}:${it.updatedAtMillis}" }
-        if (signature.isBlank()) {
-            lastStaleSignature = null
-            return
-        }
-        if (signature == lastStaleSignature && !manualRefresh) {
-            return
-        }
-        lastStaleSignature = signature
-        staleRecords.forEach { record ->
-            geoEventLogger.logSimple(
-                type = GeoAwarenessEventType.DATASET_MARKED_STALE,
-                severity = "WARNING",
-                message = "Geo-zone dataset marked stale",
-                datasetTitle = record.displayName,
-                datasetVersion = record.datasetInfo.version,
-                healthState = health.state.name,
-                details = mapOf(
-                    "datasetId" to record.datasetId,
-                    "storageFileName" to (record.storageFileName ?: ""),
-                    "ageDescription" to (record.ageDescription ?: "Update time unknown"),
-                    "stale" to record.isStale.toString()
-                )
-            )
-        }
-        refreshEventLogCount()
-    }
-
     private fun buildRepository(appContext: android.content.Context = requireContext().applicationContext): GeoZoneRepository {
         return GeoZoneRepository(
             importedFileDataSource = GeoZoneImportedFileDataSource(appContext)
@@ -1750,6 +1602,9 @@ class GeoAwarenessFragment : Fragment() {
     override fun onDestroyView() {
         liveStatusJob?.cancel()
         liveStatusJob = null
+        if (::datasetStateCoordinator.isInitialized) {
+            datasetStateCoordinator.clear()
+        }
         uiActionController.clear()
         if (::datasetListRenderer.isInitialized) {
             datasetListRenderer.clear()

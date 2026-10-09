@@ -44,6 +44,22 @@ class GeoAwarenessDatasetController(context: Context) {
 
     fun reloadCurrent(): LoadOutcome = loadCurrent()
 
+    fun acceptLoaded(result: GeoZoneLoadResult, importedActive: Boolean): LoadOutcome {
+        return apply(result, importedActive)
+    }
+
+    fun recordEmptyFailure(error: Throwable): Snapshot {
+        loadAttempted = true
+        val health = GeoAwarenessHealthEvaluator.evaluate(
+            datasetInfo = null,
+            zones = emptyList(),
+            datasetRecords = emptyList(),
+            loadError = error,
+        )
+        snapshot = Snapshot(health = health, loadError = error)
+        return snapshot
+    }
+
     fun recordFailure(error: Throwable, datasetRecords: List<GeoZoneDatasetRecord>): Snapshot {
         loadAttempted = true
         snapshot = snapshot.copy(
