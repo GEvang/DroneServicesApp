@@ -1,6 +1,5 @@
 package com.example.droneservicesapp.ui.geoawareness
 
-import android.location.Location
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
@@ -15,24 +14,15 @@ import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventT
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
 import com.example.droneservicesapp.databinding.FragmentGeoAwarenessBinding
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
-import com.example.droneservicesapp.domain.geoawareness.GeoAltitudeContext
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthEvaluator
 import com.example.droneservicesapp.domain.geoawareness.GeoZone
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneLoadResult
-import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessChecker
-import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessProximityResult
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
-import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.ui.home.geoawareness.LiveGeoAwarenessStatusViewBinder
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
-import java.util.Locale
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 class GeoAwarenessFragment : Fragment() {
 
@@ -41,25 +31,17 @@ class GeoAwarenessFragment : Fragment() {
 
     private lateinit var activityViewModel: MainActivityViewModel
     private lateinit var droneViewModel: DroneViewModel
-    private val liveChecker = LiveGeoAwarenessChecker()
     private var datasetInfo: GeoZoneDatasetInfo? = null
     private var geoZones: List<GeoZone> = emptyList()
-    private var latestLiveZones: List<GeoZone> = emptyList()
-    private var latestLiveProximity: LiveGeoAwarenessProximityResult? = null
-    private var latestRealDronePosition: LatLon? = null
-    private var latestRealDroneAltitudeMeters: Double? = null
-    private var latestRealDroneAltitudeAmslMeters: Double? = null
-    private var latestRealDroneGroundSpeedMetersPerSecond: Float? = null
-    private var latestRealDroneVerticalSpeedMetersPerSecond: Float? = null
-    private var latestRealDroneHeadingDegrees: Double? = null
     private var geoAwarenessHealth: GeoAwarenessHealth? = null
     private var geoAwarenessLoadError: Throwable? = null
     private var validationResult: GeoZoneValidationResult? = null
     private var importedDatasetActive: Boolean = false
     private var datasetRecords: List<GeoZoneDatasetRecord> = emptyList()
     private lateinit var geoEventLogger: GeoAwarenessEventLogger
-    private var liveStatusBinder: LiveGeoAwarenessStatusViewBinder? = null
-    private var liveStatusJob: Job? = null
+    private val telemetryObserver = GeoAwarenessTelemetryObserver()
+    private lateinit var liveStatusController: GeoAwarenessLiveStatusController
+    private lateinit var liveStatusPresenter: GeoAwarenessLiveStatusPresenter
     private val uiActionController = GeoAwarenessUiActionController()
     private lateinit var datasetListRenderer: GeoAwarenessDatasetListRenderer
     private lateinit var statusPresenter: GeoAwarenessStatusPresenter
@@ -166,14 +148,18 @@ class GeoAwarenessFragment : Fragment() {
         )
 
         requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
-        liveStatusBinder = LiveGeoAwarenessStatusViewBinder(
+        val liveStatusBinder = LiveGeoAwarenessStatusViewBinder(
             requireContext(),
             binding.geoAwarenessLiveStatusChip
         )
-        liveStatusBinder?.bindUnknown(getString(R.string.geo_awareness_live_no_position))
-        liveStatusBinder?.setOnClickListener(View.OnClickListener {
-            showLiveGeoDetails()
-        })
+        liveStatusPresenter = GeoAwarenessLiveStatusPresenter(requireContext(), liveStatusBinder)
+        liveStatusController = GeoAwarenessLiveStatusController(
+            scope = viewLifecycleOwner.lifecycleScope,
+            eventLogger = geoEventLogger,
+            onState = liveStatusPresenter::present,
+            onAuditLogChanged = ::refreshEventLogCount,
+        )
+        liveStatusPresenter.showInitialUnknown()
 
         uiActionController.bind(
             binding = binding,
@@ -199,7 +185,7 @@ class GeoAwarenessFragment : Fragment() {
         renderValidationStatus(activityViewModel.geoZoneValidationResult.value)
         refreshEventLogCount()
         observeSharedState()
-        observeDroneLocation()
+        telemetryObserver.observe(viewLifecycleOwner, droneViewModel, liveStatusController::updateTelemetry)
         renderHealthStatus(
             activityViewModel.geoAwarenessHealth.value ?: GeoAwarenessHealthEvaluator.evaluate(
                 datasetInfo = datasetInfo,
@@ -215,7 +201,6 @@ class GeoAwarenessFragment : Fragment() {
     override fun onResume() {
         super.onResume()
         datasetStateCoordinator.loadIfNeeded()
-        updateLiveStatus()
     }
 
     private fun observeSharedState() {
@@ -251,37 +236,6 @@ class GeoAwarenessFragment : Fragment() {
         )
     }
 
-    private fun observeDroneLocation() {
-        droneViewModel.droneLocationLiveData.observe(viewLifecycleOwner) { location ->
-            syncLatestDroneLocationSnapshot(location)
-            updateLiveStatus()
-        }
-        droneViewModel.conStateLiveData.observe(viewLifecycleOwner) {
-            syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
-            updateLiveStatus()
-        }
-        droneViewModel.gpsFixType.observe(viewLifecycleOwner) {
-            syncLatestDroneLocationSnapshot(droneViewModel.droneLocationLiveData.value)
-            updateLiveStatus()
-        }
-        droneViewModel.droneAltitudeAmslMeters.observe(viewLifecycleOwner) { altitudeAmslMeters ->
-            latestRealDroneAltitudeAmslMeters = altitudeAmslMeters
-            updateLiveStatus()
-        }
-        droneViewModel.droneGroundSpeedMetersPerSecond.observe(viewLifecycleOwner) { speed ->
-            latestRealDroneGroundSpeedMetersPerSecond = speed
-            updateLiveStatus()
-        }
-        droneViewModel.droneVerticalSpeedMetersPerSecond.observe(viewLifecycleOwner) { speed ->
-            latestRealDroneVerticalSpeedMetersPerSecond = speed
-            updateLiveStatus()
-        }
-        droneViewModel.droneHeading.observe(viewLifecycleOwner) { heading ->
-            latestRealDroneHeadingDegrees = heading
-            updateLiveStatus()
-        }
-    }
-
     private fun applyDatasetSnapshot(snapshot: GeoAwarenessDatasetStateCoordinator.Snapshot) {
         if (_binding == null) return
         datasetInfo = snapshot.datasetInfo
@@ -295,7 +249,7 @@ class GeoAwarenessFragment : Fragment() {
         renderDatasetRecords()
         renderValidationStatus(snapshot.validation)
         renderHealthStatus(snapshot.health)
-        updateLiveStatus()
+        liveStatusController.updateDataset(snapshot)
     }
 
     private fun handleDatasetStateFailure(error: Throwable, manualRefresh: Boolean) {
@@ -330,12 +284,6 @@ class GeoAwarenessFragment : Fragment() {
         )
         refreshEventLogCount()
         Toast.makeText(requireContext(), R.string.geo_status_refreshed, Toast.LENGTH_SHORT).show()
-    }
-
-    private fun syncLatestDroneLocationSnapshot(location: Location?) {
-        val usableLocation = location?.takeIf(::isUsableDroneLocation)
-        latestRealDronePosition = usableLocation?.let { LatLon(lat = it.latitude, lon = it.longitude) }
-        latestRealDroneAltitudeMeters = usableLocation?.altitude
     }
 
     private fun updateCurrentSourceSummary() {
@@ -386,152 +334,6 @@ class GeoAwarenessFragment : Fragment() {
         if (_binding != null) eventLogPresenter.refresh(binding)
     }
 
-    private fun updateLiveStatus() {
-        val position = latestRealDronePosition
-        val altitude = latestRealDroneAltitudeMeters
-        if (position == null) {
-            liveStatusJob?.cancel()
-            latestLiveZones = emptyList()
-            latestLiveProximity = null
-            liveStatusBinder?.bindUnknown(getString(R.string.geo_awareness_live_no_position))
-            return
-        }
-
-        datasetStateCoordinator.loadIfNeeded()
-        if (geoZones.isEmpty()) {
-            liveStatusJob?.cancel()
-            latestLiveZones = emptyList()
-            latestLiveProximity = null
-            liveStatusBinder?.bindUnknown("Geo-awareness unavailable")
-            return
-        }
-        val altitudeContext = GeoAltitudeContext(
-            aglMeters = altitude,
-            amslMeters = latestRealDroneAltitudeAmslMeters
-        )
-        val zoneSnapshot = geoZones
-        val groundSpeed = latestRealDroneGroundSpeedMetersPerSecond?.toDouble()
-        val verticalSpeed = latestRealDroneVerticalSpeedMetersPerSecond?.toDouble()
-        val heading = latestRealDroneHeadingDegrees
-
-        liveStatusJob?.cancel()
-        liveStatusJob = viewLifecycleOwner.lifecycleScope.launch {
-            val result = withContext(Dispatchers.Default) {
-                val zones = liveChecker.checkDronePosition(
-                    dronePosition = position,
-                    altitudeContext = altitudeContext,
-                    zones = zoneSnapshot
-                )
-                val proximity = if (zones.isEmpty()) {
-                    liveChecker.findNearestZoneWithinThreshold(
-                        position = position,
-                        zones = zoneSnapshot,
-                        thresholdMeters = DEFAULT_NEAR_ZONE_THRESHOLD_METERS,
-                        altitudeContext = altitudeContext,
-                        groundSpeedMetersPerSecond = groundSpeed,
-                        headingDegrees = heading,
-                        verticalSpeedMetersPerSecond = verticalSpeed
-                    )
-                } else {
-                    null
-                }
-                zones to proximity
-            }
-            if (_binding == null) return@launch
-            val zones = result.first
-            val proximity = result.second
-            latestLiveZones = zones
-            latestLiveProximity = proximity
-            when {
-                zones.isNotEmpty() -> liveStatusBinder?.bindInsideMultiple(zones)
-                proximity != null && proximity.warningMode.startsWith("VERTICAL") -> {
-                    liveStatusBinder?.bindVerticalNear(
-                        zone = proximity.nearestZone,
-                        verticalDistanceMeters = proximity.verticalDistanceMeters
-                    )
-                }
-                proximity != null -> liveStatusBinder?.bindNear(
-                    zone = proximity.nearestZone,
-                    distanceMeters = proximity.distanceMeters
-                )
-                else -> liveStatusBinder?.bindClear()
-            }
-        }
-    }
-
-    private fun showLiveGeoDetails() {
-        val title: String
-        val message: String
-        val activePosition = latestRealDronePosition
-        when {
-            activePosition == null -> {
-                title = getString(R.string.geo_awareness_title)
-                message = getString(R.string.geo_awareness_live_no_position)
-            }
-            geoZones.isEmpty() -> {
-                title = getString(R.string.geo_awareness_title)
-                message = getString(R.string.geo_awareness_no_dataset_message)
-            }
-            else -> {
-                when {
-                    latestLiveZones.isNotEmpty() -> {
-                        title = "Live geo-awareness warning"
-                        val visibleZones = latestLiveZones.take(5)
-                        val remaining = latestLiveZones.size - visibleZones.size
-                        message = buildString {
-                            appendLine("Drone is inside loaded geo-zone(s):")
-                            appendLine()
-                            visibleZones.forEach { zone ->
-                                appendLine("- ${zone.name}")
-                                appendLine("  Restriction: ${zone.restriction}")
-                                appendLine("  Message: ${zone.message ?: "No message"}")
-                            }
-                            if (remaining > 0) {
-                                appendLine("...and $remaining more.")
-                            }
-                            append("Verify restrictions with the responsible authority before flight.")
-                        }
-                    }
-                    latestLiveProximity != null -> {
-                        val proximity = latestLiveProximity!!
-                        title = "Nearby geo-zone"
-                        message = buildString {
-                            appendLine("Nearest zone: ${proximity.nearestZone.name}")
-                            appendLine("Restriction: ${proximity.restriction}")
-                            appendLine("Distance: ${proximity.distanceMeters.toInt().coerceAtLeast(0)} m")
-                            appendLine("Configured threshold: ${proximity.configuredThresholdMeters.toInt()} m")
-                            appendLine("Effective threshold: ${proximity.effectiveThresholdMeters.toInt()} m")
-                            appendLine("Required warning time: ${proximity.requiredWarningSeconds} s")
-                            proximity.groundSpeedMetersPerSecond?.let { speed ->
-                                appendLine("Ground speed: ${"%.2f".format(Locale.US, speed)} m/s")
-                            }
-                            proximity.closingSpeedMetersPerSecond?.let { speed ->
-                                appendLine("Closing speed: ${"%.2f".format(Locale.US, speed)} m/s")
-                            }
-                            proximity.timeToBoundarySeconds?.let { seconds ->
-                                appendLine("Time to boundary: ${"%.2f".format(Locale.US, seconds)} s")
-                            }
-                            appendLine("Warning mode: ${proximity.warningMode}")
-                            if (!datasetInfo?.title.isNullOrBlank()) {
-                                appendLine("Dataset: ${datasetInfo?.title} (${datasetInfo?.version ?: "N/A"})")
-                            }
-                            if (!proximity.nearestZone.message.isNullOrBlank()) {
-                                appendLine("Message: ${proximity.nearestZone.message}")
-                            }
-                            appendLine()
-                            append("The drone is outside this zone but within the near-zone warning threshold.")
-                        }
-                    }
-                    else -> {
-                        title = getString(R.string.geo_awareness_title)
-                        message = getString(R.string.geo_awareness_live_clear)
-                    }
-                }
-            }
-        }
-        showReadableDialog(title, message)
-    }
-
     private fun refreshGeoAwarenessStatus(manual: Boolean) {
         if (::datasetWorkflowController.isInitialized && datasetWorkflowController.isBusy) return
         datasetStateCoordinator.refresh(manual)
@@ -559,20 +361,14 @@ class GeoAwarenessFragment : Fragment() {
         datasetDialogController.readable(title, message)
     }
 
-    private fun isUsableDroneLocation(location: Location): Boolean {
-        if (!location.latitude.isFinite() || !location.longitude.isFinite()) {
-            return false
-        }
-        if (location.latitude !in -90.0..90.0 || location.longitude !in -180.0..180.0) {
-            return false
-        }
-        return kotlin.math.abs(location.latitude) > 1e-4 ||
-            kotlin.math.abs(location.longitude) > 1e-4
-    }
-
     override fun onDestroyView() {
-        liveStatusJob?.cancel()
-        liveStatusJob = null
+        telemetryObserver.clear()
+        if (::liveStatusController.isInitialized) {
+            liveStatusController.clear()
+        }
+        if (::liveStatusPresenter.isInitialized) {
+            liveStatusPresenter.clear()
+        }
         if (::exportController.isInitialized) {
             exportController.clear()
         }
@@ -596,7 +392,6 @@ class GeoAwarenessFragment : Fragment() {
         if (::datasetListRenderer.isInitialized) {
             datasetListRenderer.clear()
         }
-        liveStatusBinder = null
         super.onDestroyView()
         _binding = null
     }
