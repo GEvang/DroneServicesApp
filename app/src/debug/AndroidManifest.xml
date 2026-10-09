@@ -6,5 +6,15 @@
             android:exported="false"
             android:screenOrientation="landscape"
             android:theme="@style/Theme.DroneServicesApp.NoActionBar" />
+        <activity
+            android:name="com.example.droneservicesapp.ui.compose.feasibility.map.MapFeasibilityActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.DroneServicesApp.NoActionBar" />
+        <activity
+            android:name="com.example.droneservicesapp.ui.compose.feasibility.pointcloud.PointCloudFeasibilityActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:theme="@style/Theme.DroneServicesApp.NoActionBar" />
     </application>
 </manifest>

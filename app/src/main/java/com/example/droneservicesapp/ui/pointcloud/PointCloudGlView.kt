@@ -101,6 +101,14 @@ class PointCloudGlView @JvmOverloads constructor(
         }
     }
 
+    /** Releases renderer-owned buffers and the GL program when the host permanently leaves composition. */
+    fun release() {
+        queueEvent {
+            pointRenderer.release()
+        }
+        onPause()
+    }
+
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
@@ -534,6 +542,23 @@ private class PointCloudRenderer : GLSurfaceView.Renderer {
         targetX = 0f
         targetY = 0f
         targetZ = 0f
+    }
+
+    fun release() {
+        clearPointCloud()
+        setMissionOverlay(null)
+        if (program != 0) {
+            GLES20.glDeleteProgram(program)
+            program = 0
+        }
+        positionBuffer = null
+        fullPositionBuffer = null
+        colorBuffer = null
+        sourceColorBuffer = null
+        heightColorBuffer = null
+        lodPositionBuffer = null
+        lodSourceColorBuffer = null
+        lodHeightColorBuffer = null
     }
 
     fun rotate(dx: Float, dy: Float) {
