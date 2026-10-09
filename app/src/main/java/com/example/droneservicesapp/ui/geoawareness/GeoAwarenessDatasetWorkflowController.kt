@@ -73,8 +73,8 @@ class GeoAwarenessDatasetWorkflowController(
 
     fun handleSelection(selection: GeoAwarenessDatasetPickerController.Selection) {
         when (selection.mode) {
-            GeoAwarenessDatasetPickerController.Mode.IMPORT_NEW -> importDataset(selection)
-            GeoAwarenessDatasetPickerController.Mode.UPDATE_EXISTING -> updateDataset(selection)
+            GeoAwarenessSessionState.PickerMode.IMPORT_NEW -> importDataset(selection)
+            GeoAwarenessSessionState.PickerMode.UPDATE_EXISTING -> updateDataset(selection)
         }
     }
 

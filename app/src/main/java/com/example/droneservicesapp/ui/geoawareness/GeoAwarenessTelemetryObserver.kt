@@ -7,7 +7,7 @@ import com.example.droneservicesapp.mavserver.DroneViewModel
 import io.dronefleet.mavlink.common.GpsFixType
 
 /** Normalizes drone telemetry into one immutable snapshot without presentation logic. */
-class GeoAwarenessTelemetryObserver {
+class GeoAwarenessTelemetryObserver(private val session: GeoAwarenessSessionState) {
     data class Snapshot(
         val connected: Boolean,
         val gpsFix: GpsFixType?,
@@ -43,8 +43,7 @@ class GeoAwarenessTelemetryObserver {
 
     private fun publish(viewModel: DroneViewModel) {
         val location = viewModel.droneLocationLiveData.value?.takeIf(::isUsableLocation)
-        onSnapshot?.invoke(
-            Snapshot(
+        val snapshot = Snapshot(
                 connected = viewModel.conStateLiveData.value == true,
                 gpsFix = viewModel.gpsFixType.value,
                 position = location?.let { LatLon(it.latitude, it.longitude) },
@@ -53,8 +52,9 @@ class GeoAwarenessTelemetryObserver {
                 groundSpeedMetersPerSecond = viewModel.droneGroundSpeedMetersPerSecond.value?.toDouble(),
                 verticalSpeedMetersPerSecond = viewModel.droneVerticalSpeedMetersPerSecond.value?.toDouble(),
                 headingDegrees = viewModel.droneHeading.value,
-            ),
-        )
+            )
+        session.telemetry = snapshot
+        onSnapshot?.invoke(snapshot)
     }
 
     private fun isUsableLocation(location: Location): Boolean {

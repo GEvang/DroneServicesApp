@@ -25,6 +25,7 @@ class GeoAwarenessDatasetStateCoordinator(
     private val scope: CoroutineScope,
     private val sharedState: MainActivityViewModel,
     private val eventLogger: GeoAwarenessEventLogger,
+    private val session: GeoAwarenessSessionState,
     private val callbacks: Callbacks,
 ) {
     data class Snapshot(
@@ -49,7 +50,7 @@ class GeoAwarenessDatasetStateCoordinator(
     private var loadJob: Job? = null
     private var active = true
     private var generation = 0L
-    private var lastReloadToken: Long? = null
+    private var lastReloadToken: Long? = session.lastProcessedReloadToken
     private var lastStaleSignature: String? = null
     private var pendingForcedReload = false
 
@@ -59,6 +60,10 @@ class GeoAwarenessDatasetStateCoordinator(
     fun loadIfNeeded(forceReload: Boolean = false) {
         if (!active || isLoading) return
         if (!forceReload) {
+            sessionSnapshot()?.let {
+                callbacks.onSnapshot(it)
+                return
+            }
             sharedSnapshot()?.let {
                 callbacks.onSnapshot(it)
                 return
@@ -75,6 +80,7 @@ class GeoAwarenessDatasetStateCoordinator(
     fun handleReloadToken(token: Long?) {
         if (token == null || token <= 0L || token == lastReloadToken) return
         lastReloadToken = token
+        session.lastProcessedReloadToken = token
         if (isLoading) {
             pendingForcedReload = true
             return
@@ -88,6 +94,7 @@ class GeoAwarenessDatasetStateCoordinator(
         publish(snapshot)
         val token = sharedState.notifyGeoZoneDatasetReloaded()
         lastReloadToken = token
+        session.lastProcessedReloadToken = token
         return snapshot
     }
 
@@ -155,6 +162,22 @@ class GeoAwarenessDatasetStateCoordinator(
             validation = validation,
             health = health,
             importedActive = sharedState.geoZoneImportedActive.value == true,
+        )
+    }
+
+    private fun sessionSnapshot(): Snapshot? {
+        val state = session.dataset
+        val info = state.datasetInfo ?: return null
+        val health = state.health ?: return null
+        if (state.zones.isEmpty()) return null
+        return Snapshot(
+            datasetInfo = info,
+            zones = state.zones,
+            records = state.records,
+            validation = state.validation,
+            health = health,
+            importedActive = state.importedActive,
+            loadError = state.loadError,
         )
     }
 

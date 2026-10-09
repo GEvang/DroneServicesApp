@@ -9,25 +9,21 @@ import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 /** Owns document-picker intent state and guarantees that an update target cannot become an import. */
 class GeoAwarenessDatasetPickerController(
     private val fragment: Fragment,
+    private val session: GeoAwarenessSessionState,
     private val onSelection: (Selection) -> Unit,
 ) {
-    enum class Mode { IMPORT_NEW, UPDATE_EXISTING }
-
     data class Selection(
-        val mode: Mode,
+        val mode: GeoAwarenessSessionState.PickerMode,
         val uri: Uri,
         val originalFileName: String?,
         val updateStorageFileName: String? = null,
     )
 
-    private data class PendingRequest(val mode: Mode, val updateStorageFileName: String? = null)
-
-    private var pending: PendingRequest? = null
     private val launcher = fragment.registerForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        val request = pending
-        pending = null
+        val request = session.pendingPickerOperation
+        session.pendingPickerOperation = null
         if (uri == null || request == null) return@registerForActivityResult
-        if (request.mode == Mode.UPDATE_EXISTING && request.updateStorageFileName.isNullOrBlank()) return@registerForActivityResult
+        if (request.mode == GeoAwarenessSessionState.PickerMode.UPDATE_EXISTING && request.updateStorageFileName.isNullOrBlank()) return@registerForActivityResult
         onSelection(
             Selection(
                 mode = request.mode,
@@ -39,18 +35,21 @@ class GeoAwarenessDatasetPickerController(
     }
 
     fun launchImport() {
-        pending = PendingRequest(Mode.IMPORT_NEW)
+        session.pendingPickerOperation = GeoAwarenessSessionState.PendingPickerOperation(GeoAwarenessSessionState.PickerMode.IMPORT_NEW)
         launcher.launch(MIME_TYPES)
     }
 
     fun launchUpdate(record: GeoZoneDatasetRecord) {
         val storageFileName = record.storageFileName ?: return
-        pending = PendingRequest(Mode.UPDATE_EXISTING, storageFileName)
+        session.pendingPickerOperation = GeoAwarenessSessionState.PendingPickerOperation(
+            GeoAwarenessSessionState.PickerMode.UPDATE_EXISTING,
+            storageFileName,
+        )
         launcher.launch(MIME_TYPES)
     }
 
     fun clear() {
-        pending = null
+        session.pendingPickerOperation = null
     }
 
     private fun resolveDisplayName(uri: Uri): String? {

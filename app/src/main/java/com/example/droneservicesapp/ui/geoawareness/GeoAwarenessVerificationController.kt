@@ -23,6 +23,7 @@ class GeoAwarenessVerificationController(
     private val scope: CoroutineScope,
     private val repositoryProvider: () -> GeoZoneRepository,
     private val eventLogger: GeoAwarenessEventLogger,
+    private val session: GeoAwarenessSessionState,
     private val onAuditLogChanged: () -> Unit,
 ) {
     data class CaseState(val definition: GeoAwarenessVerificationCase, val status: GeoAwarenessVerificationStatus)
@@ -38,7 +39,7 @@ class GeoAwarenessVerificationController(
     private var active = true
     private var stateListener: ((State) -> Unit)? = null
 
-    var lastTestRunResult: GeoAwarenessTestRunResult? = null
+    var lastTestRunResult: GeoAwarenessTestRunResult? = session.lastAutomatedTestResult
         private set
 
     val state: State
@@ -93,6 +94,7 @@ class GeoAwarenessVerificationController(
                 }
                 if (!active) return@launch
                 lastTestRunResult = result
+                session.lastAutomatedTestResult = result
                 onAuditLogChanged()
             } catch (cancelled: CancellationException) {
                 throw cancelled
