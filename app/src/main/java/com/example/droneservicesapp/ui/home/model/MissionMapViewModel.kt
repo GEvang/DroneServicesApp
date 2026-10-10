@@ -1,8 +1,10 @@
 package com.example.droneservicesapp.ui.home.model
 
-import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.MutableLiveData
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 
 class MissionMapViewModel : ViewModel() {
     private var currentScreenMode: HomeMapScreenMode = HomeMapScreenMode.Idle
@@ -10,15 +12,20 @@ class MissionMapViewModel : ViewModel() {
     private var hasMissionArea: Boolean = false
     private var arePanelsDismissed: Boolean = false
 
-    val homeMapUiState: MutableLiveData<HomeMapUiState> =
-        MutableLiveData(
-            HomeMapUiState.forState(
-                screenMode = currentScreenMode,
-                isPlanningPanelVisible = isPlanningPanelVisible,
-                hasMissionArea = hasMissionArea,
-                arePanelsDismissed = arePanelsDismissed
-            )
+    private val mutableHomeMapUiState = MutableStateFlow(
+        HomeMapUiState.forState(
+            screenMode = currentScreenMode,
+            isPlanningPanelVisible = isPlanningPanelVisible,
+            hasMissionArea = hasMissionArea,
+            arePanelsDismissed = arePanelsDismissed,
         )
+    )
+
+    /** Primary state API for Compose. */
+    val homeMapUiStateFlow = mutableHomeMapUiState.asStateFlow()
+
+    /** Temporary compatibility mirror for the current Fragment. */
+    val homeMapUiState = MutableLiveData(mutableHomeMapUiState.value)
 
     fun updateFromMapState(mapState: MainActivityViewModel.MapState) {
         if (mapState == MainActivityViewModel.MapState.SetFlightParams) {
@@ -83,13 +90,13 @@ class MissionMapViewModel : ViewModel() {
     }
 
     private fun publishState() {
-        homeMapUiState.postValue(
-            HomeMapUiState.forState(
-                screenMode = currentScreenMode,
-                isPlanningPanelVisible = isPlanningPanelVisible,
-                hasMissionArea = hasMissionArea,
-                arePanelsDismissed = arePanelsDismissed
-            )
+        val state = HomeMapUiState.forState(
+            screenMode = currentScreenMode,
+            isPlanningPanelVisible = isPlanningPanelVisible,
+            hasMissionArea = hasMissionArea,
+            arePanelsDismissed = arePanelsDismissed,
         )
+        mutableHomeMapUiState.value = state
+        homeMapUiState.value = state
     }
 }

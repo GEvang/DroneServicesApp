@@ -6,36 +6,25 @@ import com.example.droneservicesapp.databinding.FragmentGeoAwarenessBinding
 
 /** Owns screen action binding and section visibility without accessing repositories or ViewModels. */
 class GeoAwarenessUiActionController {
-    data class Actions(
-        val overlayVisibilityChanged: (Boolean) -> Unit,
-        val importDataset: () -> Unit,
-        val removeAllDatasets: () -> Unit,
-        val refreshStatus: () -> Unit,
-        val showValidation: () -> Unit,
-        val exportLogs: () -> Unit,
-        val showDetailedLogs: () -> Unit,
-        val exportEvidence: () -> Unit,
-        val exportEncryptedIncidents: () -> Unit,
-        val showVerification: () -> Unit,
-    )
-
     private var binding: FragmentGeoAwarenessBinding? = null
 
-    fun bind(binding: FragmentGeoAwarenessBinding, actions: Actions) {
+    fun bind(binding: FragmentGeoAwarenessBinding, dispatch: (GeoAwarenessAction) -> Unit) {
         this.binding = binding
         configureSections(binding)
         binding.geoAwarenessOverlaySwitch.setOnCheckedChangeListener { _, checked ->
-            actions.overlayVisibilityChanged(checked)
+            dispatch(GeoAwarenessAction.SetOverlayVisibility(checked))
         }
-        binding.geoAwarenessImportDatasetButton.setOnClickListener { actions.importDataset() }
-        binding.geoAwarenessResetDatasetButton.setOnClickListener { actions.removeAllDatasets() }
-        binding.geoAwarenessRefreshStatusButton.setOnClickListener { actions.refreshStatus() }
-        binding.geoAwarenessValidationDetailsButton.setOnClickListener { actions.showValidation() }
-        binding.geoAwarenessExportLogsButton.setOnClickListener { actions.exportLogs() }
-        binding.geoAwarenessViewDetailedLogsButton.setOnClickListener { actions.showDetailedLogs() }
-        binding.geoAwarenessExportEvidenceButton.setOnClickListener { actions.exportEvidence() }
-        binding.geoAwarenessExportEncryptedIncidentsButton.setOnClickListener { actions.exportEncryptedIncidents() }
-        binding.geoAwarenessInternalSection.setOnClickListener { actions.showVerification() }
+        binding.geoAwarenessImportDatasetButton.setOnClickListener { dispatch(GeoAwarenessAction.ImportDataset) }
+        binding.geoAwarenessResetDatasetButton.setOnClickListener { dispatch(GeoAwarenessAction.RemoveAllDatasets) }
+        binding.geoAwarenessRefreshStatusButton.setOnClickListener { dispatch(GeoAwarenessAction.RefreshStatus) }
+        binding.geoAwarenessValidationDetailsButton.setOnClickListener { dispatch(GeoAwarenessAction.ShowValidation) }
+        binding.geoAwarenessExportLogsButton.setOnClickListener { dispatch(GeoAwarenessAction.ExportLogs) }
+        binding.geoAwarenessViewDetailedLogsButton.setOnClickListener { dispatch(GeoAwarenessAction.ShowDetailedLogs) }
+        binding.geoAwarenessExportEvidenceButton.setOnClickListener { dispatch(GeoAwarenessAction.ExportEvidence) }
+        binding.geoAwarenessExportEncryptedIncidentsButton.setOnClickListener {
+            dispatch(GeoAwarenessAction.ExportEncryptedIncidents)
+        }
+        binding.geoAwarenessInternalSection.setOnClickListener { dispatch(GeoAwarenessAction.ShowVerification) }
     }
 
     fun clear() {

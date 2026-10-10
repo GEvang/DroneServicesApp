@@ -18,6 +18,7 @@ class GeoAwarenessFragment : Fragment() {
 
     private lateinit var activityViewModel: MainActivityViewModel
     private lateinit var droneViewModel: DroneViewModel
+    private lateinit var uiViewModel: GeoAwarenessViewModel
     private val session = GeoAwarenessSessionState()
     private var controllers: GeoAwarenessControllerFactory.Components? = null
     private val datasetPicker = GeoAwarenessDatasetPickerController(this, session) { selection ->
@@ -45,12 +46,14 @@ class GeoAwarenessFragment : Fragment() {
 
         activityViewModel = ViewModelProvider(requireActivity())[MainActivityViewModel::class.java]
         droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
+        uiViewModel = ViewModelProvider(this)[GeoAwarenessViewModel::class.java]
         controllers = GeoAwarenessControllerFactory().create(
             fragment = this,
             binding = binding,
             owner = viewLifecycleOwner,
             activityViewModel = activityViewModel,
             droneViewModel = droneViewModel,
+            uiViewModel = uiViewModel,
             session = session,
             picker = datasetPicker,
         )

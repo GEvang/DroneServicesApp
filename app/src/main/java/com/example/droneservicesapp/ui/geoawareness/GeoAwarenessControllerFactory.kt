@@ -61,6 +61,7 @@ class GeoAwarenessControllerFactory {
         owner: LifecycleOwner,
         activityViewModel: MainActivityViewModel,
         droneViewModel: DroneViewModel,
+        uiViewModel: GeoAwarenessViewModel,
         session: GeoAwarenessSessionState,
         picker: GeoAwarenessDatasetPickerController,
     ): Components {
@@ -68,25 +69,40 @@ class GeoAwarenessControllerFactory {
         val scope = owner.lifecycleScope
         val logger = GeoAwarenessEventLogger(context.applicationContext)
         val datasetRenderer = GeoAwarenessDatasetListRenderer(context)
-        val statusPresenter = GeoAwarenessStatusPresenter(context)
+        val statusPresenter = GeoAwarenessStatusViewBinder(context)
         val validationPresenter = GeoAwarenessValidationPresenter(context)
         val datasetDialogs = GeoAwarenessDatasetDialogController(context, validationPresenter)
-        val logPresenter = GeoAwarenessEventLogPresenter(context, logger)
+        val logPresenter = GeoAwarenessEventLogViewBinder(context, logger)
         val logDialogs = GeoAwarenessLogDialogController(context)
         val auditFormatter = GeoAwarenessDatasetAuditFormatter()
         val actions = GeoAwarenessUiActionController()
         val observer = GeoAwarenessObserverCoordinator()
         val telemetryObserver = GeoAwarenessTelemetryObserver(session)
 
-        fun refreshEvents() = logPresenter.refresh(binding)
+        fun refreshEvents() {
+            val events = logger.readEvents(maxLines = Int.MAX_VALUE)
+            uiViewModel.dispatch(GeoAwarenessAction.EventsChanged(events))
+            logPresenter.refresh(binding)
+        }
         fun renderSource() {
             val state = session.dataset
+            uiViewModel.dispatch(
+                GeoAwarenessAction.DatasetChanged(
+                    importedActive = state.importedActive,
+                    info = state.datasetInfo,
+                    records = state.records,
+                    validation = state.validation ?: GeoZoneValidationResult.ok(),
+                    health = state.health,
+                    errorMessage = state.loadError?.message,
+                )
+            )
             statusPresenter.renderSource(
                 binding,
-                GeoAwarenessStatusPresenter.SourceState(state.importedActive, state.datasetInfo, state.records, state.validation),
+                GeoAwarenessStatusViewBinder.SourceState(state.importedActive, state.datasetInfo, state.records, state.validation),
             )
         }
         fun setBusy(busy: Boolean, message: String?) {
+            uiViewModel.dispatch(GeoAwarenessAction.BusyChanged(busy, message))
             statusPresenter.renderBusy(binding, busy, message ?: context.getString(R.string.geo_loading_dataset))
             datasetRenderer.setBusy(busy)
         }
@@ -208,29 +224,46 @@ class GeoAwarenessControllerFactory {
 
         actions.bind(
             binding,
-            GeoAwarenessUiActionController.Actions(
-                overlayVisibilityChanged = { visible ->
-                    if (activityViewModel.geoAwarenessLayerVisible.value != visible) activityViewModel.geoAwarenessLayerVisible.value = visible
-                },
-                importDataset = picker::launchImport,
-                removeAllDatasets = workflow::confirmRemoveAll,
-                refreshStatus = { if (!workflow.isBusy) datasetState.refresh(manual = true) },
-                showValidation = {
-                    val validation = session.dataset.validation ?: GeoZoneValidationResult.ok()
-                    datasetDialogs.readable(context.getString(R.string.geo_dataset_validation), validationPresenter.details(validation))
-                },
-                exportLogs = export::exportStandardLogs,
-                showDetailedLogs = { logDialogs.showDetailedPreview(logPresenter.detailedPreview()) },
-                exportEvidence = export::exportEvidencePackage,
-                exportEncryptedIncidents = export::exportEncryptedIncidents,
-                showVerification = verificationDialogs::show,
-            ),
+            { action ->
+                uiViewModel.dispatch(action)
+                when (action) {
+                    is GeoAwarenessAction.SetOverlayVisibility -> {
+                        val visible = action.visible
+                        if (activityViewModel.geoAwarenessLayerVisible.value != visible) {
+                            activityViewModel.geoAwarenessLayerVisible.value = visible
+                        }
+                    }
+                    GeoAwarenessAction.ImportDataset -> picker.launchImport()
+                    GeoAwarenessAction.RemoveAllDatasets -> workflow.confirmRemoveAll()
+                    GeoAwarenessAction.RefreshStatus -> if (!workflow.isBusy) datasetState.refresh(manual = true)
+                    GeoAwarenessAction.ShowValidation -> {
+                        val validation = session.dataset.validation ?: GeoZoneValidationResult.ok()
+                        datasetDialogs.readable(
+                            context.getString(R.string.geo_dataset_validation),
+                            validationPresenter.details(validation),
+                        )
+                    }
+                    GeoAwarenessAction.ExportLogs -> export.exportStandardLogs()
+                    GeoAwarenessAction.ShowDetailedLogs ->
+                        logDialogs.showDetailedPreview(logPresenter.detailedPreview())
+                    GeoAwarenessAction.ExportEvidence -> export.exportEvidencePackage()
+                    GeoAwarenessAction.ExportEncryptedIncidents -> export.exportEncryptedIncidents()
+                    GeoAwarenessAction.ShowVerification -> verificationDialogs.show()
+                    is GeoAwarenessAction.OverlayVisibilityObserved,
+                    is GeoAwarenessAction.DatasetChanged,
+                    is GeoAwarenessAction.EventsChanged,
+                    is GeoAwarenessAction.BusyChanged -> Unit
+                }
+            },
         )
         observer.observe(
             owner,
             activityViewModel,
             GeoAwarenessObserverCoordinator.Callbacks(
-                onOverlayVisibility = { binding.geoAwarenessOverlaySwitch.isChecked = it },
+                onOverlayVisibility = {
+                    uiViewModel.dispatch(GeoAwarenessAction.OverlayVisibilityObserved(it))
+                    binding.geoAwarenessOverlaySwitch.isChecked = it
+                },
                 onDatasetInfo = { info ->
                     if (session.dataset.datasetInfo != info) {
                         session.dataset = session.dataset.copy(datasetInfo = info)
@@ -261,6 +294,7 @@ class GeoAwarenessControllerFactory {
                     if (session.dataset.health != health) {
                         session.dataset = session.dataset.copy(health = health)
                         health?.let { statusPresenter.renderHealth(binding, it) }
+                        renderSource()
                     }
                 },
                 onReloadToken = datasetState::handleReloadToken,

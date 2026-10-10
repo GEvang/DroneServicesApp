@@ -37,4 +37,14 @@ class MissionMapViewModelTest {
 
         assertFalse(viewModel.homeMapUiState.value!!.shellState.isLeftPanelVisible)
     }
+
+    @Test
+    fun composeStateFlowPublishesTheSameScreenStateAsLegacyAdapter() {
+        val viewModel = MissionMapViewModel()
+
+        viewModel.updateFromMapState(MainActivityViewModel.MapState.Draw)
+
+        assertTrue(viewModel.homeMapUiStateFlow.value.interactionState.isDrawingEnabled)
+        assertTrue(viewModel.homeMapUiState.value!!.interactionState.isDrawingEnabled)
+    }
 }

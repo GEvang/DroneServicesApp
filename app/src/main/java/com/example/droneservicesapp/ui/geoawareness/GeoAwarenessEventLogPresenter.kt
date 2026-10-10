@@ -16,8 +16,8 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 
-/** Loads and renders recent geo-awareness audit events without retaining a binding. */
-class GeoAwarenessEventLogPresenter(
+/** Temporary XML adapter; new UI consumes [GeoAwarenessEventLogPresentationMapper] directly. */
+class GeoAwarenessEventLogViewBinder(
     private val context: Context,
     private val eventLogger: GeoAwarenessEventLogger,
 ) {

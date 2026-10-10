@@ -12,8 +12,8 @@ import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetInfo
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 
-/** Builds and renders immutable dataset, validation, health, and busy presentation state. */
-class GeoAwarenessStatusPresenter(private val context: Context) {
+/** Temporary XML adapter; new UI consumes [GeoAwarenessStatusPresentationMapper] directly. */
+class GeoAwarenessStatusViewBinder(private val context: Context) {
     data class SourceState(
         val importedActive: Boolean,
         val datasetInfo: GeoZoneDatasetInfo?,

@@ -37,7 +37,7 @@ class HomeTelemetryCoordinator(
     private var statePublishScheduled = false
     private val publishPendingState = Runnable {
         statePublishScheduled = false
-        pendingState?.let { homeTelemetryViewModel.homeTelemetryUiState.value = it }
+        pendingState?.let(homeTelemetryViewModel::updateUiState)
         pendingState = null
     }
 
@@ -191,7 +191,7 @@ class HomeTelemetryCoordinator(
         val batteryColorRes = resolveBatteryColorRes(batteryPercentage)
         val currentLocation = droneViewModel.droneLocationLiveData.value
 
-        homeTelemetryViewModel.homeTelemetryUiState.value = HomeTelemetryUiState(
+        homeTelemetryViewModel.updateUiState(HomeTelemetryUiState(
             isConnected = isConnected,
             connectionText = activity.getString(
                 if (isConnected) R.string.shell_status_connected else R.string.shell_status_disconnected
@@ -224,7 +224,7 @@ class HomeTelemetryCoordinator(
             showUploadProgress = uploadProgress in 1..99,
             frontDistanceMeters = droneViewModel.droneFrontDistance.value,
             backDistanceMeters = droneViewModel.droneBackDistance.value
-        )
+        ))
     }
 
     private fun update(transform: (HomeTelemetryUiState) -> HomeTelemetryUiState) {
