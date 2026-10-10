@@ -5,7 +5,6 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
-import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.droneservicesapp.R
@@ -35,7 +34,6 @@ class ParametersFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
         droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
 
         binding.avoidanceSwitch.setOnCheckedChangeListener { _, isChecked ->

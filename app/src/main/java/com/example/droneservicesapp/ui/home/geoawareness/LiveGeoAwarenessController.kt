@@ -394,12 +394,14 @@ class LiveGeoAwarenessController(
         val signature = "$label|$colorHex"
         if (lastTopStatusSignature == signature) return
         lastTopStatusSignature = signature
-        val status = root.findViewById<TextView?>(R.id.top_live_geo_status_text) ?: return
         val color = Color.parseColor(colorHex)
+        val isClear = label == context.getString(R.string.live_geo_clear_status)
+        viewModel.setShellLiveGeoStatus(label, color, isClear)
+        val status = root.findViewById<TextView?>(R.id.top_live_geo_status_text) ?: return
         status.text = label
         status.setTextColor(color)
         root.findViewById<ImageView?>(R.id.top_live_geo_icon)?.apply {
-            setImageResource(if (label == context.getString(R.string.live_geo_clear_status)) R.drawable.ic_baseline_check_circle_outline_24 else R.drawable.ic_status_warning_24)
+            setImageResource(if (isClear) R.drawable.ic_baseline_check_circle_outline_24 else R.drawable.ic_status_warning_24)
             setColorFilter(color)
         }
     }

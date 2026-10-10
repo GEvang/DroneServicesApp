@@ -28,6 +28,12 @@ import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
 import com.example.droneservicesapp.domain.terrain.TerrainServiceCorridor
 import com.google.android.gms.maps.model.LatLng
 
+data class ShellLiveGeoStatus(
+    val label: String = "",
+    val color: Int = 0xFFAAB5C6.toInt(),
+    val isClear: Boolean = false,
+)
+
 class MainActivityViewModel : ViewModel() {
 
     companion object {
@@ -53,6 +59,27 @@ class MainActivityViewModel : ViewModel() {
 
     val mapState: MutableLiveData<MapState> by lazy {
         MutableLiveData(MapState.Idle)
+    }
+
+    /** Controls the Compose mission-action bar while the legacy map destination is hosted. */
+    val shellBottomActionBarVisible: MutableLiveData<Boolean> by lazy {
+        MutableLiveData(false)
+    }
+
+    /** Mirrors the map's live geo card so every shell destination shows the same status. */
+    val shellLiveGeoStatus: MutableLiveData<ShellLiveGeoStatus> by lazy {
+        MutableLiveData(ShellLiveGeoStatus())
+    }
+
+    fun setShellBottomActionBarVisible(visible: Boolean) {
+        if (shellBottomActionBarVisible.value != visible) {
+            shellBottomActionBarVisible.value = visible
+        }
+    }
+
+    fun setShellLiveGeoStatus(label: String, color: Int, isClear: Boolean) {
+        val status = ShellLiveGeoStatus(label, color, isClear)
+        if (shellLiveGeoStatus.value != status) shellLiveGeoStatus.value = status
     }
 
     val mapAction: MutableLiveData<Event<MapAction>> by lazy {

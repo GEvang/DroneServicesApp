@@ -22,7 +22,6 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.fragment.findNavController
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.ortho.OrthoBounds
 import com.example.droneservicesapp.data.ortho.SimpleTiffDecoder
@@ -34,6 +33,8 @@ import com.example.droneservicesapp.ui.home.components.EsriMapLayers
 import com.example.droneservicesapp.ui.preview.MissionPreviewPathSynchronizer
 import com.example.droneservicesapp.ui.preview.PreviewMapFocus
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
+import com.example.droneservicesapp.ui.compose.navigation.AppDestination
+import com.example.droneservicesapp.ui.compose.navigation.ShellNavigator
 import com.example.droneservicesapp.ui.preview.buildSurveyDirectionSegments
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
@@ -123,7 +124,7 @@ class OrthoPreviewFragment : Fragment() {
         ).also { it.bind() }
 
         binding.orthoPreviewCycleButton.setOnClickListener {
-            findNavController().navigate(R.id.nav_point_cloud)
+            (activity as? ShellNavigator)?.navigateTo(AppDestination.PointCloud)
         }
         binding.orthoLoadImageButton.setOnClickListener { openFilePicker(REQUEST_OPEN_TIFF) }
         binding.orthoLoadWorldButton.setOnClickListener { openFilePicker(REQUEST_OPEN_WORLD) }

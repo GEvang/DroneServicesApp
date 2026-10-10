@@ -15,7 +15,6 @@ import androidx.core.view.isVisible
 import androidx.fragment.app.activityViewModels
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.lifecycleScope
-import androidx.navigation.fragment.findNavController
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.pointcloud.PointCloudImportCache
 import com.example.droneservicesapp.data.pointcloud.PointCloudData
@@ -27,6 +26,7 @@ import com.example.droneservicesapp.ui.preview.MissionPreviewPathSynchronizer
 import com.example.droneservicesapp.ui.preview.PreviewMapFocus
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
 import com.example.droneservicesapp.ui.preview.buildSurveyDirectionSegments
+import com.example.droneservicesapp.ui.compose.navigation.ShellNavigator
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.SphericalUtil
@@ -80,10 +80,7 @@ class PointCloudViewerFragment : Fragment() {
         ).also { it.bind() }
         binding.pointCloudPreviewCycleButton.setOnClickListener {
             previewAssetsViewModel.requestMapFocus(PreviewMapFocus.POINT_CLOUD)
-            val navController = findNavController()
-            if (!navController.popBackStack(R.id.nav_maps_home, false)) {
-                navController.navigate(R.id.nav_maps_home)
-            }
+            (activity as? ShellNavigator)?.returnToHome()
         }
         binding.pointCloudBottomUtilityDock.bringToFront()
         binding.pointCloudLoadButton.setOnClickListener { openPointCloudPicker() }

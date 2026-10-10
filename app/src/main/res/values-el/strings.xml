@@ -66,6 +66,14 @@
   <string name="map_dock_offline">Εκτός σύνδεσης</string>
   <string name="more">Περισσότερα</string>
   <string name="shell_operator_console">Κονσόλα Χειριστή</string>
+  <string name="shell_open_navigation">Άνοιγμα πλοήγησης</string>
+  <string name="shell_back">Πίσω</string>
+  <string name="shell_navigation_title">Πλοήγηση</string>
+  <string name="shell_telemetry_battery">Μπαταρία</string>
+  <string name="shell_telemetry_altitude">Υψόμετρο</string>
+  <string name="shell_telemetry_speed">Ταχύτητα</string>
+  <string name="shell_telemetry_sprayer">Ψεκαστικό</string>
+  <string name="shell_telemetry_mission">Αποστολή</string>
   <string name="shell_status_connected">ΣΥΝΔΕΣΗ ΟΚ</string>
   <string name="shell_status_disconnected">ΧΩΡΙΣ ΣΥΝΔΕΣΗ</string>
   <string name="shell_status_gps_placeholder">GPS: --</string>

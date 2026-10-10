@@ -155,7 +155,7 @@ class MissionMapControllerFactory(
     ): Ui {
         val chrome = HomeMapChromeBinder(
             binding = binding,
-            bottomActionBarViewProvider = { activity.findViewById(R.id.bottom_nav_view) },
+            onBottomActionBarVisibilityChanged = activityViewModel::setShellBottomActionBarVisible,
         )
         val panels = HomeMapPanelsBinder(
             missionParamsView = root.findViewById(R.id.mission_params_side_view),

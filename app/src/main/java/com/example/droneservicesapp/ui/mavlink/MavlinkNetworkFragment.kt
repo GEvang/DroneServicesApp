@@ -42,7 +42,6 @@ class MavlinkNetworkFragment : Fragment(), SharedPreferences.OnSharedPreferenceC
         savedInstanceState: Bundle?,
     ): View {
         preferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
-        requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
         val root = inflater.inflate(R.layout.fragment_mavlink_network, container, false)
         root.findViewById<android.widget.ImageView>(R.id.more_header_icon).setImageResource(R.drawable.ic_menu_mavlink_network)
         root.findViewById<TextView>(R.id.more_header_title).setText(R.string.menu_mavlink_network)

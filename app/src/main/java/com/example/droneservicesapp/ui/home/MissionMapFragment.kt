@@ -9,12 +9,10 @@ import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
 import androidx.constraintlayout.widget.ConstraintSet
-import androidx.core.view.GravityCompat
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.ViewModelProvider
-import androidx.drawerlayout.widget.DrawerLayout
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventType
@@ -87,6 +85,7 @@ import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
 import com.example.droneservicesapp.ui.preview.PreviewAssetStore
 import com.example.droneservicesapp.ui.preview.PreviewAssetLoader
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
+import com.example.droneservicesapp.ui.compose.navigation.ShellNavigator
 import com.example.droneservicesapp.ui.common.RtkTonePlayer
 import com.google.android.gms.maps.model.LatLng
 import io.dronefleet.mavlink.common.MavLandedState
@@ -328,7 +327,6 @@ class MissionMapFragment : Fragment() {
             maxDroneAttempts = MAX_INITIAL_DRONE_CENTER_ATTEMPTS,
         )
         viewLifecycleController = HomeMapViewLifecycleController(
-            activityProvider = { activity },
             mapView = mapView,
             mapController = osmdroidMapController,
             pointCloudView = binding.homePointCloudGlView,
@@ -584,8 +582,7 @@ class MissionMapFragment : Fragment() {
                 startDroneOffset = ::startDroneOffsetAdjustment,
                 cyclePreviewMode = previewWorkflowController::cycleMode,
                 openSettings = {
-                    requireActivity().findViewById<DrawerLayout>(R.id.drawer_layout)
-                        .openDrawer(GravityCompat.START)
+                    (activity as? ShellNavigator)?.openNavigation()
                 },
                 togglePlanning = {
                     cancelDroneOffsetAdjustment()
@@ -1375,6 +1372,7 @@ class MissionMapFragment : Fragment() {
     }
 
     override fun onDestroyView() {
+        activityViewModel.setShellBottomActionBarVisible(false)
         viewLifecycleController.onDestroyView {
             if (::flightModeUiBinder.isInitialized) flightModeUiBinder.dismiss()
             if (::armUiBinder.isInitialized) armUiBinder.dismiss()

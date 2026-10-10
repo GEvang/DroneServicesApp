@@ -58,7 +58,6 @@ class RtkFragment : Fragment() {
         rtkPreferences = RtkPreferences(requireContext())
         droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
 
-        requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
         binding.rtkMountpointInput.keyListener = null
 
         loadSavedValues()

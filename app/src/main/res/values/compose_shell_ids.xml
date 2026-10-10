@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <item name="legacy_host_home" type="id" />
+    <item name="legacy_host_settings" type="id" />
+    <item name="legacy_host_mavlink" type="id" />
+    <item name="legacy_host_datasets" type="id" />
+    <item name="legacy_host_rtk" type="id" />
+    <item name="legacy_host_geo_awareness" type="id" />
+    <item name="legacy_host_parameters" type="id" />
+    <item name="legacy_host_point_cloud" type="id" />
+    <item name="legacy_host_ortho_preview" type="id" />
+    <item name="legacy_host_debug" type="id" />
+</resources>

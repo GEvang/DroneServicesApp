@@ -24,9 +24,10 @@ def versions = [
         recyclerView        : '1.3.1',
         securityCrypto      : '1.1.0-alpha06',
 
-        // Lifecycle is Compose-ready; Fragment Navigation remains until the shell migration.
+        // Lifecycle and navigation are shared by the Compose shell and temporary Fragment hosts.
         lifecycle           : '2.8.7',
-        navigation          : '2.5.3',
+        fragment            : '1.8.9',
+        navigation          : '2.8.9',
 
         // Google Play Services
         playServicesMaps    : '18.1.0',
@@ -146,8 +147,8 @@ dependencies {
     debugImplementation 'androidx.compose.ui:ui-test-manifest'
 
     // Navigation
-    implementation "androidx.navigation:navigation-fragment-ktx:${versions.navigation}"
-    implementation "androidx.navigation:navigation-ui-ktx:${versions.navigation}"
+    implementation "androidx.fragment:fragment-ktx:${versions.fragment}"
+    implementation "androidx.navigation:navigation-compose:${versions.navigation}"
 
     // UI Components
     implementation "androidx.preference:preference-ktx:${versions.preference}"
@@ -175,6 +176,7 @@ dependencies {
     // Instrumentation testing (correct scope)
     androidTestImplementation "androidx.test:core-ktx:${versions.androidXTest}"
     androidTestImplementation "androidx.test:runner:${versions.androidXTest}"
+    androidTestImplementation "androidx.test:rules:${versions.androidXTest}"
     androidTestImplementation "androidx.test:monitor:${versions.testMonitor}"
     androidTestImplementation "androidx.test.ext:junit-ktx:${versions.junitKtx}"
     androidTestImplementation "androidx.test.espresso:espresso-core:${versions.espresso}"

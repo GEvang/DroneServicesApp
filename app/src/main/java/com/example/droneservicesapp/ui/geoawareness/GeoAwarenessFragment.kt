@@ -4,7 +4,6 @@ import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.example.droneservicesapp.R
@@ -42,8 +41,6 @@ class GeoAwarenessFragment : Fragment() {
             .setText(R.string.geo_awareness_title)
         view.findViewById<android.widget.TextView>(R.id.more_header_subtitle)
             .setText(R.string.geo_awareness_subtitle)
-        requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
-
         activityViewModel = ViewModelProvider(requireActivity())[MainActivityViewModel::class.java]
         droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
         uiViewModel = ViewModelProvider(this)[GeoAwarenessViewModel::class.java]

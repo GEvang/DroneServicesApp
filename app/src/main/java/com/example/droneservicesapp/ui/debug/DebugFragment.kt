@@ -59,7 +59,6 @@ class DebugFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
-        requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
         droneViewModel = ViewModelProvider(requireActivity())[DroneViewModel::class.java]
         parameterAdapter = VehicleParameterAdapter(::showParameterEditor)
         bindUnlockGate()

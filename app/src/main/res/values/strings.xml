@@ -247,6 +247,14 @@
     <string name="geo_awareness_event_count">Geo-awareness events recorded:</string>
     <string name="geo_awareness_import_success">Geo-zone dataset imported successfully.</string>
     <string name="shell_operator_console">Operator Console</string>
+    <string name="shell_open_navigation">Open navigation</string>
+    <string name="shell_back">Back</string>
+    <string name="shell_navigation_title">Navigation</string>
+    <string name="shell_telemetry_battery">Battery</string>
+    <string name="shell_telemetry_altitude">Altitude</string>
+    <string name="shell_telemetry_speed">Speed</string>
+    <string name="shell_telemetry_sprayer">Sprayer</string>
+    <string name="shell_telemetry_mission">Mission</string>
     <string name="shell_status_connected">LINK OK</string>
     <string name="shell_status_disconnected">NO LINK</string>
     <string name="shell_status_gps_placeholder">GPS: --</string>

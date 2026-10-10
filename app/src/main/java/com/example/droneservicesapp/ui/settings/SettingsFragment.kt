@@ -13,7 +13,6 @@ import android.widget.Toast
 import androidx.appcompat.app.AlertDialog
 import androidx.core.content.ContextCompat
 import androidx.core.content.edit
-import androidx.core.view.isVisible
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import androidx.preference.PreferenceManager
@@ -55,8 +54,6 @@ class SettingsFragment : Fragment(), SharedPreferences.OnSharedPreferenceChangeL
     ): View {
         sharedPreferences = PreferenceManager.getDefaultSharedPreferences(requireContext())
         activityViewModel = ViewModelProvider(requireActivity())[MainActivityViewModel::class.java]
-        requireActivity().findViewById<View>(R.id.bottom_nav_view)?.isVisible = false
-
         val root = inflater.inflate(R.layout.fragment_settings, container, false)
         root.findViewById<android.widget.ImageView>(R.id.more_header_icon).setImageResource(R.drawable.ic_menu_settings)
         root.findViewById<TextView>(R.id.more_header_title).setText(R.string.menu_settings)
