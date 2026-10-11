@@ -113,7 +113,7 @@ fun DroneServicesApp(
 
     ModalNavigationDrawer(
         drawerState = drawerState,
-        gesturesEnabled = destination.showInDrawer,
+        gesturesEnabled = destination.drawerGesturesEnabled,
         drawerContent = {
             ShellDrawer(
                 selectedDestination = destination,

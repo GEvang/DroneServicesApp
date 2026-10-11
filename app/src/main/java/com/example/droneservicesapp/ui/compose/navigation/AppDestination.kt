@@ -5,7 +5,6 @@ import androidx.annotation.IdRes
 import androidx.annotation.StringRes
 import androidx.fragment.app.Fragment
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.ui.datasets.DatasetsFragment
 import com.example.droneservicesapp.ui.geoawareness.GeoAwarenessFragment
 import com.example.droneservicesapp.ui.home.MissionMapFragment
 import com.example.droneservicesapp.ui.ortho.OrthoPreviewFragment
@@ -17,6 +16,7 @@ sealed class AppDestination(
     @DrawableRes val iconRes: Int,
     @IdRes val legacyContainerId: Int,
     val showInDrawer: Boolean = true,
+    val drawerGesturesEnabled: Boolean = showInDrawer,
     val createFragment: (() -> Fragment)? = null,
 ) {
     data object Home : AppDestination(
@@ -24,6 +24,7 @@ sealed class AppDestination(
         labelRes = R.string.menu_maps_home,
         iconRes = R.drawable.ic_menu_map,
         legacyContainerId = R.id.legacy_host_home,
+        drawerGesturesEnabled = false,
         createFragment = ::MissionMapFragment,
     )
 
@@ -46,7 +47,6 @@ sealed class AppDestination(
         labelRes = R.string.menu_datasets,
         iconRes = R.drawable.ic_folder_24,
         legacyContainerId = R.id.legacy_host_datasets,
-        createFragment = ::DatasetsFragment,
     )
 
     data object Rtk : AppDestination(

@@ -27,6 +27,7 @@ import com.example.droneservicesapp.ui.compose.theme.DroneServicesTheme
 import com.example.droneservicesapp.ui.home.binders.HomeTelemetryCoordinator
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryUiState
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
+import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
 import com.example.droneservicesapp.ui.shell.coordinators.MavlinkSessionCoordinator
 import com.example.droneservicesapp.ui.shell.model.BottomActionBarUiState
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
@@ -38,6 +39,7 @@ class MainActivity : AppCompatActivity(), ShellNavigator {
     private lateinit var activityViewModel: MainActivityViewModel
     private lateinit var homeTelemetryViewModel: HomeTelemetryViewModel
     private lateinit var navigationViewModel: ShellNavigationViewModel
+    private lateinit var previewAssetsViewModel: PreviewAssetsViewModel
     private lateinit var homeTelemetryCoordinator: HomeTelemetryCoordinator
     private lateinit var mavlinkSessionCoordinator: MavlinkSessionCoordinator
     private lateinit var bottomMissionActionHandler: BottomMissionActionHandler
@@ -56,6 +58,7 @@ class MainActivity : AppCompatActivity(), ShellNavigator {
         activityViewModel = ViewModelProvider(this)[MainActivityViewModel::class.java]
         homeTelemetryViewModel = ViewModelProvider(this)[HomeTelemetryViewModel::class.java]
         navigationViewModel = ViewModelProvider(this)[ShellNavigationViewModel::class.java]
+        previewAssetsViewModel = ViewModelProvider(this)[PreviewAssetsViewModel::class.java]
 
         loadPlanningOperationMode()
         bindPlanningParameterPolicy()
@@ -99,6 +102,7 @@ class MainActivity : AppCompatActivity(), ShellNavigator {
                             destination = destination,
                             droneViewModel = droneViewModel,
                             activityViewModel = activityViewModel,
+                            previewAssetsViewModel = previewAssetsViewModel,
                         )
                     },
                 )

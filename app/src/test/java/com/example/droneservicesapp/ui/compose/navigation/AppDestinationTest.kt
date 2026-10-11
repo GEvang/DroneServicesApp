@@ -5,9 +5,18 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class AppDestinationTest {
+    @Test
+    fun mapDestinationsReserveDragGesturesForMapInteraction() {
+        assertFalse(AppDestination.Home.drawerGesturesEnabled)
+        assertFalse(AppDestination.OrthoPreview.drawerGesturesEnabled)
+        assertFalse(AppDestination.PointCloud.drawerGesturesEnabled)
+        assertTrue(AppDestination.Settings.drawerGesturesEnabled)
+    }
+
     @Test
     fun routesAreUniqueAndResolveToTheirTypedDestinations() {
         assertEquals(AppDestination.all.size, AppDestination.all.map { it.route }.distinct().size)
@@ -32,6 +41,7 @@ class AppDestinationTest {
             AppDestination.Rtk,
             AppDestination.Parameters,
             AppDestination.Debug,
+            AppDestination.Datasets,
         )
         AppDestination.all.forEach { destination ->
             if (destination in migrated) {
