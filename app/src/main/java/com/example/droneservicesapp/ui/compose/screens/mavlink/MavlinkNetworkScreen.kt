@@ -2,15 +2,23 @@ package com.example.droneservicesapp.ui.compose.screens.mavlink
 
 import android.content.SharedPreferences
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -22,9 +30,13 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
@@ -33,6 +45,7 @@ import com.example.droneservicesapp.R
 import com.example.droneservicesapp.ui.compose.components.AppButton
 import com.example.droneservicesapp.ui.compose.components.AppButtonStyle
 import com.example.droneservicesapp.ui.compose.screens.common.MoreDivider
+import com.example.droneservicesapp.ui.compose.screens.common.MoreField
 import com.example.droneservicesapp.ui.compose.screens.common.MorePanel
 import com.example.droneservicesapp.ui.compose.screens.common.MoreScreen
 import com.example.droneservicesapp.ui.compose.screens.common.MoreSettingRow
@@ -91,41 +104,28 @@ fun MavlinkNetworkScreen() {
                     title = stringResource(R.string.more_drone_connection),
                     subtitle = stringResource(R.string.more_drone_connection_subtitle),
                 ) {
-                    MoreSettingRow(
-                        title = stringResource(R.string.drone_conn_interface_pref),
-                        value = state.interfaceType,
-                        iconRes = R.drawable.ic_status_signal_24,
-                        onClick = { openDialog(MavlinkDialog.INTERFACE, state.interfaceType) },
-                    )
+                    InterfaceRow(state.interfaceType) { openDialog(MavlinkDialog.INTERFACE, state.interfaceType) }
                     MoreDivider()
-                    if (!state.isTcp) {
-                        MoreSettingRow(
-                            title = stringResource(R.string.mavlink_local_port_title),
-                            value = state.localPort,
-                            iconRes = R.drawable.ic_menu_tune,
-                            onClick = { openDialog(MavlinkDialog.LOCAL_PORT, state.localPort) },
-                        )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        if (!state.isTcp) {
+                            MoreField(stringResource(R.string.mavlink_local_port_title), state.localPort, Modifier.weight(1f), R.drawable.ic_menu_tune) {
+                                openDialog(MavlinkDialog.LOCAL_PORT, state.localPort)
+                            }
+                        }
+                        MoreField(
+                            stringResource(R.string.mavlink_aircraft_host_title),
+                            state.targetHost.ifBlank { stringResource(if (state.isTcp) R.string.mavlink_required_value else R.string.mavlink_auto_value) },
+                            Modifier.weight(1f), R.drawable.ic_server_24,
+                        ) { openDialog(MavlinkDialog.TARGET_HOST, state.targetHost) }
                     }
-                    MoreSettingRow(
-                        title = stringResource(R.string.mavlink_aircraft_host_title),
-                        value = state.targetHost.ifBlank {
-                            stringResource(if (state.isTcp) R.string.mavlink_required_value else R.string.mavlink_auto_value)
-                        },
-                        iconRes = R.drawable.ic_server_24,
-                        onClick = { openDialog(MavlinkDialog.TARGET_HOST, state.targetHost) },
-                    )
-                    MoreSettingRow(
-                        title = stringResource(R.string.mavlink_aircraft_port_title),
-                        value = state.targetPort,
-                        iconRes = R.drawable.ic_menu_tune,
-                        onClick = { openDialog(MavlinkDialog.TARGET_PORT, state.targetPort) },
-                    )
-                    MoreSettingRow(
-                        title = stringResource(R.string.mavlink_gcs_system_id_title),
-                        value = state.systemId,
-                        iconRes = R.drawable.ic_person_24,
-                        onClick = { openDialog(MavlinkDialog.SYSTEM_ID, state.systemId) },
-                    )
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        MoreField(stringResource(R.string.mavlink_aircraft_port_title), state.targetPort, Modifier.weight(1f), R.drawable.ic_menu_tune) {
+                            openDialog(MavlinkDialog.TARGET_PORT, state.targetPort)
+                        }
+                        MoreField(stringResource(R.string.mavlink_gcs_system_id_title), state.systemId, Modifier.weight(1f), R.drawable.ic_person_24) {
+                            openDialog(MavlinkDialog.SYSTEM_ID, state.systemId)
+                        }
+                    }
                     Text(stringResource(R.string.more_mavlink_direct_info))
                 }
             },
@@ -150,20 +150,18 @@ fun MavlinkNetworkScreen() {
                             },
                         )
                         MoreDivider()
-                        MoreSettingRow(
-                            title = stringResource(R.string.mavlink_qgc_host_title),
-                            value = state.qgcHost.ifBlank { stringResource(R.string.mavlink_auto_value) },
-                            iconRes = R.drawable.ic_server_24,
-                            enabled = state.bridgeEnabled,
-                            onClick = { openDialog(MavlinkDialog.QGC_HOST, state.qgcHost) },
-                        )
-                        MoreSettingRow(
-                            title = stringResource(R.string.mavlink_qgc_port_title),
-                            value = state.qgcPort,
-                            iconRes = R.drawable.ic_menu_tune,
-                            enabled = state.bridgeEnabled,
-                            onClick = { openDialog(MavlinkDialog.QGC_PORT, state.qgcPort) },
-                        )
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            MoreField(
+                                stringResource(R.string.mavlink_qgc_host_title),
+                                state.qgcHost.ifBlank { stringResource(R.string.mavlink_auto_value) },
+                                Modifier.weight(1f), R.drawable.ic_server_24, state.bridgeEnabled,
+                            ) { openDialog(MavlinkDialog.QGC_HOST, state.qgcHost) }
+                            MoreField(
+                                stringResource(R.string.mavlink_qgc_port_title), state.qgcPort,
+                                Modifier.weight(1f), R.drawable.ic_menu_tune, state.bridgeEnabled,
+                            ) { openDialog(MavlinkDialog.QGC_PORT, state.qgcPort) }
+                        }
+                        BridgeFlow()
                         MoreDivider()
                         Text(state.bridgeStatus)
                     }
@@ -222,6 +220,52 @@ fun MavlinkNetworkScreen() {
             )
         }
     }
+}
+
+@Composable
+private fun InterfaceRow(value: String, onClick: () -> Unit) {
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().height(70.dp),
+        color = Color(0x99111B20),
+        shape = RoundedCornerShape(9.dp),
+        border = BorderStroke(1.dp, Color(0x8AC9D0D6)),
+    ) {
+        Row(Modifier.padding(horizontal = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Image(painterResource(R.drawable.ic_status_signal_24), null, Modifier.size(28.dp), colorFilter = ColorFilter.tint(Color(0xFF29E6DA)))
+            Text(stringResource(R.string.drone_conn_interface_pref), Modifier.padding(start = 12.dp).weight(1f), fontWeight = FontWeight.SemiBold)
+            Surface(color = Color(0x99111B20), shape = RoundedCornerShape(18.dp), border = BorderStroke(1.dp, Color(0x8AC9D0D6))) {
+                Text(value, Modifier.width(180.dp).padding(horizontal = 12.dp, vertical = 6.dp), fontWeight = FontWeight.SemiBold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BridgeFlow() {
+    Row(
+        modifier = Modifier.fillMaxWidth().height(70.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        FlowNode(R.drawable.ic_status_signal_24, stringResource(R.string.more_aircraft_radio), Modifier.weight(1f))
+        MoreDividerLine()
+        FlowNode(R.drawable.ic_menu_settings, stringResource(R.string.more_this_app), Modifier.weight(1f))
+        MoreDividerLine()
+        FlowNode(R.drawable.ic_menu_mavlink_network, stringResource(R.string.more_qgroundcontrol), Modifier.weight(1f))
+    }
+}
+
+@Composable
+private fun FlowNode(icon: Int, label: String, modifier: Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Image(painterResource(icon), null, Modifier.size(24.dp), colorFilter = ColorFilter.tint(androidx.compose.material3.MaterialTheme.colorScheme.onSurface))
+        Text(label, style = androidx.compose.material3.MaterialTheme.typography.bodySmall)
+    }
+}
+
+@Composable
+private fun MoreDividerLine() {
+    androidx.compose.material3.HorizontalDivider(Modifier.width(70.dp), color = Color(0xA629E6DA))
 }
 
 @Composable

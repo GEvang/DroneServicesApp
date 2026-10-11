@@ -57,6 +57,7 @@ fun AppButton(
             onClick = onClick,
             enabled = enabled,
             modifier = resolvedModifier,
+            shape = MaterialTheme.shapes.small,
             content = body,
         )
         AppButtonStyle.SECONDARY -> OutlinedButton(
@@ -64,6 +65,7 @@ fun AppButton(
             enabled = enabled,
             modifier = resolvedModifier,
             border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+            shape = MaterialTheme.shapes.small,
             content = body,
         )
         AppButtonStyle.DANGER -> Button(
@@ -74,12 +76,14 @@ fun AppButton(
                 containerColor = MaterialTheme.colorScheme.error,
                 contentColor = MaterialTheme.colorScheme.onError,
             ),
+            shape = MaterialTheme.shapes.small,
             content = body,
         )
         AppButtonStyle.TEXT -> TextButton(
             onClick = onClick,
             enabled = enabled,
             modifier = resolvedModifier,
+            shape = MaterialTheme.shapes.small,
             content = body,
         )
     }

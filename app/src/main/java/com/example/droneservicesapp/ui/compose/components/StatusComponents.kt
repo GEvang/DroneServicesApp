@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
@@ -20,6 +21,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
@@ -137,24 +140,31 @@ fun NavigationItem(
     selected: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    iconRes: Int? = null,
     supportingText: String? = null,
 ) {
-    val background = if (selected) MaterialTheme.colorScheme.primaryContainer else Color.Transparent
+    val background = if (selected) Color(0x2929E6DA) else Color.Transparent
+    val contentColor = if (selected) Color(0xFF29E6DA) else Color(0xFFC9D0D6)
     Surface(
         onClick = onClick,
         modifier = modifier
             .fillMaxWidth()
             .heightIn(min = DroneServicesSizes.minimumTouchTarget),
         color = background,
-        shape = MaterialTheme.shapes.small,
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(28.dp),
     ) {
-        Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)) {
-            Text(
-                label,
-                color = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurface,
-                style = MaterialTheme.typography.labelLarge,
-            )
-            supportingText?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            iconRes?.let {
+                Image(painterResource(it), null, Modifier.size(24.dp), colorFilter = ColorFilter.tint(contentColor))
+            }
+            Column {
+                Text(label, color = contentColor, style = MaterialTheme.typography.labelLarge)
+                supportingText?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
+            }
         }
     }
 }

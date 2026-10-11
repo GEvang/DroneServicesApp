@@ -33,6 +33,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.example.droneservicesapp.ui.compose.theme.DroneServicesThemeTokens
 
 @Composable
@@ -47,30 +48,30 @@ fun MoreScreen(
         modifier = modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Surface(
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(46.dp),
                 shape = MaterialTheme.shapes.extraLarge,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
-                color = MaterialTheme.colorScheme.surfaceVariant,
+                color = Color(0xCC091117),
             ) {
                 Image(
                     painter = painterResource(iconRes),
                     contentDescription = null,
-                    modifier = Modifier.padding(12.dp),
+                    modifier = Modifier.padding(10.dp),
                     colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
                 )
             }
             Column {
-                Text(title, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.SemiBold)
-                Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(title, fontSize = 25.sp, lineHeight = 28.sp, fontWeight = FontWeight.Bold)
+                Text(subtitle, fontSize = 14.sp, lineHeight = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         content()
@@ -87,14 +88,14 @@ fun TwoColumnLayout(
         if (maxWidth >= 760.dp) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp),
                 verticalAlignment = Alignment.Top,
             ) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp), content = left)
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp), content = right)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp), content = left)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp), content = right)
             }
         } else {
-            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 left()
                 right()
             }
@@ -111,18 +112,19 @@ fun MorePanel(
 ) {
     Surface(
         modifier = modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surfaceVariant,
-        shape = MaterialTheme.shapes.medium,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+        color = Color(0xCC091117),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(14.dp),
+        border = BorderStroke(1.dp, Color(0xA629E6DA)),
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+            Text(title, fontSize = 18.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold)
             subtitle?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(it, fontSize = 12.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
+            androidx.compose.foundation.layout.Spacer(Modifier.size(7.dp))
             content()
         }
     }
@@ -142,40 +144,34 @@ fun MoreSettingRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .heightIn(min = 52.dp)
+            .heightIn(min = 64.dp)
             .then(
                 if (onClick == null) Modifier else Modifier
                     .clickable(enabled = enabled, onClick = onClick)
                     .semantics { role = Role.Button }
             )
-            .padding(horizontal = 4.dp, vertical = 6.dp),
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        iconRes?.let {
-            Image(
-                painter = painterResource(it),
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                colorFilter = ColorFilter.tint(
-                    if (enabled) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.45f)
-                ),
-            )
-        }
+        iconRes?.let { MoreCircleIcon(it, enabled = enabled) }
         Column(Modifier.weight(1f)) {
             Text(
                 title,
-                style = MaterialTheme.typography.bodyMedium,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.45f),
             )
             supportingText?.let {
-                Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(it, fontSize = 12.sp, lineHeight = 16.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         }
         if (value.isNotBlank()) {
             Text(
                 value,
-                style = MaterialTheme.typography.bodyMedium,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 2,
                 overflow = TextOverflow.Ellipsis,
@@ -188,7 +184,76 @@ fun MoreSettingRow(
 
 @Composable
 fun MoreDivider() {
-    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
+    HorizontalDivider(color = Color(0xA629E6DA))
+}
+
+@Composable
+fun MoreCircleIcon(
+    @DrawableRes iconRes: Int,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+) {
+    Surface(
+        modifier = modifier.size(46.dp),
+        shape = androidx.compose.foundation.shape.CircleShape,
+        color = Color.Transparent,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+    ) {
+        Image(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            modifier = Modifier.padding(10.dp),
+            colorFilter = ColorFilter.tint(
+                MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else 0.45f)
+            ),
+        )
+    }
+}
+
+@Composable
+fun MoreField(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    @DrawableRes iconRes: Int? = null,
+    enabled: Boolean = true,
+    valueColor: Color = MaterialTheme.colorScheme.onSurface,
+    onClick: (() -> Unit)? = null,
+) {
+    Surface(
+        modifier = modifier
+            .heightIn(min = 72.dp)
+            .then(if (onClick == null) Modifier else Modifier.clickable(enabled = enabled, onClick = onClick)),
+        color = Color(0x99111B20),
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(9.dp),
+        border = BorderStroke(1.dp, Color(0x8AC9D0D6)),
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.Center,
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                iconRes?.let {
+                    Image(
+                        painterResource(it),
+                        null,
+                        Modifier.size(20.dp),
+                        colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface.copy(alpha = if (enabled) 1f else .45f)),
+                    )
+                }
+                Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = if (enabled) 1f else .45f))
+            }
+            Text(
+                value,
+                fontSize = 14.sp,
+                lineHeight = 18.sp,
+                fontWeight = FontWeight.SemiBold,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+                color = valueColor.copy(alpha = if (enabled) 1f else .45f),
+            )
+        }
+    }
 }
 
 @Composable
@@ -196,13 +261,20 @@ fun LabeledValue(
     label: String,
     value: String,
     modifier: Modifier = Modifier,
+    @DrawableRes iconRes: Int? = null,
     valueColor: Color = MaterialTheme.colorScheme.onSurface,
 ) {
     Column(modifier, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-        Text(label, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            iconRes?.let {
+                Image(painterResource(it), null, Modifier.size(20.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface))
+            }
+            Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
         Text(
             value,
-            style = MaterialTheme.typography.bodyMedium,
+            fontSize = 14.sp,
+            lineHeight = 18.sp,
             fontWeight = FontWeight.SemiBold,
             color = valueColor,
         )

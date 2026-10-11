@@ -188,7 +188,7 @@ private fun ShellDrawer(
         modifier = Modifier
             .width(DroneServicesSizes.drawerWidth)
             .testTag(SHELL_DRAWER_TAG),
-        drawerContainerColor = MaterialTheme.colorScheme.surface,
+        drawerContainerColor = Color(0xE6091117),
     ) {
         Column(
             modifier = Modifier.padding(DroneServicesThemeTokens.spacing.large),
@@ -206,6 +206,7 @@ private fun ShellDrawer(
             Text(
                 stringResource(R.string.drone_services_sprayer),
                 style = MaterialTheme.typography.titleLarge,
+                color = colorResource(R.color.ds_color_text_primary),
             )
             Text(
                 stringResource(R.string.shell_operator_console),
@@ -218,6 +219,7 @@ private fun ShellDrawer(
                     label = stringResource(destination.labelRes),
                     selected = destination == selectedDestination,
                     onClick = { onDestinationSelected(destination) },
+                    iconRes = destination.iconRes,
                     modifier = Modifier.testTag("drawer-${destination.route}"),
                 )
             }

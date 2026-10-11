@@ -4,6 +4,13 @@ import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -63,16 +70,12 @@ fun ParametersScreen(droneViewModel: DroneViewModel) {
         }
     }
 
-    MoreScreen(
-        title = stringResource(R.string.parameters_title),
-        subtitle = stringResource(R.string.parameters_subtitle),
-        iconRes = R.drawable.ic_menu_tune,
-        modifier = Modifier.testTag(PARAMETERS_SCREEN_TAG),
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp).testTag(PARAMETERS_SCREEN_TAG),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
+        Text(stringResource(R.string.parameters_title), style = MaterialTheme.typography.headlineSmall)
+        Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             ParameterCard(
                 title = stringResource(R.string.parameter_avoidance_label),
                 helper = stringResource(R.string.parameter_avoidance_helper),
@@ -97,18 +100,24 @@ private fun ParameterCard(
     onCheckedChange: (Boolean) -> Unit,
 ) {
     val enabled = state.availability == VehicleParameterAvailability.SUPPORTED && !state.isWriting
-    MorePanel(title = title, subtitle = helper) {
-        MoreSettingRow(
-            title = title,
-            value = statusText(state),
-            trailing = {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = MaterialTheme.shapes.medium,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            androidx.compose.foundation.layout.Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Text(title, Modifier.weight(1f), style = MaterialTheme.typography.bodyLarge)
                 Switch(
                     checked = (state.value ?: 0) != 0,
                     onCheckedChange = onCheckedChange,
                     enabled = enabled,
                 )
-            },
-        )
+            }
+            Text(helper, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(statusText(state), style = MaterialTheme.typography.bodySmall, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+        }
     }
 }
 

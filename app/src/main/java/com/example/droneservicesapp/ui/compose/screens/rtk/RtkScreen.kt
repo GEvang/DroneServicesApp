@@ -4,13 +4,17 @@ import android.app.Application
 import android.net.Network
 import android.widget.Toast
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,10 +26,16 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,6 +57,7 @@ import com.example.droneservicesapp.ui.compose.components.AppTextField
 import com.example.droneservicesapp.ui.compose.components.NumericInputField
 import com.example.droneservicesapp.ui.compose.screens.common.LabeledValue
 import com.example.droneservicesapp.ui.compose.screens.common.MoreDivider
+import com.example.droneservicesapp.ui.compose.screens.common.MoreField
 import com.example.droneservicesapp.ui.compose.screens.common.MorePanel
 import com.example.droneservicesapp.ui.compose.screens.common.MoreScreen
 import com.example.droneservicesapp.ui.compose.screens.common.TwoColumnLayout
@@ -234,6 +245,7 @@ fun RtkScreen(droneViewModel: DroneViewModel, screenViewModel: RtkScreenViewMode
     val selectedMountpoint by droneViewModel.selectedRtkMountpoint.observeAsState(state.selectedMountpoint)
     var lastStreaming by remember { mutableStateOf<Boolean?>(null) }
     var lastMountpoint by remember { mutableStateOf(state.mountpoint) }
+    var passwordVisible by remember { mutableStateOf(false) }
 
     LaunchedEffect(Unit) {
         droneViewModel.onRtkConfigurationChanged()
@@ -266,53 +278,62 @@ fun RtkScreen(droneViewModel: DroneViewModel, screenViewModel: RtkScreenViewMode
                     subtitle = stringResource(R.string.rtk_caster_access_subtitle),
                 ) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AppTextField(
+                        RtkInput(
                             state.ip,
                             { value ->
                                 screenViewModel.updateIp(value)
                                 droneViewModel.onRtkConfigurationChanged(forceStart = true)
                             },
                             stringResource(R.string.rtk_ip),
+                            R.drawable.ic_server_24,
                             Modifier.weight(1f),
                         )
-                        NumericInputField(
+                        RtkInput(
                             state.port,
                             { value ->
                                 screenViewModel.updatePort(value)
                                 droneViewModel.onRtkConfigurationChanged(forceStart = true)
                             },
                             stringResource(R.string.rtk_port),
+                            R.drawable.ic_menu_tune,
                             Modifier.weight(1f),
-                            allowDecimal = false,
+                            keyboardType = KeyboardType.Number,
                         )
                     }
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        AppTextField(
+                        RtkInput(
                             state.username,
                             { value ->
                                 screenViewModel.updateUsername(value)
                                 droneViewModel.onRtkConfigurationChanged(forceStart = true)
                             },
                             stringResource(R.string.rtk_username),
+                            R.drawable.ic_person_24,
                             Modifier.weight(1f),
                         )
-                        OutlinedTextField(
+                        RtkInput(
                             value = state.password,
                             onValueChange = { value ->
                                 screenViewModel.updatePassword(value)
                                 droneViewModel.onRtkConfigurationChanged(forceStart = true)
                             },
-                            label = { Text(stringResource(R.string.rtk_password)) },
+                            label = stringResource(R.string.rtk_password),
+                            iconRes = R.drawable.ic_lock_24,
                             modifier = Modifier.weight(1f),
-                            singleLine = true,
-                            visualTransformation = PasswordVisualTransformation(),
+                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                            trailing = {
+                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                    Text(if (passwordVisible) "◉" else "○")
+                                }
+                            },
                         )
                     }
-                    OutlinedTextField(
+                    RtkInput(
                         value = state.mountpoint,
                         onValueChange = {},
+                        label = stringResource(R.string.rtk_mountpoint),
+                        iconRes = R.drawable.ic_status_rtk_24,
                         readOnly = true,
-                        label = { Text(stringResource(R.string.rtk_mountpoint)) },
                         modifier = Modifier.fillMaxWidth(),
                     )
                     AppButton(
@@ -332,22 +353,26 @@ fun RtkScreen(droneViewModel: DroneViewModel, screenViewModel: RtkScreenViewMode
             },
             right = {
                 MorePanel(title = stringResource(R.string.rtk_connection_status)) {
-                    LabeledValue(
-                        stringResource(R.string.rtk_status),
-                        state.status,
-                        valueColor = if (state.statusSuccess) {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        MoreField(
+                            stringResource(R.string.rtk_status), state.status, Modifier.weight(1f),
+                            valueColor = if (state.statusSuccess) {
                             MaterialTheme.colorScheme.secondary
                         } else {
                             MaterialTheme.colorScheme.onSurface
                         },
-                    )
-                    LabeledValue(
-                        stringResource(R.string.rtk_forwarding_status),
-                        forwardingDisplayString(forwarding),
-                        valueColor = forwardingStateColor(forwarding),
-                    )
+                        )
+                        MoreField(
+                            stringResource(R.string.rtk_forwarding_status), forwardingDisplayString(forwarding), Modifier.weight(1f),
+                            valueColor = forwardingStateColor(forwarding),
+                        )
+                    }
                     MoreDivider()
-                    LabeledValue(stringResource(R.string.rtk_gps_diagnostics), gpsDebug)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Image(painterResource(R.drawable.ic_status_gps_pin_24), null, Modifier.size(24.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface))
+                        Text(stringResource(R.string.rtk_gps_diagnostics), style = MaterialTheme.typography.titleMedium)
+                    }
+                    MoreField("", gpsDebug, Modifier.fillMaxWidth())
                     MoreDivider()
                     LabeledValue(
                         stringResource(R.string.rtk_base_coordinates),
@@ -381,6 +406,35 @@ fun RtkScreen(droneViewModel: DroneViewModel, screenViewModel: RtkScreenViewMode
             confirmButton = {},
         )
     }
+}
+
+@Composable
+private fun RtkInput(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    iconRes: Int,
+    modifier: Modifier = Modifier,
+    readOnly: Boolean = false,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    visualTransformation: VisualTransformation = VisualTransformation.None,
+    trailing: (@Composable (() -> Unit))? = null,
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        leadingIcon = {
+            Image(painterResource(iconRes), null, Modifier.size(22.dp), colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface))
+        },
+        trailingIcon = trailing,
+        modifier = modifier,
+        readOnly = readOnly,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType),
+        visualTransformation = visualTransformation,
+        shape = RoundedCornerShape(9.dp),
+    )
 }
 
 @Composable

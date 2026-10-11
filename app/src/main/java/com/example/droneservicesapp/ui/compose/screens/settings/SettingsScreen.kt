@@ -4,12 +4,21 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.widget.Toast
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,9 +32,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
 import androidx.preference.PreferenceManager
@@ -119,23 +132,29 @@ fun SettingsScreen(activityViewModel: MainActivityViewModel) {
                     title = stringResource(R.string.more_mission_defaults),
                     subtitle = stringResource(R.string.more_mission_defaults_subtitle),
                 ) {
-                    Text(stringResource(R.string.mission_operation_mode_title))
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        OperationModeButton(
-                            label = stringResource(R.string.mission_operation_mode_spray),
-                            selected = operationMode == PlanningOperationMode.SPRAY,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            preferences.edit { putString(context.getString(R.string.mission_operation_mode_pref), PlanningOperationMode.SPRAY.name) }
-                        }
-                        OperationModeButton(
-                            label = stringResource(R.string.mission_operation_mode_survey),
-                            selected = operationMode == PlanningOperationMode.SURVEY,
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            preferences.edit { putString(context.getString(R.string.mission_operation_mode_pref), PlanningOperationMode.SURVEY.name) }
-                        }
-                    }
+                    MoreSettingRow(
+                        title = stringResource(R.string.mission_operation_mode_title),
+                        value = "",
+                        iconRes = R.drawable.ic_flight_mode_24,
+                        trailing = {
+                            Row {
+                                OperationModeButton(
+                                    label = stringResource(R.string.mission_operation_mode_spray),
+                                    selected = operationMode == PlanningOperationMode.SPRAY,
+                                    leading = true,
+                                ) {
+                                    preferences.edit { putString(context.getString(R.string.mission_operation_mode_pref), PlanningOperationMode.SPRAY.name) }
+                                }
+                                OperationModeButton(
+                                    label = stringResource(R.string.mission_operation_mode_survey),
+                                    selected = operationMode == PlanningOperationMode.SURVEY,
+                                    leading = false,
+                                ) {
+                                    preferences.edit { putString(context.getString(R.string.mission_operation_mode_pref), PlanningOperationMode.SURVEY.name) }
+                                }
+                            }
+                        },
+                    )
                 }
                 MorePanel(
                     title = stringResource(R.string.locales_categ_pref),
@@ -158,8 +177,7 @@ fun SettingsScreen(activityViewModel: MainActivityViewModel) {
                         iconRes = R.drawable.ic_database_24,
                     )
                     MoreDivider()
-                    AppButton(
-                        text = stringResource(R.string.settings_clear_offline_cache),
+                    OutlinedButton(
                         onClick = {
                             scope.launch {
                                 val cache = tileCacheDir()
@@ -178,9 +196,18 @@ fun SettingsScreen(activityViewModel: MainActivityViewModel) {
                                 ).show()
                             }
                         },
-                        modifier = Modifier.fillMaxWidth(),
-                        style = AppButtonStyle.DANGER,
-                    )
+                        modifier = Modifier.fillMaxWidth().height(48.dp),
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.error),
+                        shape = MaterialTheme.shapes.small,
+                    ) {
+                        Image(
+                            painterResource(R.drawable.ic_delete_24),
+                            null,
+                            Modifier.padding(end = 10.dp),
+                            colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.error),
+                        )
+                        Text(stringResource(R.string.settings_clear_offline_cache), color = MaterialTheme.colorScheme.error)
+                    }
                 }
             },
             right = {
@@ -207,11 +234,11 @@ fun SettingsScreen(activityViewModel: MainActivityViewModel) {
                     title = stringResource(R.string.settings_geo_data),
                     subtitle = stringResource(R.string.more_geo_data_subtitle),
                 ) {
-                    LabeledValue(stringResource(R.string.settings_dataset_source), geoSummary.source)
+                    LabeledValue(stringResource(R.string.settings_dataset_source), geoSummary.source, iconRes = R.drawable.ic_database_24)
                     MoreDivider()
-                    LabeledValue(stringResource(R.string.settings_last_data_update), geoSummary.updated)
-                    LabeledValue(stringResource(R.string.settings_update_status), geoSummary.status)
-                    LabeledValue(stringResource(R.string.settings_active_scope), geoSummary.scope)
+                    LabeledValue(stringResource(R.string.settings_last_data_update), geoSummary.updated, iconRes = R.drawable.ic_refresh_24)
+                    LabeledValue(stringResource(R.string.settings_update_status), geoSummary.status, iconRes = R.drawable.ic_status_warning_24)
+                    LabeledValue(stringResource(R.string.settings_active_scope), geoSummary.scope, iconRes = R.drawable.ic_status_gps_pin_24)
                 }
             },
         )
@@ -234,13 +261,24 @@ fun SettingsScreen(activityViewModel: MainActivityViewModel) {
 }
 
 @Composable
-private fun OperationModeButton(label: String, selected: Boolean, modifier: Modifier, onClick: () -> Unit) {
-    AppButton(
-        text = label,
+private fun OperationModeButton(label: String, selected: Boolean, leading: Boolean, onClick: () -> Unit) {
+    Surface(
         onClick = onClick,
-        modifier = modifier,
-        style = if (selected) AppButtonStyle.PRIMARY else AppButtonStyle.SECONDARY,
-    )
+        modifier = Modifier.width(132.dp).height(44.dp),
+        color = if (selected) MaterialTheme.colorScheme.primary else Color(0x99111B20),
+        contentColor = if (selected) Color(0xFF091117) else MaterialTheme.colorScheme.onSurface,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+        shape = RoundedCornerShape(
+            topStart = if (leading) 9.dp else 0.dp,
+            bottomStart = if (leading) 9.dp else 0.dp,
+            topEnd = if (leading) 0.dp else 9.dp,
+            bottomEnd = if (leading) 0.dp else 9.dp,
+        ),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+            Text(label, fontWeight = FontWeight.Medium)
+        }
+    }
 }
 
 @Composable

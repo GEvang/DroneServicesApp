@@ -8,6 +8,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -191,9 +192,9 @@ private fun DebugContent(droneViewModel: DroneViewModel) {
         contentPadding = androidx.compose.foundation.layout.PaddingValues(12.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        item { DebugHeader() }
+        item { Text(stringResource(R.string.debug_title), style = MaterialTheme.typography.headlineSmall) }
         item {
-            MorePanel(title = stringResource(R.string.debug_title)) {
+            DebugSection(card = true) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(stringResource(R.string.debug_access_enabled), Modifier.weight(1f))
                     Switch(accessEnabled, onCheckedChange = { enabled ->
@@ -249,7 +250,7 @@ private fun DebugContent(droneViewModel: DroneViewModel) {
             }
         }
         item {
-            MorePanel(
+            DebugSection(
                 title = stringResource(R.string.debug_parameters_title),
                 subtitle = stringResource(R.string.debug_parameters_description),
             ) {
@@ -286,7 +287,7 @@ private fun DebugContent(droneViewModel: DroneViewModel) {
             VehicleParameterRow(parameter) { editingParameter = parameter }
         }
         item {
-            MorePanel(
+            DebugSection(
                 title = stringResource(R.string.debug_dataflash_title),
                 subtitle = stringResource(R.string.debug_dataflash_description),
             ) {
@@ -327,7 +328,7 @@ private fun DebugContent(droneViewModel: DroneViewModel) {
             }
         }
         item {
-            MorePanel(
+            DebugSection(
                 title = stringResource(R.string.debug_diagnostics_title),
                 subtitle = stringResource(R.string.debug_diagnostics_description),
             ) {
@@ -357,7 +358,7 @@ private fun DebugContent(droneViewModel: DroneViewModel) {
             }
         }
         item {
-            MorePanel(
+            DebugSection(
                 title = stringResource(R.string.debug_sprayer),
                 subtitle = stringResource(R.string.debug_sprayer_pwm),
             ) {
@@ -403,24 +404,28 @@ private fun DebugContent(droneViewModel: DroneViewModel) {
 }
 
 @Composable
-private fun DebugHeader() {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+private fun DebugSection(
+    title: String? = null,
+    subtitle: String? = null,
+    card: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    val body: @Composable ColumnScope.() -> Unit = {
+        title?.let { Text(it, style = MaterialTheme.typography.titleLarge) }
+        subtitle?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+        content()
+    }
+    if (card) {
         Surface(
-            modifier = Modifier.size(48.dp),
-            shape = MaterialTheme.shapes.extraLarge,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.primary),
+            modifier = Modifier.fillMaxWidth(),
+            color = MaterialTheme.colorScheme.surfaceVariant,
+            shape = MaterialTheme.shapes.medium,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline),
         ) {
-            Image(
-                painterResource(R.drawable.ic_menu_bug),
-                null,
-                Modifier.padding(12.dp),
-                colorFilter = ColorFilter.tint(MaterialTheme.colorScheme.onSurface),
-            )
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp), content = body)
         }
-        Column {
-            Text(stringResource(R.string.debug_title), style = MaterialTheme.typography.headlineSmall)
-            Text(stringResource(R.string.debug_subtitle), style = MaterialTheme.typography.bodySmall)
-        }
+    } else {
+        Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp), content = body)
     }
 }
 
