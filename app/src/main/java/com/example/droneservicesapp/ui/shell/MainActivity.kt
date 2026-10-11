@@ -20,6 +20,7 @@ import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.ui.compose.navigation.AppDestination
 import com.example.droneservicesapp.ui.compose.navigation.DroneServicesApp
 import com.example.droneservicesapp.ui.compose.navigation.LocationPermissionEffect
+import com.example.droneservicesapp.ui.compose.navigation.ProductionDestinationContent
 import com.example.droneservicesapp.ui.compose.navigation.ShellNavigationViewModel
 import com.example.droneservicesapp.ui.compose.navigation.ShellNavigator
 import com.example.droneservicesapp.ui.compose.theme.DroneServicesTheme
@@ -93,6 +94,13 @@ class MainActivity : AppCompatActivity(), ShellNavigator {
                     bottomActionBarVisible = bottomBarVisible,
                     onBottomAction = bottomMissionActionHandler::handle,
                     navigationRequests = navigationViewModel.requests,
+                    destinationContent = { destination ->
+                        ProductionDestinationContent(
+                            destination = destination,
+                            droneViewModel = droneViewModel,
+                            activityViewModel = activityViewModel,
+                        )
+                    },
                 )
             }
         }

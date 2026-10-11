@@ -29,9 +29,12 @@ fun LegacyFragmentHost(
     val activity = LocalContext.current.findAppCompatActivity()
     val fragmentManager = activity.supportFragmentManager
     val fragmentTag = remember(destination.route) { "compose-shell:${destination.route}" }
+    val fragmentFactory = requireNotNull(destination.createFragment) {
+        "${destination.route} is a Compose destination and cannot be hosted as a Fragment."
+    }
     var containerReady by remember(destination.route) { mutableStateOf(false) }
     val fragment = remember(destination.route) {
-        fragmentManager.findFragmentByTag(fragmentTag) ?: destination.createFragment()
+        fragmentManager.findFragmentByTag(fragmentTag) ?: fragmentFactory()
     }
 
     AndroidView(

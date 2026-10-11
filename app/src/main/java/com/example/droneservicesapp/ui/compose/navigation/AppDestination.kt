@@ -6,15 +6,10 @@ import androidx.annotation.StringRes
 import androidx.fragment.app.Fragment
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.ui.datasets.DatasetsFragment
-import com.example.droneservicesapp.ui.debug.DebugFragment
 import com.example.droneservicesapp.ui.geoawareness.GeoAwarenessFragment
 import com.example.droneservicesapp.ui.home.MissionMapFragment
-import com.example.droneservicesapp.ui.mavlink.MavlinkNetworkFragment
 import com.example.droneservicesapp.ui.ortho.OrthoPreviewFragment
-import com.example.droneservicesapp.ui.parameters.ParametersFragment
 import com.example.droneservicesapp.ui.pointcloud.PointCloudViewerFragment
-import com.example.droneservicesapp.ui.rtk.RtkFragment
-import com.example.droneservicesapp.ui.settings.SettingsFragment
 
 sealed class AppDestination(
     val route: String,
@@ -22,7 +17,7 @@ sealed class AppDestination(
     @DrawableRes val iconRes: Int,
     @IdRes val legacyContainerId: Int,
     val showInDrawer: Boolean = true,
-    val createFragment: () -> Fragment,
+    val createFragment: (() -> Fragment)? = null,
 ) {
     data object Home : AppDestination(
         route = "home",
@@ -37,7 +32,6 @@ sealed class AppDestination(
         labelRes = R.string.menu_settings,
         iconRes = R.drawable.ic_menu_settings,
         legacyContainerId = R.id.legacy_host_settings,
-        createFragment = ::SettingsFragment,
     )
 
     data object MavlinkNetwork : AppDestination(
@@ -45,7 +39,6 @@ sealed class AppDestination(
         labelRes = R.string.menu_mavlink_network,
         iconRes = R.drawable.ic_menu_mavlink_network,
         legacyContainerId = R.id.legacy_host_mavlink,
-        createFragment = ::MavlinkNetworkFragment,
     )
 
     data object Datasets : AppDestination(
@@ -61,7 +54,6 @@ sealed class AppDestination(
         labelRes = R.string.menu_rtk,
         iconRes = R.drawable.ic_status_rtk_24,
         legacyContainerId = R.id.legacy_host_rtk,
-        createFragment = ::RtkFragment,
     )
 
     data object GeoAwareness : AppDestination(
@@ -77,7 +69,6 @@ sealed class AppDestination(
         labelRes = R.string.menu_parameters,
         iconRes = R.drawable.ic_menu_tune,
         legacyContainerId = R.id.legacy_host_parameters,
-        createFragment = ::ParametersFragment,
     )
 
     data object PointCloud : AppDestination(
@@ -103,7 +94,6 @@ sealed class AppDestination(
         labelRes = R.string.menu_debug,
         iconRes = R.drawable.ic_menu_bug,
         legacyContainerId = R.id.legacy_host_debug,
-        createFragment = ::DebugFragment,
     )
 
     companion object {

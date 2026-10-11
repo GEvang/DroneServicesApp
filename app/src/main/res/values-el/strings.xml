@@ -6,6 +6,8 @@
   <string name="menu_rtk">RTK</string>
   <string name="menu_parameters">Παράμετροι</string>
   <string name="parameters_title">Παράμετροι</string>
+    <string name="parameters_subtitle">Ρύθμιση υποστηριζόμενων παραμέτρων συμπεριφοράς αεροσκάφους</string>
+    <string name="debug_subtitle">Διαγνωστικά οχήματος και εργαλεία μηχανικού</string>
   <string name="spray_mode_terrain_rangefinder">Χαμηλή καλλιέργεια</string>
   <string name="spray_mode_relative_point_cloud">Δενδρώδης καλλιέργεια</string>
   <string name="spray_mode_point_cloud_validated">Δενδρώδης καλλιέργεια</string>

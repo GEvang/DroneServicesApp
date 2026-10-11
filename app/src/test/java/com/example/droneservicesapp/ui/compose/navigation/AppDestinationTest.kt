@@ -2,6 +2,8 @@ package com.example.droneservicesapp.ui.compose.navigation
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertSame
 import org.junit.Test
 
@@ -20,5 +22,23 @@ class AppDestinationTest {
         assertSame(AppDestination.Home, AppDestination.fromRoute(null))
         assertFalse(AppDestination.PointCloud in AppDestination.drawerDestinations)
         assertFalse(AppDestination.OrthoPreview in AppDestination.drawerDestinations)
+    }
+
+    @Test
+    fun onlyUnmigratedDestinationsExposeFragmentFactories() {
+        val migrated = setOf(
+            AppDestination.Settings,
+            AppDestination.MavlinkNetwork,
+            AppDestination.Rtk,
+            AppDestination.Parameters,
+            AppDestination.Debug,
+        )
+        AppDestination.all.forEach { destination ->
+            if (destination in migrated) {
+                assertNull(destination.createFragment)
+            } else {
+                assertNotNull(destination.createFragment)
+            }
+        }
     }
 }
