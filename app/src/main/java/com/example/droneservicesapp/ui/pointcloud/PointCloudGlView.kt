@@ -51,26 +51,30 @@ class PointCloudGlView @JvmOverloads constructor(
 
     init {
         setEGLContextClientVersion(2)
+        preserveEGLContextOnPause = true
         setRenderer(pointRenderer)
-        renderMode = RENDERMODE_CONTINUOUSLY
+        renderMode = RENDERMODE_WHEN_DIRTY
     }
 
     fun setPointCloud(pointCloud: PointCloudData) {
         queueEvent {
             pointRenderer.setPointCloud(pointCloud)
         }
+        requestRender()
     }
 
     fun clearPointCloud() {
         queueEvent {
             pointRenderer.clearPointCloud()
         }
+        requestRender()
     }
 
     fun setMissionOverlay(overlay: PointCloudMissionOverlay?) {
         queueEvent {
             pointRenderer.setMissionOverlay(overlay)
         }
+        requestRender()
     }
 
     fun setOnMissionPointClickListener(listener: ((Int, Float, Float) -> Unit)?) {
@@ -81,24 +85,28 @@ class PointCloudGlView @JvmOverloads constructor(
         queueEvent {
             pointRenderer.pointSize = pointSize
         }
+        requestRender()
     }
 
     fun setHeightColorModeEnabled(enabled: Boolean) {
         queueEvent {
             pointRenderer.setHeightColorModeEnabled(enabled)
         }
+        requestRender()
     }
 
     fun setPointCloudOpacity(opacity: Float) {
         queueEvent {
             pointRenderer.pointCloudOpacity = opacity.coerceIn(0f, 1f)
         }
+        requestRender()
     }
 
     fun resetCamera() {
         queueEvent {
             pointRenderer.resetCamera()
         }
+        requestRender()
     }
 
     /** Releases renderer-owned buffers and the GL program when the host permanently leaves composition. */
@@ -135,6 +143,7 @@ class PointCloudGlView @JvmOverloads constructor(
                         val scale = (previousDistance / distance.coerceAtLeast(1f))
                             .coerceIn(MIN_PINCH_SCALE, MAX_PINCH_SCALE)
                         queueEvent { pointRenderer.zoom(scale) }
+                        requestRender()
                     }
                     val centerX = pointerCenterX(event)
                     val centerY = pointerCenterY(event)
@@ -142,6 +151,7 @@ class PointCloudGlView @JvmOverloads constructor(
                     val dy = centerY - previousCenterY
                     if (abs(dx) > TOUCH_EPSILON || abs(dy) > TOUCH_EPSILON) {
                         queueEvent { pointRenderer.pan(dx, dy) }
+                        requestRender()
                     }
                     previousDistance = distance
                     previousCenterX = centerX
@@ -153,6 +163,7 @@ class PointCloudGlView @JvmOverloads constructor(
                         touchMoved = true
                     }
                     queueEvent { pointRenderer.rotate(dx, dy) }
+                    requestRender()
                     previousX = event.x
                     previousY = event.y
                 }

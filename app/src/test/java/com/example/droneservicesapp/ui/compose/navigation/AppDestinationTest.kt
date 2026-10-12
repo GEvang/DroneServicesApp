@@ -42,6 +42,9 @@ class AppDestinationTest {
             AppDestination.Parameters,
             AppDestination.Debug,
             AppDestination.Datasets,
+            AppDestination.GeoAwareness,
+            AppDestination.OrthoPreview,
+            AppDestination.PointCloud,
         )
         AppDestination.all.forEach { destination ->
             if (destination in migrated) {

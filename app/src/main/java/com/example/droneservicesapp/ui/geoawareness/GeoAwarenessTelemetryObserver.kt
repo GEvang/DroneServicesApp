@@ -1,7 +1,8 @@
 package com.example.droneservicesapp.ui.geoawareness
 
 import android.location.Location
-import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LiveData
+import androidx.lifecycle.Observer
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import io.dronefleet.mavlink.common.GpsFixType
@@ -23,22 +24,32 @@ class GeoAwarenessTelemetryObserver(private val session: GeoAwarenessSessionStat
     }
 
     private var onSnapshot: ((Snapshot) -> Unit)? = null
+    private val clearActions = mutableListOf<() -> Unit>()
 
-    fun observe(owner: LifecycleOwner, viewModel: DroneViewModel, onSnapshot: (Snapshot) -> Unit) {
+    fun observe(viewModel: DroneViewModel, onSnapshot: (Snapshot) -> Unit) {
+        clear()
         this.onSnapshot = onSnapshot
         val publish = { publish(viewModel) }
-        viewModel.droneLocationLiveData.observe(owner) { publish() }
-        viewModel.conStateLiveData.observe(owner) { publish() }
-        viewModel.gpsFixType.observe(owner) { publish() }
-        viewModel.droneAltitudeAmslMeters.observe(owner) { publish() }
-        viewModel.droneGroundSpeedMetersPerSecond.observe(owner) { publish() }
-        viewModel.droneVerticalSpeedMetersPerSecond.observe(owner) { publish() }
-        viewModel.droneHeading.observe(owner) { publish() }
+        observeForever(viewModel.droneLocationLiveData) { publish() }
+        observeForever(viewModel.conStateLiveData) { publish() }
+        observeForever(viewModel.gpsFixType) { publish() }
+        observeForever(viewModel.droneAltitudeAmslMeters) { publish() }
+        observeForever(viewModel.droneGroundSpeedMetersPerSecond) { publish() }
+        observeForever(viewModel.droneVerticalSpeedMetersPerSecond) { publish() }
+        observeForever(viewModel.droneHeading) { publish() }
         publish()
     }
 
     fun clear() {
+        clearActions.forEach { it() }
+        clearActions.clear()
         onSnapshot = null
+    }
+
+    private fun <T> observeForever(source: LiveData<T>, onChanged: (T) -> Unit) {
+        val observer = Observer<T>(onChanged)
+        source.observeForever(observer)
+        clearActions += { source.removeObserver(observer) }
     }
 
     private fun publish(viewModel: DroneViewModel) {

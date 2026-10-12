@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="point_cloud_mission_overlay_stats">Επικάλυψη αποστολής: %1$d γραμμές, %2$d σημεία</string>
+    <string name="point_cloud_area_status">Περιοχή: %1$s</string>
+    <string name="point_cloud_area_empty">Περιοχή: --</string>
+    <string name="point_cloud_height_colors">Χρώματα υψομέτρου</string>
+    <string name="preview_aircraft_marker">Αεροσκάφος</string>
+</resources>

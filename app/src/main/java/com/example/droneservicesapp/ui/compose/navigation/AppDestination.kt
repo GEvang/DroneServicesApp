@@ -5,10 +5,7 @@ import androidx.annotation.IdRes
 import androidx.annotation.StringRes
 import androidx.fragment.app.Fragment
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.ui.geoawareness.GeoAwarenessFragment
 import com.example.droneservicesapp.ui.home.MissionMapFragment
-import com.example.droneservicesapp.ui.ortho.OrthoPreviewFragment
-import com.example.droneservicesapp.ui.pointcloud.PointCloudViewerFragment
 
 sealed class AppDestination(
     val route: String,
@@ -61,7 +58,6 @@ sealed class AppDestination(
         labelRes = R.string.menu_geo_awareness,
         iconRes = R.drawable.ic_status_warning_24,
         legacyContainerId = R.id.legacy_host_geo_awareness,
-        createFragment = ::GeoAwarenessFragment,
     )
 
     data object Parameters : AppDestination(
@@ -77,7 +73,6 @@ sealed class AppDestination(
         iconRes = R.drawable.ic_menu_map,
         legacyContainerId = R.id.legacy_host_point_cloud,
         showInDrawer = false,
-        createFragment = ::PointCloudViewerFragment,
     )
 
     data object OrthoPreview : AppDestination(
@@ -86,7 +81,6 @@ sealed class AppDestination(
         iconRes = R.drawable.ic_menu_map,
         legacyContainerId = R.id.legacy_host_ortho_preview,
         showInDrawer = false,
-        createFragment = ::OrthoPreviewFragment,
     )
 
     data object Debug : AppDestination(

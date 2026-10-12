@@ -57,6 +57,15 @@ class PreviewAssetStore(context: Context) {
             .apply()
     }
 
+    fun clearOrtho() {
+        preferences.edit()
+            .remove(KEY_ORTHO_IMAGE_URI)
+            .remove(KEY_ORTHO_IMAGE_NAME)
+            .remove(KEY_ORTHO_WORLD_URI)
+            .remove(KEY_ORTHO_WORLD_NAME)
+            .apply()
+    }
+
     fun savePointCloud(uri: Uri, fileName: String) {
         preferences.edit()
             .putString(KEY_POINT_CLOUD_URI, uri.toString())

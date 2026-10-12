@@ -87,11 +87,10 @@ import com.example.droneservicesapp.ui.preview.PreviewAssetLoader
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.example.droneservicesapp.ui.compose.navigation.ShellNavigator
 import com.example.droneservicesapp.ui.common.RtkTonePlayer
+import com.example.droneservicesapp.ui.map.osmdroid.OsmdroidOfflineRegionDownloader
 import com.google.android.gms.maps.model.LatLng
 import io.dronefleet.mavlink.common.MavLandedState
-import org.osmdroid.tileprovider.cachemanager.CacheManager
 import org.osmdroid.views.MapView
-import java.util.concurrent.atomic.AtomicInteger
 
 class MissionMapFragment : Fragment() {
     private var _binding: FragmentHomeMapsBinding? = null
@@ -1285,53 +1284,15 @@ class MissionMapFragment : Fragment() {
     }
 
     private fun downloadCurrentViewOffline(minZoom: Int, maxZoom: Int) {
-        val bbox = mapView.boundingBox
-        val cacheManagers = mutableListOf(CacheManager(mapView))
-        if (esriMapLayers.labelsEnabled) {
-            val labelsProvider = esriMapLayers.labelsTileProvider
-            cacheManagers += CacheManager(
-                labelsProvider,
-                labelsProvider.tileWriter,
-                minZoom,
-                maxZoom
-            )
-        }
-        val pendingDownloads = AtomicInteger(cacheManagers.size)
-        val totalErrors = AtomicInteger(0)
-
         Toast.makeText(requireContext(), getString(R.string.offline_download_started), Toast.LENGTH_SHORT).show()
-
-        fun callback() = object : CacheManager.CacheManagerCallback {
-            override fun downloadStarted() = Unit
-            override fun setPossibleTilesInArea(total: Int) = Unit
-            override fun updateProgress(progress: Int, currentZoomLevel: Int, zoomMin: Int, zoomMax: Int) = Unit
-
-            override fun onTaskComplete() {
-                finishDownload()
-            }
-
-            override fun onTaskFailed(errors: Int) {
-                totalErrors.addAndGet(errors.coerceAtLeast(1))
-                finishDownload()
-            }
-
-            private fun finishDownload() {
-                if (pendingDownloads.decrementAndGet() != 0 || !isAdded) return
-                val errors = totalErrors.get()
-                Toast.makeText(
-                    requireContext(),
-                    if (errors == 0) {
-                        getString(R.string.offline_download_complete)
-                    } else {
-                        getString(R.string.offline_download_failed, errors)
-                    },
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-        }
-
-        cacheManagers.forEach { cacheManager ->
-            cacheManager.downloadAreaAsync(requireContext(), bbox, minZoom, maxZoom, callback())
+        OsmdroidOfflineRegionDownloader(requireContext(), mapView, esriMapLayers).downloadVisibleRegion(minZoom, maxZoom) { result ->
+            if (!isAdded) return@downloadVisibleRegion
+            Toast.makeText(
+                requireContext(),
+                if (result.succeeded) getString(R.string.offline_download_complete)
+                else getString(R.string.offline_download_failed, result.errors),
+                Toast.LENGTH_LONG,
+            ).show()
         }
     }
 

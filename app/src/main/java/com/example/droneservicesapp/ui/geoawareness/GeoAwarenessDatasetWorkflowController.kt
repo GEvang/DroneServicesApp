@@ -26,7 +26,6 @@ class GeoAwarenessDatasetWorkflowController(
     context: Context,
     private val scope: CoroutineScope,
     private val stateCoordinator: GeoAwarenessDatasetStateCoordinator,
-    private val dialogs: GeoAwarenessDatasetDialogController,
     private val logger: GeoAwarenessEventLogger,
     private val auditFormatter: GeoAwarenessDatasetAuditFormatter,
     private val currentRecords: () -> List<GeoZoneDatasetRecord>,
@@ -71,16 +70,20 @@ class GeoAwarenessDatasetWorkflowController(
 
     fun repositoryForEvidenceExport(): GeoZoneRepository = repository()
 
-    fun handleSelection(selection: GeoAwarenessDatasetPickerController.Selection) {
+    fun handleSelection(selection: GeoAwarenessDatasetSelection) {
         when (selection.mode) {
             GeoAwarenessSessionState.PickerMode.IMPORT_NEW -> importDataset(selection)
             GeoAwarenessSessionState.PickerMode.UPDATE_EXISTING -> updateDataset(selection)
         }
     }
 
-    fun confirmRemoveAll() = dialogs.confirmRemoveAll(::removeAll)
+    fun removeAll() {
+        removeAllDatasets()
+    }
 
-    fun confirmRemove(record: GeoZoneDatasetRecord) = dialogs.confirmRemove(record) { remove(record) }
+    fun remove(record: GeoZoneDatasetRecord) {
+        removeDataset(record)
+    }
 
     fun clear() {
         active = false
@@ -88,7 +91,7 @@ class GeoAwarenessDatasetWorkflowController(
         mutationJob = null
     }
 
-    private fun importDataset(selection: GeoAwarenessDatasetPickerController.Selection) {
+    private fun importDataset(selection: GeoAwarenessDatasetSelection) {
         if (!canMutate()) return
         logger.logSimple(
             type = GeoAwarenessEventType.DATASET_IMPORT_STARTED,
@@ -121,7 +124,6 @@ class GeoAwarenessDatasetWorkflowController(
                     ) + mapOf("addedDatasetTitle" to result.datasetRecords.lastOrNull()?.displayName.orEmpty()),
                 )
                 callbacks.onAuditLogChanged()
-                dialogs.showImportSuccess(result)
                 callbacks.onOperationResult(OperationResult.Success(Operation.IMPORT, result))
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -131,7 +133,7 @@ class GeoAwarenessDatasetWorkflowController(
         }
     }
 
-    private fun updateDataset(selection: GeoAwarenessDatasetPickerController.Selection) {
+    private fun updateDataset(selection: GeoAwarenessDatasetSelection) {
         val storageFileName = selection.updateStorageFileName ?: return
         if (!canMutate()) return
         logger.logSimple(
@@ -169,7 +171,6 @@ class GeoAwarenessDatasetWorkflowController(
                     ) + mapOf("storageFileName" to storageFileName),
                 )
                 callbacks.onAuditLogChanged()
-                dialogs.showUpdateSuccess()
                 callbacks.onOperationResult(OperationResult.Success(Operation.UPDATE, result))
             } catch (cancelled: CancellationException) {
                 throw cancelled
@@ -179,7 +180,7 @@ class GeoAwarenessDatasetWorkflowController(
         }
     }
 
-    private fun removeAll() {
+    private fun removeAllDatasets() {
         if (!canMutate()) return
         val removedCount = currentRecords().count { it.sourceType == GeoZoneDatasetSourceType.IMPORTED_FILE }
         launchMutation(appContext.getString(R.string.geo_loading_dataset)) {
@@ -196,21 +197,19 @@ class GeoAwarenessDatasetWorkflowController(
                     )
                 }
                 callbacks.onAuditLogChanged()
-                dialogs.showRemoveAllSuccess()
                 callbacks.onOperationResult(OperationResult.Success(Operation.REMOVE_ALL, result))
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
                 if (active) {
                     val failure = classify(error)
-                    dialogs.showRemoveFailure(removeAll = true, error)
                     callbacks.onOperationResult(OperationResult.Failed(Operation.REMOVE_ALL, failure))
                 }
             }
         }
     }
 
-    private fun remove(record: GeoZoneDatasetRecord) {
+    private fun removeDataset(record: GeoZoneDatasetRecord) {
         val storageFileName = record.storageFileName ?: return
         if (!canMutate()) return
         launchMutation(appContext.getString(R.string.geo_loading_dataset)) {
@@ -242,7 +241,6 @@ class GeoAwarenessDatasetWorkflowController(
             } catch (error: Exception) {
                 if (active) {
                     val failure = classify(error)
-                    dialogs.showRemoveFailure(removeAll = false, error)
                     callbacks.onOperationResult(OperationResult.Failed(Operation.REMOVE_ONE, failure))
                 }
             }
@@ -251,13 +249,11 @@ class GeoAwarenessDatasetWorkflowController(
 
     private fun handleImportFailure(failure: Failure) {
         logFailure(GeoAwarenessEventType.DATASET_IMPORT_FAILED, "import", null, failure)
-        dialogs.showImportFailure(failure.error, failure.validation)
         callbacks.onOperationResult(OperationResult.Failed(Operation.IMPORT, failure))
     }
 
     private fun handleUpdateFailure(storageFileName: String, failure: Failure) {
         logFailure(GeoAwarenessEventType.DATASET_UPDATE_FAILED, "update", storageFileName, failure)
-        dialogs.showUpdateFailure(failure.error, failure.validation)
         callbacks.onOperationResult(OperationResult.Failed(Operation.UPDATE, failure))
     }
 

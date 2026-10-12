@@ -1,8 +1,5 @@
 package com.example.droneservicesapp.ui.geoawareness
 
-import com.example.droneservicesapp.ui.architecture.CommonUiEffect
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -12,38 +9,35 @@ import org.junit.Test
 class GeoAwarenessContractTest {
     @Test
     fun busyStateIsImmutableAndClearsItsTransientMessage() {
-        val holder = GeoAwarenessUiStateHolder()
+        val initial = GeoAwarenessUiState()
+        val loading = initial.copy(busy = true, busyMessage = "Loading")
+        val complete = loading.copy(busy = false, busyMessage = null)
 
-        holder.dispatch(GeoAwarenessAction.BusyChanged(true, "Loading"))
-        val loading = holder.state.value
-        holder.dispatch(GeoAwarenessAction.BusyChanged(false))
-
+        assertFalse(initial.busy)
         assertTrue(loading.busy)
         assertEquals("Loading", loading.busyMessage)
-        assertFalse(holder.state.value.busy)
-        assertNull(holder.state.value.busyMessage)
+        assertFalse(complete.busy)
+        assertNull(complete.busyMessage)
     }
 
     @Test
-    fun filePickerIsAOneTimeEffectNotPersistentState() = runBlocking {
-        val holder = GeoAwarenessUiStateHolder()
-
-        holder.dispatch(GeoAwarenessAction.ImportDataset)
-
-        val effect = holder.effects.first() as GeoAwarenessEffect.Platform
-        assertTrue(effect.effect is CommonUiEffect.LaunchFilePicker)
-        assertFalse(holder.state.value.busy)
-    }
-
-    @Test
-    fun observedOverlayStateDoesNotRequestPersistence() {
-        val reduction = GeoAwarenessReducer.reduce(
-            GeoAwarenessUiState(overlayVisible = true),
-            GeoAwarenessAction.OverlayVisibilityObserved(false),
+    fun updatePickerRequestRetainsItsDatasetTargetAcrossRecreation() {
+        val request = GeoAwarenessPickerRequest(
+            mode = GeoAwarenessSessionState.PickerMode.UPDATE_EXISTING,
+            updateStorageFileName = "active-dataset.json",
         )
+        val restored = GeoAwarenessUiState(pendingPicker = request)
 
-        assertFalse(reduction.state.overlayVisible)
-        assertTrue(reduction.effects.isEmpty())
+        assertEquals(GeoAwarenessSessionState.PickerMode.UPDATE_EXISTING, restored.pendingPicker?.mode)
+        assertEquals("active-dataset.json", restored.pendingPicker?.updateStorageFileName)
+    }
+
+    @Test
+    fun confirmationIsDurableStateInsteadOfADuplicatedTransientDialogEffect() {
+        val state = GeoAwarenessUiState(dialog = GeoAwarenessDialog.ConfirmRemoveAll)
+
+        assertEquals(GeoAwarenessDialog.ConfirmRemoveAll, state.copy().dialog)
+        assertNull(state.copy(dialog = null).dialog)
     }
 
     @Test

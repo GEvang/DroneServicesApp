@@ -7,14 +7,9 @@ import com.example.droneservicesapp.domain.geoawareness.GeoZoneDatasetRecord
 import com.example.droneservicesapp.domain.geoawareness.testing.GeoAwarenessTestRunResult
 import com.example.droneservicesapp.domain.geoawareness.validation.GeoZoneValidationResult
 
-/** Temporary state for one Geo Awareness fragment instance; no persistent app state belongs here. */
+/** Non-UI workflow snapshots owned by the configuration-safe Geo-awareness ViewModel. */
 class GeoAwarenessSessionState {
     enum class PickerMode { IMPORT_NEW, UPDATE_EXISTING }
-
-    data class PendingPickerOperation(
-        val mode: PickerMode,
-        val updateStorageFileName: String? = null,
-    )
 
     data class DatasetPresentation(
         val datasetInfo: GeoZoneDatasetInfo? = null,
@@ -26,7 +21,6 @@ class GeoAwarenessSessionState {
         val loadError: Throwable? = null,
     )
 
-    var pendingPickerOperation: PendingPickerOperation? = null
     var lastProcessedReloadToken: Long? = null
     var dataset: DatasetPresentation = DatasetPresentation()
     var telemetry: GeoAwarenessTelemetryObserver.Snapshot? = null
@@ -42,10 +36,5 @@ class GeoAwarenessSessionState {
             importedActive = snapshot.importedActive,
             loadError = snapshot.loadError,
         )
-    }
-
-    fun clearViewState() {
-        pendingPickerOperation = null
-        telemetry = null
     }
 }

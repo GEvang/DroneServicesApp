@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="point_cloud_mission_overlay_stats">Mission overlay: %1$d lines, %2$d points</string>
+    <string name="point_cloud_area_status">Area: %1$s</string>
+    <string name="point_cloud_area_empty">Area: --</string>
+    <string name="point_cloud_height_colors">Height colors</string>
+    <string name="preview_aircraft_marker">Aircraft</string>
+</resources>
