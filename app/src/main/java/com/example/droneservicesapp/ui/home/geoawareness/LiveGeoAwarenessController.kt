@@ -4,9 +4,6 @@ import android.content.Context
 import android.graphics.Color
 import android.os.SystemClock
 import android.util.Log
-import android.view.View
-import android.widget.ImageView
-import android.widget.TextView
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.geoawareness.logging.GeoAwarenessEventLogger
@@ -21,6 +18,7 @@ import com.example.droneservicesapp.domain.geoawareness.LiveGeoAwarenessProximit
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.mavserver.GpsFixQuality
+import com.example.droneservicesapp.ui.home.map.GeoZoneLayerState
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
@@ -29,15 +27,14 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Owns geo datasets, planning checks, live proximity state, overlays, and presentation. */
+/** Owns geo datasets, planning checks, live proximity state, the zone layer, and live status. */
 class LiveGeoAwarenessController(
     private val context: Context,
-    private val root: View,
     private val scope: LifecycleCoroutineScope,
     private val viewModel: MainActivityViewModel,
     private val datasetController: GeoAwarenessDatasetController,
     private val planningController: GeoAwarenessPlanningController,
-    private val overlayController: GeoZoneOverlayController,
+    private val overlayController: GeoZoneLayerState,
     private val eventLogger: GeoAwarenessEventLogger,
     private val eventTracker: GeoAwarenessEventTracker,
     private val dialogController: GeoAwarenessDialogController,
@@ -57,7 +54,6 @@ class LiveGeoAwarenessController(
 
     private val checker = LiveGeoAwarenessChecker()
     private val threatPresenter = LiveGeoThreatPresenter(context)
-    private val statusPanel = root.findViewById<View?>(R.id.liveGeoAwarenessPanel)
     private var planningJob: Job? = null
     private var liveUpdateJob: Job? = null
     private var reloadInProgress = false
@@ -78,8 +74,6 @@ class LiveGeoAwarenessController(
 
     fun initialize() {
         // The compact top-bar status is the map screen's only live-geo indicator.
-        statusPanel?.visibility = View.GONE
-        statusPanel?.setOnClickListener(null)
         updateTopStatus(context.getString(R.string.live_geo_unknown_status), UNKNOWN_COLOR)
         loadZonesIfNeeded()
         renderLayerIfVisible()
@@ -396,14 +390,8 @@ class LiveGeoAwarenessController(
         lastTopStatusSignature = signature
         val color = Color.parseColor(colorHex)
         val isClear = label == context.getString(R.string.live_geo_clear_status)
+        // The map's top status strip and the shell toolbar both render this shared status.
         viewModel.setShellLiveGeoStatus(label, color, isClear)
-        val status = root.findViewById<TextView?>(R.id.top_live_geo_status_text) ?: return
-        status.text = label
-        status.setTextColor(color)
-        root.findViewById<ImageView?>(R.id.top_live_geo_icon)?.apply {
-            setImageResource(if (isClear) R.drawable.ic_baseline_check_circle_outline_24 else R.drawable.ic_status_warning_24)
-            setColorFilter(color)
-        }
     }
 
     private fun decimal(value: Double) = String.format(Locale.US, "%.2f", value)

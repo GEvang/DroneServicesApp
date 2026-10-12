@@ -1,9 +1,9 @@
 package com.example.droneservicesapp.ui.home.components
 
+import com.example.droneservicesapp.ui.home.map.MissionMapLayers
+import com.example.droneservicesapp.ui.map.model.MapCoordinate
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
 import com.example.droneservicesapp.ui.preview.PreviewMapFocus
-import org.osmdroid.util.GeoPoint
-import org.osmdroid.views.MapView
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.ln
@@ -11,9 +11,9 @@ import kotlin.math.max
 import kotlin.math.min
 import kotlin.math.tan
 
-/** Centers the map on imported preview assets without leaking fit calculations into the Fragment. */
+/** Centers the map on imported preview assets without leaking fit calculations into the screen. */
 class PreviewMapFocusController(
-    private val mapView: MapView,
+    private val layers: MissionMapLayers,
     private val assets: PreviewAssetsViewModel,
     private val onFocused: () -> Unit,
 ) {
@@ -31,8 +31,7 @@ class PreviewMapFocusController(
 
     fun focusOrtho(): Boolean {
         val bounds = assets.orthoAsset?.bounds ?: return false
-        focusBounds(bounds.minLat, bounds.maxLat, bounds.minLon, bounds.maxLon)
-        return true
+        return focusBounds(bounds.minLat, bounds.maxLat, bounds.minLon, bounds.maxLon)
     }
 
     private fun focusPointCloud(): Boolean {
@@ -44,19 +43,24 @@ class PreviewMapFocusController(
             frame.localToLatLon(-halfSpanX, -halfSpanY),
             frame.localToLatLon(halfSpanX, halfSpanY),
         )
-        focusBounds(
+        return focusBounds(
             minLat = corners.minOf { it.first },
             maxLat = corners.maxOf { it.first },
             minLon = corners.minOf { it.second },
             maxLon = corners.maxOf { it.second },
         )
-        return true
     }
 
-    private fun focusBounds(minLat: Double, maxLat: Double, minLon: Double, maxLon: Double) {
-        mapView.controller.setZoom(calculateSafeZoom(minLat, maxLat, minLon, maxLon, mapView.width, mapView.height))
-        mapView.controller.setCenter(GeoPoint((minLat + maxLat) / 2.0, (minLon + maxLon) / 2.0))
-        mapView.invalidate()
+    private fun focusBounds(minLat: Double, maxLat: Double, minLon: Double, maxLon: Double): Boolean {
+        val center = runCatching { MapCoordinate((minLat + maxLat) / 2.0, (minLon + maxLon) / 2.0) }.getOrNull()
+            ?: return false
+        val zoom = calculateSafeZoom(
+            minLat, maxLat, minLon, maxLon,
+            layers.surface?.viewportWidthPx ?: 0,
+            layers.surface?.viewportHeightPx ?: 0,
+        )
+        layers.jump(center, zoom)
+        return true
     }
 
     companion object {

@@ -1,38 +1,34 @@
 package com.example.droneservicesapp.ui.home.components
 
 import com.example.droneservicesapp.domain.model.LatLon
+import com.example.droneservicesapp.ui.home.map.MissionMapLayers
 
 /** Coordinates the mutually exclusive map-editing mode used to place a planned home. */
 class PlannedHomePlacementController(
-    private val mapController: OsmdroidMapController,
-    private val polygonEditor: OsmdroidPolygonEditor,
-    private val routeWaypointEditor: OsmdroidRouteWaypointEditor,
+    private val layers: MissionMapLayers,
     private val beforePlacement: () -> Unit,
     private val onHomePlaced: (LatLon) -> Unit,
 ) {
-    var isActive: Boolean = false
-        private set
+    val isActive: Boolean
+        get() = layers.homePlacementActive
 
     fun start() {
-        isActive = true
         beforePlacement()
-        polygonEditor.setEnabled(false)
-        routeWaypointEditor.setEnabled(false)
-        mapController.setSurveyWaypointEditingEnabled(false)
-        mapController.setHomePlacementEnabled(true) { selectedPoint ->
+        layers.polygon.setEnabled(false)
+        layers.route.setEnabled(false)
+        layers.survey.setEditingEnabled(false)
+        layers.setHomePlacementEnabled(true) { selectedPoint ->
             place(LatLon(selectedPoint.latitude, selectedPoint.longitude))
         }
     }
 
     fun cancel() {
         if (!isActive) return
-        isActive = false
-        mapController.setHomePlacementEnabled(false)
+        layers.setHomePlacementEnabled(false)
     }
 
     private fun place(position: LatLon) {
-        isActive = false
-        mapController.setHomePlacementEnabled(false)
+        layers.setHomePlacementEnabled(false)
         if (DroneMapTrackingController.isValidPosition(position)) onHomePlaced(position)
     }
 }

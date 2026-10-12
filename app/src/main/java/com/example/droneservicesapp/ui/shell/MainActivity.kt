@@ -103,6 +103,7 @@ class MainActivity : AppCompatActivity(), ShellNavigator {
                             droneViewModel = droneViewModel,
                             activityViewModel = activityViewModel,
                             previewAssetsViewModel = previewAssetsViewModel,
+                            homeTelemetryViewModel = homeTelemetryViewModel,
                             navigator = navigationViewModel,
                         )
                     },

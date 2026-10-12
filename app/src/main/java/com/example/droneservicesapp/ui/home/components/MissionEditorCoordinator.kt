@@ -1,58 +1,59 @@
 package com.example.droneservicesapp.ui.home.components
 
 import android.content.Context
-import android.view.View
-import android.widget.Toast
 import com.example.droneservicesapp.R
-import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.MissionObstacle
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
+import com.example.droneservicesapp.ui.home.ObstaclePanelState
+import com.example.droneservicesapp.ui.home.WaypointEditDockState
+import com.example.droneservicesapp.ui.home.map.MissionMapLayers
+import com.example.droneservicesapp.ui.home.map.ObstacleEditorState
+import com.example.droneservicesapp.ui.map.model.MapCoordinate
+import com.example.droneservicesapp.ui.map.model.MapScreenPoint
 import com.example.droneservicesapp.ui.preview.PreviewMode
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
 import java.util.Locale
-import org.osmdroid.util.GeoPoint
 
 /** Coordinates polygon, route, obstacle, and waypoint editor selection transitions. */
 class MissionEditorCoordinator(
     private val context: Context,
-    private val binding: FragmentHomeMapsBinding,
     private val viewModel: MainActivityViewModel,
-    private val mapController: OsmdroidMapController,
-    private val polygonEditor: OsmdroidPolygonEditor,
-    private val routeEditor: OsmdroidRouteWaypointEditor,
-    private val obstacleEditor: OsmdroidObstacleEditor,
+    private val layers: MissionMapLayers,
+    private val dock: WaypointEditDockState,
+    private val obstaclePanel: ObstaclePanelState,
     private val terrainSampler: (LatLng) -> TerrainWaypoint?,
     private val shouldReversePointRoute: (List<TerrainWaypoint>) -> Boolean,
     private val updateDistance: (List<LatLng>) -> Unit,
     private val renderPath: () -> Unit,
     private val updatePointCloudOverlay: () -> Unit,
-    private val applyObstacleControls: (OsmdroidObstacleEditor.Mode, Boolean, Int) -> Unit,
+    private val showMessage: (Int) -> Unit,
+    private val showFormattedMessage: (String) -> Unit,
 ) {
     var selectedIndex: Int? = null
         private set
     var selectedWorkflow: PlanningWorkflow = PlanningWorkflow.AREA
         private set
     private var obstaclePlacementActive = false
-    private var obstacleMode = OsmdroidObstacleEditor.Mode.CIRCLE
+    private var obstacleMode = ObstacleEditorState.Mode.CIRCLE
 
     fun toggleObstaclePlacement(previewMode: PreviewMode, selectMapPreview: () -> Unit) {
-        if (obstacleMode == OsmdroidObstacleEditor.Mode.POLYGON && obstaclePlacementActive) {
-            if (obstacleEditor.finishPolygon()) obstaclePlacementActive = false
+        if (obstacleMode == ObstacleEditorState.Mode.POLYGON && obstaclePlacementActive) {
+            if (layers.obstacles.finishPolygon()) obstaclePlacementActive = false
         } else {
             if (previewMode == PreviewMode.POINT_CLOUD) selectMapPreview()
             obstaclePlacementActive = true
-            if (obstacleMode == OsmdroidObstacleEditor.Mode.CIRCLE) {
-                obstacleEditor.startCirclePlacement(viewModel.obstacleRadiusMeters.value ?: 5.0)
-                Toast.makeText(context, R.string.obstacle_place_circle_prompt, Toast.LENGTH_SHORT).show()
+            if (obstacleMode == ObstacleEditorState.Mode.CIRCLE) {
+                layers.obstacles.startCirclePlacement(viewModel.obstacleRadiusMeters.value ?: 5.0)
+                showMessage(R.string.obstacle_place_circle_prompt)
             } else {
-                obstacleEditor.startPolygonPlacement()
-                Toast.makeText(context, R.string.obstacle_place_polygon_prompt, Toast.LENGTH_SHORT).show()
+                layers.obstacles.startPolygonPlacement()
+                showMessage(R.string.obstacle_place_polygon_prompt)
             }
-            polygonEditor.setEnabled(false)
+            layers.polygon.setEnabled(false)
         }
         renderObstacleControls()
     }
@@ -63,7 +64,7 @@ class MissionEditorCoordinator(
         renderObstacleControls()
     }
 
-    fun selectObstacleMode(mode: OsmdroidObstacleEditor.Mode) {
+    fun selectObstacleMode(mode: ObstacleEditorState.Mode) {
         obstacleMode = mode
         cancelObstaclePlacement(render = false)
         renderObstacleControls()
@@ -71,31 +72,29 @@ class MissionEditorCoordinator(
 
     fun cancelObstaclePlacement(render: Boolean = true) {
         obstaclePlacementActive = false
-        obstacleEditor.cancelPlacement()
+        layers.obstacles.cancelPlacement()
         if (render) renderObstacleControls()
     }
 
     fun onObstaclesChanged(obstacles: List<MissionObstacle>) {
-        if (obstacleMode == OsmdroidObstacleEditor.Mode.CIRCLE) {
+        if (obstacleMode == ObstacleEditorState.Mode.CIRCLE) {
             cancelObstaclePlacement(render = false)
         }
-        obstacleEditor.renderObstacles(obstacles)
+        layers.obstacles.renderObstacles(obstacles)
         renderObstacleControls()
     }
 
     fun renderObstacleControls() {
-        applyObstacleControls(
-            obstacleMode,
-            obstaclePlacementActive,
-            (viewModel.obstacleRadiusMeters.value ?: 5.0).toInt(),
-        )
+        obstaclePanel.mode = obstacleMode
+        obstaclePanel.placementActive = obstaclePlacementActive
+        obstaclePanel.radiusMeters = (viewModel.obstacleRadiusMeters.value ?: 5.0).toInt().coerceIn(2, 100)
     }
 
-    fun syncPolygonVertices(vertices: List<LatLng>) = polygonEditor.setVertices(vertices)
+    fun syncPolygonVertices(vertices: List<LatLng>) = layers.polygon.setVertices(vertices)
 
     fun syncRouteWaypoints() {
         val terrainPath = viewModel.terrainRouteWaypoints.value.orEmpty()
-        routeEditor.setWaypoints(
+        layers.route.setWaypoints(
             viewModel.routeWaypoints.value.orEmpty(),
             plannedPath = viewModel.plannedRoutePath.value.orEmpty(),
             terrainPath = terrainPath,
@@ -104,26 +103,29 @@ class MissionEditorCoordinator(
     }
 
     fun updatePolygonEnabled(isDrawingEnabled: Boolean, homePlacementActive: Boolean) {
-        polygonEditor.setEnabled(
+        layers.polygon.setEnabled(
             isDrawingEnabled &&
                 viewModel.activePlanningWorkflow.value != PlanningWorkflow.POINTS &&
                 !obstaclePlacementActive &&
-                !homePlacementActive
+                !homePlacementActive,
         )
     }
 
     fun updateRouteEnabled(homePlacementActive: Boolean) {
         val points = viewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS
         val state = viewModel.mapState.value
-        val enabled = points && state in setOf(MainActivityViewModel.MapState.Draw, MainActivityViewModel.MapState.SetFlightParams) && !homePlacementActive
-        routeEditor.setEnabled(enabled)
-        routeEditor.setAddingEnabled(enabled && state == MainActivityViewModel.MapState.Draw)
+        val enabled = points &&
+            state in setOf(MainActivityViewModel.MapState.Draw, MainActivityViewModel.MapState.SetFlightParams) &&
+            !homePlacementActive
+        layers.route.setEnabled(enabled)
+        layers.route.setAddingEnabled(enabled && state == MainActivityViewModel.MapState.Draw)
     }
 
     fun updateSurveyEnabled() {
         val enabled = viewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams &&
-            viewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA && viewModel.surveyPath.value.orEmpty().isNotEmpty()
-        mapController.setSurveyWaypointEditingEnabled(enabled)
+            viewModel.activePlanningWorkflow.value == PlanningWorkflow.AREA &&
+            viewModel.surveyPath.value.orEmpty().isNotEmpty()
+        layers.survey.setEditingEnabled(enabled)
         if (!enabled) select(PlanningWorkflow.AREA, null, PreviewMode.MAP)
     }
 
@@ -132,17 +134,20 @@ class MissionEditorCoordinator(
     fun select(workflow: PlanningWorkflow, index: Int?, previewMode: PreviewMode) {
         selectedWorkflow = workflow
         selectedIndex = index
-        binding.surveyWaypointEditDock.visibility = if (index == null) View.GONE else View.VISIBLE
-        binding.surveyWaypointDeleteButton.visibility = View.VISIBLE
+        dock.visible = index != null
         updateHeightLabel()
         updatePointCloudOverlay()
         if (index == null || previewMode == PreviewMode.POINT_CLOUD) return
         val point = if (workflow == PlanningWorkflow.POINTS) {
             viewModel.terrainRouteWaypoints.value.orEmpty().getOrNull(index)?.latLon
-        } else viewModel.terrainSurveyWaypoints.value.orEmpty().getOrNull(index)?.latLon
-            ?: viewModel.surveyPath.value.orEmpty().getOrNull(index)?.let { LatLon(it.latitude, it.longitude) }
-        point?.let { positionNearMapPoint(LatLng(it.lat, it.lon)) }
-        if (workflow == PlanningWorkflow.AREA) Toast.makeText(context, context.getString(R.string.survey_waypoint_selected, index + 1), Toast.LENGTH_SHORT).show()
+        } else {
+            viewModel.terrainSurveyWaypoints.value.orEmpty().getOrNull(index)?.latLon
+                ?: viewModel.surveyPath.value.orEmpty().getOrNull(index)?.let { LatLon(it.latitude, it.longitude) }
+        }
+        point?.let(::positionNearMapPoint)
+        if (workflow == PlanningWorkflow.AREA) {
+            showFormattedMessage(context.getString(R.string.survey_waypoint_selected, index + 1))
+        }
     }
 
     fun moveSurvey(index: Int, point: LatLng) {
@@ -154,17 +159,22 @@ class MissionEditorCoordinator(
     fun adjustHeight(deltaMeters: Double) {
         val index = selectedIndex ?: return
         val altitude = altitude(index) ?: return
-        if (selectedWorkflow == PlanningWorkflow.POINTS) viewModel.updateTerrainRouteWaypointAltitude(index, altitude + deltaMeters)
-        else viewModel.updateSurveyWaypointAltitude(index, altitude + deltaMeters)
+        if (selectedWorkflow == PlanningWorkflow.POINTS) {
+            viewModel.updateTerrainRouteWaypointAltitude(index, altitude + deltaMeters)
+        } else {
+            viewModel.updateSurveyWaypointAltitude(index, altitude + deltaMeters)
+        }
         refreshAfterHeightChange()
     }
 
     fun applyHeightField() {
         val index = selectedIndex ?: return
-        val altitude = binding.surveyWaypointHeightLabel.text?.toString()?.trim()?.toDoubleOrNull()
-            ?: return updateHeightLabel()
-        if (selectedWorkflow == PlanningWorkflow.POINTS) viewModel.updateTerrainRouteWaypointAltitude(index, altitude)
-        else viewModel.updateSurveyWaypointAltitude(index, altitude)
+        val altitude = dock.heightText.trim().toDoubleOrNull() ?: return updateHeightLabel()
+        if (selectedWorkflow == PlanningWorkflow.POINTS) {
+            viewModel.updateTerrainRouteWaypointAltitude(index, altitude)
+        } else {
+            viewModel.updateSurveyWaypointAltitude(index, altitude)
+        }
         refreshAfterHeightChange()
     }
 
@@ -174,54 +184,54 @@ class MissionEditorCoordinator(
         val index = selectedIndex ?: return
         if (selectedWorkflow == PlanningWorkflow.POINTS) {
             viewModel.removeTerrainRouteWaypoint(index)
-            routeEditor.clearTerrainWaypointSelection()
+            layers.route.clearTerrainWaypointSelection()
             onPointRouteChanged()
         } else {
             viewModel.removeSurveyWaypoint(index)
-            mapController.clearSelectedSurveyWaypoint()
+            layers.survey.clearSelectedWaypoint()
             updateDistance(viewModel.surveyPath.value.orEmpty())
             renderPath()
         }
-        Toast.makeText(context, R.string.survey_waypoint_deleted, Toast.LENGTH_SHORT).show()
+        showMessage(R.string.survey_waypoint_deleted)
     }
 
     fun cancelSelection() {
-        mapController.clearSelectedSurveyWaypoint()
-        routeEditor.clearTerrainWaypointSelection()
+        layers.survey.clearSelectedWaypoint()
+        layers.route.clearTerrainWaypointSelection()
         select(selectedWorkflow, null, PreviewMode.MAP)
     }
 
-    fun positionNearViewPoint(source: View, x: Float, y: Float) {
-        val dock = binding.surveyWaypointEditDock
-        dock.post {
-            if (dock.visibility != View.VISIBLE) return@post
-            val sourceLocation = IntArray(2); val rootLocation = IntArray(2)
-            source.getLocationInWindow(sourceLocation); binding.root.getLocationInWindow(rootLocation)
-            val margin = context.resources.getDimensionPixelSize(R.dimen.ds_space_sm).toFloat()
-            dock.x = (sourceLocation[0] - rootLocation[0] + x + margin).coerceIn(margin, (binding.root.width - dock.width).toFloat().coerceAtLeast(margin))
-            dock.y = (sourceLocation[1] - rootLocation[1] + y - dock.height / 2f).coerceIn(margin, (binding.root.height - dock.height).toFloat().coerceAtLeast(margin))
-            dock.bringToFront()
-        }
+    /** Places the dock beside a point, in the screen coordinates of the map/3D surface. */
+    fun positionNearScreenPoint(x: Float, y: Float) {
+        dock.anchor = MapScreenPoint(x, y)
     }
 
     private fun refreshAfterHeightChange() {
-        updateHeightLabel(); updatePointCloudOverlay(); renderPath()
+        updateHeightLabel()
+        updatePointCloudOverlay()
+        renderPath()
     }
 
     private fun updateHeightLabel() {
-        binding.surveyWaypointHeightLabel.setText(String.format(Locale.US, "%.1f", selectedIndex?.let(::altitude) ?: 0.0))
+        dock.heightText = String.format(Locale.US, "%.1f", selectedIndex?.let(::altitude) ?: 0.0)
     }
 
     private fun altitude(index: Int): Double? {
-        if (selectedWorkflow == PlanningWorkflow.POINTS) return viewModel.terrainRouteWaypoints.value.orEmpty().getOrNull(index)?.missionAltitudeMeters
+        if (selectedWorkflow == PlanningWorkflow.POINTS) {
+            return viewModel.terrainRouteWaypoints.value.orEmpty().getOrNull(index)?.missionAltitudeMeters
+        }
         viewModel.terrainSurveyWaypoints.value.orEmpty().getOrNull(index)?.let { return it.missionAltitudeMeters }
         if (index !in viewModel.surveyPath.value.orEmpty().indices) return null
-        return if (viewModel.planningOperationMode.value == PlanningOperationMode.SPRAY) viewModel.flightAltProgress.value ?: 0.0
-            else viewModel.surveyHeightAboveTerrain.value ?: 0.0
+        return if (viewModel.planningOperationMode.value == PlanningOperationMode.SPRAY) {
+            viewModel.flightAltProgress.value ?: 0.0
+        } else {
+            viewModel.surveyHeightAboveTerrain.value ?: 0.0
+        }
     }
 
-    private fun positionNearMapPoint(point: LatLng) {
-        val pixel = binding.osmMap.projection.toPixels(GeoPoint(point.latitude, point.longitude), null)
-        positionNearViewPoint(binding.osmMap, pixel.x.toFloat(), pixel.y.toFloat())
+    private fun positionNearMapPoint(point: LatLon) {
+        val coordinate = runCatching { MapCoordinate(point.lat, point.lon) }.getOrNull() ?: return
+        val screen = layers.surface?.toScreenPoint(coordinate) ?: return
+        positionNearScreenPoint(screen.x, screen.y)
     }
 }

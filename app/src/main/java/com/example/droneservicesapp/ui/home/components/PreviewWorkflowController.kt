@@ -1,140 +1,122 @@
 package com.example.droneservicesapp.ui.home.components
 
-import android.app.Activity
 import android.content.Context
-import android.content.Intent
 import android.net.Uri
-import android.widget.Toast
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.pointcloud.PointCloudData
-import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
-import com.example.droneservicesapp.ui.preview.OrthoOverlayController
+import com.example.droneservicesapp.ui.home.PreviewPanelState
+import com.example.droneservicesapp.ui.home.map.MissionMapLayers
 import com.example.droneservicesapp.ui.preview.PreviewAssetLoader
 import com.example.droneservicesapp.ui.preview.PreviewAssetStore
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
 import com.example.droneservicesapp.ui.preview.PreviewMode
-import com.example.droneservicesapp.ui.preview.PreviewModeRenderer
 import com.example.droneservicesapp.ui.preview.PreviewSettings
-import java.util.Locale
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-/** Coordinates preview mode selection, imported assets, restoration, and loading failures. */
+/**
+ * Coordinates Map/Ortho/3D preview selection, persisted-asset restoration, and the inputs of the
+ * ortho raster layer and embedded point-cloud renderer.
+ *
+ * Replaces the former `PreviewWorkflowController` + `PreviewModeRenderer` pair. Asset import now
+ * lives entirely in the Datasets screen, which the old mission screen also relied on: its own
+ * import rows were never shown.
+ */
 class PreviewWorkflowController(
     private val context: Context,
     private val scope: LifecycleCoroutineScope,
-    private val binding: FragmentHomeMapsBinding,
+    private val preview: PreviewPanelState,
+    private val layers: MissionMapLayers,
     private val assets: PreviewAssetsViewModel,
     private val store: PreviewAssetStore,
     private val loader: PreviewAssetLoader,
-    private val orthoOverlay: OrthoOverlayController,
-    private val modeRenderer: PreviewModeRenderer,
     private val terrainPreview: TerrainPreviewCoordinator,
-    private val uiActions: MissionMapUiActionController,
     private val isSurveyMode: () -> Boolean,
     private val surveyPointCloud: () -> PointCloudData?,
+    private val renderMapPath: () -> Unit,
+    private val focusOrtho: () -> Unit,
     private val redrawMission: () -> Unit,
     private val generatePointRoute: () -> Unit,
-    private val launchFilePicker: (Intent, Int) -> Unit,
     private val isActive: () -> Boolean,
+    private val showMessage: (String) -> Unit,
 ) {
-    var mode: PreviewMode = PreviewMode.MAP
-        private set
+    val mode: PreviewMode
+        get() = preview.mode
 
     val heightColorsEnabled: Boolean
         get() = assets.previewSettings.value?.heightColorModeEnabled ?: false
 
     private var loadJob: Job? = null
 
-    fun bindActions() {
-        uiActions.bindPreview(
-            MissionMapUiActionController.PreviewActions(
-                selectMode = ::selectMode,
-                primary = {
-                    when (mode) {
-                        PreviewMode.MAP -> Unit
-                        PreviewMode.ORTHO -> openFilePicker(REQUEST_OPEN_TIFF)
-                        PreviewMode.POINT_CLOUD -> openFilePicker(REQUEST_OPEN_POINT_CLOUD)
-                    }
-                },
-                secondary = {
-                    when (mode) {
-                        PreviewMode.MAP -> Unit
-                        PreviewMode.ORTHO -> openFilePicker(REQUEST_OPEN_WORLD)
-                        PreviewMode.POINT_CLOUD -> binding.homePointCloudGlView.resetCamera()
-                    }
-                },
-                toggleHeightColors = {
-                    assets.updateSettings { copy(heightColorModeEnabled = !heightColorModeEnabled) }
-                },
-                backgroundChanged = { checked ->
-                    if (mode == PreviewMode.ORTHO) {
-                        binding.osmMap.overlayManager.tilesOverlay?.isEnabled = checked
-                        binding.osmMap.invalidate()
-                    }
-                },
-                opacityChanged = { opacity ->
-                    orthoOverlay.setOpacity(opacity)
-                    binding.homePointCloudGlView.setPointCloudOpacity(opacity)
-                    binding.osmMap.invalidate()
-                },
-            ),
-        )
-    }
-
     fun selectMode(selected: PreviewMode) {
-        mode = selected
+        preview.mode = selected
         if (selected == PreviewMode.POINT_CLOUD && !isSurveyMode()) restorePointCloudOnDemand()
         render()
     }
 
     fun cycleMode() {
-        mode = if (isSurveyMode()) {
-            when (mode) {
+        val next = if (isSurveyMode()) {
+            when (preview.mode) {
                 PreviewMode.MAP, PreviewMode.ORTHO -> PreviewMode.POINT_CLOUD
                 PreviewMode.POINT_CLOUD -> PreviewMode.MAP
             }
         } else {
-            when (mode) {
+            when (preview.mode) {
                 PreviewMode.MAP -> PreviewMode.ORTHO
                 PreviewMode.ORTHO -> PreviewMode.POINT_CLOUD
                 PreviewMode.POINT_CLOUD -> PreviewMode.MAP
             }
         }
-        if (mode == PreviewMode.POINT_CLOUD && !isSurveyMode()) restorePointCloudOnDemand()
-        render()
+        selectMode(next)
     }
 
     fun render() {
         if (!isActive()) return
-        if (isSurveyMode() && mode == PreviewMode.ORTHO) mode = PreviewMode.MAP
-        modeRenderer.render(mode, isSurveyMode(), currentPointCloud())
+        val survey = isSurveyMode()
+        preview.surveyMode = survey
+        if (survey && preview.mode == PreviewMode.ORTHO) preview.mode = PreviewMode.MAP
+        when (preview.mode) {
+            PreviewMode.MAP -> {
+                preview.terrainStatus = null
+                layers.ortho = null
+                layers.tilesEnabled = true
+                renderMapPath()
+            }
+            PreviewMode.ORTHO -> {
+                preview.terrainStatus = null
+                renderOrtho()
+                renderMapPath()
+            }
+            PreviewMode.POINT_CLOUD -> {
+                val settings = assets.previewSettings.value ?: PreviewSettings()
+                preview.pointCloud = currentPointCloud()
+                preview.pointSize = if (survey) 4f else settings.pointCloudPointSize
+                preview.heightColors = survey || settings.heightColorModeEnabled
+                preview.pointOpacity = settings.orthoOpacity
+                terrainPreview.renderStatus()
+                terrainPreview.renderMissionOverlay()
+            }
+        }
     }
 
     fun refreshAssets() {
         if (!isActive()) return
-        if (currentPointCloud() == null) binding.homePointCloudGlView.clearPointCloud()
-        if (assets.orthoAsset == null) orthoOverlay.clear()
+        if (currentPointCloud() == null) preview.pointCloud = null
+        if (assets.orthoAsset == null) layers.ortho = null
         render()
     }
 
     fun applySettings(settings: PreviewSettings) {
         if (!isActive()) return
-        binding.previewBackgroundSwitch.isChecked = settings.orthoBackgroundEnabled
-        if (binding.previewOpacitySlider.value != settings.orthoOpacity) {
-            binding.previewOpacitySlider.value = settings.orthoOpacity
-        }
-        binding.homePointCloudGlView.setPointCloudOpacity(settings.orthoOpacity)
-        binding.homePointCloudGlView.setPointSize(settings.pointCloudPointSize)
-        binding.homePointCloudGlView.setHeightColorModeEnabled(settings.heightColorModeEnabled)
-        orthoOverlay.setOpacity(settings.orthoOpacity)
-        if (mode == PreviewMode.ORTHO) {
-            binding.osmMap.overlayManager.tilesOverlay?.isEnabled = settings.orthoBackgroundEnabled
-        }
+        preview.pointOpacity = settings.orthoOpacity
+        preview.pointSize = settings.pointCloudPointSize
+        preview.heightColors = settings.heightColorModeEnabled
+        layers.ortho?.let { layers.ortho = it.copy(opacity = settings.orthoOpacity) }
+        if (preview.mode == PreviewMode.ORTHO) layers.tilesEnabled = settings.orthoBackgroundEnabled
         terrainPreview.renderMissionOverlay()
         render()
     }
@@ -148,17 +130,8 @@ class PreviewWorkflowController(
         if (isSurveyMode()) render()
     }
 
-    fun handleActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
-        if (requestCode !in SUPPORTED_REQUESTS) return false
-        if (resultCode != Activity.RESULT_OK) return true
-        val uri = data?.data ?: return true
-        store.persistReadPermission(uri, data.flags)
-        when (requestCode) {
-            REQUEST_OPEN_TIFF -> loadOrthoImage(uri)
-            REQUEST_OPEN_WORLD -> loadOrthoWorldFile(uri)
-            REQUEST_OPEN_POINT_CLOUD -> loadPointCloud(uri)
-        }
-        return true
+    fun resetPointCloudCamera() {
+        preview.cameraResetToken += 1
     }
 
     fun restorePersistedAssets() {
@@ -176,9 +149,7 @@ class PreviewWorkflowController(
                 val result = runCatching {
                     withContext(Dispatchers.IO) {
                         val decoded = loader.loadOrthoImage(imageUri)
-                        val bounds = worldUri?.let {
-                            loader.loadWorldFile(it, decoded.sourceWidth, decoded.sourceHeight)
-                        }
+                        val bounds = worldUri?.let { loader.loadWorldFile(it, decoded.sourceWidth, decoded.sourceHeight) }
                         decoded to bounds
                     }
                 }
@@ -194,7 +165,7 @@ class PreviewWorkflowController(
                     )
                     if (bounds != null && worldUri != null && worldName != null) {
                         assets.setOrthoBounds(bounds, worldName, worldUri)
-                        if (mode == PreviewMode.ORTHO) render()
+                        if (preview.mode == PreviewMode.ORTHO) render()
                     }
                 }
             }
@@ -211,81 +182,32 @@ class PreviewWorkflowController(
         terrainPreview.dispose()
     }
 
+    private fun renderOrtho() {
+        val asset = assets.orthoAsset
+        val bounds = asset?.bounds
+        if (asset == null || bounds == null) {
+            layers.ortho = null
+            layers.tilesEnabled = true
+            showMessage(context.getString(R.string.ortho_empty_state))
+            return
+        }
+        val settings = assets.previewSettings.value
+        layers.ortho = MissionMapLayers.OrthoRaster(asset.bitmap, bounds, settings?.orthoOpacity ?: 0.85f)
+        layers.tilesEnabled = settings?.orthoBackgroundEnabled ?: true
+        focusOrtho()
+    }
+
     private fun currentPointCloud(): PointCloudData? =
         if (isSurveyMode()) surveyPointCloud() else assets.pointCloudAsset?.pointCloud
 
-    private fun openFilePicker(requestCode: Int) {
-        val intent = Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
-            addCategory(Intent.CATEGORY_OPENABLE)
-            type = "*/*"
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION)
-        }
-        launchFilePicker(intent, requestCode)
-    }
-
-    private fun loadOrthoImage(uri: Uri) {
-        val fileName = store.displayName(uri) ?: context.getString(R.string.ortho_unknown_image)
-        val lowerName = fileName.lowercase(Locale.US)
-        if (!lowerName.endsWith(".tif") && !lowerName.endsWith(".tiff")) {
-            toast(R.string.ortho_select_tif, Toast.LENGTH_SHORT)
-            return
-        }
-        assets.clearOrtho()
-        orthoOverlay.clear()
-        replaceLoadJob {
-            runCatching { withContext(Dispatchers.IO) { loader.loadOrthoImage(uri) } }
-                .onSuccess { decoded ->
-                    if (!isActive()) return@onSuccess
-                    assets.setOrthoImage(
-                        bitmap = decoded.bitmap,
-                        bitmapFileName = fileName,
-                        bitmapUri = uri,
-                        sourceWidth = decoded.sourceWidth,
-                        sourceHeight = decoded.sourceHeight,
-                        notifyChange = false,
-                    )
-                    store.saveOrthoImage(uri, fileName)
-                    orthoOverlay.clear()
-                    toast(R.string.ortho_load_world_next, Toast.LENGTH_SHORT)
-                    render()
-                }
-                .onFailure(::showOrthoFailure)
-        }
-    }
-
-    private fun loadOrthoWorldFile(uri: Uri) {
-        val fileName = store.displayName(uri) ?: context.getString(R.string.ortho_unknown_world)
-        val lowerName = fileName.lowercase(Locale.US)
-        if (!lowerName.endsWith(".tfw") && !lowerName.endsWith(".wld")) {
-            toast(R.string.ortho_select_world, Toast.LENGTH_SHORT)
-            return
-        }
-        val asset = assets.orthoAsset
-        if (asset == null) {
-            toast(R.string.ortho_load_image_first, Toast.LENGTH_SHORT)
-            return
-        }
-        replaceLoadJob {
-            runCatching {
-                withContext(Dispatchers.IO) { loader.loadWorldFile(uri, asset.sourceWidth, asset.sourceHeight) }
-            }.onSuccess { bounds ->
-                if (!isActive()) return@onSuccess
-                assets.setOrthoBounds(bounds, fileName, uri)
-                store.saveOrthoWorld(uri, fileName)
-                mode = PreviewMode.ORTHO
-                render()
-            }.onFailure(::showOrthoFailure)
-        }
-    }
-
-    private fun loadPointCloud(uri: Uri, activatePreview: Boolean = true) {
+    private fun loadPointCloud(uri: Uri, activatePreview: Boolean) {
         val fileName = store.displayName(uri) ?: context.getString(R.string.point_cloud_unknown_file)
         if (!store.supportsPointCloud(fileName)) {
-            toast(R.string.point_cloud_select_ply, Toast.LENGTH_SHORT)
+            if (isActive()) showMessage(context.getString(R.string.point_cloud_select_ply))
             return
         }
         assets.clearPointCloud()
-        binding.homePointCloudGlView.clearPointCloud()
+        preview.pointCloud = null
         replaceLoadJob {
             runCatching { withContext(Dispatchers.IO) { loader.loadPointCloud(uri, fileName) } }
                 .onSuccess { pointCloud ->
@@ -293,9 +215,9 @@ class PreviewWorkflowController(
                     assets.setPointCloud(pointCloud, fileName, uri)
                     store.savePointCloud(uri, fileName)
                     if (activatePreview) {
-                        mode = PreviewMode.POINT_CLOUD
-                        binding.homePointCloudGlView.setPointCloud(pointCloud)
-                        binding.homePointCloudGlView.setHeightColorModeEnabled(heightColorsEnabled)
+                        preview.mode = PreviewMode.POINT_CLOUD
+                        preview.pointCloud = pointCloud
+                        preview.heightColors = heightColorsEnabled
                     }
                     terrainPreview.warmGrid(showToast = activatePreview)
                     generatePointRoute()
@@ -304,14 +226,11 @@ class PreviewWorkflowController(
                 }
                 .onFailure { error ->
                     if (error is CancellationException) return@onFailure
-                    if (isActive()) Toast.makeText(
-                        context,
-                        context.getString(
-                            R.string.point_cloud_load_failed,
-                            error.message ?: error.javaClass.simpleName,
-                        ),
-                        Toast.LENGTH_LONG,
-                    ).show()
+                    if (isActive()) {
+                        showMessage(
+                            context.getString(R.string.point_cloud_load_failed, error.message ?: error.javaClass.simpleName),
+                        )
+                    }
                 }
         }
     }
@@ -325,26 +244,5 @@ class PreviewWorkflowController(
     private fun replaceLoadJob(block: suspend () -> Unit) {
         loadJob?.cancel()
         loadJob = scope.launch { block() }
-    }
-
-    private fun showOrthoFailure(error: Throwable) {
-        if (error is CancellationException) return
-        if (!isActive()) return
-        Toast.makeText(
-            context,
-            context.getString(R.string.ortho_load_failed, error.message ?: error.javaClass.simpleName),
-            Toast.LENGTH_LONG,
-        ).show()
-    }
-
-    private fun toast(message: Int, duration: Int) {
-        if (isActive()) Toast.makeText(context, message, duration).show()
-    }
-
-    companion object {
-        const val REQUEST_OPEN_TIFF = 3301
-        const val REQUEST_OPEN_WORLD = 3302
-        const val REQUEST_OPEN_POINT_CLOUD = 3303
-        private val SUPPORTED_REQUESTS = setOf(REQUEST_OPEN_TIFF, REQUEST_OPEN_WORLD, REQUEST_OPEN_POINT_CLOUD)
     }
 }

@@ -1,8 +1,6 @@
 package com.example.droneservicesapp.ui.home.geoawareness
 
 import android.content.Context
-import android.graphics.Color
-import androidx.appcompat.app.AlertDialog
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealth
 import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessHealthState
@@ -10,11 +8,14 @@ import com.example.droneservicesapp.domain.geoawareness.GeoAwarenessResult
 import com.example.droneservicesapp.domain.geoawareness.GeoConflictType
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneConflict
 import com.example.droneservicesapp.domain.geoawareness.GeoZoneRestriction
+import com.example.droneservicesapp.ui.home.MissionDialog
+import com.example.droneservicesapp.ui.home.MissionDialogQueue
 
-/** Owns geo-awareness warning content and Android dialog presentation. */
+/** Owns geo-awareness warning content and raises it through the mission dialog queue. */
 class GeoAwarenessDialogController(
     private val context: Context,
     private val authorizationSession: GeoAuthorizationSession,
+    private val dialogs: MissionDialogQueue,
 ) {
     fun showBlocked(result: GeoAwarenessResult) = showMessage(
         context.getString(R.string.geo_dialog_upload_blocked),
@@ -100,12 +101,7 @@ class GeoAwarenessDialogController(
     )
 
     fun showMessage(title: String, message: String) {
-        val dialog = AlertDialog.Builder(context, R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle(title)
-            .setMessage(message)
-            .setPositiveButton(android.R.string.ok, null)
-            .show()
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(BUTTON_TEXT_COLOR)
+        dialogs.show(MissionDialog.Message(title, message))
     }
 
     fun conflictSummary(result: GeoAwarenessResult, maxItems: Int = 5): String {
@@ -149,14 +145,16 @@ class GeoAwarenessDialogController(
         onConfirmed: () -> Unit,
         onCancelled: () -> Unit,
     ) {
-        val dialog = AlertDialog.Builder(context, R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle(title)
-            .setMessage(message)
-            .setPositiveButton(positiveText) { _, _ -> onConfirmed() }
-            .setNegativeButton(R.string.cancel) { _, _ -> onCancelled() }
-            .show()
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(BUTTON_TEXT_COLOR)
-        dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(BUTTON_TEXT_COLOR)
+        dialogs.show(
+            MissionDialog.Confirmation(
+                title = title,
+                message = message,
+                confirmText = positiveText,
+                dismissText = context.getString(R.string.cancel),
+                onConfirm = onConfirmed,
+                onDismiss = onCancelled,
+            ),
+        )
     }
 
     private fun healthNotice(health: GeoAwarenessHealth): String = context.getString(
@@ -182,9 +180,5 @@ class GeoAwarenessDialogController(
         GeoZoneRestriction.CONDITIONAL -> 2
         GeoZoneRestriction.INFORMATION -> 1
         GeoZoneRestriction.UNKNOWN -> 0
-    }
-
-    companion object {
-        private val BUTTON_TEXT_COLOR = Color.parseColor("#212121")
     }
 }

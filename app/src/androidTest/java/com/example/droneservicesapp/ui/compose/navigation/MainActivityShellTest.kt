@@ -17,6 +17,13 @@ import com.example.droneservicesapp.ui.compose.screens.datasets.DATASETS_SCREEN_
 import com.example.droneservicesapp.ui.compose.screens.geoawareness.GEO_AWARENESS_SCREEN_TAG
 import com.example.droneservicesapp.ui.compose.screens.geoawareness.GEO_AWARENESS_VERIFICATION_BUTTON_TAG
 import com.example.droneservicesapp.ui.compose.screens.mavlink.MAVLINK_NETWORK_SCREEN_TAG
+import com.example.droneservicesapp.ui.compose.screens.missionmap.MISSION_BOTTOM_DOCK_TAG
+import com.example.droneservicesapp.ui.compose.screens.missionmap.MISSION_MAP_SCREEN_TAG
+import com.example.droneservicesapp.ui.compose.screens.missionmap.MISSION_MAP_STATUS_STRIP_TAG
+import com.example.droneservicesapp.ui.compose.screens.missionmap.MISSION_MAP_SURFACE_TAG
+import com.example.droneservicesapp.ui.compose.screens.missionmap.MISSION_PLANNING_DOCK_BUTTON_TAG
+import com.example.droneservicesapp.ui.compose.screens.missionmap.MISSION_PREVIEW_RAIL_TAG
+import com.example.droneservicesapp.ui.compose.screens.missionmap.MISSION_WORKFLOW_PANEL_TAG
 import com.example.droneservicesapp.ui.compose.screens.parameters.PARAMETERS_SCREEN_TAG
 import com.example.droneservicesapp.ui.compose.screens.ortho.ORTHO_PREVIEW_SCREEN_TAG
 import com.example.droneservicesapp.ui.compose.screens.ortho.ORTHO_MAP_SURFACE_TAG
@@ -56,6 +63,7 @@ class MainActivityShellTest {
     @Test
     fun migratedDestinationsRenderAsComposeScreens() {
         listOf(
+            AppDestination.Home to MISSION_MAP_SCREEN_TAG,
             AppDestination.Settings to SETTINGS_SCREEN_TAG,
             AppDestination.MavlinkNetwork to MAVLINK_NETWORK_SCREEN_TAG,
             AppDestination.Rtk to RTK_SCREEN_TAG,
@@ -117,5 +125,30 @@ class MainActivityShellTest {
 
         composeRule.onAllNodesWithText("Verification checklist").assertCountEquals(1)
         composeRule.onNodeWithText("Verification checklist").assertIsDisplayed()
+    }
+
+    @Test
+    fun homeRendersTheComposeMissionMap() {
+        composeRule.onNodeWithTag(MISSION_MAP_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(MISSION_MAP_SURFACE_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(MISSION_MAP_STATUS_STRIP_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(MISSION_PREVIEW_RAIL_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(MISSION_BOTTOM_DOCK_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun planningPanelOpensAndSurvivesNavigationAndRecreation() {
+        composeRule.onNodeWithTag(MISSION_PLANNING_DOCK_BUTTON_TAG).performClick()
+        composeRule.onNodeWithTag(MISSION_WORKFLOW_PANEL_TAG).assertIsDisplayed()
+
+        composeRule.runOnUiThread { composeRule.activity.navigateTo(AppDestination.Settings) }
+        composeRule.onNodeWithTag(SETTINGS_SCREEN_TAG).assertIsDisplayed()
+        composeRule.runOnUiThread { composeRule.activity.returnToHome() }
+        composeRule.onNodeWithTag(MISSION_MAP_SCREEN_TAG).assertIsDisplayed()
+
+        composeRule.activityRule.scenario.recreate()
+
+        composeRule.onNodeWithTag(MISSION_MAP_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(MISSION_MAP_SURFACE_TAG).assertIsDisplayed()
     }
 }

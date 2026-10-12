@@ -2,6 +2,8 @@ package com.example.droneservicesapp.ui.home.model
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.MutableLiveData
+import com.example.droneservicesapp.ui.map.model.MapCamera
+import com.example.droneservicesapp.ui.map.model.MapCoordinate
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,8 +26,19 @@ class MissionMapViewModel : ViewModel() {
     /** Primary state API for Compose. */
     val homeMapUiStateFlow = mutableHomeMapUiState.asStateFlow()
 
-    /** Temporary compatibility mirror for the current Fragment. */
+    /** LiveData mirror consumed by the mission controller's lifecycle-scoped observers. */
     val homeMapUiState = MutableLiveData(mutableHomeMapUiState.value)
+
+    /** Whether [camera] holds a camera the operator actually used, rather than the default. */
+    var hasRememberedCamera: Boolean = false
+        private set
+
+    /** Map camera kept across navigation so the map reopens where the operator left it. */
+    var camera: MapCamera = DEFAULT_CAMERA
+        set(value) {
+            field = value
+            hasRememberedCamera = true
+        }
 
     fun updateFromMapState(mapState: MainActivityViewModel.MapState) {
         if (mapState == MainActivityViewModel.MapState.SetFlightParams) {
@@ -87,6 +100,11 @@ class MissionMapViewModel : ViewModel() {
             arePanelsDismissed = false
         }
         publishState()
+    }
+
+    companion object {
+        /** The previous Fragment's default operating area and zoom. */
+        val DEFAULT_CAMERA = MapCamera(MapCoordinate(35.3643003, 24.4721854), 18.0)
     }
 
     private fun publishState() {

@@ -89,7 +89,7 @@ fun DroneServicesApp(
     bottomActionBarVisible: Boolean,
     onBottomAction: (BottomMissionAction) -> Unit,
     navigationRequests: Flow<ShellNavigationRequest> = emptyFlow(),
-    destinationContent: @Composable (AppDestination) -> Unit = { LegacyFragmentHost(it) },
+    destinationContent: @Composable (AppDestination) -> Unit,
 ) {
     val navController = rememberNavController()
     val drawerState = rememberDrawerState(DrawerValue.Closed)
@@ -386,7 +386,7 @@ private fun ShellTelemetryBar(
 }
 
 @Composable
-private fun MapStyleStatusCard(
+internal fun MapStyleStatusCard(
     modifier: Modifier,
     iconRes: Int,
     iconTint: Color = colorResource(R.color.ds_color_text_primary),
@@ -437,7 +437,7 @@ private fun MapStyleStatusCard(
 }
 
 @Composable
-private fun StatusValue(text: String, color: Color, large: Boolean = false) {
+internal fun StatusValue(text: String, color: Color, large: Boolean = false) {
     Text(
         text = text,
         color = color,
@@ -450,7 +450,7 @@ private fun StatusValue(text: String, color: Color, large: Boolean = false) {
 }
 
 @Composable
-private fun StatusSubvalue(
+internal fun StatusSubvalue(
     text: String,
     color: Color = colorResource(R.color.ds_color_shell_unselected),
 ) {
@@ -465,7 +465,7 @@ private fun StatusSubvalue(
 }
 
 @Composable
-private fun StatusMetric(text: String) {
+internal fun StatusMetric(text: String) {
     Text(
         text = text,
         color = colorResource(R.color.ds_color_text_primary),
@@ -477,7 +477,7 @@ private fun StatusMetric(text: String) {
 }
 
 @Composable
-private fun gpsStatusColor(state: HomeTelemetryUiState): Color = colorResource(
+internal fun gpsStatusColor(state: HomeTelemetryUiState): Color = colorResource(
     when (state.gpsFixQuality) {
         com.example.droneservicesapp.mavserver.GpsFixQuality.DISCONNECTED,
         com.example.droneservicesapp.mavserver.GpsFixQuality.NO_GPS -> R.color.ds_color_shell_danger
@@ -489,7 +489,7 @@ private fun gpsStatusColor(state: HomeTelemetryUiState): Color = colorResource(
     }
 )
 
-private fun compactAltitude(value: String): String = value
+internal fun compactAltitude(value: String): String = value
     .removePrefix("ALT:")
     .trim()
     .replace(Regex("(-?\\d+(?:\\.\\d+)?)m$"), "$1 m")

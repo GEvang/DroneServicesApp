@@ -1,23 +1,21 @@
 package com.example.droneservicesapp.ui.home.components
 
 import android.content.Context
-import android.view.View
-import android.widget.Toast
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.geoawareness.logging.OperatorFlightEventLogger
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel.ServiceMissionState
-import com.google.android.material.snackbar.Snackbar
 
 /** Applies one-shot map actions and owns their user-facing completion reactions. */
 class MissionMapActionHandler(
     private val context: Context,
-    private val root: View,
     private val viewModel: MainActivityViewModel,
     private val eventLogger: OperatorFlightEventLogger,
     private val cancelPlanning: () -> Unit,
     private val cancelObstaclePlacement: () -> Unit,
     private val clearEditors: () -> Unit,
+    private val showToast: (String) -> Unit,
+    private val showSnackbar: (String) -> Unit,
 ) {
     fun handle(action: MainActivityViewModel.MapAction) {
         when (action) {
@@ -60,9 +58,9 @@ class MissionMapActionHandler(
         eventLogger.logMissionUploadSucceeded(viewModel.surveyPath.value?.size)
         val serviceAfter = viewModel.currentServiceMissionLeg()?.serviceAfter
         if (viewModel.markServiceLegUploadSucceeded()) {
-            Snackbar.make(root, context.getString(if (serviceAfter == null) R.string.mission_final_leg_uploaded else R.string.mission_leg_uploaded), Snackbar.LENGTH_LONG).show()
+            showSnackbar(context.getString(if (serviceAfter == null) R.string.mission_final_leg_uploaded else R.string.mission_leg_uploaded))
         } else {
-            Snackbar.make(root, context.getString(R.string.upload_complete), Snackbar.LENGTH_LONG).show()
+            showSnackbar(context.getString(R.string.upload_complete))
             viewModel.sendAction(MainActivityViewModel.MapAction.ResetToIdle)
         }
     }
@@ -71,7 +69,7 @@ class MissionMapActionHandler(
         viewModel.cancelMissionUpload()
         if (viewModel.serviceMissionState.value == ServiceMissionState.LEG_UPLOADING) viewModel.markServiceLegUploadFailed()
         eventLogger.logMissionUploadFailed(reason)
-        Toast.makeText(context, reason, Toast.LENGTH_LONG).show()
-        Snackbar.make(root, context.getString(R.string.upload_failed_with_reason, reason), Snackbar.LENGTH_LONG).show()
+        showToast(reason)
+        showSnackbar(context.getString(R.string.upload_failed_with_reason, reason))
     }
 }

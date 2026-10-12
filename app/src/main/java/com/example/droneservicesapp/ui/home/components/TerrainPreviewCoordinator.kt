@@ -3,14 +3,12 @@ package com.example.droneservicesapp.ui.home.components
 import android.content.Context
 import android.location.Location
 import android.util.Log
-import android.view.View
-import android.widget.Toast
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.data.pointcloud.PointCloudData
-import com.example.droneservicesapp.databinding.FragmentHomeMapsBinding
 import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.mavserver.DroneViewModel
+import com.example.droneservicesapp.ui.home.PreviewPanelState
 import com.example.droneservicesapp.ui.preview.PointCloudMissionOverlayBuilder
 import com.example.droneservicesapp.ui.preview.PointCloudTerrainStyleMapper
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
@@ -27,19 +25,19 @@ import kotlinx.coroutines.withContext
 class TerrainPreviewCoordinator(
     private val context: Context,
     private val scope: LifecycleCoroutineScope,
-    private val binding: FragmentHomeMapsBinding,
+    private val preview: PreviewPanelState,
     private val viewModel: MainActivityViewModel,
     private val droneViewModel: DroneViewModel,
     private val previewAssets: PreviewAssetsViewModel,
     private val currentPointCloud: () -> PointCloudData?,
     private val currentDroneLocation: () -> Location?,
-    private val currentMode: () -> PreviewMode,
     private val isSurveyMode: () -> Boolean,
     private val selectedWorkflow: () -> PlanningWorkflow,
     private val selectedWaypointIndex: () -> Int?,
     private val orderPointRoute: (List<LatLng>) -> List<LatLng>,
     private val redrawMission: () -> Unit,
     private val isActive: () -> Boolean,
+    private val showMessage: (String) -> Unit,
 ) {
     private val overlayBuilder = PointCloudMissionOverlayBuilder()
     private var gridJob: Job? = null
@@ -58,14 +56,12 @@ class TerrainPreviewCoordinator(
                     "georef=${summary.isGeoreferenced}",
             )
             if (showToast) {
-                Toast.makeText(
-                    context,
+                showMessage(
                     "Terrain grid ready: ${summary.cellCount} cells, " +
                         if (summary.isGeoreferenced) "georeferenced" else "not georeferenced",
-                    Toast.LENGTH_LONG,
-                ).show()
+                )
             }
-            if (currentMode() == PreviewMode.POINT_CLOUD) renderStatus()
+            if (preview.mode == PreviewMode.POINT_CLOUD) renderStatus()
             redrawMission()
         }
     }
@@ -77,10 +73,9 @@ class TerrainPreviewCoordinator(
 
     fun renderStatus() {
         if (!isActive()) return
-        binding.previewTerrainStatus.visibility = View.VISIBLE
         if (isSurveyMode()) {
             val terrain = droneViewModel.terrainPreview.value
-            binding.previewTerrainStatus.text = if (terrain == null) {
+            preview.terrainStatus = if (terrain == null) {
                 context.getString(R.string.terrain_3d_not_ready)
             } else {
                 context.getString(
@@ -93,7 +88,7 @@ class TerrainPreviewCoordinator(
             return
         }
         val summary = previewAssets.pointCloudTerrainSummary
-        binding.previewTerrainStatus.text = when {
+        preview.terrainStatus = when {
             previewAssets.pointCloudAsset == null -> "Terrain --"
             summary == null -> "Terrain building"
             !summary.isGeoreferenced -> "Terrain no GPS"
@@ -102,13 +97,13 @@ class TerrainPreviewCoordinator(
     }
 
     fun renderMissionOverlay() {
-        if (!isActive() || currentMode() != PreviewMode.POINT_CLOUD) return
+        if (!isActive() || preview.mode != PreviewMode.POINT_CLOUD) return
         val downloadedPoints = previewAssets.retainedDroneMissionPath.value.orEmpty()
         val downloadedWaypoints = previewAssets.retainedDroneMissionWaypoints.value.orEmpty()
         val showingDownloadedMission =
             viewModel.mapState.value == MainActivityViewModel.MapState.Idle && downloadedPoints.isNotEmpty()
         val pointWorkflow = viewModel.activePlanningWorkflow.value == PlanningWorkflow.POINTS
-        val areaVertices = if (showingDownloadedMission) emptyList() else viewModel.missionArea.value?.vertices.orEmpty()
+        val areaVertices = if (showingDownloadedMission) emptyList() else viewModel.missionArea.value?.vertices.orEmpty().toList()
         val surveyPoints = when {
             showingDownloadedMission -> downloadedPoints
             pointWorkflow -> emptyList()
@@ -134,24 +129,22 @@ class TerrainPreviewCoordinator(
         val routeZValues = terrainRoute.takeIf { it.size == routePoints.size && it.isNotEmpty() }
             ?.map { it.displayAltitudeMeters.toFloat() }
         val droneLocation = currentDroneLocation()
-        binding.homePointCloudGlView.setMissionOverlay(
-            overlayBuilder.build(
-                PointCloudMissionOverlayBuilder.Input(
-                    pointCloud = currentPointCloud(),
-                    areaPoints = areaVertices,
-                    areaZValues = PointCloudTerrainStyleMapper.groundZValues(
-                        areaVertices,
-                        previewAssets.pointCloudTerrainModel,
-                    ),
-                    surveyPoints = surveyPoints,
-                    surveyZValues = surveyZValues,
-                    routePoints = routePoints,
-                    routeZValues = routeZValues,
-                    droneLocation = droneLocation?.let { LatLng(it.latitude, it.longitude) },
-                    droneHeadingDegrees = droneViewModel.droneHeading.value ?: 0.0,
-                    selectedWorkflow = selectedWorkflow(),
-                    selectedWaypointIndex = selectedWaypointIndex(),
+        preview.missionOverlay = overlayBuilder.build(
+            PointCloudMissionOverlayBuilder.Input(
+                pointCloud = currentPointCloud(),
+                areaPoints = areaVertices,
+                areaZValues = PointCloudTerrainStyleMapper.groundZValues(
+                    areaVertices,
+                    previewAssets.pointCloudTerrainModel,
                 ),
+                surveyPoints = surveyPoints,
+                surveyZValues = surveyZValues,
+                routePoints = routePoints,
+                routeZValues = routeZValues,
+                droneLocation = droneLocation?.let { LatLng(it.latitude, it.longitude) },
+                droneHeadingDegrees = droneViewModel.droneHeading.value ?: 0.0,
+                selectedWorkflow = selectedWorkflow(),
+                selectedWaypointIndex = selectedWaypointIndex(),
             ),
         )
     }
@@ -162,7 +155,7 @@ class TerrainPreviewCoordinator(
         else -> value.toString()
     }
 
-    companion object {
-        private const val TERRAIN_GRID_TAG = "TerrainGrid"
+    private companion object {
+        const val TERRAIN_GRID_TAG = "TerrainGrid"
     }
 }

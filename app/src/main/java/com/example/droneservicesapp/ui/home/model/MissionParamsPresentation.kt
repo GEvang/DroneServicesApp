@@ -43,6 +43,10 @@ data class MissionParamsPresentation(
     val terrainDownloadEnabled: Boolean,
     val missionUploadEnabled: Boolean,
     val terrainProgressPercent: Int?,
+    /** Terrain provisioning state that applies to this mission (Idle when terrain is not used). */
+    val effectiveTerrainState: TerrainProvisioningState = TerrainProvisioningState.Idle,
+    /** Source data is ready and matches the current mission. */
+    val terrainSourceReady: Boolean = false,
 )
 
 object MissionParamsPresenter {
@@ -53,12 +57,16 @@ object MissionParamsPresenter {
         terrainState: TerrainProvisioningState,
         droneConnected: Boolean,
         sourceReadyMatchesMission: Boolean,
+        hasTerrainRouteProfile: Boolean = false,
     ): MissionParamsPresentation {
         val survey = state.operationMode == PlanningOperationMode.SURVEY
         val pointRoute = workflow == PlanningWorkflow.POINTS
         val threeDimensionalSpray = !survey && pointCloudCoverage == PointCloudCoverage.COMPLETE
+        // A validated point-cloud profile (area coverage or a sampled point route) replaces the
+        // flight controller's terrain data.
         val usesFlightControllerTerrain = survey &&
             pointCloudCoverage != PointCloudCoverage.COMPLETE &&
+            !hasTerrainRouteProfile &&
             state.altitudeReferenceMode == AltitudeReferenceMode.TERRAIN
         val effectiveTerrainState = terrainState.takeIf { usesFlightControllerTerrain }
             ?: TerrainProvisioningState.Idle
@@ -93,6 +101,8 @@ object MissionParamsPresenter {
                 effectiveTerrainState is TerrainProvisioningState.Ready ||
                 effectiveTerrainState is TerrainProvisioningState.Failed,
             terrainProgressPercent = progress,
+            effectiveTerrainState = effectiveTerrainState,
+            terrainSourceReady = sourceReady,
         )
     }
 }

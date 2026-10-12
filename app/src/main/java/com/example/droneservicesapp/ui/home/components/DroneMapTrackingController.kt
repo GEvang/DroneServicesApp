@@ -3,6 +3,7 @@ package com.example.droneservicesapp.ui.home.components
 import android.location.Location
 import android.util.Log
 import com.example.droneservicesapp.domain.model.LatLon
+import com.example.droneservicesapp.ui.home.map.AircraftLayerState
 import kotlin.math.abs
 import kotlin.math.atan2
 import kotlin.math.cos
@@ -11,7 +12,7 @@ import kotlin.math.sqrt
 
 /** Owns corrected drone position, automatic home capture, and the in-flight map trace. */
 class DroneMapTrackingController(
-    private val mapController: OsmdroidMapController,
+    private val aircraftLayer: AircraftLayerState,
     private val onHomeCaptured: (LatLon) -> Unit,
     private val onDisarmed: () -> Unit,
 ) {
@@ -50,8 +51,8 @@ class DroneMapTrackingController(
 
     fun renderHome(position: LatLon?) {
         homePosition = position
-        if (position == null) mapController.clearHomeMarker()
-        else mapController.setOrMoveHomeMarker(position.lat, position.lon)
+        if (position == null) aircraftLayer.clearHomeMarker()
+        else aircraftLayer.setOrMoveHomeMarker(position.lat, position.lon)
     }
 
     fun handleArmedState(isArmed: Boolean) {
@@ -73,7 +74,7 @@ class DroneMapTrackingController(
 
     fun appendTraceIfFlying(position: LatLon, connected: Boolean, armed: Boolean) {
         if (!connected || !armed || !shouldAppendTrace(position)) return
-        mapController.appendFlightTracePoint(position.lat, position.lon)
+        aircraftLayer.appendFlightTracePoint(position.lat, position.lon)
         lastTracePosition = position
         tracePointCount += 1
         when {
@@ -83,7 +84,7 @@ class DroneMapTrackingController(
     }
 
     fun clearTraceAndHome() {
-        mapController.clearFlightTraceAndHome()
+        aircraftLayer.clearFlightTraceAndHome()
         homePosition = null
         pendingHomeAfterArm = false
         lastTracePosition = null
@@ -92,7 +93,7 @@ class DroneMapTrackingController(
 
     private fun captureHome(position: LatLon) {
         if (homePosition != null || !isValidPosition(position)) return
-        if (mapController.setHomeMarker(position.lat, position.lon)) {
+        if (aircraftLayer.setHomeMarker(position.lat, position.lon)) {
             homePosition = position
             onHomeCaptured(position)
             Log.d(LOG_TAG, "home marker set lat=${position.lat} lon=${position.lon}")

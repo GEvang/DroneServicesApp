@@ -12,6 +12,7 @@ import com.example.droneservicesapp.domain.terrain.TerrainWaypoint
 import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
 import com.example.droneservicesapp.domain.terrain.TerrainPathResult
 import com.example.droneservicesapp.domain.planning.MissionPlanningCoordinator
+import com.example.droneservicesapp.ui.home.map.TerrainCoverageLayerState
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
@@ -124,8 +125,7 @@ class TerrainMissionCoordinator(
         return TerrainWaypoint(LatLon(point.latitude, point.longitude), altitude, altitude)
     }
 
-    fun renderCoverage(overlay: TerrainCoverageOverlayController?) {
-        overlay ?: return
+    fun renderCoverage(overlay: TerrainCoverageLayerState) {
         val hasProfile = viewModel.pointCloudCoverage.value == PointCloudCoverage.COMPLETE ||
             viewModel.terrainRouteWaypoints.value.orEmpty().isNotEmpty()
         val usesTerrain = (viewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY) == PlanningOperationMode.SURVEY &&

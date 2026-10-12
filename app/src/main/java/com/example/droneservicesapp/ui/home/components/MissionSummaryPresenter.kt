@@ -1,10 +1,6 @@
 package com.example.droneservicesapp.ui.home.components
 
 import android.content.Context
-import android.graphics.Color
-import android.view.View
-import android.widget.TextView
-import androidx.appcompat.app.AlertDialog
 import androidx.lifecycle.LifecycleCoroutineScope
 import com.example.droneservicesapp.R
 import com.example.droneservicesapp.domain.model.LatLon
@@ -13,6 +9,9 @@ import com.example.droneservicesapp.domain.model.PlanningWorkflow
 import com.example.droneservicesapp.domain.planning.MissionPlanningCoordinator
 import com.example.droneservicesapp.domain.planning.MissionResourcePlan
 import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
+import com.example.droneservicesapp.ui.home.MissionDialog
+import com.example.droneservicesapp.ui.home.MissionDialogQueue
+import com.example.droneservicesapp.ui.home.MissionSummaryCardState
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.SphericalUtil
@@ -25,7 +24,8 @@ import kotlinx.coroutines.withContext
 /** Builds mission summary state and owns summary-card asynchronous rendering. */
 class MissionSummaryPresenter(
     private val context: Context,
-    private val root: View,
+    private val card: MissionSummaryCardState,
+    private val dialogs: MissionDialogQueue,
     private val scope: LifecycleCoroutineScope,
     private val viewModel: MainActivityViewModel,
     private val planner: MissionPlanningCoordinator,
@@ -43,14 +43,13 @@ class MissionSummaryPresenter(
     }
 
     fun renderCard() {
-        val card = root.findViewById<TextView?>(R.id.home_mission_summary_card) ?: return
         updateGeometryActions()
         val path = currentPath()
         val usable = viewModel.mapState.value == MainActivityViewModel.MapState.SetFlightParams && path.size >= 2
         updateSimulationButton(usable)
         if (!usable) {
             renderJob?.cancel()
-            card.visibility = View.GONE
+            card.text = null
             setServiceMarkers(emptyList(), emptyList())
             stopSimulation()
             return
@@ -78,7 +77,6 @@ class MissionSummaryPresenter(
                     append("Flow: ${decimal(sprayRate)} Lt/min   |   Liquid: ${decimal(plan.totalSprayLiters)} Lt   |   Tank refills: ${plan.tankRefillCount}")
                 }
             }
-            card.visibility = View.VISIBLE
         }
     }
 
@@ -114,13 +112,15 @@ class MissionSummaryPresenter(
                 appendLine(context.getString(R.string.mission_summary_refills, plan.tankRefillCount))
             }
         }
-        AlertDialog.Builder(context, R.style.Theme_DroneServicesApp_AlertDialog)
-            .setTitle(R.string.mission_summary_title).setMessage(message)
-            .setNegativeButton(R.string.decline, null)
-            .setPositiveButton(R.string.confirm) { _, _ -> onConfirmed() }.show().also { dialog ->
-                dialog.getButton(AlertDialog.BUTTON_POSITIVE)?.setTextColor(Color.parseColor("#212121"))
-                dialog.getButton(AlertDialog.BUTTON_NEGATIVE)?.setTextColor(Color.parseColor("#212121"))
-            }
+        dialogs.show(
+            MissionDialog.Confirmation(
+                title = context.getString(R.string.mission_summary_title),
+                message = message.trimEnd(),
+                confirmText = context.getString(R.string.confirm),
+                dismissText = context.getString(R.string.decline),
+                onConfirm = onConfirmed,
+            ),
+        )
     }
 
     private fun resourcePlan(path: List<LatLng>, home: LatLon?): MissionResourcePlan = planner.buildResourcePlan(

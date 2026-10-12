@@ -6,24 +6,34 @@ import com.example.droneservicesapp.ui.compose.screens.debug.DebugScreen
 import com.example.droneservicesapp.ui.compose.screens.datasets.DatasetsScreen
 import com.example.droneservicesapp.ui.compose.screens.geoawareness.GeoAwarenessScreen
 import com.example.droneservicesapp.ui.compose.screens.mavlink.MavlinkNetworkScreen
+import com.example.droneservicesapp.ui.compose.screens.missionmap.MissionMapScreen
 import com.example.droneservicesapp.ui.compose.screens.parameters.ParametersScreen
 import com.example.droneservicesapp.ui.compose.screens.ortho.OrthoPreviewScreen
 import com.example.droneservicesapp.ui.compose.screens.pointcloud.PointCloudViewerScreen
 import com.example.droneservicesapp.ui.compose.screens.rtk.RtkScreen
 import com.example.droneservicesapp.ui.compose.screens.settings.SettingsScreen
+import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
 
-/** Routes migrated destinations directly to Compose and keeps the bridge only for legacy screens. */
+/** Routes every shell destination to its Compose screen. */
 @Composable
 fun ProductionDestinationContent(
     destination: AppDestination,
     droneViewModel: DroneViewModel,
     activityViewModel: MainActivityViewModel,
     previewAssetsViewModel: PreviewAssetsViewModel,
+    homeTelemetryViewModel: HomeTelemetryViewModel,
     navigator: ShellNavigator,
 ) {
     when (destination) {
+        AppDestination.Home -> MissionMapScreen(
+            droneViewModel = droneViewModel,
+            activityViewModel = activityViewModel,
+            homeTelemetryViewModel = homeTelemetryViewModel,
+            previewAssetsViewModel = previewAssetsViewModel,
+            navigator = navigator,
+        )
         AppDestination.Settings -> SettingsScreen(activityViewModel)
         AppDestination.MavlinkNetwork -> MavlinkNetworkScreen()
         AppDestination.Rtk -> RtkScreen(droneViewModel)
@@ -43,6 +53,5 @@ fun ProductionDestinationContent(
             previewAssetsViewModel = previewAssetsViewModel,
             onReturnToMap = navigator::returnToHome,
         )
-        else -> LegacyFragmentHost(destination)
     }
 }

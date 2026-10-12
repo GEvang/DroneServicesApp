@@ -1,9 +1,7 @@
 package com.example.droneservicesapp.ui.home.components
 
 import androidx.lifecycle.LifecycleOwner
-import com.example.droneservicesapp.ui.home.binders.HomeMapTelemetryBinder
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
-import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
 import com.example.droneservicesapp.ui.preview.PreviewSettings
@@ -14,10 +12,6 @@ class MissionPresentationObserver(
     private val owner: LifecycleOwner,
 ) {
     private var lastGeoReloadToken = 0L
-    fun bindHomeTelemetry(viewModel: HomeTelemetryViewModel, binder: HomeMapTelemetryBinder) {
-        viewModel.homeTelemetryUiState.observe(owner, binder::render)
-    }
-
     fun bindMapUi(viewModel: MissionMapViewModel, render: (HomeMapUiState) -> Unit) {
         viewModel.homeMapUiState.observe(owner, render)
     }

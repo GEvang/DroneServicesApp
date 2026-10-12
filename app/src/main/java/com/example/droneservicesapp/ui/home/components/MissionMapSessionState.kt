@@ -2,7 +2,7 @@ package com.example.droneservicesapp.ui.home.components
 
 import android.location.Location
 
-/** Mutable values that belong to one MissionMapFragment view session, not to application state. */
+/** Mutable values that belong to one mission-map screen session, not to application state. */
 class MissionMapSessionState {
     var droneAltitudeAglMeters: Double? = null
     var droneAltitudeAmslMeters: Double? = null
