@@ -127,4 +127,35 @@ class MissionMapSceneBuilderTest {
         assertNull(MissionMapMarkerIds.indexOf(MissionMapMarkerIds.AREA_VERTEX, MissionMapMarkerIds.ROUTE_WAYPOINT + 3))
         assertNull(MissionMapMarkerIds.indexOf(MissionMapMarkerIds.AREA_VERTEX, "area-vertex-x"))
     }
+
+    @Test
+    fun edgeLabelsSitOutsideTheFieldAndAboveHandles() {
+        val centroid = MapCoordinate(35.0005, 24.0005)
+        // Bottom edge (west -> east): the label goes below it, i.e. +y on screen.
+        val south = MissionMapSceneBuilder.edgeLabelOffsetDp(
+            MapCoordinate(35.0, 24.0), MapCoordinate(35.0, 24.001), MapCoordinate(35.0, 24.0005), centroid, "86 m",
+        )
+        assertEquals(0f, south.first, 0.01f)
+        assertTrue(south.second > 0f)
+        // West edge (north -> south): the label goes to the left, -x, clearing half its width.
+        val west = MissionMapSceneBuilder.edgeLabelOffsetDp(
+            MapCoordinate(35.001, 24.0), MapCoordinate(35.0, 24.0), MapCoordinate(35.0005, 24.0), centroid, "111 m",
+        )
+        assertTrue(west.first < -30f)
+        assertEquals(0f, west.second, 0.01f)
+
+        val layer = MissionMapSceneBuilder.surveyPath(
+            path = square,
+            areaVertices = square,
+            segmentColors = null,
+            editingEnabled = true,
+            selectedIndex = null,
+            batteryReturnPoints = emptyList(),
+            tankRefillPoints = emptyList(),
+        )
+        val labels = layer.markers.filter { it.icon is MapMarkerIcon.TextLabel }
+        assertEquals(5, labels.size)
+        assertTrue(labels.all { it.layer == MapOverlayLayer.LABELS })
+        assertTrue(MapOverlayLayer.LABELS.drawOrder > MapOverlayLayer.EDIT_HANDLES.drawOrder)
+    }
 }

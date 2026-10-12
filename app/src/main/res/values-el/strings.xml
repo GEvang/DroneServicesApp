@@ -651,6 +651,7 @@
   <string name="mission_summary_workflow">Ροή εργασίας: %1$s</string>
   <string name="mission_summary_area">Έκταση: %1$s</string>
   <string name="mission_summary_path_length">Μήκος διαδρομής: %1$s</string>
+  <string name="mission_summary_home_distance">Αρχική θέση: %1$s μακριά</string>
   <string name="mission_summary_lines">Γραμμές: %1$d</string>
   <string name="mission_summary_altitude">Υψόμετρο: %1$d m</string>
   <string name="mission_summary_speed">Ταχύτητα: %1$s m/s</string>

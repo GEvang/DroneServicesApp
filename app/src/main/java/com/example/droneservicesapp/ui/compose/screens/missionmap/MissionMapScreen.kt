@@ -261,7 +261,8 @@ fun MissionMapScreen(
                     tabletLayout = tabletLayout,
                     overlay = homeMapState.overlayControlsState,
                     dock = controller.dock,
-                    planningSelected = shell.isPlanningActive || shell.isRightPanelVisible,
+                    // Lit only while the planning panel it opens is showing.
+                    planningSelected = shell.isRightPanelVisible,
                     controller = controller,
                     modifier = Modifier
                         .align(Alignment.CenterHorizontally)

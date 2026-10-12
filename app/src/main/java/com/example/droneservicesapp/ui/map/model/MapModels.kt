@@ -23,6 +23,8 @@ enum class MapOverlayLayer(val drawOrder: Int) {
     MISSION_DETAIL(44),
     OBSTACLES(46),
     EDIT_HANDLES(48),
+    /** Measurement and area labels: above waypoint and vertex handles so they stay readable. */
+    LABELS(49),
     AIRCRAFT(50),
 }
 

@@ -117,7 +117,6 @@ internal fun WorkflowPanel(
                         text = stringResource(R.string.set_home),
                         onClick = controller::addPlannedHome,
                         iconRes = R.drawable.ic_home_takeoff_marker,
-                        iconTinted = false,
                         modifier = Modifier.weight(1f),
                     )
                 }
@@ -171,7 +170,6 @@ internal fun WorkflowPanel(
                     ),
                     onClick = controller::toggleMissionSimulation,
                     iconRes = R.drawable.drone_marker_36,
-                    iconTinted = false,
                     enabled = state.simulationEnabled,
                     modifier = Modifier.weight(1f),
                 )

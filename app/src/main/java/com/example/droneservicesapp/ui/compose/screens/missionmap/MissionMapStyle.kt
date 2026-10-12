@@ -3,6 +3,11 @@ package com.example.droneservicesapp.ui.compose.screens.missionmap
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.Canvas
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.res.colorResource
+import kotlin.math.roundToInt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,9 +25,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Slider
-import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -195,13 +200,14 @@ internal fun MapPanelButton(
 ) {
     Row(
         modifier = modifier
+            // Dim the whole button (frame included) when disabled.
+            .alpha(if (enabled) 1f else 0.45f)
             .heightIn(min = height)
             .clip(MapChrome.pillShape)
             .background(if (highlighted) MapChrome.pillActiveSurface else MapChrome.pillInactive)
             .border(1.dp, if (highlighted) MapChrome.pillActiveStroke else MapChrome.overlayStroke, MapChrome.pillShape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .semantics { this.contentDescription = contentDescription }
-            .alpha(if (enabled) 1f else 0.45f)
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
@@ -246,13 +252,13 @@ internal fun MapRoundIconButton(
 ) {
     Box(
         modifier = modifier
+            .alpha(if (enabled) 1f else 0.45f)
             .size(size)
             .clip(CircleShape)
             .background(background)
             .border(1.dp, border, CircleShape)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .semantics { this.contentDescription = contentDescription }
-            .alpha(if (enabled) 1f else 0.45f),
+            .semantics { this.contentDescription = contentDescription },
         contentAlignment = Alignment.Center,
     ) {
         Image(painterResource(iconRes), null, Modifier.size(iconSize), colorFilter = ColorFilter.tint(MapChrome.textPrimary))
@@ -263,6 +269,7 @@ internal fun MapRoundIconButton(
  * Label + `[-] slider value unit [+]` row; the value is driven by an integer [step] index so the
  * row behaves like the previous SeekBar (one step per button press).
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun MapSliderField(
     label: String,
@@ -296,19 +303,14 @@ internal fun MapSliderField(
             )
             Slider(
                 value = stepIndex.coerceIn(minStepIndex, maxStepIndex).toFloat(),
-                onValueChange = { onStepChange(it.toInt().coerceIn(minStepIndex, maxStepIndex)) },
+                onValueChange = { onStepChange(it.roundToInt().coerceIn(minStepIndex, maxStepIndex)) },
                 valueRange = minStepIndex.toFloat()..maxStepIndex.toFloat().coerceAtLeast(minStepIndex + 1f),
                 steps = (maxStepIndex - minStepIndex - 1).coerceAtLeast(0),
                 modifier = Modifier
                     .weight(1f)
                     .semantics { contentDescription = label },
-                colors = SliderDefaults.colors(
-                    thumbColor = Color.White,
-                    activeTrackColor = Color(0xFF29DCD0),
-                    inactiveTrackColor = Color(0xFF2A2F35),
-                    activeTickColor = Color.Transparent,
-                    inactiveTickColor = Color.Transparent,
-                ),
+                thumb = { MapSliderThumb() },
+                track = { state -> MapSliderTrack(state.value, state.valueRange) },
             )
             Text(
                 valueText,
@@ -326,6 +328,36 @@ internal fun MapSliderField(
                 size = 28.dp,
                 iconSize = 16.dp,
             )
+        }
+    }
+}
+
+/** Round 18 dp knob, as the former `seekbar_thumb_dji` drawable. */
+@Composable
+private fun MapSliderThumb() {
+    Box(
+        Modifier
+            .size(18.dp)
+            .background(colorResource(R.color.slider_thumb), CircleShape),
+    )
+}
+
+/** 4 dp rounded track filled up to the value, as the former `seekbar_progress_dji` drawable. */
+@Composable
+private fun MapSliderTrack(value: Float, valueRange: ClosedFloatingPointRange<Float>) {
+    val active = colorResource(R.color.slider_active)
+    val inactive = colorResource(R.color.slider_inactive)
+    val span = valueRange.endInclusive - valueRange.start
+    val fraction = if (span > 0f) ((value - valueRange.start) / span).coerceIn(0f, 1f) else 0f
+    Canvas(
+        Modifier
+            .fillMaxWidth()
+            .height(4.dp),
+    ) {
+        val radius = CornerRadius(size.height / 2f, size.height / 2f)
+        drawRoundRect(color = inactive, cornerRadius = radius)
+        if (fraction > 0f) {
+            drawRoundRect(color = active, size = Size(size.width * fraction, size.height), cornerRadius = radius)
         }
     }
 }

@@ -316,12 +316,12 @@ internal fun DeliberateSlideTrack(
     val currentOnCompleted by rememberUpdatedState(onCompleted)
     BoxWithConstraints(
         modifier = modifier
+            .alpha(if (enabled) 1f else 0.55f)
             .fillMaxWidth()
             .height(54.dp)
             .clip(MapChrome.sliderShape)
             .background(MapChrome.sliderPill)
             .border(1.dp, MapChrome.sliderPillStroke, MapChrome.sliderShape)
-            .alpha(if (enabled) 1f else 0.55f)
             .semantics {
                 contentDescription = label
                 if (!enabled) disabled()

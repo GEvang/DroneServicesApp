@@ -71,7 +71,6 @@ private data class DockItem(
     val label: String,
     val description: String,
     val selected: Boolean,
-    val tinted: Boolean,
     val onClick: () -> Unit,
     val tag: String? = null,
 )
@@ -91,32 +90,32 @@ internal fun MapBottomDock(
 ) {
     val operator = DockItem(
         R.drawable.ic_baseline_my_location_48, stringResource(R.string.map_dock_operator),
-        stringResource(R.string.my_location_button_desc), false, true, controller::centerOnUser,
+        stringResource(R.string.my_location_button_desc), false, controller::centerOnUser,
     )
     val drone = DockItem(
         R.drawable.drone_marker_36, stringResource(R.string.map_dock_drone),
-        stringResource(R.string.drone_location_button), false, false, controller::centerOnDroneOrShowDisconnected,
+        stringResource(R.string.drone_location_button), false, controller::centerOnDroneOrShowDisconnected,
     )
     val obstacles = DockItem(
         R.drawable.obstacle, stringResource(R.string.map_dock_obstacles),
-        stringResource(R.string.forbidden_areas), dock.obstaclesSelected, false, controller::toggleObstacles,
+        stringResource(R.string.forbidden_areas), dock.obstaclesSelected, controller::toggleObstacles,
     )
     val planning = DockItem(
         R.drawable.mission_planning, stringResource(R.string.planning),
-        stringResource(R.string.planning), planningSelected, false, controller::togglePlanning,
+        stringResource(R.string.planning), planningSelected, controller::togglePlanning,
         MISSION_PLANNING_DOCK_BUTTON_TAG,
     )
     val offset = DockItem(
         R.drawable.ic_menu_map, stringResource(R.string.map_dock_offset),
-        stringResource(R.string.map_dock_offset), dock.offsetSelected, true, controller::startDroneOffsetAdjustment,
+        stringResource(R.string.map_dock_offset), dock.offsetSelected, controller::startDroneOffsetAdjustment,
     )
     val download = DockItem(
         R.drawable.ic_download_24, stringResource(R.string.map_dock_offline),
-        stringResource(R.string.home_offline_download), false, true, controller::downloadCurrentViewOffline,
+        stringResource(R.string.home_offline_download), false, controller::downloadCurrentViewOffline,
     )
     val more = DockItem(
         R.drawable.ic_menu_settings, stringResource(R.string.more),
-        stringResource(R.string.menu_settings), false, true, controller::openSettings,
+        stringResource(R.string.menu_settings), false, controller::openSettings,
     )
 
     if (tabletLayout) {
@@ -192,7 +191,7 @@ private fun TabletDockItem(item: DockItem, modifier: Modifier) {
             painterResource(item.iconRes),
             null,
             Modifier.size(28.dp),
-            colorFilter = if (item.tinted || item.selected) ColorFilter.tint(color) else null,
+            colorFilter = ColorFilter.tint(color),
         )
         Text(item.label, color = color, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
@@ -200,7 +199,7 @@ private fun TabletDockItem(item: DockItem, modifier: Modifier) {
 
 @Composable
 private fun PhoneDockIcon(item: DockItem) {
-    val color = if (item.selected) MapChrome.active else MapChrome.unselected
+    val color = if (item.selected) MapChrome.active else Color.White
     Box(
         modifier = Modifier
             .size(48.dp)
@@ -218,7 +217,7 @@ private fun PhoneDockIcon(item: DockItem) {
             painterResource(item.iconRes),
             null,
             Modifier.size(24.dp),
-            colorFilter = if (item.tinted || item.selected) ColorFilter.tint(color) else null,
+            colorFilter = ColorFilter.tint(color),
         )
     }
 }
@@ -241,7 +240,12 @@ private fun PhonePlanningButton(item: DockItem) {
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
     ) {
-        Image(painterResource(item.iconRes), null, Modifier.size(22.dp))
+        Image(
+            painterResource(item.iconRes),
+            null,
+            Modifier.size(22.dp),
+            colorFilter = ColorFilter.tint(if (item.selected) MapChrome.active else Color.White),
+        )
         Text(item.label, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Medium)
     }
 }

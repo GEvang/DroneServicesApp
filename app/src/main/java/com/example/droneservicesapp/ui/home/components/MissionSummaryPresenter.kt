@@ -64,7 +64,8 @@ class MissionSummaryPresenter(
         val sprayRate = if (spraying) viewModel.sprayFlowLitersPerMinute() else 0.0
         renderJob?.cancel()
         renderJob = scope.launch {
-            val plan = withContext(Dispatchers.Default) { resourcePlan(path, viewModel.plannedHomePosition.value) }
+            val home = viewModel.plannedHomePosition.value
+            val plan = withContext(Dispatchers.Default) { resourcePlan(path, home) }
             if (!isActive() || currentPath() != path || viewModel.mapState.value != MainActivityViewModel.MapState.SetFlightParams) return@launch
             setServiceMarkers(plan.batteryReturnPoints, if (spraying) plan.tankRefillPoints else emptyList())
             card.text = buildString {
@@ -72,6 +73,11 @@ class MissionSummaryPresenter(
                 append("Passes: $passes   |   Time: ${formatTime(plan.estimatedFlightSeconds.toInt())}")
                 appendLine()
                 append("ALT (AGL): ${altitude.toInt()} m   |   Batteries: ${plan.batteryCount}")
+                // The estimate includes the flight from the planned home and back; showing how far
+                // away that home is explains a large time or battery count.
+                homeDistanceMeters(path, home)?.let {
+                    append("   |   ${context.getString(R.string.mission_summary_home_distance, formatDistance(it))}")
+                }
                 if (spraying) {
                     appendLine()
                     append("Flow: ${decimal(sprayRate)} Lt/min   |   Liquid: ${decimal(plan.totalSprayLiters)} Lt   |   Tank refills: ${plan.tankRefillCount}")
@@ -106,6 +112,9 @@ class MissionSummaryPresenter(
             appendLine(context.getString(R.string.mission_summary_speed, decimal(viewModel.flightSpeed.value ?: 5.0)))
             appendLine(context.getString(R.string.mission_summary_estimated_time, formatTime(plan.estimatedFlightSeconds.toInt())))
             appendLine(context.getString(R.string.mission_summary_batteries, plan.batteryCount))
+            homeDistanceMeters(path, viewModel.plannedHomePosition.value)?.let {
+                appendLine(context.getString(R.string.mission_summary_home_distance, formatDistance(it)))
+            }
             if (mode == PlanningOperationMode.SPRAY) {
                 appendLine(context.getString(R.string.mission_summary_spray_flow, decimal(viewModel.sprayFlowLitersPerMinute())))
                 appendLine(context.getString(R.string.mission_summary_liquid, decimal(plan.totalSprayLiters)))
@@ -128,6 +137,13 @@ class MissionSummaryPresenter(
         viewModel.planningOperationMode.value ?: PlanningOperationMode.SURVEY,
         (viewModel.flightSpeed.value ?: 5.0).coerceAtLeast(0.1), viewModel.sprayFlowLitersPerMinute(),
     )
+
+    /** Distance from the planned home to the mission start, or null when no home is set. */
+    private fun homeDistanceMeters(path: List<LatLng>, home: LatLon?): Double? {
+        val start = path.firstOrNull() ?: return null
+        home ?: return null
+        return SphericalUtil.computeDistanceBetween(LatLng(home.lat, home.lon), start)
+    }
 
     private fun decimal(value: Double) = String.format(Locale.US, "%.1f", value)
     private fun formatTime(seconds: Int) = String.format(Locale.US, "%02d:%02d", seconds / 60, seconds % 60)

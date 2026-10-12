@@ -732,6 +732,7 @@
     <string name="mission_summary_workflow">Workflow: %1$s</string>
     <string name="mission_summary_area">Area: %1$s</string>
     <string name="mission_summary_path_length">Path length: %1$s</string>
+    <string name="mission_summary_home_distance">Home: %1$s away</string>
     <string name="mission_summary_lines">Lines: %1$d</string>
     <string name="mission_summary_altitude">Altitude: %1$d m</string>
     <string name="mission_summary_speed">Speed: %1$s m/s</string>

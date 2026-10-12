@@ -63,6 +63,9 @@ object MissionMapSceneBuilder {
     private const val DRAFT_FILL = 0x37DC2626
     private const val MAX_DIRECTION_MARKERS = 80
     private const val ROUTE_LABEL_OFFSET_DP = 28f
+    private const val EDGE_LABEL_CHAR_WIDTH_DP = 7.0
+    private const val EDGE_LABEL_HEIGHT_DP = 22.0
+    private const val EDGE_LABEL_GAP_DP = 6.0
     private const val TERRAIN_CIRCLE_SEGMENTS = 96
     private const val TERRAIN_HATCH_SPACING_METERS = 140.0
     private const val GEO_CIRCLE_SEGMENTS = 72
@@ -211,14 +214,21 @@ object MissionMapSceneBuilder {
             )
         }
 
+        val areaCentroid = if (areaVertices.size >= 3) {
+            MapGeometry.coordinateOrNull(areaVertices.map { it.latitude }.average(), areaVertices.map { it.longitude }.average())
+        } else null
         SurveyPathLayerState.perimeterSegments(areaVertices).forEachIndexed { index, (from, to) ->
+            val start = from.toMapCoordinateOrNull() ?: return@forEachIndexed
+            val end = to.toMapCoordinateOrNull() ?: return@forEachIndexed
             val mid = MapGeometry.coordinateOrNull((from.latitude + to.latitude) / 2.0, (from.longitude + to.longitude) / 2.0)
                 ?: return@forEachIndexed
+            val text = formatDistanceLabel(SphericalUtil.computeDistanceBetween(from, to))
+            val (offsetX, offsetY) = edgeLabelOffsetDp(start, end, mid, areaCentroid, text)
             markers += MapMarkerModel(
                 id = "survey-measure-$index",
                 position = mid,
-                layer = MapOverlayLayer.MISSION_DETAIL,
-                icon = MapMarkerIcon.TextLabel(formatDistanceLabel(SphericalUtil.computeDistanceBetween(from, to)), MapLabelStyle.MEASUREMENT),
+                layer = MapOverlayLayer.LABELS,
+                icon = MapMarkerIcon.TextLabel(text, MapLabelStyle.MEASUREMENT, offsetX, offsetY),
                 anchor = MapMarkerAnchor.CENTER,
             )
         }
@@ -228,7 +238,7 @@ object MissionMapSceneBuilder {
                     markers += MapMarkerModel(
                         id = "survey-area-label",
                         position = centroid,
-                        layer = MapOverlayLayer.MISSION_DETAIL,
+                        layer = MapOverlayLayer.LABELS,
                         icon = MapMarkerIcon.TextLabel("Area ${formatAreaLabel(SphericalUtil.computeArea(areaVertices))}", MapLabelStyle.AREA),
                         anchor = MapMarkerAnchor.CENTER,
                     )
@@ -305,7 +315,7 @@ object MissionMapSceneBuilder {
             markers += MapMarkerModel(
                 id = "route-distance-$index",
                 position = MapGeometry.midpoint(start, end),
-                layer = MapOverlayLayer.MISSION_DETAIL,
+                layer = MapOverlayLayer.LABELS,
                 icon = MapMarkerIcon.TextLabel(String.format(Locale.US, "%.1f m", meters), MapLabelStyle.DISTANCE, offsetX, offsetY),
                 anchor = MapMarkerAnchor.CENTER,
             )
@@ -433,6 +443,33 @@ object MissionMapSceneBuilder {
         String.format(Locale.US, "%.2f ha", areaSquareMeters / 10_000.0)
     } else {
         "${areaSquareMeters.roundToInt().coerceAtLeast(0)} m²"
+    }
+
+    /**
+     * Screen offset (dp) that places an edge's measurement label just outside the field: along
+     * the edge normal pointing away from [centroid], far enough that the label's box clears the
+     * line. With no centroid (an open, two-point area) the label goes to the left of the edge.
+     */
+    internal fun edgeLabelOffsetDp(
+        from: MapCoordinate,
+        to: MapCoordinate,
+        midpoint: MapCoordinate,
+        centroid: MapCoordinate?,
+        text: String,
+    ): Pair<Float, Float> {
+        val (dx, dy) = MapGeometry.screenDirection(from, to) ?: return 0f to 0f
+        var nx = -dy
+        var ny = dx
+        val inward = centroid?.let { MapGeometry.screenDirection(midpoint, it) }
+        if (inward != null && nx * inward.first + ny * inward.second > 0.0) {
+            nx = -nx
+            ny = -ny
+        }
+        // Approximate the measurement label box (12sp bold, 10/6 dp padding, 60 dp minimum).
+        val halfWidth = maxOf(60.0, text.length * EDGE_LABEL_CHAR_WIDTH_DP + 20.0) / 2.0
+        val halfHeight = EDGE_LABEL_HEIGHT_DP / 2.0
+        val distance = kotlin.math.abs(nx) * halfWidth + kotlin.math.abs(ny) * halfHeight + EDGE_LABEL_GAP_DP
+        return (nx * distance).toFloat() to (ny * distance).toFloat()
     }
 
     fun obstacleLetter(index: Int): String = ('A'.code + index).toChar().toString()
