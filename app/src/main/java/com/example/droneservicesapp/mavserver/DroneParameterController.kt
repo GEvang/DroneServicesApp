@@ -73,6 +73,7 @@ internal class DroneParameterController(
         const val TERRAIN_ENABLE = "TERRAIN_ENABLE"
         const val TERRAIN_SPACING = "TERRAIN_SPACING"
         const val WP_RFND_USE = "WP_RFND_USE"
+        const val WPNAV_RFND_USE = "WPNAV_RFND_USE"
         const val SURFTRAK_MODE = "SURFTRAK_MODE"
         const val AVOID_ENABLE = "AVOID_ENABLE"
 
@@ -96,6 +97,7 @@ internal class DroneParameterController(
         MutableLiveData(VehicleParameterUiState())
     }
     private val parameterTypes = mutableMapOf<String, EnumValue<MavParamType>>()
+    private val resolvedParameterNames = mutableMapOf<String, String>()
     private val readGenerations = mutableMapOf<String, Int>()
     private val writeGenerations = mutableMapOf<String, Int>()
     private val pendingWrites = mutableMapOf<String, Int>()
@@ -134,7 +136,7 @@ internal class DroneParameterController(
             current?.availability == VehicleParameterAvailability.SUPPORTED && current.isWriting -> Unit
             current?.availability == VehicleParameterAvailability.SUPPORTED ->
                 setValue(parameterName, value, showFeedback = false)
-            current?.availability != VehicleParameterAvailability.LOADING -> startRead(parameterName)
+            current?.availability == VehicleParameterAvailability.DISCONNECTED -> startRead(parameterName)
         }
     }
 
@@ -153,10 +155,11 @@ internal class DroneParameterController(
         stateLiveData.value = current.copy(isWriting = true, result = null)
 
         val parameterType = parameterTypes[parameterName]
+        val vehicleParameterName = resolvedParameterNames[parameterName] ?: parameterName
         val request = ParamSet.builder()
             .targetSystem(targetSystemId())
             .targetComponent(targetComponentId())
-            .paramId(parameterName)
+            .paramId(vehicleParameterName)
             .paramValue(value.toFloat())
             .apply {
                 if (parameterType != null) paramType(parameterType)
@@ -164,7 +167,7 @@ internal class DroneParameterController(
             }
             .build()
         mavlinkClient.send2(mavlinkClient.gcsSystemId, GCS_COMPONENT_ID, request)
-        Log.i(TAG, "PARAM_SET sent name=$parameterName requested=$value")
+        Log.i(TAG, "PARAM_SET sent name=$vehicleParameterName canonicalName=$parameterName requested=$value")
         DiagnosticLog.event("mavlink", "parameter_write_requested", data = mapOf(
             "parameter" to parameterName,
             "requestedValue" to value,
@@ -198,8 +201,10 @@ internal class DroneParameterController(
         val payload = message.payload as? ParamValue ?: return
         if (message.originSystemId != targetSystemId()) return
 
-        val parameterName = normalizeParameterId(payload.paramId())
+        val vehicleParameterName = normalizeParameterId(payload.paramId())
+        val parameterName = canonicalParameterName(vehicleParameterName)
         val stateLiveData = mutableStates[parameterName] ?: return
+        resolvedParameterNames[parameterName] = vehicleParameterName
         parameterTypes[parameterName] = payload.paramType()
         readGenerations[parameterName] = (readGenerations[parameterName] ?: 0) + 1
 
@@ -262,6 +267,7 @@ internal class DroneParameterController(
                 mutableStates[parameterName]?.value = VehicleParameterUiState()
             }
             parameterTypes.clear()
+            resolvedParameterNames.clear()
             lastNonZeroValues.clear()
         }
     }
@@ -304,19 +310,35 @@ internal class DroneParameterController(
 
     private fun sendReadRequest(parameterName: String) {
         if (!isReady()) return
-        val request = ParamRequestRead.builder()
-            .targetSystem(targetSystemId())
-            .targetComponent(targetComponentId())
-            .paramId(parameterName)
-            .paramIndex(-1)
-            .build()
-        mavlinkClient.send2(mavlinkClient.gcsSystemId, GCS_COMPONENT_ID, request)
-        Log.d(TAG, "PARAM_REQUEST_READ sent name=$parameterName")
-        DiagnosticLog.event("mavlink", "parameter_read_requested", data = mapOf(
-            "parameter" to parameterName,
-            "targetSystemId" to targetSystemId(),
-            "targetComponentId" to targetComponentId()
-        ))
+        val vehicleParameterNames = resolvedParameterNames[parameterName]
+            ?.let(::listOf)
+            ?: parameterAliases(parameterName)
+        vehicleParameterNames.forEach { vehicleParameterName ->
+            val request = ParamRequestRead.builder()
+                .targetSystem(targetSystemId())
+                .targetComponent(targetComponentId())
+                .paramId(vehicleParameterName)
+                .paramIndex(-1)
+                .build()
+            mavlinkClient.send2(mavlinkClient.gcsSystemId, GCS_COMPONENT_ID, request)
+            Log.d(TAG, "PARAM_REQUEST_READ sent name=$vehicleParameterName canonicalName=$parameterName")
+            DiagnosticLog.event("mavlink", "parameter_read_requested", data = mapOf(
+                "parameter" to vehicleParameterName,
+                "canonicalParameter" to parameterName,
+                "targetSystemId" to targetSystemId(),
+                "targetComponentId" to targetComponentId()
+            ))
+        }
+    }
+
+    private fun parameterAliases(parameterName: String): List<String> = when (parameterName) {
+        WP_RFND_USE -> listOf(WP_RFND_USE, WPNAV_RFND_USE)
+        else -> listOf(parameterName)
+    }
+
+    private fun canonicalParameterName(parameterName: String): String = when (parameterName) {
+        WPNAV_RFND_USE -> WP_RFND_USE
+        else -> parameterName
     }
 
     private fun publishFailure(parameterName: String, current: VehicleParameterUiState) {

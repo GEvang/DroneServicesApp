@@ -32,6 +32,7 @@ import com.example.droneservicesapp.domain.terrain.TerrainCoveragePlan
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import io.dronefleet.mavlink.MavlinkMessage
 import io.dronefleet.mavlink.common.CommandLong
+import io.dronefleet.mavlink.common.FileTransferProtocol
 import io.dronefleet.mavlink.common.GpsFixType
 import io.dronefleet.mavlink.common.MavCmd
 import io.dronefleet.mavlink.common.MissionItemInt
@@ -297,6 +298,15 @@ class DroneViewModel : ViewModel() {
             targetComponentId = { runtimeState.autopilotCompId },
         )
     }
+    private val terrainFileController: DroneTerrainFileController by lazy {
+        DroneTerrainFileController(
+            mavlinkClient = mavlinkClient,
+            isConnected = { stateStore.conStateLiveData.value == true },
+            targetSystemId = { runtimeState.autopilotSysId },
+            targetComponentId = { runtimeState.autopilotCompId },
+            currentMissionTileNames = terrainController::currentSourceTileNames,
+        )
+    }
 
     val droneLocationLiveData: MutableLiveData<Location> = stateStore.droneLocationLiveData
     val conStateLiveData: MutableLiveData<Boolean> = stateStore.conStateLiveData
@@ -322,6 +332,7 @@ class DroneViewModel : ViewModel() {
     val vehicleParameterCatalog = parameterCatalogController.state
     val droneLogCatalog = logDownloadController.catalog
     val droneLogDownloadState = logDownloadController.download
+    val aircraftTerrainCatalog = terrainFileController.state
     val rcRSSI: MutableLiveData<Float> = stateStore.rcRSSI
     val missionItems: MutableLiveData<ArrayList<MissionItemInt>> = stateStore.missionItems
     val liquidLevel: MutableLiveData<Float> = stateStore.liquidLevel
@@ -376,6 +387,8 @@ class DroneViewModel : ViewModel() {
     fun downloadDroneLog(logId: Int): DroneLogRequestResult = logDownloadController.download(logId)
 
     fun clearDroneLogDownloadResult() = logDownloadController.clearDownloadResult()
+
+    fun refreshAircraftTerrainFiles(): AircraftTerrainRequestResult = terrainFileController.refresh()
 
     fun refreshTerrainFollowingParameters() {
         parameterController.refreshAll()
@@ -825,6 +838,7 @@ class DroneViewModel : ViewModel() {
                             parameterController.onDisconnected()
                             parameterCatalogController.onDisconnected()
                             logDownloadController.onDisconnected()
+                            terrainFileController.onDisconnected()
                             terrainController.onDisconnected()
                         }
 
@@ -863,6 +877,7 @@ class DroneViewModel : ViewModel() {
             }
             is LogEntry -> mainHandler.post { logDownloadController.handle(message) }
             is LogData -> logDataExecutor.execute { logDownloadController.handle(message) }
+            is FileTransferProtocol -> terrainFileController.handle(message)
             is TerrainRequest,
             is TerrainReport -> terrainDataExecutor.execute { terrainController.handle(message) }
         }
@@ -1006,6 +1021,7 @@ class DroneViewModel : ViewModel() {
         logDataExecutor.shutdownNow()
         terrainDataExecutor.shutdownNow()
         logDownloadController.clear()
+        terrainFileController.clear()
         mainHandler.removeCallbacksAndMessages(null)
         Log.i(TAG, "bridge detached: clearing all subscriptions in onCleared")
         rtkController.shutdown()

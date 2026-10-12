@@ -80,6 +80,7 @@ class SrtmTerrainRepository(
                     )
                 )
             }
+            TerrainDownloadCatalog(appContext).recordPreparedArea(plan, orderedTiles.map(::cachedFile))
             PreparedTerrainSource(plan, loaded)
         } catch (error: Throwable) {
             loaded.values.forEach(SrtmHgtTile::close)

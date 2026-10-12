@@ -191,6 +191,9 @@ internal class DroneTerrainController(
     @Synchronized
     fun isReadyForAuto(): Boolean = readyForAuto
 
+    @Synchronized
+    fun currentSourceTileNames(): Set<String> = source?.plan?.sourceTiles?.map { it.baseName }?.toSet().orEmpty()
+
     fun markFailed(failure: TerrainFailure, detail: String? = null) = fail(failure, detail)
 
     @Synchronized
