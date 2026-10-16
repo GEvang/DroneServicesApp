@@ -84,4 +84,23 @@ class MapGeometryTest {
         assertEquals(35.05, midpoint.latitude, 1e-9)
         assertEquals(24.05, midpoint.longitude, 1e-9)
     }
+
+    @Test
+    fun tileCountMatchesTheWebMercatorGrid() {
+        val world = MapBounds(MapCoordinate(-85.0, -180.0), MapCoordinate(85.0, 180.0))
+        assertEquals(1L + 4L + 16L, MapGeometry.tileCount(world, 0, 2))
+        // A single point touches exactly one tile per zoom level.
+        assertEquals(5L, MapGeometry.tileCount(MapBounds(origin, origin), 14, 18))
+        val oneKilometre = MapBounds(MapCoordinate(35.36, 24.47), MapCoordinate(35.37, 24.48))
+        assertEquals(107L, MapGeometry.tileCount(oneKilometre, 14, 18))
+    }
+
+    @Test
+    fun offlineGuardAllowsAZoom14ViewAndRefusesWiderAreas() {
+        // A 2340 x 1080 px landscape view over Crete at zoom 14 vs a 0.2 degree box.
+        val zoom14View = MapBounds(MapCoordinate(35.3254, 24.3698), MapCoordinate(35.3946, 24.5702))
+        val wide = MapBounds(MapCoordinate(35.26, 24.37), MapCoordinate(35.46, 24.57))
+        assertTrue(MapGeometry.tileCount(zoom14View, 14, 18) in 10_000L..20_000L)
+        assertTrue(MapGeometry.tileCount(wide, 14, 18) > 20_000L)
+    }
 }

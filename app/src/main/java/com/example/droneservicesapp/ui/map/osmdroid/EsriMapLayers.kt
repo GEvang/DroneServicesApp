@@ -1,7 +1,8 @@
-package com.example.droneservicesapp.ui.home.components
+package com.example.droneservicesapp.ui.map.osmdroid
 
 import android.content.Context
 import android.graphics.Color
+import com.example.droneservicesapp.ui.map.MapDisplayPreferences
 import org.osmdroid.tileprovider.MapTileProviderBasic
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
 import org.osmdroid.util.MapTileIndex

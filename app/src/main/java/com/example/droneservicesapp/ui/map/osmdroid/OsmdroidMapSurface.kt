@@ -17,7 +17,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.example.droneservicesapp.ui.home.components.EsriMapLayers
+import com.example.droneservicesapp.ui.map.model.MapBounds
 import com.example.droneservicesapp.ui.map.model.MapCamera
 import com.example.droneservicesapp.ui.map.model.MapCameraCommand
 import com.example.droneservicesapp.ui.map.model.MapCoordinate
@@ -32,7 +32,6 @@ import com.example.droneservicesapp.ui.map.model.MapRasterModel
 import com.example.droneservicesapp.ui.map.model.MapScene
 import com.example.droneservicesapp.ui.map.model.MapScreenPoint
 import com.example.droneservicesapp.ui.map.model.MapSurfaceHandle
-import com.example.droneservicesapp.ui.ortho.OrthoImageOverlay
 import org.osmdroid.events.MapEventsReceiver
 import org.osmdroid.events.MapListener
 import org.osmdroid.events.ScrollEvent
@@ -282,6 +281,17 @@ private class OsmdroidSceneHost(
         if (map.width == 0 || map.height == 0) return null
         val pixel = map.projection.toPixels(coordinate.geoPoint(), null) ?: return null
         return MapScreenPoint(pixel.x.toFloat(), pixel.y.toFloat())
+    }
+
+    override fun visibleBounds(): MapBounds? {
+        if (map.width == 0 || map.height == 0) return null
+        val box = map.boundingBox
+        return runCatching {
+            MapBounds(
+                MapCoordinate(box.latSouth.coerceIn(-90.0, 90.0), box.lonWest.coerceIn(-180.0, 180.0)),
+                MapCoordinate(box.latNorth.coerceIn(-90.0, 90.0), box.lonEast.coerceIn(-180.0, 180.0)),
+            )
+        }.getOrNull()
     }
 
     override fun downloadVisibleRegion(minZoom: Int, maxZoom: Int, onComplete: (errorCount: Int) -> Unit) {

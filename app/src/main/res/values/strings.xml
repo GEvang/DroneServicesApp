@@ -575,6 +575,7 @@
     <string name="offline_download_started">Offline download started</string>
     <string name="offline_download_complete">Offline download complete</string>
     <string name="offline_download_failed">Offline download failed (%1$d)</string>
+    <string name="offline_download_area_too_large">This area needs about %1$d map tiles. Zoom in so it needs at most %2$d, then download again.</string>
     <string name="cache_directory_not_found">Cache directory not found</string>
     <string name="offline_map_cache_cleared">Offline map cache cleared</string>
     <string name="failed_to_clear_cache">Failed to clear cache (some files may be locked)</string>

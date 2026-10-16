@@ -2,6 +2,9 @@ package com.example.droneservicesapp.ui.compose.navigation
 
 import android.Manifest
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.Lifecycle
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertContentDescriptionEquals
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
@@ -32,6 +35,7 @@ import com.example.droneservicesapp.ui.compose.screens.pointcloud.POINT_CLOUD_SU
 import com.example.droneservicesapp.ui.compose.screens.rtk.RTK_SCREEN_TAG
 import com.example.droneservicesapp.ui.compose.screens.settings.SETTINGS_SCREEN_TAG
 import com.example.droneservicesapp.ui.shell.MainActivity
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.RuleChain
@@ -150,5 +154,42 @@ class MainActivityShellTest {
 
         composeRule.onNodeWithTag(MISSION_MAP_SCREEN_TAG).assertIsDisplayed()
         composeRule.onNodeWithTag(MISSION_MAP_SURFACE_TAG).assertIsDisplayed()
+    }
+
+    @Test
+    fun immersiveModeKeepsTheNavigationBarHiddenAcrossRecreation() {
+        composeRule.onNodeWithTag(MISSION_MAP_SCREEN_TAG).assertIsDisplayed()
+        waitForNavigationBarHidden()
+
+        composeRule.activityRule.scenario.recreate()
+
+        composeRule.onNodeWithTag(MISSION_MAP_SCREEN_TAG).assertIsDisplayed()
+        waitForNavigationBarHidden()
+    }
+
+    @Test
+    fun backgroundAndForegroundKeepTheSessionAndMapAlive() {
+        // Pause/resume drive the MAVLink session (MavlinkSessionCoordinator) and the map surface.
+        composeRule.onNodeWithTag(MISSION_MAP_SURFACE_TAG).assertIsDisplayed()
+        repeat(2) {
+            composeRule.activityRule.scenario.moveToState(Lifecycle.State.CREATED)
+            composeRule.activityRule.scenario.moveToState(Lifecycle.State.RESUMED)
+        }
+        composeRule.onNodeWithTag(MISSION_MAP_SCREEN_TAG).assertIsDisplayed()
+        composeRule.onNodeWithTag(MISSION_MAP_SURFACE_TAG).assertIsDisplayed()
+        composeRule.activityRule.scenario.onActivity { activity ->
+            assertEquals(Lifecycle.State.RESUMED, activity.lifecycle.currentState)
+        }
+    }
+
+    private fun waitForNavigationBarHidden() {
+        composeRule.waitUntil(timeoutMillis = 5_000) {
+            var hidden = false
+            composeRule.activityRule.scenario.onActivity { activity ->
+                val insets = ViewCompat.getRootWindowInsets(activity.window.decorView)
+                hidden = insets != null && !insets.isVisible(WindowInsetsCompat.Type.navigationBars())
+            }
+            hidden
+        }
     }
 }

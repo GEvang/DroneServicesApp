@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.ui.home.components
+package com.example.droneservicesapp.ui.map
 
 import android.content.Context
 import androidx.preference.PreferenceManager

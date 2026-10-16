@@ -1,7 +1,6 @@
 package com.example.droneservicesapp;
 
 import android.content.Context;
-import android.preference.PreferenceManager;
 
 import androidx.appcompat.app.AppCompatDelegate;
 
@@ -9,7 +8,7 @@ import com.example.droneservicesapp.data.diagnostics.DiagnosticLog;
 
 import com.example.droneservicesapp.core.util.LocaleUtils;
 
-import org.osmdroid.config.Configuration;
+import com.example.droneservicesapp.ui.map.osmdroid.OsmdroidMapEngine;
 
 public class Application extends android.app.Application {
 
@@ -28,16 +27,8 @@ public class Application extends android.app.Application {
         DiagnosticLog.installCrashHandler();
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO);
 
-        // osmdroid init (required)
-        Configuration.getInstance().load(
-                this,
-                PreferenceManager.getDefaultSharedPreferences(this)
-        );
-        Configuration.getInstance().setUserAgentValue(getPackageName());
-
-        // Limit osmdroid tile cache size
-        Configuration.getInstance().setTileFileSystemCacheMaxBytes(1024L * 1024L * 1024L); // 1 GB
-        Configuration.getInstance().setTileFileSystemCacheTrimBytes(800L * 1024L * 1024L); // trim back to 800 MB
+        // Map engine (user agent, 1 GB tile cache trimmed back to 800 MB).
+        OsmdroidMapEngine.configure(this);
 
     }
 

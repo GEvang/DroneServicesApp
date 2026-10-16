@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.ui.ortho
+package com.example.droneservicesapp.ui.map.osmdroid
 
 import android.graphics.Bitmap
 import android.graphics.Canvas

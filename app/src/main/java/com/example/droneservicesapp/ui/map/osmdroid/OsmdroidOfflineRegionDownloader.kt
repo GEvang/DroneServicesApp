@@ -1,7 +1,6 @@
 package com.example.droneservicesapp.ui.map.osmdroid
 
 import android.content.Context
-import com.example.droneservicesapp.ui.home.components.EsriMapLayers
 import org.osmdroid.tileprovider.cachemanager.CacheManager
 import org.osmdroid.views.MapView
 import java.util.concurrent.atomic.AtomicInteger

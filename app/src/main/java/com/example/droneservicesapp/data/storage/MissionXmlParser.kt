@@ -1,6 +1,5 @@
 package com.example.droneservicesapp.data.storage
 
-import androidx.fragment.app.FragmentActivity
 import com.example.droneservicesapp.domain.model.AltitudeReferenceMode
 import com.example.droneservicesapp.domain.model.LatLon
 import com.example.droneservicesapp.domain.model.MissionObstacle
@@ -16,8 +15,7 @@ import java.io.InputStream
 import javax.xml.parsers.DocumentBuilderFactory
 
 class MissionXmlParser(
-    private var activity: FragmentActivity? = null,
-    private var activityViewModel: MainActivityViewModel? = null
+    private val activityViewModel: MainActivityViewModel? = null,
 ) {
     private var obstacleFallbackId = 0
 

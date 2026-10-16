@@ -4,6 +4,7 @@ import kotlin.math.PI
 import kotlin.math.asin
 import kotlin.math.atan2
 import kotlin.math.cos
+import kotlin.math.floor
 import kotlin.math.ln
 import kotlin.math.sin
 import kotlin.math.sqrt
@@ -92,6 +93,34 @@ object MapGeometry {
 
     fun coordinateOrNull(latitude: Double, longitude: Double): MapCoordinate? =
         if (isUsable(latitude, longitude)) MapCoordinate(latitude, longitude) else null
+
+    /**
+     * Number of 256 px Web-Mercator (XYZ) tiles covering [bounds] across every zoom level from
+     * [minZoom] to [maxZoom], inclusive. Used to size offline downloads before starting them.
+     */
+    fun tileCount(bounds: MapBounds, minZoom: Int, maxZoom: Int): Long {
+        require(minZoom in 0..maxZoom) { "Invalid zoom range $minZoom..$maxZoom" }
+        var total = 0L
+        for (zoom in minZoom..maxZoom) {
+            val west = tileX(bounds.southWest.longitude, zoom)
+            val east = tileX(bounds.northEast.longitude, zoom)
+            val north = tileY(bounds.northEast.latitude, zoom)
+            val south = tileY(bounds.southWest.latitude, zoom)
+            total += (east - west + 1).toLong() * (south - north + 1).toLong()
+        }
+        return total
+    }
+
+    private fun tileX(longitude: Double, zoom: Int): Int {
+        val tiles = 1 shl zoom
+        return floor((longitude + 180.0) / 360.0 * tiles).toInt().coerceIn(0, tiles - 1)
+    }
+
+    private fun tileY(latitude: Double, zoom: Int): Int {
+        val tiles = 1 shl zoom
+        val fraction = (1.0 - mercatorY(latitude) / PI) / 2.0
+        return floor(fraction * tiles).toInt().coerceIn(0, tiles - 1)
+    }
 
     private fun mercatorY(latitude: Double): Double {
         val radians = Math.toRadians(latitude.coerceIn(-MAX_MERCATOR_LATITUDE, MAX_MERCATOR_LATITUDE))

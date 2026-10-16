@@ -57,9 +57,10 @@ import com.example.droneservicesapp.ui.compose.screens.common.MorePanel
 import com.example.droneservicesapp.ui.compose.screens.common.MoreScreen
 import com.example.droneservicesapp.ui.compose.screens.common.MoreSettingRow
 import com.example.droneservicesapp.ui.compose.screens.common.TwoColumnLayout
-import com.example.droneservicesapp.ui.home.components.MapDisplayPreferences
+import com.example.droneservicesapp.ui.map.MapDisplayPreferences
+import com.example.droneservicesapp.ui.map.MapEngine
+import com.example.droneservicesapp.ui.map.MapTileCache
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
-import java.io.File
 import java.text.DecimalFormat
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -68,7 +69,6 @@ import java.util.TimeZone
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.osmdroid.config.Configuration
 
 private data class GeoDatasetSummary(
     val source: String,
@@ -82,7 +82,10 @@ private enum class SettingsDialog { LANGUAGE }
 const val SETTINGS_SCREEN_TAG = "compose-settings-screen"
 
 @Composable
-fun SettingsScreen(activityViewModel: MainActivityViewModel) {
+fun SettingsScreen(
+    activityViewModel: MainActivityViewModel,
+    tileCache: MapTileCache = MapEngine.tileCache,
+) {
     val context = LocalContext.current
     val preferences = remember(context) { PreferenceManager.getDefaultSharedPreferences(context) }
     var revision by remember { mutableIntStateOf(0) }
@@ -117,7 +120,7 @@ fun SettingsScreen(activityViewModel: MainActivityViewModel) {
     LaunchedEffect(operationMode) { activityViewModel.setPlanningOperationMode(operationMode) }
     LaunchedEffect(revision) {
         geoSummary = withContext(Dispatchers.IO) { loadGeoSummary(context) }
-        cacheSize = withContext(Dispatchers.IO) { formatBytes(tileCacheDir()?.let(::dirSizeBytes) ?: 0L) }
+        cacheSize = withContext(Dispatchers.IO) { formatBytes(tileCache.sizeBytes()) }
     }
 
     MoreScreen(
@@ -180,14 +183,14 @@ fun SettingsScreen(activityViewModel: MainActivityViewModel) {
                     OutlinedButton(
                         onClick = {
                             scope.launch {
-                                val cache = tileCacheDir()
-                                if (cache == null) {
+                                val result = withContext(Dispatchers.IO) { tileCache.clear() }
+                                if (result == MapTileCache.ClearResult.NOT_FOUND) {
                                     cacheSize = context.getString(R.string.cache_directory_not_found)
                                     return@launch
                                 }
-                                val ok = withContext(Dispatchers.IO) { deleteRecursively(cache) }
+                                val ok = result == MapTileCache.ClearResult.CLEARED
                                 cacheSize = if (ok) "0 B" else withContext(Dispatchers.IO) {
-                                    formatBytes(dirSizeBytes(cache))
+                                    formatBytes(tileCache.sizeBytes())
                                 }
                                 Toast.makeText(
                                     context,
@@ -360,20 +363,6 @@ private fun formatGeoScope(context: Context, records: List<GeoZoneDatasetRecord>
 private fun formatDateTime(timestamp: Long): String = SimpleDateFormat("yyyy-MM-dd HH:mm:ss z", Locale.US).apply {
     timeZone = TimeZone.getDefault()
 }.format(Date(timestamp))
-
-private fun tileCacheDir(): File? = runCatching { Configuration.getInstance().osmdroidTileCache }.getOrNull()
-
-private fun dirSizeBytes(file: File): Long = when {
-    !file.exists() -> 0L
-    file.isFile -> file.length()
-    else -> file.listFiles()?.sumOf(::dirSizeBytes) ?: 0L
-}
-
-private fun deleteRecursively(file: File): Boolean {
-    if (!file.exists()) return true
-    if (file.isDirectory && file.listFiles()?.all(::deleteRecursively) == false) return false
-    return file.delete()
-}
 
 internal fun formatBytes(bytes: Long): String {
     if (bytes < 1024) return "$bytes B"

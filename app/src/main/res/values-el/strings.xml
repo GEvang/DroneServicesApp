@@ -271,6 +271,7 @@
   <string name="offline_download_started">Η λήψη εκτός σύνδεσης ξεκίνησε</string>
   <string name="offline_download_complete">Η λήψη εκτός σύνδεσης ολοκληρώθηκε</string>
   <string name="offline_download_failed">Η λήψη εκτός σύνδεσης απέτυχε (%1$d)</string>
+  <string name="offline_download_area_too_large">Αυτή η περιοχή χρειάζεται περίπου %1$d πλακίδια χάρτη. Μεγεθύνετε ώστε να χρειάζεται το πολύ %2$d και κάντε ξανά λήψη.</string>
   <string name="cache_directory_not_found">Δεν βρέθηκε ο κατάλογος προσωρινής μνήμης</string>
   <string name="offline_map_cache_cleared">Η προσωρινή μνήμη του χάρτη εκτός σύνδεσης καθαρίστηκε</string>
   <string name="failed_to_clear_cache">Αποτυχία καθαρισμού προσωρινής μνήμης (μερικά αρχεία μπορεί να είναι κλειδωμένα)</string>

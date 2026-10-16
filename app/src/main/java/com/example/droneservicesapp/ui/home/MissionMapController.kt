@@ -65,6 +65,7 @@ import com.example.droneservicesapp.ui.home.model.HomeMapScreenMode
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
 import com.example.droneservicesapp.ui.map.model.MapCamera
+import com.example.droneservicesapp.ui.map.model.MapGeometry
 import com.example.droneservicesapp.ui.preview.PreviewAssetLoader
 import com.example.droneservicesapp.ui.preview.PreviewAssetStore
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
@@ -528,6 +529,13 @@ class MissionMapController(
 
     fun downloadCurrentViewOffline() {
         val surface = layers.surface ?: return
+        // An oversized area would take very long and could push earlier offline areas out of the
+        // size-limited tile cache, so it is refused before anything is downloaded.
+        val tiles = surface.visibleBounds()?.let { MapGeometry.tileCount(it, OFFLINE_MIN_ZOOM, OFFLINE_MAX_ZOOM) }
+        if (tiles != null && tiles > OFFLINE_MAX_TILES) {
+            messages.toast(context.getString(R.string.offline_download_area_too_large, tiles, OFFLINE_MAX_TILES), long = true)
+            return
+        }
         messages.toast(R.string.offline_download_started)
         surface.downloadVisibleRegion(OFFLINE_MIN_ZOOM, OFFLINE_MAX_ZOOM) { errors ->
             if (!isActive()) return@downloadVisibleRegion
@@ -1512,6 +1520,12 @@ class MissionMapController(
     companion object {
         private const val OFFLINE_MIN_ZOOM = 14
         private const val OFFLINE_MAX_ZOOM = 18
+
+        /**
+         * Largest offline download, in imagery tiles across zoom 14–18. At roughly 20 KB per
+         * satellite tile this stays well inside the 800 MB the tile cache trims back to.
+         */
+        internal const val OFFLINE_MAX_TILES = 20_000L
         private const val MAP_FLIGHT_TRACE_TAG = "MapFlightTrace"
         private const val MIN_VALID_ABS_COORDINATE = 1e-4
         private const val MAX_INITIAL_DRONE_CENTER_ATTEMPTS = 20

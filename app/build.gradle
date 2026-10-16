@@ -15,7 +15,8 @@ if (releaseSigningPropertiesFile.exists()) {
 }
 
 def versions = [
-        // Core Android & legacy View UI retained during the incremental migration
+        // Core Android. Material Components, ConstraintLayout and RecyclerView are no longer used
+        // by any screen; they are removed in Phase 11 (legacy cleanup).
         coreKtx             : '1.10.1',
         material            : '1.8.0',
         constraintLayout    : '2.1.4',
@@ -24,7 +25,8 @@ def versions = [
         recyclerView        : '1.3.1',
         securityCrypto      : '1.1.0-alpha06',
 
-        // Lifecycle and navigation are shared by the Compose shell and temporary Fragment hosts.
+        // Lifecycle and Compose navigation for the single-activity shell. No Fragments remain;
+        // fragment-ktx is removed with the other View-era dependencies in Phase 11.
         lifecycle           : '2.8.7',
         fragment            : '1.8.9',
         navigation          : '2.8.9',
@@ -133,7 +135,7 @@ dependencies {
     implementation "androidx.lifecycle:lifecycle-runtime-compose:${versions.lifecycle}"
     implementation "androidx.lifecycle:lifecycle-viewmodel-compose:${versions.lifecycle}"
 
-    // Jetpack Compose foundation. View Binding remains enabled until legacy screens are migrated.
+    // Jetpack Compose: every screen, dialog and the navigation shell.
     implementation composeBom
     androidTestImplementation composeBom
     implementation 'androidx.activity:activity-compose:1.10.1'

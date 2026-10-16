@@ -213,5 +213,8 @@ interface MapSurfaceHandle {
     fun currentCamera(): MapCamera
     fun userLocation(): MapCoordinate?
     fun toScreenPoint(coordinate: MapCoordinate): MapScreenPoint?
+
+    /** The visible area, or null before layout or when it wraps the antimeridian. */
+    fun visibleBounds(): MapBounds?
     fun downloadVisibleRegion(minZoom: Int, maxZoom: Int, onComplete: (errorCount: Int) -> Unit)
 }
