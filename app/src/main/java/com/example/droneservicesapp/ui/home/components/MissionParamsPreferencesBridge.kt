@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.ui.home.binders
+package com.example.droneservicesapp.ui.home.components
 
 import android.content.Context
 import androidx.preference.PreferenceManager

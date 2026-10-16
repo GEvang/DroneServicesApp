@@ -19,7 +19,6 @@ import com.example.droneservicesapp.domain.terrain.MissionOutsideTerrainCoverage
 import com.example.droneservicesapp.domain.terrain.TerrainCoveragePlanner
 import com.example.droneservicesapp.domain.terrain.TerrainPathFailure
 import com.example.droneservicesapp.mavserver.DroneViewModel
-import com.example.droneservicesapp.ui.home.binders.MissionParamsPreferencesBridge
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel.ServiceMissionState
 import com.google.android.gms.maps.model.LatLng

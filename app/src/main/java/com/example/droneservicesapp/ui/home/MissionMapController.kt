@@ -32,7 +32,7 @@ import com.example.droneservicesapp.mavserver.FlightModeCommandState
 import com.example.droneservicesapp.mavserver.FlightModeRequestResult
 import com.example.droneservicesapp.mavserver.TelemetryMapping
 import com.example.droneservicesapp.ui.common.RtkTonePlayer
-import com.example.droneservicesapp.ui.home.binders.MissionParamsPreferencesBridge
+import com.example.droneservicesapp.ui.home.components.MissionParamsPreferencesBridge
 import com.example.droneservicesapp.ui.home.components.DroneMapTrackingController
 import com.example.droneservicesapp.ui.home.components.InitialMapViewportController
 import com.example.droneservicesapp.ui.home.components.MissionEditorCoordinator
@@ -65,6 +65,7 @@ import com.example.droneservicesapp.ui.home.model.HomeMapScreenMode
 import com.example.droneservicesapp.ui.home.model.HomeMapUiState
 import com.example.droneservicesapp.ui.home.model.MissionMapViewModel
 import com.example.droneservicesapp.ui.map.model.MapCamera
+import com.example.droneservicesapp.ui.map.model.MapDownloadHandle
 import com.example.droneservicesapp.ui.map.model.MapGeometry
 import com.example.droneservicesapp.ui.preview.PreviewAssetLoader
 import com.example.droneservicesapp.ui.preview.PreviewAssetStore
@@ -106,6 +107,7 @@ class MissionMapController(
     val workflowPanel = WorkflowPanelState()
     val weather = WeatherPanelState()
     val missionDownload = MissionDownloadState()
+    val offlineDownload = OfflineDownloadState()
     val files = MissionFilesState()
     val preview = PreviewPanelState()
     val safety = SafetyControlsState()
@@ -150,6 +152,10 @@ class MissionMapController(
     )
 
     private var active = false
+    private var offlineDownloadHandle: MapDownloadHandle? = null
+
+    /** Incremented per offline download so late callbacks from a cancelled one are ignored. */
+    private var offlineDownloadGeneration = 0
     private var paramsBound = false
     private var lastParamsLayoutSignature: Triple<Boolean, Boolean, Boolean>? = null
     private var lastScreenMode: HomeMapScreenMode? = null
@@ -235,6 +241,11 @@ class MissionMapController(
 
     fun dispose() {
         if (!active) return
+        // The download runs against this screen's map view, which is about to be released.
+        offlineDownloadGeneration++
+        offlineDownloadHandle?.cancel()
+        offlineDownloadHandle = null
+        offlineDownload.percent = null
         activityViewModel.setShellBottomActionBarVisible(false)
         safety.flightModeOpen = false
         safety.armOpen = false
@@ -536,15 +547,39 @@ class MissionMapController(
             messages.toast(context.getString(R.string.offline_download_area_too_large, tiles, OFFLINE_MAX_TILES), long = true)
             return
         }
+        if (offlineDownloadHandle != null) return // one download at a time; progress is on screen
         messages.toast(R.string.offline_download_started)
-        surface.downloadVisibleRegion(OFFLINE_MIN_ZOOM, OFFLINE_MAX_ZOOM) { errors ->
-            if (!isActive()) return@downloadVisibleRegion
-            messages.toast(
-                if (errors == 0) context.getString(R.string.offline_download_complete)
-                else context.getString(R.string.offline_download_failed, errors),
-                long = true,
-            )
-        }
+        offlineDownload.percent = 0
+        val generation = ++offlineDownloadGeneration
+        offlineDownloadHandle = surface.downloadVisibleRegion(
+            minZoom = OFFLINE_MIN_ZOOM,
+            maxZoom = OFFLINE_MAX_ZOOM,
+            onProgress = { percent ->
+                if (generation == offlineDownloadGeneration && offlineDownload.percent != null) {
+                    offlineDownload.percent = percent
+                }
+            },
+            onComplete = { errors ->
+                if (generation != offlineDownloadGeneration) return@downloadVisibleRegion
+                offlineDownloadHandle = null
+                offlineDownload.percent = null
+                if (!isActive()) return@downloadVisibleRegion
+                messages.toast(
+                    if (errors == 0) context.getString(R.string.offline_download_complete)
+                    else context.getString(R.string.offline_download_failed, errors),
+                    long = true,
+                )
+            },
+        )
+    }
+
+    fun cancelOfflineDownload() {
+        val handle = offlineDownloadHandle ?: return
+        offlineDownloadGeneration++
+        offlineDownloadHandle = null
+        offlineDownload.percent = null
+        handle.cancel()
+        messages.toast(R.string.offline_download_cancelled)
     }
 
     fun centerOnUser() {

@@ -1,31 +1,20 @@
 <resources>
-
-    <style name="Theme.DroneServicesApp" parent="Theme.MaterialComponents.Light.NoActionBar">
+    <style name="Theme.DroneServicesApp" parent="Theme.AppCompat.Light.NoActionBar">
         <item name="android:fontFamily">sans-serif</item>
         <item name="fontFamily">sans-serif</item>
         <item name="colorPrimary">@color/app_light_primary</item>
-        <item name="colorPrimaryVariant">@color/app_light_primary_dark</item>
         <item name="colorPrimaryDark">@color/app_light_primary_dark</item>
-        <item name="colorSecondary">@color/app_light_accent</item>
         <item name="colorAccent">@color/app_light_accent</item>
         <item name="android:colorAccent">@color/app_light_accent</item>
         <item name="android:colorBackground">@color/app_light_background</item>
-        <item name="colorSurface">@color/app_light_surface</item>
         <item name="android:textColorPrimary">@color/app_light_text_primary</item>
         <item name="android:textColorSecondary">@color/app_light_text_secondary</item>
         <item name="android:windowLightStatusBar">true</item>
         <item name="android:statusBarColor">@color/app_light_background</item>
         <item name="android:navigationBarColor">@color/app_light_background</item>
-        <item name="colorOnPrimary">@color/app_light_background</item>
-        <item name="colorOnSurface">@color/app_light_text_primary</item>
-        <item name="colorOnBackground">@color/app_light_text_primary</item>
         <item name="colorControlNormal">@color/app_light_text_primary</item>
-        <item name="editTextStyle">@style/Widget.DroneServices.TextInputEditText</item>
-        <item name="textInputStyle">@style/Widget.DroneServices.TextInputLayout</item>
-        <item name="materialButtonStyle">@style/Widget.DroneServices.Button.Material.Primary</item>
         <item name="alertDialogTheme">@style/Theme.DroneServicesApp.AlertDialog</item>
         <item name="android:alertDialogTheme">@style/Theme.DroneServicesApp.AlertDialog</item>
-        <item name="materialAlertDialogTheme">@style/Theme.DroneServicesApp.AlertDialog</item>
     </style>
 
     <style name="Theme.DroneServicesApp.AlertDialog" parent="ThemeOverlay.AppCompat.Dialog.Alert">

@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.ui.home.binders
+package com.example.droneservicesapp.ui.home.components
 
 import androidx.appcompat.app.AppCompatActivity
 import android.location.Location

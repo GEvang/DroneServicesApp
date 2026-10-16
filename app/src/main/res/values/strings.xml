@@ -1,7 +1,6 @@
 <resources>
     <string name="app_name" translatable="false">DroneServicesApp</string>
 
-
     <string name="menu_maps_home">Map</string>
     <string name="menu_settings">Settings</string>
     <string name="menu_mavlink_network">MAVLink Network</string>
@@ -14,10 +13,8 @@
     <string name="menu_parameters">Parameters</string>
     <string name="parameters_title">Parameters</string>
     <string name="spray_mode_terrain_rangefinder">Small crop</string>
-    <string name="spray_mode_relative_point_cloud">Tree crop</string>
     <string name="spray_mode_point_cloud_validated">Tree crop</string>
     <string name="spray_mode_point_cloud_validating">Checking coverage…</string>
-    <string name="spray_mode_point_cloud_incomplete">Partial coverage — redraw area</string>
     <string name="spray_mode_point_cloud_partial">Partial coverage — redraw area</string>
     <string name="point_cloud_coverage_still_checking">Point-cloud coverage is still being checked. Wait for validation before uploading.</string>
     <string name="point_cloud_partial_coverage_blocked">Mission upload blocked: the selected area has partial point-cloud coverage. Redraw it so the entire area is either inside or outside the point cloud.</string>
@@ -25,16 +22,11 @@
     <string name="point_cloud_path_uncovered">Point-cloud mission blocked: part of the flight path is outside the loaded point cloud or crosses a data gap.</string>
     <string name="point_cloud_path_uncovered_at">Point-cloud mission blocked near %1$.7f, %2$.7f: the flight path leaves the loaded point cloud or crosses a data gap.</string>
     <string name="point_cloud_mission_not_ready">Point-cloud mission blocked: its terrain profile is not ready or could not be validated.</string>
-    <string name="point_cloud_home_position_changed">Point-cloud mission blocked: the drone is %1$.1f m from the home position used to calculate relative altitudes. Set or refresh home and regenerate the mission.</string>
     <string name="point_cloud_service_route_not_validated">Point-cloud mission blocked: a refill corridor no longer matches the validated terrain profile. Regenerate the mission before uploading.</string>
     <string name="mission_summary_point_cloud_clearance">Point-cloud clearance: %1$d m</string>
     <string name="mission_summary_relative_altitude_range">Relative altitude range: %1$.1f–%2$.1f m</string>
     <string name="mission_summary_point_cloud_validated">Point-cloud coverage: complete (spraying path)</string>
     <string name="flight_speed_label">Speed</string>
-    <string name="terrain_source_not_confirmed">Waiting for the vehicle to confirm the required terrain source. Try upload again shortly.</string>
-    <string name="terrain_database_enabling">Terrain mission selected. Enabling the vehicle terrain database and waiting for confirmation. Upload again once confirmed.</string>
-    <string name="terrain_database_unsupported">This vehicle does not provide TERRAIN_ENABLE. Terrain-altitude missions cannot be uploaded; choose Relative altitude or install terrain-capable firmware.</string>
-    <string name="terrain_database_rejected">The vehicle did not confirm TERRAIN_ENABLE. Check the MAVLink link and vehicle firmware, then reconnect and try again.</string>
     <string name="terrain_preparing_source">Preparing SRTM1 terrain for 1 km around the mission…</string>
     <string name="terrain_preparing_tile">Preparing terrain %1$s · %2$d/%3$d tiles</string>
     <string name="terrain_waiting_for_upload">Terrain source ready · uploading mission…</string>
@@ -50,16 +42,10 @@
     <string name="terrain_downloaded">Terrain downloaded · %1$d tiles cached</string>
     <string name="terrain_download_complete">Terrain is cached on this tablet.</string>
     <string name="terrain_download_requires_mission">Draw or generate a mission path before downloading terrain.</string>
-    <string name="parameter_waypoint_rangefinder_label">Use Rangefinder for Terrain Waypoints</string>
-    <string name="parameter_waypoint_rangefinder_helper">When enabled, terrain-relative waypoint navigation uses the rangefinder instead of the terrain database/SRTM.</string>
     <string name="parameter_avoidance_label">Avoidance</string>
     <string name="parameter_avoidance_helper">Turns ArduPilot obstacle-avoidance inputs on or off.</string>
     <string name="parameter_surface_tracking_label">Surface Tracking</string>
-    <string name="parameter_surface_tracking_helper">Uses the rangefinder to follow the detected ground or ceiling in supported flight modes.</string>
     <string name="parameter_surface_tracking_ground_helper">When on, uses the rangefinder to follow the detected ground in supported flight modes.</string>
-    <string name="parameter_surface_tracking_off">Off</string>
-    <string name="parameter_surface_tracking_ground">Ground</string>
-    <string name="parameter_surface_tracking_ceiling">Ceiling</string>
     <string name="parameter_not_supported">Not supported by this firmware</string>
     <string name="parameter_status_disconnected">Connect to a vehicle to read this parameter</string>
     <string name="parameter_status_loading">Reading from vehicle…</string>
@@ -90,15 +76,12 @@
     <string name="preview_mode_map">Map</string>
     <string name="preview_mode_ortho">Ortho</string>
     <string name="preview_mode_3d">3D</string>
-    <string name="preview_mode_next_ortho">Ortho</string>
     <string name="preview_mode_next_3d">3D</string>
     <string name="preview_mode_next_map">Map</string>
     <string name="preview_height_color_mode">Height colors</string>
-    <string name="preview_original_color_mode">Original colors</string>
     <string name="ortho_title">Ortho Preview</string>
     <string name="ortho_load_image">Load .TIF</string>
     <string name="ortho_load_world">Load .TFW</string>
-    <string name="ortho_load_files">Load files</string>
     <string name="ortho_clear">Clear ortho</string>
     <string name="ortho_zoom_to">Zoom to ortho</string>
     <string name="ortho_background">Background</string>
@@ -164,20 +147,12 @@
     <string name="geo_awareness_title">Geo-awareness</string>
     <string name="more_system_status">System status</string>
     <string name="more_internal_tools">Internal tools</string>
-    <string name="more_about_geo">About geo-awareness</string>
-    <string name="more_about_geo_body">Geo-zone datasets help identify restricted or sensitive airspace before mission upload.</string>
     <string name="geo_awareness_subtitle">Airspace and zone awareness</string>
     <string name="geo_awareness_live_status">Live status</string>
-    <string name="geo_awareness_health_section">Health</string>
     <string name="geo_awareness_overlay_section">Zone overlay</string>
     <string name="geo_awareness_dataset_source_section">Dataset source</string>
     <string name="geo_awareness_loaded_datasets_section">Loaded datasets</string>
-    <string name="geo_awareness_dataset_section">Dataset</string>
-    <string name="geo_awareness_validation_section">Dataset validation</string>
-    <string name="geo_awareness_logs_section">Event logs</string>
     <string name="geo_awareness_flight_logs_section">Flight/Event Log</string>
-    <string name="geo_awareness_diagnostics_section">Diagnostics</string>
-    <string name="geo_awareness_notice_section">Notice</string>
     <string name="geo_awareness_show_zones">Show geo-zones on map</string>
     <string name="geo_awareness_current_source_label">Current source:</string>
     <string name="geo_awareness_current_source_none">No dataset loaded</string>
@@ -198,14 +173,11 @@
     <string name="geo_awareness_stale_label">Stale:</string>
     <string name="geo_awareness_yes">Yes</string>
     <string name="geo_awareness_no">No</string>
-    <string name="geo_awareness_view_dataset_details">View dataset details</string>
     <string name="geo_awareness_view_validation_details">View validation details</string>
     <string name="geo_awareness_export_logs">Export logs</string>
     <string name="geo_awareness_export_evidence_package">Export evidence package</string>
     <string name="geo_awareness_view_detailed_logs">View all detailed logs</string>
     <string name="geo_awareness_flight_log_empty">No important flight/operator events recorded yet.</string>
-    <string name="geo_awareness_clear_logs">Clear logs</string>
-    <string name="geo_awareness_internal_section">Internal</string>
     <string name="geo_awareness_internal_logs_notice">Encrypted geo incident logs are available only for internal/debug export.</string>
     <string name="geo_awareness_export_encrypted_incidents">Export encrypted geo incident logs</string>
     <string name="geo_awareness_no_encrypted_incidents">No encrypted geo incident logs are stored on this device yet.</string>
@@ -217,7 +189,6 @@
     <string name="geo_awareness_verification_passed">Passed:</string>
     <string name="geo_awareness_verification_failed">Failed:</string>
     <string name="geo_awareness_verification_blocked">Blocked:</string>
-    <string name="geo_awareness_verification_not_run">Not run:</string>
     <string name="geo_awareness_verification_details">Details</string>
     <string name="geo_awareness_verification_status_not_run">Not Run</string>
     <string name="geo_awareness_verification_status_pass">Pass</string>
@@ -230,10 +201,6 @@
     <string name="geo_awareness_tests_warnings">Warnings:</string>
     <string name="geo_awareness_tests_failed">Failed:</string>
     <string name="geo_awareness_tests_skipped">Skipped:</string>
-    <string name="geo_awareness_dummy_notice">Development-only dummy data. Verify official restrictions in DAGR before flight.</string>
-    <string name="geo_awareness_dataset_label">Dataset:</string>
-    <string name="geo_awareness_version_label">Version:</string>
-    <string name="geo_awareness_zones_label">Zones:</string>
     <string name="geo_awareness_health_label">Geo-awareness status:</string>
     <string name="geo_awareness_live_no_position">No drone position available yet.</string>
     <string name="geo_awareness_live_clear">Drone is not inside any loaded geo-zone.</string>
@@ -244,30 +211,14 @@
     <string name="geo_awareness_validation_ok">OK</string>
     <string name="geo_awareness_validation_warnings">Warnings</string>
     <string name="geo_awareness_validation_errors">Errors</string>
-    <string name="geo_awareness_event_count">Geo-awareness events recorded:</string>
     <string name="geo_awareness_import_success">Geo-zone dataset imported successfully.</string>
     <string name="shell_operator_console">Operator Console</string>
     <string name="shell_open_navigation">Open navigation</string>
     <string name="shell_back">Back</string>
-    <string name="shell_navigation_title">Navigation</string>
-    <string name="shell_telemetry_battery">Battery</string>
-    <string name="shell_telemetry_altitude">Altitude</string>
-    <string name="shell_telemetry_speed">Speed</string>
-    <string name="shell_telemetry_sprayer">Sprayer</string>
-    <string name="shell_telemetry_mission">Mission</string>
     <string name="shell_status_connected">LINK OK</string>
     <string name="shell_status_disconnected">NO LINK</string>
-    <string name="shell_status_gps_placeholder">GPS: --</string>
-    <string name="shell_status_speed_placeholder">SPD: --</string>
-    <string name="shell_status_alt_prefix">ALT:</string>
-    <string name="shell_status_alt_placeholder">ALT: --</string>
     <string name="home_panel_flight_settings">Flight Settings</string>
-    <string name="home_panel_flight_settings_subtitle">Survey geometry and spray profile</string>
-    <string name="home_panel_actions">Mission Actions</string>
-    <string name="home_panel_actions_subtitle">Save, exit, and upload the generated route</string>
-    <string name="home_panel_navigation_title">Navigation</string>
     <string name="home_panel_top_actions">Workflow</string>
-    <string name="home_panel_top_actions_hint">Draw or load a mission from the bottom controls, then refine and upload here.</string>
     <string name="planning">Planning</string>
     <string name="map_dock_operator">Operator</string>
     <string name="map_dock_drone">Drone</string>
@@ -279,8 +230,6 @@
     <string name="relative">Relative</string>
     <string name="terrain">Terrain</string>
     <string name="terrain_altitude_warning">Terrain altitude requires ArduPilot terrain data. Verify terrain status before flight.</string>
-    <string name="preset_dakos">Preset: Dakos</string>
-    <string name="spray_preset_title">Spray preset</string>
     <string name="spray">Spray</string>
     <string name="area">Area</string>
     <string name="points">Points</string>
@@ -305,33 +254,19 @@
     <string name="obstacle_circle_added">Forbidden circle added.</string>
     <string name="obstacle_polygon_requires_points">Place at least 3 forbidden-area points.</string>
     <string name="obstacle_polygon_added">Forbidden polygon added.</string>
-    <string name="add_route_points">Tap Map to Add Points</string>
-    <string name="clear_route">Clear Route</string>
-    <string name="undo_route_point">Undo Last Point</string>
     <string name="tap_map_to_add_points">Tap the map to add route waypoints.</string>
-    <string name="route_summary_default">Route: 0 points</string>
     <string name="route_summary_format">Route: %1$d points</string>
     <string name="survey_waypoint_selected">Waypoint %1$d selected. Tap the map to move it.</string>
     <string name="survey_waypoint_delete">Delete selected waypoint</string>
     <string name="survey_waypoint_cancel">Cancel waypoint edit</string>
     <string name="survey_waypoint_height_decrease">Decrease selected waypoint height</string>
     <string name="survey_waypoint_height_increase">Increase selected waypoint height</string>
-    <string name="survey_waypoint_height_label">Alt %1$.0f m</string>
     <string name="survey_waypoint_deleted">Waypoint deleted</string>
     <string name="simulation_requires_home">Select a home point before simulating the mission.</string>
-    <string name="work_in_progress">Work in progress</string>
-    <string name="home_panel_instruction_title">Instructions</string>
-    <string name="home_panel_mode_title">Mode Select</string>
-    <string name="home_panel_operator_title">Actions</string>
-    <string name="home_avoidance_front">Front avoidance</string>
-    <string name="home_avoidance_back">Rear avoidance</string>
-    <string name="home_avoidance_unknown">-- m</string>
     <string name="home_offline_download">Download current map area for offline use</string>
-
 
     <string name="my_location_button_desc">My Location Button</string>
     <string name="drone_location_button">Drone Location Button</string>
-    <string name="add_home">Add Home</string>
     <string name="set_home">Set Home</string>
     <string name="planned_home_set">Home location set</string>
     <string name="planned_home_requires_disconnected">Add Home is available only when the drone is disconnected</string>
@@ -342,9 +277,7 @@
     <string name="cancel">Cancel</string>
     <string name="decline">Decline</string>
     <string name="confirm">Confirm</string>
-    <string name="clear">Clear</string>
     <string name="upload_mission">Upload Mission</string>
-    <string name="exit">Exit</string>
     <string name="flight_altitude">Height above terrain</string>
     <string name="takeoff_height">Takeoff height</string>
     <string name="line_distance">Strip Spacing</string>
@@ -360,18 +293,14 @@
     <string name="mavlink_bridge_host_pref" translatable="false">mavQgcBridgeHost</string>
     <string name="mavlink_bridge_port_pref" translatable="false">mavQgcBridgePort</string>
     <string name="mavlink_gcs_system_id_pref" translatable="false">mavGcsSystemId</string>
-    <string name="mavlink_target_host_title">MAVLink Target IP (blank for auto)</string>
-    <string name="mavlink_target_port_title">MAVLink Target Port</string>
     <string name="mavlink_local_port_title">Local UDP listening port</string>
     <string name="mavlink_aircraft_host_title">MAVLink target IP address</string>
     <string name="mavlink_aircraft_port_title">MAVLink target port</string>
     <string name="mavlink_gcs_system_id_title">Ground station system ID</string>
     <string name="mavlink_bridge_section_title">QGroundControl Bridge</string>
-    <string name="mavlink_bridge_description">Bidirectionally forwards MAVLink between the aircraft radio and QGroundControl while keeping this app connected. The aircraft and QGC must use different IP addresses.</string>
     <string name="mavlink_bridge_enabled_title">Enable QGC bridge</string>
     <string name="mavlink_qgc_host_title">QGroundControl IP address</string>
     <string name="mavlink_qgc_port_title">QGroundControl UDP port</string>
-    <string name="mavlink_blank_auto_hint">blank = auto</string>
     <string name="mavlink_auto_value">Auto</string>
     <string name="mavlink_required_value">Required for TCP</string>
     <string name="mavlink_invalid_port">Enter a UDP port from 1 to 65535</string>
@@ -391,7 +320,6 @@
     <string name="more_this_app">This app</string>
     <string name="more_qgroundcontrol" translatable="false">QGroundControl</string>
     <string name="mission_operation_mode_pref" translatable="false">missionOperationMode</string>
-    <string name="mission_operation_settings_title">Mission Type</string>
     <string name="mission_operation_mode_title">Operation Mode</string>
     <string name="mission_operation_mode_survey">Surveying</string>
     <string name="mission_operation_mode_spray">Spraying</string>
@@ -408,29 +336,17 @@
     <string name="survey_grid_angle_pref" translatable="false">surveyGridAngle</string>
     <string name="survey_terrain_segment_pref" translatable="false">surveyTerrainSegment</string>
     <string name="survey_canopy_smoothing_pref" translatable="false">surveyCanopySmoothing</string>
-    <string name="language_pref" translatable="false">language_pref</string>
 
     <string name="nav_header_desc" translatable="false">Drone Services Sprayer Application</string>
     <string name="no_conn_msg">No Drone Connected!!!</string>
     <string name="wrong_schema_msg">Flight area must have at least 3 edges!!!</string>
     <string name="invalid_location_permissions">Location could not be obtained due to invalid Location Permissions.</string>
-    <string name="area_too_big_msg">Area too big for survey missions!!!</string>
-    <string name="select_alt_msg">Select altitude first!</string>
-    <string name="con_interface_cat_pref" translatable="false">connInterfaceCategory</string>
-    <string name="rtk_port_pref" translatable="false">rtkPort</string>
-    <string name="rtk_mountpoint_pref" translatable="false">rtkMountpoint</string>
-    <string name="rtk_username_pref" translatable="false">rtkUsername</string>
-    <string name="rtk_password_pref" translatable="false">rtkPassword</string>
-    <string name="drone_con_props_title_pref">Drone Connection Properties</string>
-    <string name="rtk">RTK</string>
     <string name="rtk_title">RTK</string>
     <string name="rtk_subtitle">Configure caster access and monitor live correction flow</string>
     <string name="rtk_caster_access">Caster access</string>
     <string name="rtk_caster_access_subtitle">Enter your NTRIP caster credentials</string>
     <string name="rtk_connection_status">Connection status</string>
     <string name="rtk_gps_diagnostics">GPS diagnostics</string>
-    <string name="rtk_console_subtitle">Configure caster access and monitor live correction flow.</string>
-    <string name="rtk_connection_section_title">Caster Access</string>
     <string name="rtk_ip">IP</string>
     <string name="rtk_port">Port</string>
     <string name="rtk_mountpoint">Mountpoint</string>
@@ -438,17 +354,13 @@
     <string name="rtk_password">Password</string>
     <string name="rtk_fetch_mountpoints">Fetch Mountpoints</string>
     <string name="rtk_test_connection">Test RTK Connection</string>
-    <string name="rtk_start">Start RTK</string>
-    <string name="rtk_stop">Stop RTK</string>
     <string name="rtk_status">RTK Status</string>
     <string name="rtk_forwarding_status">Forwarding Status</string>
-    <string name="rtk_gps_debug_status">ArduPilot GPS Debug</string>
     <string name="rtk_gps_debug_default">Fix: -- | Sats: -- | Last GPS: --</string>
     <string name="rtk_base_coordinates">RTK Base Coordinates</string>
     <string name="rtk_base_coordinates_unknown">Not available</string>
     <string name="rtk_base_coordinates_format">Lat: %1$s, Lon: %2$s</string>
     <string name="rtk_gps_debug_summary">Src: %1$s | Fix: %2$s | Sats: %3$s | HDOP: %4$s | EPH: %5$s | Last GPS: %6$s</string>
-    <string name="rtk_keep_awake_hint">RTK auto-runs when mountpoint, internet, drone, and GPS prerequisites are ready. This screen stays awake while open.</string>
     <string name="rtk_keep_alive_notification_title">RTK forwarding active</string>
     <string name="rtk_keep_alive_notification_active">Keeping RTK streaming alive while the device is locked.</string>
     <string name="rtk_keep_alive_notification_idle">RTK keep-alive is waiting for connection or target.</string>
@@ -485,16 +397,9 @@
     <string name="rtk_port_invalid">Port must be a number between 1 and 65535</string>
     <string name="language">Language</string>
     <string name="drone_conn_interface_pref">Drone Connection Interface</string>
-    <string name="drone_tcpudp_port_pref">Port</string>
     <string name="locales_categ_pref">Localization Options</string>
-    <string name="unknown_percentage" translatable="false">\?%</string>
-    <string name="unknown_value" translatable="false">\?</string>
-    <string name="sprayer_intensity">Sprayer Intensity</string>
-    <string name="spray_liters">Liters</string>
     <string name="spray_flow_rate">Spray flow</string>
     <string name="liters_per_minute_unit" translatable="false">Lt/min</string>
-    <string name="liters_unit" translatable="false">L</string>
-    <string name="liters_short">L</string>
     <string name="simulate_mission_path">Simulate path</string>
     <string name="weather">Weather</string>
     <string name="weather_loading">Updating…</string>
@@ -527,27 +432,18 @@
     <string name="debug_diagnostics_exported">Saved: %1$s</string>
     <string name="debug_diagnostics_export_failed">Export failed: %1$s</string>
     <string name="debug_sprayer_pwm">Servo 5 PWM</string>
-    <string name="debug_sprayer_pwm_1000">1000</string>
-    <string name="debug_sprayer_pwm_1500">1500</string>
-    <string name="debug_sprayer_pwm_2000">2000</string>
-    <string name="debug_sprayer_pwm_2200">2200</string>
     <string name="debug_sprayer_command_sent">Servo 5 set to %1$d</string>
     <string name="debug_sprayer_drone_value">Drone servo 5: %1$d</string>
     <string name="debug_sprayer_drone_value_unknown">Drone servo 5: --</string>
-    <string name="unknown_value_three_questionmarks" translatable="false">\???</string>
     <string name="percentage_symbol" translatable="false">%</string>
     <string name="m" translatable="false">m</string>
     <string name="degrees" translatable="false">°</string>
-    <string name="action_failed">Could not perform the requested action!</string>
-    <string name="flight_time">Mission Speed - Time</string>
     <string name="meters_per_second" translatable="false">m/s</string>
-    <string name="mins" translatable="false">mins</string>
     <string name="flight_speed_pref" translatable="false">flight_speed_pref</string>
     <string name="disarmed">DISARMED</string>
     <string name="armed">ARMED</string>
     <string name="save">Save</string>
     <string name="name">Name:</string>
-    <string name="enter_text">Enter file name</string>
     <string name="waypoints" translatable="false">.waypoints</string>
     <string name="error_name_empty">Filename cannot be empty!!!</string>
     <string name="file_already_exists">File already exists</string>
@@ -576,6 +472,8 @@
     <string name="offline_download_complete">Offline download complete</string>
     <string name="offline_download_failed">Offline download failed (%1$d)</string>
     <string name="offline_download_area_too_large">This area needs about %1$d map tiles. Zoom in so it needs at most %2$d, then download again.</string>
+    <string name="offline_download_progress">Downloading map area… %1$d%%</string>
+    <string name="offline_download_cancelled">Offline download cancelled</string>
     <string name="cache_directory_not_found">Cache directory not found</string>
     <string name="offline_map_cache_cleared">Offline map cache cleared</string>
     <string name="failed_to_clear_cache">Failed to clear cache (some files may be locked)</string>
@@ -588,7 +486,6 @@
     <string name="survey_canopy_smoothing">Canopy smoothing</string>
     <string name="flight_mode_short_label">Mode</string>
     <string name="flight_mode_selector_title">Select flight mode</string>
-    <string name="flight_mode_current_unknown">Current mode unavailable</string>
     <string name="flight_mode_current_format">Current · %1$s</string>
     <string name="flight_mode_safety_actions">Safety actions · hold to confirm</string>
     <string name="flight_mode_card_description">Flight mode: %1$s. Tap to change.</string>
@@ -615,12 +512,7 @@
     <string name="top_status_no_gps">No GPS</string>
     <string name="top_status_gps_details">Sat %1$s · HDOP %2$s · VDOP %3$s</string>
     <string name="top_status_gps_details_unknown">Sat -- · HDOP -- · VDOP --</string>
-    <string name="top_status_rtk_disconnected">RTK Mountpoint: Not connected</string>
-    <string name="top_status_speed_placeholder" translatable="false">0.0 m/s</string>
-    <string name="top_status_altitude_placeholder" translatable="false">-- m</string>
-    <string name="top_status_battery_placeholder" translatable="false">--.-V --%</string>
     <string name="top_status_live_geo">Live geo</string>
-    <string name="top_status_unknown">Unknown</string>
     <string name="arm_slider_title">Arm aircraft</string>
     <string name="arm_slider_instruction">Slide fully to the right to arm</string>
     <string name="arm_slider_track_label">Slide to arm</string>
@@ -685,7 +577,6 @@
     <string name="settings_map_labels_description">Show city, village, and boundary names over map imagery</string>
     <string name="settings_cached_offline_maps">Cached offline maps</string>
     <string name="settings_clear_offline_cache">Clear offline map cache</string>
-    <string name="settings_clear_offline_cache_description">Deletes downloaded tiles from this device</string>
     <string name="settings_no_dataset_loaded">No dataset loaded</string>
     <string name="settings_no_update_recorded">No update recorded</string>
     <string name="settings_unavailable">Unavailable</string>
@@ -699,25 +590,7 @@
     <string name="settings_not_specified">not specified</string>
     <string name="settings_scope_format">Countries: %1$s | Zones: %2$d | %3$s%4$s</string>
     <plurals name="settings_dataset_count"><item quantity="one"> dataset</item><item quantity="other"> datasets</item></plurals>
-    <string name="geo_status_unknown_placeholder">Status: Unknown</string>
-    <string name="live_geo_no_position_short">Live geo: no position</string>
-    <string name="geo_current_source_placeholder">Current source: --</string>
-    <string name="geo_loaded_datasets_placeholder">Loaded datasets: 0</string>
-    <string name="geo_total_zones_placeholder">Total zones: 0</string>
-    <string name="geo_total_validation_placeholder">Validation errors/warnings: 0 / 0</string>
-    <string name="geo_validation_ok_placeholder">Validation: OK</string>
-    <string name="geo_events_placeholder">Events: --</string>
     <string name="geo_loading_dataset">Loading dataset…</string>
-    <string name="obstacle_radius_default">Radius: 10 m</string>
-    <string name="live_geo_title">LIVE GEO</string>
-    <string name="live_geo_clear">CLEAR</string>
-    <string name="compass_north_short">N</string>
-    <string name="compass_east_short">E</string>
-    <string name="compass_south_short">S</string>
-    <string name="compass_west_short">W</string>
-    <string name="live_geo_horizontal_unknown">H --</string>
-    <string name="live_geo_vertical_unknown">V --</string>
-    <string name="live_geo_more_placeholder">+0 more</string>
     <string name="telemetry_uploading">Uploading %1$d%%</string>
     <string name="mission_downloading_from_drone">Downloading mission from drone %1$d%%</string>
     <string name="gps_fix_2d">2D Lock</string>
@@ -774,7 +647,6 @@
     <string name="geo_health_unavailable">Geo-awareness data is unavailable. Continuing will bypass geo-awareness protection.</string>
     <string name="geo_health_available">Geo-awareness data is available.</string>
     <string name="geo_zones_at_location">Geo-zones at this location</string>
-    <string name="geo_validation_status">Validation: %1$s</string>
     <string name="geo_validation_counts">Errors: %1$d  Warnings: %2$d  Info: %3$d</string>
     <string name="geo_reset_checklist_question">Reset all verification checklist statuses to Not Run?</string>
     <string name="geo_reset">Reset</string>
@@ -786,23 +658,18 @@
     <string name="geo_remove_one_title">Remove geo-zone dataset?</string>
     <string name="geo_remove_one_message">Remove %1$s from active geo-awareness datasets?</string>
     <string name="geo_status_refreshed">Geo-awareness status refreshed</string>
-    <string name="live_geo_more">+%1$d more</string>
     <string name="live_geo_degraded">DEGRADED</string>
     <string name="continue_action">Continue</string>
     <string name="geo_source">Source: %1$s</string>
     <string name="geo_actions">Actions</string>
-    <string name="geo_current_status">Current status: %1$s</string>
-    <string name="geo_verification_status">Status: %1$s</string>
     <string name="geo_verification_purpose">Purpose</string>
     <string name="geo_verification_preconditions">Preconditions</string>
     <string name="geo_verification_steps">Steps</string>
     <string name="geo_verification_expected">Expected result</string>
     <string name="geo_verification_evidence">Evidence to capture</string>
-    <string name="geo_none">None</string>
     <string name="geo_remove_failed">Remove failed</string>
     <string name="geo_remove_all_failed">Failed to remove imported datasets.</string>
     <string name="geo_remove_one_failed">Failed to remove imported dataset.</string>
-    <string name="geo_refreshing">Refreshing geo-zone status…</string>
     <string name="geo_refresh_failed">Refresh failed</string>
     <string name="geo_refresh_failed_message">Failed to refresh dataset status.</string>
     <string name="geo_import_size_limit">Selected file exceeds the 5 MB import limit.</string>
@@ -817,8 +684,6 @@
     <string name="live_geo_unknown_status">UNKNOWN</string>
     <string name="live_geo_inside_short">IN</string>
     <string name="live_geo_horizontal_inside">H: IN</string>
-    <string name="live_geo_horizontal_placeholder">H: --</string>
-    <string name="live_geo_vertical_placeholder">V: --</string>
     <string name="geo_restriction_prohibited">PROHIBITED</string>
     <string name="geo_restriction_authorization">AUTH REQUIRED</string>
     <string name="geo_restriction_conditional">CONDITIONAL</string>

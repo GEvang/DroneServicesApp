@@ -64,6 +64,11 @@ class WeatherPanelState {
     var wind by mutableStateOf<WindWeather?>(null)
 }
 
+/** Offline map-area download progress chip (0–100); null when no download is running. */
+class OfflineDownloadState {
+    var percent by mutableStateOf<Int?>(null)
+}
+
 /** Mission download (from aircraft) progress chip; null when idle. */
 class MissionDownloadState {
     var percent by mutableStateOf<Int?>(null)

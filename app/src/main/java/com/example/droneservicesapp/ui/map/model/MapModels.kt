@@ -216,5 +216,21 @@ interface MapSurfaceHandle {
 
     /** The visible area, or null before layout or when it wraps the antimeridian. */
     fun visibleBounds(): MapBounds?
-    fun downloadVisibleRegion(minZoom: Int, maxZoom: Int, onComplete: (errorCount: Int) -> Unit)
+
+    /**
+     * Downloads the visible area for offline use. [onProgress] reports 0–100 across all map layers
+     * on the main thread; [onComplete] reports the number of failed tiles. Cancelling through the
+     * returned handle stops the download without calling [onComplete].
+     */
+    fun downloadVisibleRegion(
+        minZoom: Int,
+        maxZoom: Int,
+        onProgress: (percent: Int) -> Unit,
+        onComplete: (errorCount: Int) -> Unit,
+    ): MapDownloadHandle
+}
+
+/** A running offline download. */
+fun interface MapDownloadHandle {
+    fun cancel()
 }

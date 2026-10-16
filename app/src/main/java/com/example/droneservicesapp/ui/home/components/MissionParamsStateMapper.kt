@@ -1,4 +1,4 @@
-package com.example.droneservicesapp.ui.home.binders
+package com.example.droneservicesapp.ui.home.components
 
 import com.example.droneservicesapp.domain.model.PlanningOperationMode
 import com.example.droneservicesapp.ui.home.model.MissionParamsUiState

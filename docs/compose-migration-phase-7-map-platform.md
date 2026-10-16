@@ -35,6 +35,10 @@ view models directly. Both pre-date the migration.
   operator to zoom in. A full landscape view at zoom 14 (~12,000 tiles) is allowed; zoom 13
   (~53,000) is not. This prevents multi-hour downloads and stops one oversized download from
   evicting previously saved offline areas when the cache trims.
+- Progress is shown in Compose: a chip on the map with a percentage across imagery and labels and
+  a Cancel button. osmdroid's own View progress dialog (`downloadAreaAsync`) is no longer used;
+  the download runs through `downloadAreaAsyncNoUI` and `OfflineDownloadProgress` combines the
+  per-layer tile counts. Leaving Home cancels a running download, since it is tied to that map.
 - Offline display needs no special mode: osmdroid serves cached tiles when the network is absent.
 
 ## Performance with realistic mission data
@@ -49,7 +53,8 @@ view models directly. Both pre-date the migration.
 
 ## Device checklist (cannot be automated here)
 
-1. **Offline area:** online, frame a field at zoom ~15, tap Offline; wait for "complete".
+1. **Offline area:** online, frame a field at zoom ~15, tap Offline; the progress chip counts to
+   100% and "complete" appears. Repeat and tap Cancel: the chip disappears with "cancelled".
 2. **Guard:** zoom out to ~13, tap Offline; expect the "zoom in" message and no download.
 3. **Offline use:** enable airplane mode, restart the app, open that field at zoom 14–18;
    imagery and labels must appear. Areas outside it show the empty tile background.

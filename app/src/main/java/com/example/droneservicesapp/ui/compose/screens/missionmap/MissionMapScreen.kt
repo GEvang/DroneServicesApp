@@ -181,6 +181,7 @@ fun MissionMapScreen(
                 ) {
                     if (controller.weather.visible) WeatherPanel(controller.weather)
                     controller.missionDownload.percent?.let { MissionDownloadChip(it) }
+                    controller.offlineDownload.percent?.let { OfflineDownloadChip(it, controller::cancelOfflineDownload) }
                 }
 
                 if (shell.isLeftPanelVisible) {

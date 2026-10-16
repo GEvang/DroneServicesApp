@@ -1,4 +1,0 @@
-<resources>
-    <string name="parameters_subtitle">Configure supported aircraft behavior parameters</string>
-    <string name="debug_subtitle">Vehicle diagnostics and engineering controls</string>
-</resources>

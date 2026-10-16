@@ -46,6 +46,8 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.maps.android.SphericalUtil
 import kotlin.math.PI
 
+const val OFFLINE_DOWNLOAD_CHIP_TAG = "mission-map-offline-download"
+const val OFFLINE_DOWNLOAD_CANCEL_TAG = "mission-map-offline-download-cancel"
 const val MISSION_WORKFLOW_PANEL_TAG = "mission-map-workflow-panel"
 const val MISSION_OBSTACLE_PANEL_TAG = "mission-map-obstacle-panel"
 const val MISSION_UPLOAD_BUTTON_TAG = "mission-map-upload-button"
@@ -357,6 +359,37 @@ internal fun MissionDownloadChip(percent: Int, modifier: Modifier = Modifier) {
                 trackColor = MapChrome.sliderPill,
             )
             Text(stringResource(R.string.mission_downloading_from_drone, percent), color = MapChrome.textPrimary, fontSize = 12.sp)
+        }
+    }
+}
+
+/** Offline map-area download progress, with Cancel (replaces osmdroid's own progress dialog). */
+@Composable
+internal fun OfflineDownloadChip(percent: Int, onCancel: () -> Unit, modifier: Modifier = Modifier) {
+    MapOverlayPanel(
+        modifier = modifier.testTag(OFFLINE_DOWNLOAD_CHIP_TAG),
+        shape = MapChrome.overlayCardShape,
+        color = MapChrome.overlay,
+        border = MapChrome.shellStroke,
+        contentPadding = 6.dp,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LinearProgressIndicator(
+                progress = { percent / 100f },
+                modifier = Modifier
+                    .padding(start = 4.dp)
+                    .width(72.dp)
+                    .height(4.dp),
+                color = MapChrome.active,
+                trackColor = MapChrome.sliderPill,
+            )
+            Text(stringResource(R.string.offline_download_progress, percent), color = MapChrome.textPrimary, fontSize = 12.sp)
+            MapPanelButton(
+                text = stringResource(R.string.cancel),
+                onClick = onCancel,
+                height = 30.dp,
+                modifier = Modifier.testTag(OFFLINE_DOWNLOAD_CANCEL_TAG),
+            )
         }
     }
 }

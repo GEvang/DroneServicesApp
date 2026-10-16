@@ -33,7 +33,7 @@ import com.example.droneservicesapp.domain.terrain.PointCloudCoverage
 import com.example.droneservicesapp.domain.terrain.TerrainCoveragePlanner
 import com.example.droneservicesapp.mavserver.DroneViewModel
 import com.example.droneservicesapp.mavserver.TerrainProvisioningState
-import com.example.droneservicesapp.ui.home.binders.MissionParamsStateMapper
+import com.example.droneservicesapp.ui.home.components.MissionParamsStateMapper
 import com.example.droneservicesapp.ui.home.model.MissionParamsPresentation
 import com.example.droneservicesapp.ui.home.model.MissionParamsPresenter
 import com.example.droneservicesapp.ui.shell.model.MainActivityViewModel

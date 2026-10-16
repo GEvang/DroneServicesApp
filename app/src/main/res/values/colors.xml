@@ -4,72 +4,32 @@
     <color name="app_light_primary_dark">#000000</color>
     <color name="app_light_accent">#00A86B</color>
     <color name="app_light_background">#FFFFFF</color>
-    <color name="app_light_surface">#FFFFFF</color>
     <color name="app_light_text_primary">#212121</color>
     <color name="app_light_text_secondary">#555555</color>
 
     <!-- Base dark -->
     <color name="bg">#0B0B0D</color>
-    <color name="surface">#121216</color>
-    <color name="surface_2">#17171D</color>
 
     <!-- Text -->
     <color name="text_primary">#F2F2F3</color>
-    <color name="text_secondary">#A7A7AD</color>
-
-    <!-- Legacy accent values retained for compatibility -->
-    <color name="accent_gold">#D1B15C</color>
-    <color name="accent_gold_dim">#9C8343</color>
-
-    <!-- Strokes / dividers -->
-    <color name="stroke_subtle">#2A2A31</color>
 
     <!-- Helpful extras -->
-    <color name="fab_bg">@color/surface_2</color>
     <color name="icon_on_dark">@color/text_primary</color>
-    <color name="icon_on_gold">#141416</color>
 
     <color name="slider_active">#29DCD0</color>
     <color name="slider_inactive">#2A2F35</color>     <!-- dark track -->
     <color name="slider_thumb">#FFFFFF</color>        <!-- white knob -->
-    <color name="slider_pill_bg">#1F2328</color>      <!-- pill container -->
-    <color name="slider_end_btn_bg">#2B3036</color>   <!-- +/- button bg -->
 
     <!-- Semantic design tokens -->
     <color name="ds_color_background">@color/bg</color>
-    <color name="ds_color_surface_primary">@color/surface</color>
-    <color name="ds_color_surface_secondary">@color/surface_2</color>
-    <color name="ds_color_surface_tertiary">@color/slider_pill_bg</color>
     <color name="ds_color_text_primary">@color/text_primary</color>
-    <color name="ds_color_text_secondary">@color/text_secondary</color>
-    <color name="ds_color_accent">@color/ds_color_shell_active</color>
-    <color name="ds_color_accent_dim">@color/ds_color_shell_active_dim</color>
-    <color name="ds_color_stroke">@color/stroke_subtle</color>
     <color name="ds_color_button_on_accent">#071314</color>
-    <color name="ds_color_button_on_surface">@color/text_primary</color>
-    <color name="ds_color_control_pill">@color/slider_pill_bg</color>
-    <color name="ds_color_control_neutral">@color/slider_end_btn_bg</color>
-    <color name="ds_color_shell_scrim">#990B0B0D</color>
-    <color name="ds_color_surface_elevated">#1B1B22</color>
-    <color name="ds_color_shell_overlay">#D00A1117</color>
-    <color name="ds_color_shell_overlay_strong">#E6091117</color>
-    <color name="ds_color_shell_stroke">#3DFFFFFF</color>
     <color name="ds_color_shell_active">#29E6DA</color>
     <color name="ds_color_shell_active_dim">#22BDB5</color>
     <color name="ds_color_shell_warning">#E4A640</color>
     <color name="ds_color_shell_danger">#FF5B5B</color>
-    <color name="ds_color_shell_selected_surface">#2929E6DA</color>
-    <color name="ds_color_shell_selected_content">#29E6DA</color>
     <color name="ds_color_shell_unselected">#C9D0D6</color>
-    <color name="ds_color_flight_trace">#46F29C</color>
-    <color name="terrain_purple">#9C6BFF</color>
-    <color name="terrain_purple_track">#359C6BFF</color>
 
-    <color name="gps_no_fix_red">#FF5B5B</color>
     <color name="gps_2d_orange">#F2994A</color>
-    <color name="gps_3d_neutral">#F2F2F3</color>
-    <color name="gps_dgps_blue">#4DD4FF</color>
-    <color name="gps_rtk_float_amber">#FFD166</color>
-    <color name="gps_rtk_fixed_green">#46F29C</color>
     <color name="gps_unknown_gray">#9EA4AA</color>
 </resources>

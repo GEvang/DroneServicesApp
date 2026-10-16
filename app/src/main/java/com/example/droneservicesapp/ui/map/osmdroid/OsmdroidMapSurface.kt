@@ -21,6 +21,7 @@ import com.example.droneservicesapp.ui.map.model.MapBounds
 import com.example.droneservicesapp.ui.map.model.MapCamera
 import com.example.droneservicesapp.ui.map.model.MapCameraCommand
 import com.example.droneservicesapp.ui.map.model.MapCoordinate
+import com.example.droneservicesapp.ui.map.model.MapDownloadHandle
 import com.example.droneservicesapp.ui.map.model.MapInteractionHandlers
 import com.example.droneservicesapp.ui.map.model.MapMarkerAnchor
 import com.example.droneservicesapp.ui.map.model.MapMarkerDragMode
@@ -294,9 +295,15 @@ private class OsmdroidSceneHost(
         }.getOrNull()
     }
 
-    override fun downloadVisibleRegion(minZoom: Int, maxZoom: Int, onComplete: (errorCount: Int) -> Unit) {
-        OsmdroidOfflineRegionDownloader(map.context, map, layers)
-            .downloadVisibleRegion(minZoom, maxZoom) { result -> onComplete(result.errors) }
+    override fun downloadVisibleRegion(
+        minZoom: Int,
+        maxZoom: Int,
+        onProgress: (percent: Int) -> Unit,
+        onComplete: (errorCount: Int) -> Unit,
+    ): MapDownloadHandle {
+        val cancel = OsmdroidOfflineRegionDownloader(map.context, map, layers)
+            .downloadVisibleRegion(minZoom, maxZoom, onProgress) { result -> onComplete(result.errors) }
+        return MapDownloadHandle { cancel() }
     }
 
     // Reconciliation

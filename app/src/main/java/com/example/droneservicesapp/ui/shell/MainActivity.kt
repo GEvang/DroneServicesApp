@@ -24,7 +24,7 @@ import com.example.droneservicesapp.ui.compose.navigation.ProductionDestinationC
 import com.example.droneservicesapp.ui.compose.navigation.ShellNavigationViewModel
 import com.example.droneservicesapp.ui.compose.navigation.ShellNavigator
 import com.example.droneservicesapp.ui.compose.theme.DroneServicesTheme
-import com.example.droneservicesapp.ui.home.binders.HomeTelemetryCoordinator
+import com.example.droneservicesapp.ui.home.components.HomeTelemetryCoordinator
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryUiState
 import com.example.droneservicesapp.ui.home.model.HomeTelemetryViewModel
 import com.example.droneservicesapp.ui.preview.PreviewAssetsViewModel
